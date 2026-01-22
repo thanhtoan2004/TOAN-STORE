@@ -1,0 +1,8 @@
+.next
+dist
+node_modules
+*.lock
+
+
+
+
