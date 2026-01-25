@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import Header from "@/components/layout/Header";
-import Footer from "@/components/layout/Footer";
+import RootLayoutWrapper from "@/components/RootLayoutWrapper";
 import { AuthProvider } from "@/contexts/AuthContext";
 
 import { CartProvider } from "@/contexts/CartContext";
@@ -29,9 +28,9 @@ export default function RootLayout({
         <AuthProvider>
           <CartProvider>
             <WishlistProvider>
-              <Header />
-              <main>{children}</main>
-              <Footer />
+              <RootLayoutWrapper>
+                {children}
+              </RootLayoutWrapper>
             </WishlistProvider>
           </CartProvider>
         </AuthProvider>

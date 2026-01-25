@@ -43,13 +43,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const checkAuth = async () => {
       try {
-        const response = await fetch('/api/auth/me');
+        const response = await fetch('/api/auth/me', {
+          cache: 'no-store',
+        });
         if (response.ok) {
           const data = await response.json();
           setUser(data.user);
+        } else {
+          setUser(null);
         }
       } catch (error) {
         console.error('Lỗi kiểm tra xác thực:', error);
+        setUser(null);
       } finally {
         setLoading(false);
       }

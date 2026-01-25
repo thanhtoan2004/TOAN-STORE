@@ -1,9 +1,7 @@
 'use client';
 
-import { usePathname, useRouter } from 'next/navigation';
+import { usePathname } from 'next/navigation';
 import Link from 'next/link';
-import { useAuth } from '@/contexts/AuthContext';
-import { useEffect } from 'react';
 
 interface AdminLayoutProps {
   children: React.ReactNode;
@@ -11,38 +9,20 @@ interface AdminLayoutProps {
 
 export default function AdminLayout({ children }: AdminLayoutProps) {
   const pathname = usePathname();
-  const router = useRouter();
-  const { user, loading } = useAuth();
-
-  useEffect(() => {
-    if (!loading && (!user || !user.is_admin)) {
-      router.push('/admin/login');
-    }
-  }, [user, loading, router]);
-
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
-          <p className="mt-2 text-gray-600">Loading...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (!user || !user.is_admin) {
-    return null;
-  }
 
   const navigation = [
-    { name: 'Dashboard', href: '/admin/dashboard', icon: '📊' },
-    { name: 'Products', href: '/admin/products', icon: '🛍️' },
-    { name: 'Orders', href: '/admin/orders', icon: '📦' },
-    { name: 'Users', href: '/admin/users', icon: '👥' },
-    { name: 'Reviews', href: '/admin/reviews', icon: '⭐' },
-    { name: 'Coupons', href: '/admin/coupons', icon: '🎟️' },
-    { name: 'Banners', href: '/admin/banners', icon: '🖼️' },
+    { name: 'Dashboard', href: '/admin/dashboard' },
+    { name: 'Products', href: '/admin/products' },
+    { name: 'Categories', href: '/admin/categories' },
+    { name: 'Inventory', href: '/admin/inventory' },
+    { name: 'Orders', href: '/admin/orders' },
+    { name: 'Users', href: '/admin/users' },
+    { name: 'Reviews', href: '/admin/reviews' },
+    { name: 'Gift Cards', href: '/admin/gift-cards' },
+    { name: 'Contact', href: '/admin/contact' },
+    { name: 'Coupons', href: '/admin/coupons' },
+    { name: 'Banners', href: '/admin/banners' },
+    { name: 'Settings', href: '/admin/settings' },
   ];
 
   return (
@@ -54,41 +34,31 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
             Nike Admin
           </Link>
         </div>
-        <nav className="mt-8">
+        <nav className="mt-8 space-y-2">
           {navigation.map((item) => {
             const isActive = pathname === item.href;
             return (
               <Link
                 key={item.name}
                 href={item.href}
-                className={`flex items-center px-6 py-3 text-sm font-medium transition-colors ${
+                className={`block px-6 py-3 text-sm font-medium transition-colors ${
                   isActive
                     ? 'bg-gray-900 text-white border-l-4 border-white'
                     : 'text-gray-300 hover:bg-gray-900 hover:text-white'
                 }`}
               >
-                <span className="mr-3 text-lg">{item.icon}</span>
                 {item.name}
               </Link>
             );
           })}
         </nav>
         <div className="absolute bottom-0 left-0 right-0 p-6 border-t border-gray-800">
-          <div className="flex items-center">
-            <div className="w-8 h-8 rounded-full bg-gray-700 flex items-center justify-center">
-              {user.firstName?.[0]?.toUpperCase() || 'A'}
-            </div>
-            <div className="ml-3 flex-1">
-              <p className="text-sm font-medium">{user.firstName} {user.lastName}</p>
-              <p className="text-xs text-gray-400">{user.email}</p>
-            </div>
-          </div>
           <button
             onClick={() => {
               fetch('/api/auth/logout', { method: 'POST' });
-              router.push('/admin/login');
+              window.location.href = '/admin/login';
             }}
-            className="mt-4 w-full px-4 py-2 text-sm bg-gray-800 hover:bg-gray-700 rounded-md transition-colors"
+            className="w-full px-4 py-2 text-sm bg-red-600 hover:bg-red-700 rounded-md transition-colors"
           >
             Logout
           </button>

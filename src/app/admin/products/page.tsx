@@ -198,10 +198,10 @@ export default function AdminProductsPage() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm text-gray-900">
-                          ${(product.base_price || 0).toFixed(2)}
+                          ${(Number(product.base_price) || 0).toFixed(2)}
                           {product.retail_price && product.retail_price !== product.base_price && (
                             <span className="ml-2 text-xs text-gray-500 line-through">
-                              ${product.retail_price.toFixed(2)}
+                              ${(Number(product.retail_price) || 0).toFixed(2)}
                             </span>
                           )}
                         </div>

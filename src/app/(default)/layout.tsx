@@ -6,9 +6,5 @@ export default function DefaultLayout({
 }: {
   children: React.ReactNode;
 }) {
-  return (
-    <>
-      <main>{children}</main>
-    </>
-  );
+  return <>{children}</>;
 }

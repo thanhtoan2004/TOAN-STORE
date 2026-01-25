@@ -20,14 +20,39 @@ export async function GET(request: NextRequest) {
     const page = parseInt(searchParams.get('page') || '1');
     const limit = parseInt(searchParams.get('limit') || '20');
     const offset = (page - 1) * limit;
+    const status = searchParams.get('status');
+    const search = searchParams.get('search');
 
-    const data = await executeQuery(
-      `SELECT id, card_number, pin, initial_balance, current_balance, status, expires_at, created_at 
-       FROM gift_cards ORDER BY created_at DESC LIMIT ? OFFSET ?`,
-      [limit, offset]
-    ) as any[];
+    let query = 'SELECT * FROM contact_messages WHERE 1=1';
+    const params: any[] = [];
 
-    const countResult = await executeQuery('SELECT COUNT(*) as total FROM gift_cards') as any[];
+    if (status && status !== 'all') {
+      query += ' AND status = ?';
+      params.push(status);
+    }
+
+    if (search) {
+      query += ' AND (name LIKE ? OR email LIKE ?)';
+      params.push(`%${search}%`, `%${search}%`);
+    }
+
+    query += ' ORDER BY created_at DESC LIMIT ? OFFSET ?';
+    params.push(limit, offset);
+
+    const data = await executeQuery(query, params) as any[];
+
+    let countQuery = 'SELECT COUNT(*) as total FROM contact_messages WHERE 1=1';
+    const countParams: any[] = [];
+    if (status && status !== 'all') {
+      countQuery += ' AND status = ?';
+      countParams.push(status);
+    }
+    if (search) {
+      countQuery += ' AND (name LIKE ? OR email LIKE ?)';
+      countParams.push(`%${search}%`, `%${search}%`);
+    }
+
+    const countResult = await executeQuery(countQuery, countParams) as any[];
     const total = countResult[0]?.total || 0;
 
     return NextResponse.json({
@@ -36,24 +61,7 @@ export async function GET(request: NextRequest) {
       pagination: { page, limit, total, totalPages: Math.ceil(total / limit) }
     });
   } catch (error) {
-    console.error('Error fetching gift cards:', error);
-    return NextResponse.json({ success: false }, { status: 500 });
-  }
-}
-
-export async function POST(request: NextRequest) {
-  try {
-    await checkAdminAuth(request);
-    const { card_number, pin, initial_balance, expires_at } = await request.json();
-
-    await executeQuery(
-      'INSERT INTO gift_cards (card_number, pin, initial_balance, current_balance, status, expires_at) VALUES (?, ?, ?, ?, ?, ?)',
-      [card_number, pin, initial_balance, initial_balance, 'active', expires_at]
-    );
-
-    return NextResponse.json({ success: true });
-  } catch (error) {
-    console.error('Error creating gift card:', error);
+    console.error('Error fetching contact messages:', error);
     return NextResponse.json({ success: false }, { status: 500 });
   }
 }

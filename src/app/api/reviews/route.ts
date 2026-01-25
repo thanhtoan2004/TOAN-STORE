@@ -6,10 +6,45 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const productIdStr = searchParams.get('productId');
+    const statusParam = searchParams.get('status');
     const page = parseInt(searchParams.get('page') || '1');
     const limit = parseInt(searchParams.get('limit') || '10');
     const offset = (page - 1) * limit;
 
+    // Nếu là admin call (có status param), lấy all reviews
+    if (statusParam && !productIdStr) {
+      const status = statusParam || 'pending';
+      const reviews = await executeQuery<any[]>(
+        `SELECT r.*, u.full_name as user_name, p.name as product_name
+         FROM product_reviews r
+         LEFT JOIN users u ON r.user_id = u.id
+         LEFT JOIN products p ON r.product_id = p.id
+         WHERE r.status = ?
+         ORDER BY r.created_at DESC
+         LIMIT ? OFFSET ?`,
+        [status, limit, offset]
+      );
+
+      const countResult = await executeQuery<any[]>(
+        'SELECT COUNT(*) as total FROM product_reviews WHERE status = ?',
+        [status]
+      );
+
+      const total = countResult[0]?.total || 0;
+
+      return NextResponse.json({
+        success: true,
+        data: reviews,
+        pagination: {
+          page,
+          limit,
+          total,
+          totalPages: Math.ceil(total / limit)
+        }
+      });
+    }
+
+    // Nếu là product reviews (productId)
     if (!productIdStr) {
       return NextResponse.json(
         { success: false, message: 'Thiếu productId' },
@@ -21,7 +56,7 @@ export async function GET(request: NextRequest) {
 
     // Get reviews from database
     const reviews = await executeQuery<any[]>(
-      `SELECT r.*, u.full_name as user_name, u.email as user_email
+      `SELECT r.id, r.product_id, r.user_id, r.rating, r.title, r.comment, r.admin_reply, r.created_at, u.full_name as user_name, u.email as user_email
        FROM product_reviews r
        LEFT JOIN users u ON r.user_id = u.id
        WHERE r.product_id = ? AND r.status = 'approved'

@@ -630,6 +630,150 @@ export default function AccountSettings() {
                   <div><label className="block text-sm font-medium mb-3">Ngôn ngữ</label><select value={language} onChange={(e) => setLanguage(e.target.value)} className="w-full border border-gray-300 rounded-lg px-4 py-3"><option value="vi">Tiếng Việt</option><option value="en">English</option></select></div>
                 </div>
               )}
+
+              {activeTab === 'orders' && (
+                <div>
+                  <h2 className="text-2xl font-semibold mb-6">Cài đặt đơn hàng</h2>
+                  <div className="space-y-4">
+                    <div className="p-4 border rounded-lg">
+                      <h3 className="font-medium mb-2">Thông báo trạng thái đơn hàng</h3>
+                      <p className="text-sm text-gray-600 mb-3">Nhận thông báo khi đơn hàng của bạn được cập nhật</p>
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input type="checkbox" defaultChecked className="w-4 h-4" />
+                        <span className="text-sm">Bật thông báo email</span>
+                      </label>
+                    </div>
+                    <div className="p-4 border rounded-lg">
+                      <h3 className="font-medium mb-2">Quản lý đơn hàng</h3>
+                      <p className="text-sm text-gray-600 mb-3">Xem và quản lý tất cả đơn hàng của bạn</p>
+                      <Link href="/orders"><button className="px-6 py-2 border-2 border-black rounded-full font-medium hover:bg-black hover:text-white transition-colors">Xem đơn hàng</button></Link>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {activeTab === 'wishlist' && (
+                <div>
+                  <h2 className="text-2xl font-semibold mb-6">Wishlist</h2>
+                  <div className="space-y-4">
+                    <div className="p-4 border rounded-lg">
+                      <h3 className="font-medium mb-2">Cài đặt Wishlist</h3>
+                      <p className="text-sm text-gray-600 mb-3">Quản lý sản phẩm yêu thích của bạn</p>
+                      <Link href="/wishlist"><button className="px-6 py-2 border-2 border-black rounded-full font-medium hover:bg-black hover:text-white transition-colors">Xem Wishlist</button></Link>
+                    </div>
+                    <div className="p-4 border rounded-lg">
+                      <h3 className="font-medium mb-2">Chia sẻ Wishlist</h3>
+                      <p className="text-sm text-gray-600 mb-3">Chia sẻ wishlist với bạn bè hoặc gia đình</p>
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input type="checkbox" className="w-4 h-4" />
+                        <span className="text-sm">Cho phép chia sẻ công khai</span>
+                      </label>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {activeTab === 'notifications' && (
+                <div>
+                  <h2 className="text-2xl font-semibold mb-6">Thông báo</h2>
+                  <div className="space-y-4">
+                    <div className="p-4 border rounded-lg">
+                      <h3 className="font-medium mb-3">Thông báo Email</h3>
+                      <label className="flex items-center gap-2 cursor-pointer mb-3">
+                        <input type="checkbox" checked={emailNotifications} onChange={(e) => setEmailNotifications(e.target.checked)} className="w-4 h-4" />
+                        <span className="text-sm">Nhận email thông báo</span>
+                      </label>
+                      <label className="flex items-center gap-2 cursor-pointer mb-3">
+                        <input type="checkbox" className="w-4 h-4" />
+                        <span className="text-sm">Thông báo về khuyến mãi và sản phẩm mới</span>
+                      </label>
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input type="checkbox" className="w-4 h-4" />
+                        <span className="text-sm">Thông báo về đơn hàng</span>
+                      </label>
+                    </div>
+                    <div className="p-4 border rounded-lg">
+                      <h3 className="font-medium mb-3">Thông báo SMS</h3>
+                      <label className="flex items-center gap-2 cursor-pointer mb-3">
+                        <input type="checkbox" checked={smsNotifications} onChange={(e) => setSmsNotifications(e.target.checked)} className="w-4 h-4" />
+                        <span className="text-sm">Nhận tin nhắn SMS</span>
+                      </label>
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input type="checkbox" className="w-4 h-4" />
+                        <span className="text-sm">Thông báo SMS về đơn hàng</span>
+                      </label>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {activeTab === 'payment' && (
+                <div>
+                  <h2 className="text-2xl font-semibold mb-6">Thanh toán</h2>
+                  <div className="space-y-4">
+                    <div className="p-4 border rounded-lg">
+                      <h3 className="font-medium mb-2">Phương thức thanh toán</h3>
+                      <p className="text-sm text-gray-600 mb-4">Quản lý các phương thức thanh toán của bạn</p>
+                      <div className="space-y-2">
+                        <div className="p-3 border rounded bg-gray-50">
+                          <p className="text-sm font-medium">💳 Thẻ tín dụng / Ghi nợ</p>
+                          <p className="text-xs text-gray-500">Thêm hoặc quản lý thẻ của bạn</p>
+                        </div>
+                        <div className="p-3 border rounded bg-gray-50">
+                          <p className="text-sm font-medium">🏦 Chuyển khoản ngân hàng</p>
+                          <p className="text-xs text-gray-500">Thanh toán trực tiếp từ tài khoản ngân hàng</p>
+                        </div>
+                        <div className="p-3 border rounded bg-gray-50">
+                          <p className="text-sm font-medium">💰 Ví điện tử</p>
+                          <p className="text-xs text-gray-500">Liên kết ví điện tử của bạn</p>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="p-4 border rounded-lg">
+                      <h3 className="font-medium mb-2">Lịch sử giao dịch</h3>
+                      <p className="text-sm text-gray-600 mb-3">Xem lịch sử thanh toán và giao dịch của bạn</p>
+                      <button className="px-6 py-2 border-2 border-black rounded-full font-medium hover:bg-black hover:text-white transition-colors">Xem lịch sử</button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {activeTab === 'privacy' && (
+                <div>
+                  <h2 className="text-2xl font-semibold mb-6">Quyền riêng tư</h2>
+                  <div className="space-y-4">
+                    <div className="p-4 border rounded-lg">
+                      <h3 className="font-medium mb-2">Dữ liệu cá nhân</h3>
+                      <p className="text-sm text-gray-600 mb-3">Quản lý cách chúng tôi sử dụng thông tin của bạn</p>
+                      <label className="flex items-center gap-2 cursor-pointer mb-3">
+                        <input type="checkbox" defaultChecked className="w-4 h-4" />
+                        <span className="text-sm">Cho phép sử dụng dữ liệu để cá nhân hóa trải nghiệm</span>
+                      </label>
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input type="checkbox" defaultChecked className="w-4 h-4" />
+                        <span className="text-sm">Cho phép sử dụng dữ liệu cho nghiên cứu</span>
+                      </label>
+                    </div>
+                    <div className="p-4 border rounded-lg">
+                      <h3 className="font-medium mb-2">Bạn bè và gia đình</h3>
+                      <p className="text-sm text-gray-600 mb-3">Kiểm soát quyền riêng tư của tài khoản</p>
+                      <label className="flex items-center gap-2 cursor-pointer mb-3">
+                        <input type="checkbox" defaultChecked className="w-4 h-4" />
+                        <span className="text-sm">Tài khoản công khai</span>
+                      </label>
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input type="checkbox" className="w-4 h-4" />
+                        <span className="text-sm">Cho phép mọi người xem hồ sơ của tôi</span>
+                      </label>
+                    </div>
+                    <div className="p-4 border rounded-lg">
+                      <h3 className="font-medium mb-2">Xóa tài khoản</h3>
+                      <p className="text-sm text-gray-600 mb-3">Xóa vĩnh viễn tài khoản và dữ liệu của bạn</p>
+                      <button className="px-6 py-2 border-2 border-red-600 text-red-600 rounded-full font-medium hover:bg-red-50 transition-colors">Xóa tài khoản</button>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>

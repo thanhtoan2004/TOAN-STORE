@@ -1010,6 +1010,7 @@ CREATE TABLE `product_reviews` (
   `rating` int NOT NULL,
   `title` varchar(255) DEFAULT NULL,
   `comment` text,
+  `admin_reply` text,
   `status` enum('pending','approved','rejected') DEFAULT 'pending',
   `is_verified_purchase` tinyint(1) DEFAULT '0',
   `helpful_count` int DEFAULT '0',

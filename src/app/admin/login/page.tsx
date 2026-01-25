@@ -32,10 +32,19 @@ function AdminLoginContent() {
       const success = await login(email, password);
       
       if (success) {
-        router.push('/');
+        // Fetch user data to check if admin
+        const userResponse = await fetch('/api/auth/me');
+        const userData = await userResponse.json();
+        
+        if (userData.is_admin || userData.user?.is_admin) {
+          router.push('/admin/dashboard');
+        } else {
+          setError('Tài khoản này không có quyền truy cập admin');
+        }
       } else {
         setError('Email hoặc mật khẩu không chính xác');
-      }    } catch (err: unknown) {
+      }
+    } catch (err: unknown) {
       const errorMessage = err instanceof Error ? err.message : 'Có lỗi xảy ra khi đăng nhập';
       setError(errorMessage);
     } finally {
@@ -65,7 +74,7 @@ function AdminLoginContent() {
           </div>
         )}
 
-        <form onSubmit={handleSubmit}>
+        <form onSubmit={handleSubmit} suppressHydrationWarning>
           <div className="mb-4">
             <label htmlFor="email" className="block text-sm font-helvetica-medium mb-1">
               Địa chỉ Email
@@ -78,6 +87,7 @@ function AdminLoginContent() {
               className="w-full p-3 border rounded focus:outline-none focus:ring-2 focus:ring-black"
               placeholder="admin"
               required
+              suppressHydrationWarning
             />
           </div>
 
@@ -94,6 +104,7 @@ function AdminLoginContent() {
               placeholder="Mật khẩu của bạn"
               required
               minLength={6}
+              suppressHydrationWarning
             />
           </div>
 
@@ -102,6 +113,7 @@ function AdminLoginContent() {
               type="checkbox"
               id="remember"
               className="h-4 w-4 border border-gray-300 rounded"
+              suppressHydrationWarning
             />
             <label htmlFor="remember" className="ml-2 text-sm text-gray-600">
               Lưu thông tin đăng nhập
@@ -118,6 +130,7 @@ function AdminLoginContent() {
               "w-full bg-black text-white py-3 rounded hover:bg-zinc-800 transition-colors font-helvetica-medium",
               isLoading && "opacity-70 cursor-not-allowed"
             )}
+            suppressHydrationWarning
           >
             {isLoading ? "Đang xử lý..." : "Đăng nhập"}
           </button>

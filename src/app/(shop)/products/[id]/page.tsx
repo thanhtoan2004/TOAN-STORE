@@ -723,6 +723,13 @@ export default function ProductDetail({ params }: { params: Promise<{ id: string
                     )}
                     
                     <p className="text-gray-700 mb-3">{review.comment}</p>
+
+                    {review.admin_reply && (
+                      <div className="mt-3 p-3 bg-blue-50 rounded border border-blue-200">
+                        <p className="text-sm font-medium text-blue-900">Trả lời từ cửa hàng:</p>
+                        <p className="text-sm text-blue-800 mt-1">{review.admin_reply}</p>
+                      </div>
+                    )}
                     
                     <button className="text-sm text-gray-600 hover:text-black">
                       Hữu ích ({review.helpful_count})

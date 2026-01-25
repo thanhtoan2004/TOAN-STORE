@@ -13,6 +13,7 @@ interface Review {
   rating: number;
   title: string;
   comment: string;
+  admin_reply?: string;
   status: string;
   created_at: string;
 }
@@ -23,6 +24,8 @@ export default function AdminReviewsPage() {
   const [statusFilter, setStatusFilter] = useState('pending');
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [replyingTo, setReplyingTo] = useState<number | null>(null);
+  const [replyText, setReplyText] = useState('');
 
   useEffect(() => {
     fetchReviews();
@@ -40,8 +43,8 @@ export default function AdminReviewsPage() {
       const data = await response.json();
       
       if (data.success) {
-        setReviews(data.reviews || []);
-        setTotalPages(Math.ceil((data.total || 0) / 20));
+        setReviews(data.data || data.reviews || []);
+        setTotalPages(Math.ceil((data.pagination?.total || data.total || 0) / 20));
       }
     } catch (error) {
       console.error('Error fetching reviews:', error);
@@ -79,6 +82,26 @@ export default function AdminReviewsPage() {
       }
     } catch (error) {
       console.error('Error deleting review:', error);
+    }
+  };
+
+  const submitReply = async (reviewId: number) => {
+    if (!replyText.trim()) return;
+
+    try {
+      const response = await fetch(`/api/admin/reviews/${reviewId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ admin_reply: replyText }),
+      });
+
+      if (response.ok) {
+        setReplyingTo(null);
+        setReplyText('');
+        fetchReviews();
+      }
+    } catch (error) {
+      console.error('Error submitting reply:', error);
     }
   };
 
@@ -192,6 +215,13 @@ export default function AdminReviewsPage() {
 
                           <p className="mt-2 text-gray-700">{review.comment}</p>
 
+                          {review.admin_reply && (
+                            <div className="mt-3 p-3 bg-blue-50 rounded border border-blue-200">
+                              <p className="text-sm font-medium text-blue-900">Admin Reply:</p>
+                              <p className="text-sm text-blue-800 mt-1">{review.admin_reply}</p>
+                            </div>
+                          )}
+
                           {/* Actions */}
                           <div className="mt-4 flex items-center space-x-3">
                             {review.status !== 'approved' && (
@@ -216,7 +246,47 @@ export default function AdminReviewsPage() {
                             >
                               Delete
                             </button>
+                            <button
+                              onClick={() => {
+                                setReplyingTo(review.id);
+                                setReplyText(review.admin_reply || '');
+                              }}
+                              className="px-3 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 transition-colors"
+                            >
+                              {review.admin_reply ? 'Edit Reply' : 'Reply'}
+                            </button>
                           </div>
+
+                          {/* Reply Form */}
+                          {replyingTo === review.id && (
+                            <div className="mt-4 p-3 bg-blue-50 rounded border border-blue-200">
+                              <p className="text-sm font-medium text-blue-900 mb-2">Write your reply:</p>
+                              <textarea
+                                value={replyText}
+                                onChange={(e) => setReplyText(e.target.value)}
+                                placeholder="Your admin reply..."
+                                className="w-full px-3 py-2 border border-gray-300 rounded text-sm"
+                                rows={3}
+                              />
+                              <div className="flex items-center space-x-2 mt-2">
+                                <button
+                                  onClick={() => submitReply(review.id)}
+                                  className="px-3 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700"
+                                >
+                                  Submit Reply
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    setReplyingTo(null);
+                                    setReplyText('');
+                                  }}
+                                  className="px-3 py-1 border border-gray-300 text-sm rounded hover:bg-gray-50"
+                                >
+                                  Cancel
+                                </button>
+                              </div>
+                            </div>
+                          )}
                         </div>
                       </div>
                     </div>

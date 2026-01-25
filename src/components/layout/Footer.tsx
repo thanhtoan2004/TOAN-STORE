@@ -1,13 +1,18 @@
 'use client';
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import Link from 'next/link'
 
 const Footer = () => {
+  const [isMounted, setIsMounted] = useState(false);
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
   const [messageType, setMessageType] = useState<'success' | 'error'>('success');
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   const handleNewsletterSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -167,7 +172,7 @@ const Footer = () => {
               <p className="text-gray-400 text-xs mb-3">
                 Nhận thông tin về sản phẩm mới, ưu đãi độc quyền
               </p>
-              <form onSubmit={handleNewsletterSubmit} className="space-y-2">
+              <form onSubmit={handleNewsletterSubmit} className="space-y-2" suppressHydrationWarning>
                 <input
                   type="email"
                   value={email}
@@ -175,16 +180,18 @@ const Footer = () => {
                   placeholder="Email của bạn"
                   required
                   className="w-full px-3 py-2 rounded-lg bg-white text-black text-sm focus:outline-none focus:ring-2 focus:ring-white"
+                  suppressHydrationWarning
                 />
                 <button
                   type="submit"
                   disabled={loading}
                   className="w-full px-4 py-2 bg-white text-black rounded-lg hover:bg-gray-200 transition disabled:opacity-50 font-medium text-sm"
+                  suppressHydrationWarning
                 >
                   {loading ? 'Đang gửi...' : 'Đăng ký'}
                 </button>
               </form>
-              {message && (
+              {isMounted && message && (
                 <p className={`text-xs mt-2 ${messageType === 'success' ? 'text-green-400' : 'text-red-400'}`}>
                   {message}
                 </p>
