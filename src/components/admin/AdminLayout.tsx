@@ -21,6 +21,9 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
     { name: 'Gift Cards', href: '/admin/gift-cards' },
     { name: 'Contact', href: '/admin/contact' },
     { name: 'Coupons', href: '/admin/coupons' },
+    { name: 'Wishlist', href: '/admin/wishlist' },
+    { name: 'FAQs', href: '/admin/faqs' },
+    { name: 'Vouchers', href: '/admin/vouchers' },
     { name: 'Banners', href: '/admin/banners' },
     { name: 'Settings', href: '/admin/settings' },
   ];
@@ -28,13 +31,13 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
   return (
     <div className="min-h-screen bg-gray-100">
       {/* Sidebar */}
-      <div className="fixed inset-y-0 left-0 w-64 bg-black text-white">
+      <div className="fixed inset-y-0 left-0 w-64 bg-black text-white flex flex-col">
         <div className="flex items-center justify-center h-16 border-b border-gray-800">
           <Link href="/admin/dashboard" className="text-xl font-bold">
             Nike Admin
           </Link>
         </div>
-        <nav className="mt-8 space-y-2">
+        <nav className="mt-8 space-y-2 flex-1 overflow-y-auto px-0">
           {navigation.map((item) => {
             const isActive = pathname === item.href;
             return (
@@ -52,7 +55,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
             );
           })}
         </nav>
-        <div className="absolute bottom-0 left-0 right-0 p-6 border-t border-gray-800">
+        <div className="p-6 border-t border-gray-800">
           <button
             onClick={() => {
               fetch('/api/auth/logout', { method: 'POST' });

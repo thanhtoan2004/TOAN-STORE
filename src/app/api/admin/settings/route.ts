@@ -22,12 +22,24 @@ async function checkAdminAuth(request: NextRequest) {
 export async function GET(request: NextRequest) {
   try {
     // Fetch store settings from database or return defaults
-    const result = await executeQuery(
-      `SELECT 
-        COALESCE(value, '') as value, 
-        key as setting_key 
-      FROM settings`
-    );
+    let result: any[] = [];
+    
+    try {
+      result = await executeQuery(
+        `SELECT 
+          COALESCE(value, '') as value, 
+          \`key\` as setting_key 
+        FROM settings`
+      );
+    } catch (dbError: any) {
+      // If settings table doesn't exist, return defaults
+      if (dbError.code === 'ER_NO_SUCH_TABLE') {
+        console.log('Settings table not found, using defaults');
+        result = [];
+      } else {
+        throw dbError;
+      }
+    }
 
     const settings: any = {
       store_name: 'Nike Clone',
