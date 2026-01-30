@@ -1,6 +1,7 @@
 'use client';
 
-import { usePathname } from 'next/navigation';
+import { useEffect, useState } from 'react';
+import { usePathname, useRouter } from 'next/navigation';
 import Link from 'next/link';
 
 interface AdminLayoutProps {
@@ -9,6 +10,8 @@ interface AdminLayoutProps {
 
 export default function AdminLayout({ children }: AdminLayoutProps) {
   const pathname = usePathname();
+  const router = useRouter();
+  const [checkingAuth, setCheckingAuth] = useState(true);
 
   const navigation = [
     { name: 'Dashboard', href: '/admin/dashboard' },
@@ -25,8 +28,45 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
     { name: 'FAQs', href: '/admin/faqs' },
     { name: 'Vouchers', href: '/admin/vouchers' },
     { name: 'Banners', href: '/admin/banners' },
+    { name: 'News', href: '/admin/news' },
     { name: 'Settings', href: '/admin/settings' },
   ];
+
+  useEffect(() => {
+    const check = async () => {
+      try {
+        const res = await fetch('/api/auth/me', { cache: 'no-store' });
+        if (!res.ok) {
+          router.replace('/admin/login');
+          return;
+        }
+        const data = await res.json();
+        const isAdmin = !!(data?.user?.is_admin === 1 || data?.user?.is_admin === true);
+        if (!isAdmin) {
+          router.replace('/admin/login');
+          return;
+        }
+      } catch {
+        router.replace('/admin/login');
+        return;
+      } finally {
+        setCheckingAuth(false);
+      }
+    };
+
+    check();
+  }, [router]);
+
+  if (checkingAuth) {
+    return (
+      <div className="min-h-screen bg-gray-100 flex items-center justify-center">
+        <div className="text-center">
+          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+          <p className="mt-2 text-gray-600">Đang kiểm tra quyền truy cập...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-100">
@@ -44,11 +84,10 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
               <Link
                 key={item.name}
                 href={item.href}
-                className={`block px-6 py-3 text-sm font-medium transition-colors ${
-                  isActive
+                className={`block px-6 py-3 text-sm font-medium transition-colors ${isActive
                     ? 'bg-gray-900 text-white border-l-4 border-white'
                     : 'text-gray-300 hover:bg-gray-900 hover:text-white'
-                }`}
+                  }`}
               >
                 {item.name}
               </Link>

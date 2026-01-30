@@ -15,8 +15,8 @@ interface Product {
 }
 // Tạo pool kết nối MySQL
 // Chỉ set password nếu có giá trị (không phải undefined hoặc chuỗi rỗng)
-const dbPassword = process.env.DB_PASSWORD && process.env.DB_PASSWORD.trim() !== '' 
-  ? process.env.DB_PASSWORD 
+const dbPassword = process.env.DB_PASSWORD && process.env.DB_PASSWORD.trim() !== ''
+  ? process.env.DB_PASSWORD
   : undefined;
 
 // Tạo config object, chỉ thêm password nếu có giá trị
@@ -56,7 +56,7 @@ async function testConnection() {
 async function initDb() {
   try {
     const connection = await pool.getConnection();
-    
+
     // Tạo bảng users
     await connection.query(`
       CREATE TABLE IF NOT EXISTS users (
@@ -73,6 +73,16 @@ async function initDb() {
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
         INDEX idx_email (email)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    `);
+
+    // Tạo bảng settings phục vụ trang admin/settings
+    await connection.query(`
+      CREATE TABLE IF NOT EXISTS settings (
+        id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+        \`key\` VARCHAR(255) NOT NULL UNIQUE,
+        value TEXT,
+        updated_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
     `);
 
@@ -338,7 +348,7 @@ async function executeQuery<T = unknown[]>(query: string, params: (string | numb
 async function addToCart(userId: number, productId: number, size: string, quantity: number = 1) {
   // Tìm hoặc tạo cart cho user
   const carts = await executeQuery<any[]>(`SELECT id FROM carts WHERE user_id = ? LIMIT 1`, [userId]);
-  
+
   let cartId;
   if (!carts || carts.length === 0) {
     const result: any = await executeQuery(`INSERT INTO carts (user_id) VALUES (?)`, [userId]);
@@ -416,7 +426,7 @@ async function getCart(userId: number) {
     LEFT JOIN inventory i ON i.product_variant_id = pv.id
     WHERE c.user_id = ?
     ORDER BY ci.added_at DESC`;
-  
+
   return executeQuery(query, [userId]);
 }
 
@@ -451,7 +461,7 @@ async function addToWishlist(userId: number, productId: number) {
     `SELECT id FROM wishlists WHERE user_id = ? AND is_default = 1 LIMIT 1`,
     [userId]
   );
-  
+
   let wishlistId;
   if (!wishlists || wishlists.length === 0) {
     const result: any = await executeQuery(
@@ -486,7 +496,7 @@ async function getWishlist(userId: number) {
     JOIN products p ON wi.product_id = p.id
     WHERE w.user_id = ? AND w.is_default = 1
     ORDER BY wi.added_at DESC`;
-  
+
   return executeQuery(query, [userId]);
 }
 
@@ -520,6 +530,7 @@ async function getProductById(productId: number) {
 
 async function getProducts(filters: {
   category?: string;
+  sport?: string;
   gender?: string;
   minPrice?: number;
   maxPrice?: number;
@@ -540,6 +551,11 @@ async function getProducts(filters: {
   if (filters.category) {
     query += ' AND p.category_id = (SELECT id FROM categories WHERE slug = ? OR name = ? LIMIT 1)';
     params.push(filters.category, filters.category);
+  }
+
+  if (filters.sport) {
+    query += ' AND p.sport_id = (SELECT id FROM sports WHERE slug = ? OR name = ? LIMIT 1)';
+    params.push(filters.sport, filters.sport);
   }
 
   if (filters.gender) {
@@ -565,7 +581,7 @@ async function getProducts(filters: {
 
   if (filters.limit) {
     query += ` LIMIT ${filters.limit}`;
-    
+
     if (filters.offset) {
       query += ` OFFSET ${filters.offset}`;
     }
@@ -585,7 +601,7 @@ async function saveContactMessage(data: {
   const query = `
     INSERT INTO contact_messages (name, email, subject, message, user_id, status)
     VALUES (?, ?, ?, ?, ?, 'new')`;
-  
+
   return executeQuery(query, [
     data.name,
     data.email,
@@ -637,7 +653,7 @@ async function createOrder(orderData: {
   }>;
 }) {
   const connection = await pool.getConnection();
-  
+
   try {
     await connection.beginTransaction();
 
@@ -738,6 +754,28 @@ async function createOrder(orderData: {
       }
     }
 
+    // Track coupon usage if voucher was used
+    if (orderData.voucherCode && orderData.userId) {
+      // Get coupon id from code
+      const [coupons]: any = await connection.execute(
+        `SELECT id FROM coupons WHERE code = ? LIMIT 1`,
+        [orderData.voucherCode]
+      );
+
+      if (coupons.length > 0) {
+        const couponId = coupons[0].id;
+        // Create usage record (marked as pending until order is delivered)
+        await connection.execute(
+          `INSERT INTO coupon_usage (coupon_id, user_id, order_id, used_at)
+           VALUES (?, ?, ?, NOW())`,
+          [couponId, orderData.userId, orderId]
+        );
+      }
+    }
+
+    // Note: Gift card balance will be deducted when order status changes to 'delivered'
+    // This is handled in the order status update endpoint
+
     await connection.commit();
     return orderId;
   } catch (error) {
@@ -758,7 +796,7 @@ async function getOrdersByUserId(userId: number) {
     WHERE o.user_id = ?
     GROUP BY o.id
     ORDER BY o.placed_at DESC`;
-  
+
   return executeQuery(query, [userId]);
 }
 
@@ -802,7 +840,7 @@ async function updateOrderStatus(orderNumber: string, status: string) {
 
 async function cancelOrder(orderNumber: string) {
   const connection = await pool.getConnection();
-  
+
   try {
     await connection.beginTransaction();
 
@@ -901,19 +939,19 @@ async function getStores(city?: string) {
   return executeQuery(query, params);
 }
 
-export { 
+export {
   pool,
-  testConnection, 
-  initDb, 
+  testConnection,
+  initDb,
   executeQuery,
   // Cart functions
-  addToCart, 
+  addToCart,
   getCart,
   removeFromCart,
   updateCartItemQuantity,
   clearCart,
   // Wishlist functions
-  addToWishlist, 
+  addToWishlist,
   getWishlist,
   removeFromWishlist,
   // Product functions

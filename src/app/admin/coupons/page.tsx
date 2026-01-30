@@ -15,6 +15,7 @@ interface Coupon {
   ends_at?: string;
   usage_limit?: number;
   usage_limit_per_user?: number;
+  times_used?: number;
   created_at: string;
 }
 
@@ -45,7 +46,7 @@ export default function AdminCouponsPage() {
     try {
       const response = await fetch('/api/coupons');
       const data = await response.json();
-      
+
       if (data.success) {
         setCoupons(data.data?.coupons || []);
       }
@@ -406,7 +407,12 @@ export default function AdminCouponsPage() {
                         <div>Tối đa: ₫{(coupon.max_discount_amount || 0).toLocaleString('vi-VN')}</div>
                       )}
                       {coupon.usage_limit && (
-                        <div>Lần dùng: {coupon.usage_limit}</div>
+                        <div>
+                          Đã dùng: {coupon.times_used || 0}/{coupon.usage_limit}
+                          <span className="ml-2 text-xs">
+                            (Còn {Math.max(0, coupon.usage_limit - (coupon.times_used || 0))})
+                          </span>
+                        </div>
                       )}
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-900">

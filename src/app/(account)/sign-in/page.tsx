@@ -9,6 +9,7 @@ import { useAuth } from '@/contexts/AuthContext';
 function SignInContent() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [rememberMe, setRememberMe] = useState(false);
   const [error, setError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -20,6 +21,13 @@ function SignInContent() {
     if (searchParams.get('registered') === 'true') {
       setSuccessMessage('Đăng ký thành công! Vui lòng đăng nhập để tiếp tục.');
     }
+
+    // Load saved email if exists
+    const savedEmail = localStorage.getItem('rememberedEmail');
+    if (savedEmail) {
+      setEmail(savedEmail);
+      setRememberMe(true);
+    }
   }, [searchParams]);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -29,13 +37,19 @@ function SignInContent() {
     setSuccessMessage('');
 
     try {
-      const success = await login(email, password);
-      
-      if (success) {
-        router.push('/');
+      await login(email, password);
+
+      // Handle remember me
+      if (rememberMe) {
+        localStorage.setItem('rememberedEmail', email);
       } else {
-        setError('Email hoặc mật khẩu không chính xác');
-      }    } catch (err: unknown) {
+        localStorage.removeItem('rememberedEmail');
+      }
+
+      // If login succeeds, redirect to home
+      router.push('/');
+    } catch (err: unknown) {
+      // Display the actual error message from API
       const errorMessage = err instanceof Error ? err.message : 'Có lỗi xảy ra khi đăng nhập';
       setError(errorMessage);
     } finally {
@@ -101,6 +115,8 @@ function SignInContent() {
             <input
               type="checkbox"
               id="remember"
+              checked={rememberMe}
+              onChange={(e) => setRememberMe(e.target.checked)}
               className="h-4 w-4 border border-gray-300 rounded"
             />
             <label htmlFor="remember" className="ml-2 text-sm text-gray-600">

@@ -1,17 +1,33 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { executeQuery } from '@/lib/db/mysql';
+import jwt from 'jsonwebtoken';
+import { cookies } from 'next/headers';
 
-async function checkAdminAuth(request: NextRequest) {
+async function ensureSettingsTable() {
+  await executeQuery(
+    `CREATE TABLE IF NOT EXISTS settings (
+      id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+      \`key\` VARCHAR(255) NOT NULL UNIQUE,
+      value TEXT,
+      updated_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`
+  );
+}
+
+async function checkAdminAuth() {
   try {
-    const authHeader = request.headers.get('authorization') || request.headers.get('cookie')?.match(/auth_token=([^;]+)/)?.[1];
-    
-    if (!authHeader) {
+    const cookieStore = await cookies();
+    const token = cookieStore.get('auth_token')?.value;
+
+    if (!token) {
       return null;
     }
 
-    const token = authHeader.replace('Bearer ', '');
-    const decoded: any = JSON.parse(Buffer.from(token.split('.')[1], 'base64').toString());
-    
+    const decoded: any = jwt.verify(
+      token,
+      process.env.JWT_SECRET || 'fallback_secret'
+    );
+
     const result = await executeQuery('SELECT is_admin FROM users WHERE id = ?', [decoded.userId]) as any[];
     return result.length > 0 && (result[0] as any).is_admin === 1 ? result[0] : null;
   } catch {
@@ -23,7 +39,7 @@ export async function GET(request: NextRequest) {
   try {
     // Fetch store settings from database or return defaults
     let result: any[] = [];
-    
+
     try {
       result = await executeQuery(
         `SELECT 
@@ -34,7 +50,8 @@ export async function GET(request: NextRequest) {
     } catch (dbError: any) {
       // If settings table doesn't exist, return defaults
       if (dbError.code === 'ER_NO_SUCH_TABLE') {
-        console.log('Settings table not found, using defaults');
+        await ensureSettingsTable();
+        console.log('Settings table not found, created new table and using defaults');
         result = [];
       } else {
         throw dbError;
@@ -68,13 +85,15 @@ export async function GET(request: NextRequest) {
 }
 
 export async function PUT(request: NextRequest) {
-  const admin = await checkAdminAuth(request);
+  const admin = await checkAdminAuth();
   if (!admin) {
     return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
   }
 
   try {
     const settings = await request.json();
+
+    await ensureSettingsTable();
 
     // Update each setting in database
     for (const [key, value] of Object.entries(settings)) {

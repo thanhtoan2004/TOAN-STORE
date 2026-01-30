@@ -111,6 +111,7 @@ export async function POST(request: NextRequest) {
       totalAmount,
       shippingFee: finalShippingFee,
       discount: finalDiscount,
+      tax: body.tax || 0,
       voucherCode: voucherCode || null,
       voucherDiscount: voucherDiscount || 0,
       giftcardNumber: giftcardNumber || null,

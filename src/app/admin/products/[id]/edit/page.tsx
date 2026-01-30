@@ -21,7 +21,7 @@ export default function EditProductPage() {
   const router = useRouter();
   const params = useParams();
   const productId = params.id;
-  
+
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -44,10 +44,23 @@ export default function EditProductPage() {
       try {
         const response = await fetch(`/api/products/${productId}`);
         const result = await response.json();
-        
+
         if (result.success || response.ok) {
           const product = result.data || result;
           console.log('Product loaded:', product);
+
+          // Extract image URL from various sources
+          let imageUrl = '';
+          if (product.images && product.images.length > 0) {
+            // Find main image or use first image
+            const mainImage = product.images.find((img: any) => img.is_main === 1);
+            imageUrl = mainImage ? mainImage.url : product.images[0].url;
+          } else if (product.image_url) {
+            imageUrl = product.image_url;
+          } else if (product.featured_image) {
+            imageUrl = product.featured_image;
+          }
+
           setFormData({
             name: product.name || '',
             sku: product.sku || '',
@@ -57,7 +70,7 @@ export default function EditProductPage() {
             category_id: product.category_id || 1,
             brand_id: product.brand_id || 1,
             is_new_arrival: product.is_new_arrival || false,
-            image_url: product.image_url || product.featured_image || '',
+            image_url: imageUrl,
           });
         }
       } catch (err) {
@@ -73,7 +86,7 @@ export default function EditProductPage() {
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target;
-    
+
     if (type === 'checkbox') {
       setFormData(prev => ({
         ...prev,
@@ -288,9 +301,9 @@ export default function EditProductPage() {
               {formData.image_url && (
                 <div className="mt-4">
                   <p className="text-sm font-medium text-gray-700 mb-2">Xem trước ảnh:</p>
-                  <img 
-                    src={formData.image_url} 
-                    alt="Preview" 
+                  <img
+                    src={formData.image_url}
+                    alt="Preview"
                     className="w-48 h-48 object-cover rounded-lg border border-gray-300"
                     onError={(e) => {
                       (e.target as HTMLImageElement).src = '/placeholder.png';

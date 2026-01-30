@@ -6,12 +6,20 @@ import AdminLayout from '@/components/admin/AdminLayout';
 interface Banner {
   id: number;
   title: string;
-  subtitle: string;
+  description: string;
   image_url: string;
+  mobile_image_url?: string;
   link_url: string;
+  link_text?: string;
+  position: string;
   display_order: number;
+  start_date?: string;
+  end_date?: string;
   is_active: number;
+  click_count: number;
+  impression_count: number;
   created_at: string;
+  updated_at: string;
 }
 
 export default function AdminBannersPage() {
@@ -21,10 +29,15 @@ export default function AdminBannersPage() {
   const [editingBanner, setEditingBanner] = useState<Banner | null>(null);
   const [formData, setFormData] = useState({
     title: '',
-    subtitle: '',
+    description: '',
     image_url: '',
+    mobile_image_url: '',
     link_url: '',
+    link_text: '',
+    position: 'homepage',
     display_order: '1',
+    start_date: '',
+    end_date: '',
     is_active: 1,
   });
 
@@ -34,11 +47,11 @@ export default function AdminBannersPage() {
 
   const fetchBanners = async () => {
     try {
-      const response = await fetch('/api/banners');
+      const response = await fetch('/api/banners?activeOnly=false');
       const data = await response.json();
-      
+
       if (data.success) {
-        setBanners(data.banners || []);
+        setBanners(data.data || []);
       }
     } catch (error) {
       console.error('Error fetching banners:', error);
@@ -51,13 +64,15 @@ export default function AdminBannersPage() {
     e.preventDefault();
 
     try {
-      const url = editingBanner ? `/api/banners/${editingBanner.id}` : '/api/banners';
       const method = editingBanner ? 'PUT' : 'POST';
+      const body = editingBanner
+        ? { id: editingBanner.id, ...formData }
+        : formData;
 
-      const response = await fetch(url, {
+      const response = await fetch('/api/banners', {
         method,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
+        body: JSON.stringify(body),
       });
 
       if (response.ok) {
@@ -73,7 +88,7 @@ export default function AdminBannersPage() {
     if (!confirm('Are you sure you want to delete this banner?')) return;
 
     try {
-      const response = await fetch(`/api/banners/${bannerId}`, {
+      const response = await fetch(`/api/banners?id=${bannerId}`, {
         method: 'DELETE',
       });
 
@@ -87,10 +102,13 @@ export default function AdminBannersPage() {
 
   const toggleBannerStatus = async (bannerId: number, currentStatus: number) => {
     try {
-      const response = await fetch(`/api/banners/${bannerId}`, {
+      const response = await fetch('/api/banners', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ is_active: currentStatus === 1 ? 0 : 1 }),
+        body: JSON.stringify({
+          id: bannerId,
+          is_active: currentStatus === 1 ? 0 : 1
+        }),
       });
 
       if (response.ok) {
@@ -105,10 +123,15 @@ export default function AdminBannersPage() {
     setEditingBanner(banner);
     setFormData({
       title: banner.title,
-      subtitle: banner.subtitle || '',
+      description: banner.description || '',
       image_url: banner.image_url,
+      mobile_image_url: banner.mobile_image_url || '',
       link_url: banner.link_url || '',
+      link_text: banner.link_text || '',
+      position: banner.position || 'homepage',
       display_order: banner.display_order.toString(),
+      start_date: banner.start_date || '',
+      end_date: banner.end_date || '',
       is_active: banner.is_active,
     });
     setShowForm(true);
@@ -119,10 +142,15 @@ export default function AdminBannersPage() {
     setEditingBanner(null);
     setFormData({
       title: '',
-      subtitle: '',
+      description: '',
       image_url: '',
+      mobile_image_url: '',
       link_url: '',
+      link_text: '',
+      position: 'homepage',
       display_order: '1',
+      start_date: '',
+      end_date: '',
       is_active: 1,
     });
   };
@@ -166,12 +194,12 @@ export default function AdminBannersPage() {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Subtitle
+                  Description
                 </label>
-                <input
-                  type="text"
-                  value={formData.subtitle}
-                  onChange={(e) => setFormData({ ...formData, subtitle: e.target.value })}
+                <textarea
+                  value={formData.description}
+                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                  rows={3}
                   className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-black focus:border-transparent"
                 />
               </div>
@@ -210,14 +238,43 @@ export default function AdminBannersPage() {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Display Order
+                  Link Text
                 </label>
                 <input
-                  type="number"
-                  value={formData.display_order}
-                  onChange={(e) => setFormData({ ...formData, display_order: e.target.value })}
+                  type="text"
+                  value={formData.link_text}
+                  onChange={(e) => setFormData({ ...formData, link_text: e.target.value })}
+                  placeholder="e.g. Mua Ngay, Xem thêm"
                   className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-black focus:border-transparent"
                 />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Position
+                  </label>
+                  <select
+                    value={formData.position}
+                    onChange={(e) => setFormData({ ...formData, position: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-black focus:border-transparent"
+                  >
+                    <option value="homepage">Homepage</option>
+                    <option value="category">Category</option>
+                    <option value="product">Product</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Display Order
+                  </label>
+                  <input
+                    type="number"
+                    value={formData.display_order}
+                    onChange={(e) => setFormData({ ...formData, display_order: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-black focus:border-transparent"
+                  />
+                </div>
               </div>
 
               <div>
@@ -260,17 +317,16 @@ export default function AdminBannersPage() {
                     />
                     <div className="flex-1">
                       <h3 className="font-semibold text-gray-900">{banner.title}</h3>
-                      {banner.subtitle && (
-                        <p className="text-sm text-gray-600 mt-1">{banner.subtitle}</p>
+                      {banner.description && (
+                        <p className="text-sm text-gray-600 mt-1">{banner.description}</p>
                       )}
                       <div className="flex items-center space-x-4 mt-2">
                         <span className="text-xs text-gray-500">Order: {banner.display_order}</span>
                         <span
-                          className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                            banner.is_active === 1
-                              ? 'bg-green-100 text-green-800'
-                              : 'bg-red-100 text-red-800'
-                          }`}
+                          className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${banner.is_active === 1
+                            ? 'bg-green-100 text-green-800'
+                            : 'bg-red-100 text-red-800'
+                            }`}
                         >
                           {banner.is_active === 1 ? 'Active' : 'Inactive'}
                         </span>

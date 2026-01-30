@@ -3,6 +3,7 @@
 import { usePathname } from 'next/navigation';
 import Header from './layout/Header';
 import Footer from './layout/Footer';
+import MaintenanceCheck from './MaintenanceCheck';
 
 export default function RootLayoutWrapper({
   children,
@@ -11,12 +12,25 @@ export default function RootLayoutWrapper({
 }) {
   const pathname = usePathname();
   const isAdminRoute = pathname && pathname.startsWith('/admin');
+  const isMaintenancePage = pathname === '/maintenance';
 
+  // Skip maintenance check for admin and maintenance page itself
+  if (isAdminRoute || isMaintenancePage) {
+    return (
+      <>
+        {!isAdminRoute && <Header />}
+        <main>{children}</main>
+        {!isAdminRoute && <Footer />}
+      </>
+    );
+  }
+
+  // Wrap with maintenance check for regular users
   return (
-    <>
-      {!isAdminRoute && <Header />}
+    <MaintenanceCheck>
+      <Header />
       <main>{children}</main>
-      {!isAdminRoute && <Footer />}
-    </>
+      <Footer />
+    </MaintenanceCheck>
   );
 }

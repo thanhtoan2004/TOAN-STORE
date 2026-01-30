@@ -78,14 +78,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || 'Đăng nhập thất bại');
+        // Throw error với message từ API để frontend hiển thị đúng
+        throw new Error(data.message || data.error || 'Đăng nhập thất bại');
       }
 
       setUser(data.user);
       return true;
     } catch (error) {
       console.error('Lỗi đăng nhập:', error);
-      return false;
+      // Re-throw error để catch block ở sign-in page xử lý
+      throw error;
     } finally {
       setLoading(false);
     }
@@ -131,13 +133,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ 
-      user, 
-      isAuthenticated: !!user, 
-      login, 
+    <AuthContext.Provider value={{
+      user,
+      isAuthenticated: !!user,
+      login,
       register,
       logout,
-      loading 
+      loading
     }}>
       {children}
     </AuthContext.Provider>

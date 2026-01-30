@@ -21,15 +21,16 @@ interface BannerCarouselProps {
   interval?: number;
 }
 
-export default function BannerCarousel({ 
-  position = 'homepage', 
-  autoPlay = true, 
-  interval = 5000 
+export default function BannerCarousel({
+  position = 'homepage',
+  autoPlay = true,
+  interval = 5000
 }: BannerCarouselProps) {
   const [banners, setBanners] = useState<Banner[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [loading, setLoading] = useState(true);
   const [isPaused, setIsPaused] = useState(false);
+  const [validBannerIds, setValidBannerIds] = useState<Set<number>>(new Set());
 
   useEffect(() => {
     loadBanners();
@@ -39,11 +40,26 @@ export default function BannerCarousel({
     try {
       const response = await fetch(`/api/banners?position=${position}&activeOnly=true`);
       const result = await response.json();
-      
-      console.log('Banners loaded:', result); // Debug log
-      
+
       if (result.success) {
-        setBanners(result.data);
+        // Filter out banners with invalid image URLs
+        const bannersWithValidImages = result.data.filter((banner: Banner) => {
+          // Basic URL validation
+          const isValidUrl = banner.image_url && (
+            banner.image_url.endsWith('.jpg') ||
+            banner.image_url.endsWith('.jpeg') ||
+            banner.image_url.endsWith('.png') ||
+            banner.image_url.endsWith('.webp') ||
+            banner.image_url.endsWith('.gif') ||
+            banner.image_url.includes('/images/')
+          );
+
+          return isValidUrl;
+        });
+
+        setBanners(bannersWithValidImages);
+        // Initialize all as valid
+        setValidBannerIds(new Set(bannersWithValidImages.map((b: Banner) => b.id)));
       }
     } catch (error) {
       console.error('Error loading banners:', error);
@@ -53,13 +69,13 @@ export default function BannerCarousel({
   };
 
   const goToNext = useCallback(() => {
-    setCurrentIndex((prevIndex) => 
+    setCurrentIndex((prevIndex) =>
       prevIndex === banners.length - 1 ? 0 : prevIndex + 1
     );
   }, [banners.length]);
 
   const goToPrevious = () => {
-    setCurrentIndex((prevIndex) => 
+    setCurrentIndex((prevIndex) =>
       prevIndex === 0 ? banners.length - 1 : prevIndex - 1
     );
   };
@@ -104,7 +120,7 @@ export default function BannerCarousel({
   const currentBanner = banners[currentIndex];
 
   return (
-    <div 
+    <div
       className="relative w-full h-[500px] overflow-hidden rounded-lg group"
       onMouseEnter={() => setIsPaused(true)}
       onMouseLeave={() => setIsPaused(false)}
@@ -113,16 +129,26 @@ export default function BannerCarousel({
       {banners.map((banner, index) => (
         <div
           key={banner.id}
-          className={`absolute inset-0 transition-opacity duration-700 ${
-            index === currentIndex ? 'opacity-100' : 'opacity-0'
-          }`}
+          className={`absolute inset-0 transition-opacity duration-700 ${index === currentIndex ? 'opacity-100' : 'opacity-0'
+            }`}
         >
           <img
             src={banner.image_url}
             alt={banner.title}
             className="w-full h-full object-cover"
+            onError={(e) => {
+              console.error(`Failed to load image for banner "${banner.title}":`, banner.image_url);
+              // Remove from valid banners
+              setValidBannerIds(prev => {
+                const newSet = new Set(prev);
+                newSet.delete(banner.id);
+                return newSet;
+              });
+              // Hide failed image
+              (e.target as HTMLImageElement).style.display = 'none';
+            }}
           />
-          
+
           {/* Overlay */}
           <div className="absolute inset-0 bg-gradient-to-r from-black/50 to-transparent">
             <div className="max-w-7xl mx-auto px-4 h-full flex items-center">
@@ -178,11 +204,10 @@ export default function BannerCarousel({
             <button
               key={index}
               onClick={() => goToSlide(index)}
-              className={`w-3 h-3 rounded-full transition-all ${
-                index === currentIndex 
-                  ? 'bg-white w-8' 
-                  : 'bg-white/50 hover:bg-white/75'
-              }`}
+              className={`w-3 h-3 rounded-full transition-all ${index === currentIndex
+                ? 'bg-white w-8'
+                : 'bg-white/50 hover:bg-white/75'
+                }`}
               aria-label={`Go to slide ${index + 1}`}
             />
           ))}

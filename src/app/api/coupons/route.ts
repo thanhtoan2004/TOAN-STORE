@@ -10,22 +10,31 @@ export async function GET(request: NextRequest) {
     const offset = (page - 1) * limit;
     const isActive = searchParams.get('isActive'); // 'true', 'false', or null for all
 
-    let query = 'SELECT * FROM coupons';
+    let query = `
+      SELECT 
+        c.*,
+        COUNT(cu.id) as times_used
+      FROM coupons c
+      LEFT JOIN coupon_usage cu ON c.id = cu.coupon_id
+    `;
     const params: any[] = [];
+
+    let whereClause = '';
 
     // Filter by active status if specified
     if (isActive !== null) {
       const now = new Date().toISOString();
       if (isActive === 'true') {
-        query += ' WHERE (starts_at IS NULL OR starts_at <= ?) AND (ends_at IS NULL OR ends_at >= ?)';
+        whereClause = ' WHERE (c.starts_at IS NULL OR c.starts_at <= ?) AND (c.ends_at IS NULL OR c.ends_at >= ?)';
         params.push(now, now);
       } else if (isActive === 'false') {
-        query += ' WHERE (starts_at > ? OR ends_at < ?)';
+        whereClause = ' WHERE (c.starts_at > ? OR c.ends_at < ?)';
         params.push(now, now);
       }
     }
 
-    query += ' ORDER BY created_at DESC LIMIT ? OFFSET ?';
+    query += whereClause;
+    query += ' GROUP BY c.id ORDER BY c.created_at DESC LIMIT ? OFFSET ?';
     params.push(limit, offset);
 
     const coupons = await executeQuery<any[]>(query, params);
@@ -33,7 +42,7 @@ export async function GET(request: NextRequest) {
     // Get total count
     let countQuery = 'SELECT COUNT(*) as total FROM coupons';
     const countParams: any[] = [];
-    
+
     if (isActive !== null) {
       const now = new Date().toISOString();
       if (isActive === 'true') {

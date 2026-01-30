@@ -3,7 +3,7 @@ import { getProducts } from '@/lib/db/mysql';
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
-  
+
   try {
     const page = Number(searchParams.get('page')) || 1;
     const limit = Number(searchParams.get('limit')) || 12;
@@ -30,8 +30,8 @@ export async function GET(request: Request) {
       filters.category = category;
     }
 
-    if (sport) {
-      filters.category = sport;
+    if (sport && sport !== 'all') {
+      filters.sport = sport;
     }
 
     if (gender && gender !== 'all') {
@@ -82,7 +82,7 @@ export async function GET(request: Request) {
     // Apply search filter if provided
     if (search) {
       const searchLower = search.toLowerCase();
-      products = products.filter(p => 
+      products = products.filter(p =>
         p.name.toLowerCase().includes(searchLower) ||
         (p.description && p.description.toLowerCase().includes(searchLower)) ||
         p.category.toLowerCase().includes(searchLower)

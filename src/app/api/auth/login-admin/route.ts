@@ -9,9 +9,9 @@ export async function POST(req: Request) {
   try {
     const { email, password }: LoginRequest = await req.json();
     
-    // Tìm người dùng theo email
+    // Tìm người dùng theo email trong bảng users và phải là admin
     const users = await executeQuery(
-      'SELECT * FROM admin WHERE email = ?',
+      'SELECT * FROM users WHERE email = ? AND is_admin = 1',
       [email]
     ) as User[];
     
@@ -36,7 +36,7 @@ export async function POST(req: Request) {
     
     // Tạo token JWT
     const token = jwt.sign(
-      { userId: user.id, email: user.email },
+      { userId: user.id, email: user.email, is_admin: user.is_admin ?? 1 },
       process.env.JWT_SECRET || 'fallback_secret',
       { expiresIn: '7d' }
     );
@@ -57,7 +57,12 @@ export async function POST(req: Request) {
     
     const response: AuthResponse = { 
       success: true, 
-      user: userWithoutPassword as UserWithoutPassword
+      user: {
+        ...userWithoutPassword,
+        is_admin: user.is_admin ?? 1,
+        firstName: (user as any).first_name,
+        lastName: (user as any).last_name
+      } as UserWithoutPassword
     };
     return NextResponse.json(response);
   } catch (error) {

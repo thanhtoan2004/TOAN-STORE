@@ -22,6 +22,7 @@ interface VoucherHistory {
   description: string;
   discountAmount: number;
   orderId: number | null;
+  orderNumber: string | null;
   usedAt: string;
 }
 
@@ -80,7 +81,7 @@ export default function VouchersPage() {
 
   const fetchHistory = async () => {
     if (!user) return;
-    
+
     setLoadingHistory(true);
     try {
       const response = await fetch(`/api/voucher/history?userId=${user.id}`);
@@ -112,26 +113,24 @@ export default function VouchersPage() {
         <div className="nike-container py-8">
           <h1 className="text-4xl font-nike-futura mb-2">Mã Giảm Giá</h1>
           <p className="text-gray-600 mb-4">Khám phá các ưu đãi đặc biệt dành cho bạn</p>
-          
+
           {user && (
             <div className="flex gap-4 border-b">
               <button
                 onClick={() => setActiveTab('list')}
-                className={`px-4 py-2 font-medium transition-colors ${
-                  activeTab === 'list'
-                    ? 'border-b-2 border-black text-black'
-                    : 'text-gray-600 hover:text-black'
-                }`}
+                className={`px-4 py-2 font-medium transition-colors ${activeTab === 'list'
+                  ? 'border-b-2 border-black text-black'
+                  : 'text-gray-600 hover:text-black'
+                  }`}
               >
                 Danh Sách Voucher
               </button>
               <button
                 onClick={() => setActiveTab('history')}
-                className={`px-4 py-2 font-medium transition-colors ${
-                  activeTab === 'history'
-                    ? 'border-b-2 border-black text-black'
-                    : 'text-gray-600 hover:text-black'
-                }`}
+                className={`px-4 py-2 font-medium transition-colors ${activeTab === 'history'
+                  ? 'border-b-2 border-black text-black'
+                  : 'text-gray-600 hover:text-black'
+                  }`}
               >
                 Lịch Sử Sử Dụng
               </button>
@@ -229,7 +228,7 @@ export default function VouchersPage() {
         ) : (
           <div className="bg-white rounded-lg shadow-sm border p-8">
             <h2 className="text-2xl font-helvetica-medium mb-6">Lịch Sử Sử Dụng Voucher</h2>
-            
+
             {loadingHistory ? (
               <div className="text-center py-12">
                 <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-black mx-auto mb-4"></div>
@@ -257,9 +256,9 @@ export default function VouchersPage() {
                           </span>
                         </div>
                         <p className="text-gray-600">{item.description}</p>
-                        {item.orderId && (
-                          <Link href={`/orders/${item.orderId}`} className="text-sm text-blue-600 hover:underline mt-2 inline-block">
-                            Xem đơn hàng #{item.orderId}
+                        {item.orderNumber && (
+                          <Link href={`/orders/${item.orderNumber}`} className="text-sm text-blue-600 hover:underline mt-2 inline-block">
+                            Xem đơn hàng {item.orderNumber}
                           </Link>
                         )}
                       </div>

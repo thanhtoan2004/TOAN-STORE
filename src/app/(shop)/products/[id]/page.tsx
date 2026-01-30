@@ -7,6 +7,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { AddToCartButton } from "@/components/ui";
 import { Heart } from "lucide-react";
 import { useWishlist } from "@/contexts/WishlistContext";
+import ReviewMediaUpload from "@/components/reviews/ReviewMediaUpload";
 
 interface ProductSize {
   size: string;
@@ -28,6 +29,13 @@ interface Product {
   images?: Array<{ url: string; alt_text?: string }>;
 }
 
+interface ReviewMedia {
+  id: number;
+  media_type: 'image' | 'video';
+  media_url: string;
+  thumbnail_url?: string;
+}
+
 interface Review {
   id: number;
   user_id: number;
@@ -38,6 +46,8 @@ interface Review {
   created_at: string;
   helpful_count: number;
   is_verified_purchase: boolean;
+  media?: ReviewMedia[];
+  admin_reply?: string;
 }
 
 interface ReviewStats {
@@ -62,7 +72,7 @@ export default function ProductDetail({ params }: { params: Promise<{ id: string
   const { addToWishlist, removeFromWishlist, isInWishlist } = useWishlist();
   const inWishlist = isInWishlist(id);
   const [wishlistLoading, setWishlistLoading] = useState(false);
-  
+
   // Reviews state
   const [reviews, setReviews] = useState<Review[]>([]);
   const [reviewStats, setReviewStats] = useState<ReviewStats | null>(null);
@@ -79,7 +89,10 @@ export default function ProductDetail({ params }: { params: Promise<{ id: string
     title: '',
     comment: ''
   });
-  
+  const [hasPurchased, setHasPurchased] = useState(false);
+  const [checkingPurchase, setCheckingPurchase] = useState(false);
+  const [reviewMediaFiles, setReviewMediaFiles] = useState<File[]>([]);
+
   // Image gallery state
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [productImages, setProductImages] = useState<string[]>([]);
@@ -98,13 +111,13 @@ export default function ProductDetail({ params }: { params: Promise<{ id: string
         const result = await response.json();
         const data = result.data || result;
         setProduct(data);
-        
+
         // Set product images (main image + additional images if available)
-        const images = data.images && data.images.length > 0 
+        const images = data.images && data.images.length > 0
           ? data.images.map((img: any) => img.url)
           : [data.image_url];
         setProductImages(images);
-        
+
         // Fetch variants/sizes from database
         const variantsResponse = await fetch(`/api/products/${id}/variants`);
         if (variantsResponse.ok) {
@@ -117,7 +130,7 @@ export default function ProductDetail({ params }: { params: Promise<{ id: string
             setSizes(productSizes);
           }
         }
-        
+
         // Fetch reviews
         const reviewsResponse = await fetch(`/api/reviews?productId=${id}&page=1&limit=10`);
         if (reviewsResponse.ok) {
@@ -126,6 +139,19 @@ export default function ProductDetail({ params }: { params: Promise<{ id: string
             setReviews(reviewsData.data.reviews);
             setReviewStats(reviewsData.data.statistics);
           }
+        }
+
+        // Check if user has purchased this product
+        if (user) {
+          setCheckingPurchase(true);
+          const purchaseResponse = await fetch(`/api/reviews/check-purchase?userId=${user.id}&productId=${id}`);
+          if (purchaseResponse.ok) {
+            const purchaseData = await purchaseResponse.json();
+            if (purchaseData.success) {
+              setHasPurchased(purchaseData.data.hasPurchased);
+            }
+          }
+          setCheckingPurchase(false);
         }
       } catch (error) {
         setError("Không thể tải thông tin sản phẩm");
@@ -171,10 +197,10 @@ export default function ProductDetail({ params }: { params: Promise<{ id: string
 
   // Xác định giá hiển thị
   const displayPrice = product.retail_price || product.price || 0;
-  const salePrice = product.base_price && product.retail_price && product.base_price < product.retail_price 
-    ? product.base_price 
+  const salePrice = product.base_price && product.retail_price && product.base_price < product.retail_price
+    ? product.base_price
     : product.sale_price;
-  
+
   const discountPercent = salePrice && displayPrice > salePrice
     ? Math.round(((displayPrice - salePrice) / displayPrice) * 100)
     : 0;
@@ -214,9 +240,24 @@ export default function ProductDetail({ params }: { params: Promise<{ id: string
       const result = await response.json();
 
       if (result.success) {
+        // Upload media if any
+        if (reviewMediaFiles.length > 0 && result.data?.reviewId) {
+          const formData = new FormData();
+          formData.append('reviewId', result.data.reviewId.toString());
+          reviewMediaFiles.forEach(file => {
+            formData.append('media', file);
+          });
+
+          await fetch('/api/reviews/media', {
+            method: 'POST',
+            body: formData
+          });
+        }
+
         alert('Đánh giá của bạn đang chờ duyệt. Cảm ơn bạn!');
         setShowReviewForm(false);
         setReviewForm({ rating: 5, title: '', comment: '' });
+        setReviewMediaFiles([]);
       } else {
         alert(result.message || 'Không thể gửi đánh giá');
       }
@@ -273,7 +314,7 @@ export default function ProductDetail({ params }: { params: Promise<{ id: string
 
   const handleDeleteReview = async (reviewId: number) => {
     if (!user) return;
-    
+
     if (!confirm('Bạn có chắc muốn xóa đánh giá này?')) {
       return;
     }
@@ -334,9 +375,8 @@ export default function ProductDetail({ params }: { params: Promise<{ id: string
                 <button
                   key={index}
                   onClick={() => setCurrentImageIndex(index)}
-                  className={`relative aspect-square overflow-hidden rounded-lg bg-gray-100 border-2 transition-all ${
-                    currentImageIndex === index ? 'border-black' : 'border-transparent hover:border-gray-300'
-                  }`}
+                  className={`relative aspect-square overflow-hidden rounded-lg bg-gray-100 border-2 transition-all ${currentImageIndex === index ? 'border-black' : 'border-transparent hover:border-gray-300'
+                    }`}
                 >
                   <Image src={img} alt={`${product.name} ${index + 1}`} fill className="object-cover" />
                 </button>
@@ -345,14 +385,14 @@ export default function ProductDetail({ params }: { params: Promise<{ id: string
 
             {/* Main Image with Navigation */}
             <div className="flex-1 relative aspect-square overflow-hidden rounded-lg bg-gray-100 group">
-              <Image 
-                src={productImages[currentImageIndex] || product.image_url} 
-                alt={product.name} 
-                fill 
-                className="object-cover" 
-                priority 
+              <Image
+                src={productImages[currentImageIndex] || product.image_url}
+                alt={product.name}
+                fill
+                className="object-cover"
+                priority
               />
-              
+
               {/* Badges */}
               {product.is_new_arrival && (
                 <div className="absolute top-4 left-4 bg-black text-white px-3 py-1 text-sm font-medium rounded z-10">MỚI</div>
@@ -421,13 +461,12 @@ export default function ProductDetail({ params }: { params: Promise<{ id: string
                 {sizes.map((sizeObj) => (
                   <button
                     key={sizeObj.size}
-                    className={`border-2 px-4 py-3 rounded-lg text-center font-medium transition-all ${
-                      sizeObj.stock === 0
-                        ? "opacity-30 cursor-not-allowed border-gray-200 text-gray-400"
-                        : selectedSize === sizeObj.size
+                    className={`border-2 px-4 py-3 rounded-lg text-center font-medium transition-all ${sizeObj.stock === 0
+                      ? "opacity-30 cursor-not-allowed border-gray-200 text-gray-400"
+                      : selectedSize === sizeObj.size
                         ? "border-black bg-black text-white"
                         : "border-gray-300 hover:border-gray-400"
-                    }`}
+                      }`}
                     disabled={sizeObj.stock === 0}
                     onClick={() => setSelectedSize(sizeObj.size)}
                   >
@@ -482,13 +521,32 @@ export default function ProductDetail({ params }: { params: Promise<{ id: string
       <div className="mt-16 border-t pt-12">
         <div className="flex justify-between items-center mb-8">
           <h2 className="font-bold text-2xl">Đánh giá sản phẩm</h2>
-          <button
-            onClick={() => setShowReviewForm(!showReviewForm)}
-            className="px-6 py-2 border border-black rounded-full hover:bg-black hover:text-white transition-colors"
-          >
-            Viết đánh giá
-          </button>
+          {user && hasPurchased && (
+            <button
+              onClick={() => setShowReviewForm(!showReviewForm)}
+              className="px-6 py-2 border border-black rounded-full hover:bg-black hover:text-white transition-colors"
+            >
+              Viết đánh giá
+            </button>
+          )}
         </div>
+
+        {/* Purchase requirement message */}
+        {user && !hasPurchased && !checkingPurchase && (
+          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
+            <p className="text-sm text-yellow-800">
+              <strong>Lưu ý:</strong> Bạn cần mua sản phẩm này trước khi có thể đánh giá.
+            </p>
+          </div>
+        )}
+
+        {!user && (
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+            <p className="text-sm text-blue-800">
+              Vui lòng <strong>đăng nhập</strong> để viết đánh giá.
+            </p>
+          </div>
+        )}
 
         {/* Review Stats */}
         {reviewStats && reviewStats.total_reviews > 0 && (
@@ -502,11 +560,10 @@ export default function ProductDetail({ params }: { params: Promise<{ id: string
                   {[1, 2, 3, 4, 5].map((star) => (
                     <svg
                       key={star}
-                      className={`w-6 h-6 ${
-                        star <= Math.round(reviewStats.average_rating)
-                          ? 'text-yellow-400 fill-current'
-                          : 'text-gray-300'
-                      }`}
+                      className={`w-6 h-6 ${star <= Math.round(reviewStats.average_rating)
+                        ? 'text-yellow-400 fill-current'
+                        : 'text-gray-300'
+                        }`}
                       fill="none"
                       stroke="currentColor"
                       viewBox="0 0 24 24"
@@ -553,7 +610,7 @@ export default function ProductDetail({ params }: { params: Promise<{ id: string
         {showReviewForm && (
           <form onSubmit={handleSubmitReview} className="bg-gray-50 rounded-lg p-6 mb-8">
             <h3 className="font-bold text-lg mb-4">Viết đánh giá của bạn</h3>
-            
+
             <div className="mb-4">
               <label className="block font-medium mb-2">Đánh giá</label>
               <div className="flex gap-2">
@@ -589,6 +646,15 @@ export default function ProductDetail({ params }: { params: Promise<{ id: string
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-black h-32"
                 placeholder="Chia sẻ trải nghiệm của bạn về sản phẩm này"
                 required
+              />
+            </div>
+
+            <div className="mb-4">
+              <label className="block font-medium mb-2">Ảnh/Video (tùy chọn)</label>
+              <ReviewMediaUpload
+                onMediaChange={(files) => setReviewMediaFiles(files)}
+                maxImages={5}
+                maxVideos={1}
               />
             </div>
 
@@ -699,7 +765,7 @@ export default function ProductDetail({ params }: { params: Promise<{ id: string
                           </span>
                         </div>
                       </div>
-                      
+
                       {user && user.id === review.user_id && (
                         <div className="flex gap-2">
                           <button
@@ -717,12 +783,37 @@ export default function ProductDetail({ params }: { params: Promise<{ id: string
                         </div>
                       )}
                     </div>
-                    
+
                     {review.title && (
                       <h4 className="font-medium mb-2">{review.title}</h4>
                     )}
-                    
+
                     <p className="text-gray-700 mb-3">{review.comment}</p>
+
+                    {/* Review Media */}
+                    {review.media && review.media.length > 0 && (
+                      <div className="grid grid-cols-4 gap-2 mb-4">
+                        {review.media.map((media) => (
+                          <div key={media.id} className="relative aspect-square rounded-lg overflow-hidden bg-gray-100">
+                            {media.media_type === 'image' ? (
+                              <Image
+                                src={media.media_url}
+                                alt="Review image"
+                                fill
+                                className="object-cover"
+                                unoptimized
+                              />
+                            ) : (
+                              <video
+                                src={media.media_url}
+                                controls
+                                className="w-full h-full object-cover"
+                              />
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
 
                     {review.admin_reply && (
                       <div className="mt-3 p-3 bg-blue-50 rounded border border-blue-200">
@@ -730,7 +821,7 @@ export default function ProductDetail({ params }: { params: Promise<{ id: string
                         <p className="text-sm text-blue-800 mt-1">{review.admin_reply}</p>
                       </div>
                     )}
-                    
+
                     <button className="text-sm text-gray-600 hover:text-black">
                       Hữu ích ({review.helpful_count})
                     </button>

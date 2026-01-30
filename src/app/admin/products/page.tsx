@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import AdminLayout from '@/components/admin/AdminLayout';
 import Link from 'next/link';
+import Image from 'next/image';
 
 interface Product {
   id: number;
@@ -34,13 +35,13 @@ export default function AdminProductsPage() {
         page: page.toString(),
         limit: '20',
       });
-      
+
       if (search) params.append('search', search);
       if (status !== 'all') params.append('status', status);
 
       const response = await fetch(`/api/admin/products?${params}`);
       const data = await response.json();
-      
+
       if (data.success) {
         setProducts(data.data);
         setTotalPages(data.pagination.totalPages);
@@ -182,11 +183,21 @@ export default function AdminProductsPage() {
                     <tr key={product.id} className="hover:bg-gray-50">
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center">
-                          <img
-                            src={product.primary_image || '/placeholder.png'}
-                            alt={product.name}
-                            className="w-12 h-12 object-cover rounded"
-                          />
+                          <div className="w-12 h-12 relative flex-shrink-0">
+                            {product.primary_image ? (
+                              <Image
+                                src={product.primary_image}
+                                alt={product.name}
+                                fill
+                                className="object-cover rounded"
+                                unoptimized
+                              />
+                            ) : (
+                              <div className="w-full h-full bg-gray-200 rounded flex items-center justify-center text-gray-400 text-xs">
+                                No img
+                              </div>
+                            )}
+                          </div>
                           <div className="ml-4">
                             <div className="text-sm font-medium text-gray-900">{product.name}</div>
                             <div className="text-sm text-gray-500">{product.category_name}</div>
@@ -211,11 +222,10 @@ export default function AdminProductsPage() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span
-                          className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                            product.is_active === 1
-                              ? 'bg-green-100 text-green-800'
-                              : 'bg-red-100 text-red-800'
-                          }`}
+                          className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${product.is_active === 1
+                            ? 'bg-green-100 text-green-800'
+                            : 'bg-red-100 text-red-800'
+                            }`}
                         >
                           {product.is_active === 1 ? 'Active' : 'Inactive'}
                         </span>

@@ -11,6 +11,7 @@ interface User {
   phone: string;
   is_admin: number;
   is_active: number;
+  is_banned: number;
   created_at: string;
 }
 
@@ -31,12 +32,12 @@ export default function AdminUsersPage() {
         page: page.toString(),
         limit: '20',
       });
-      
+
       if (search) params.append('search', search);
 
       const response = await fetch(`/api/admin/users?${params}`);
       const data = await response.json();
-      
+
       if (data.success) {
         setUsers(data.data);
         setTotalPages(data.pagination.totalPages);
@@ -84,6 +85,29 @@ export default function AdminUsersPage() {
     }
   };
 
+  const toggleBanStatus = async (userId: number, currentBanStatus: number) => {
+    const action = currentBanStatus === 1 ? 'unban' : 'ban';
+    if (!confirm(`Bạn có chắc muốn ${action === 'ban' ? 'khóa' : 'mở khóa'} tài khoản này?`)) return;
+
+    try {
+      const response = await fetch(`/api/admin/users/${userId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ is_banned: currentBanStatus === 1 ? 0 : 1 }),
+      });
+
+      if (response.ok) {
+        alert(`${action === 'ban' ? 'Khóa' : 'Mở khóa'} tài khoản thành công!`);
+        fetchUsers();
+      } else {
+        alert('Có lỗi xảy ra!');
+      }
+    } catch (error) {
+      console.error('Error updating user ban status:', error);
+      alert('Có lỗi xảy ra!');
+    }
+  };
+
   return (
     <AdminLayout>
       <div className="space-y-6">
@@ -108,7 +132,7 @@ export default function AdminUsersPage() {
         </div>
 
         {/* Users Table */}
-        <div className="bg-white rounded-lg shadow overflow-hidden">
+        <div className="bg-white rounded-lg shadow overflow-x-auto">
           {loading ? (
             <div className="flex items-center justify-center h-64">
               <div className="text-center">
@@ -118,28 +142,28 @@ export default function AdminUsersPage() {
             </div>
           ) : (
             <>
-              <table className="min-w-full divide-y divide-gray-200">
+              <table className="min-w-full divide-y divide-gray-200 table-fixed">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-[300px]">
                       User
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-[320px]">
                       Email
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-[160px]">
                       Phone
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-[120px]">
                       Role
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-[120px]">
                       Status
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-[140px]">
                       Joined
                     </th>
-                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider w-[280px]">
                       Actions
                     </th>
                   </tr>
@@ -147,46 +171,51 @@ export default function AdminUsersPage() {
                 <tbody className="bg-white divide-y divide-gray-200">
                   {users.map((user) => (
                     <tr key={user.id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="flex items-center">
-                          <div className="w-10 h-10 rounded-full bg-gray-300 flex items-center justify-center">
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-3 max-w-full overflow-hidden">
+                          <div className="flex-shrink-0 w-10 h-10 rounded-full bg-gray-300 flex items-center justify-center">
                             <span className="text-lg font-medium text-gray-700">
                               {user.first_name?.[0]?.toUpperCase() || 'U'}
                             </span>
                           </div>
-                          <div className="ml-4">
-                            <div className="text-sm font-medium text-gray-900">
+                          <div className="min-w-0 flex-1">
+                            <div
+                              className="text-sm font-medium text-gray-900 truncate"
+                              title={`${user.first_name || ''} ${user.last_name || ''}`.trim()}
+                            >
                               {user.first_name} {user.last_name}
                             </div>
                           </div>
                         </div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900">{user.email}</div>
+                      <td className="px-6 py-4">
+                        <div className="min-w-0">
+                          <div className="text-sm text-gray-900 truncate" title={user.email}>
+                            {user.email}
+                          </div>
+                        </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm text-gray-900">{user.phone || '-'}</div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span
-                          className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                            user.is_admin === 1
-                              ? 'bg-purple-100 text-purple-800'
-                              : 'bg-gray-100 text-gray-800'
-                          }`}
+                          className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${user.is_admin === 1
+                            ? 'bg-purple-100 text-purple-800'
+                            : 'bg-gray-100 text-gray-800'
+                            }`}
                         >
                           {user.is_admin === 1 ? 'Admin' : 'User'}
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span
-                          className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                            user.is_active === 1
-                              ? 'bg-green-100 text-green-800'
-                              : 'bg-red-100 text-red-800'
-                          }`}
+                          className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${user.is_banned === 1
+                            ? 'bg-red-100 text-red-800'
+                            : 'bg-green-100 text-green-800'
+                            }`}
                         >
-                          {user.is_active === 1 ? 'Active' : 'Banned'}
+                          {user.is_banned === 1 ? 'Banned' : 'Active'}
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
@@ -194,19 +223,23 @@ export default function AdminUsersPage() {
                           {new Date(user.created_at).toLocaleDateString()}
                         </div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2">
-                        <button
-                          onClick={() => toggleAdminRole(user.id, user.is_admin)}
-                          className="text-purple-600 hover:text-purple-900"
-                        >
-                          {user.is_admin === 1 ? 'Remove Admin' : 'Make Admin'}
-                        </button>
-                        <button
-                          onClick={() => toggleUserStatus(user.id, user.is_active)}
-                          className={user.is_active === 1 ? 'text-red-600 hover:text-red-900' : 'text-green-600 hover:text-green-900'}
-                        >
-                          {user.is_active === 1 ? 'Ban' : 'Unban'}
-                        </button>
+                      <td className="px-6 py-4 text-right">
+                        <div className="flex flex-col gap-2 items-end">
+                          <button
+                            onClick={() => toggleAdminRole(user.id, user.is_admin)}
+                            className="text-sm text-purple-600 hover:text-purple-900 whitespace-nowrap font-medium"
+                            title={user.is_admin === 1 ? 'Remove Admin Role' : 'Make Admin'}
+                          >
+                            {user.is_admin === 1 ? '− Admin' : '+ Admin'}
+                          </button>
+                          <button
+                            onClick={() => toggleBanStatus(user.id, user.is_banned)}
+                            className={`text-sm whitespace-nowrap font-medium ${user.is_banned === 1 ? 'text-green-600 hover:text-green-900' : 'text-red-600 hover:text-red-900'}`}
+                            title={user.is_banned === 1 ? 'Unban this user' : 'Ban this user'}
+                          >
+                            {user.is_banned === 1 ? '✓ Unban' : '🚫 Ban'}
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}

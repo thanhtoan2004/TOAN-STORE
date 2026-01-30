@@ -10,21 +10,21 @@ async function checkAdminAuth() {
   try {
     const cookieStore = await cookies();
     const token = cookieStore.get('auth_token')?.value;
-    
+
     if (!token) return null;
-    
+
     const decoded = jwt.verify(
       token,
       process.env.JWT_SECRET || 'fallback_secret'
     ) as JWTPayload;
-    
+
     const users = await executeQuery(
       'SELECT is_admin FROM users WHERE id = ?',
       [decoded.userId]
     ) as any[];
-    
+
     if (users.length === 0 || users[0].is_admin !== 1) return null;
-    
+
     return { isAdmin: true, userId: decoded.userId };
   } catch {
     return null;
@@ -49,20 +49,29 @@ export async function GET(request: NextRequest) {
     const status = searchParams.get('status');
     const offset = (page - 1) * limit;
 
-    let query = 'SELECT * FROM products WHERE 1=1';
+    let query = `
+      SELECT 
+        p.*,
+        pi.url as primary_image,
+        c.name as category_name
+      FROM products p
+      LEFT JOIN product_images pi ON p.id = pi.product_id AND pi.is_main = 1
+      LEFT JOIN categories c ON p.category_id = c.id
+      WHERE 1=1
+    `;
     const params: any[] = [];
 
     if (search) {
-      query += ' AND (name LIKE ? OR sku LIKE ?)';
+      query += ' AND (p.name LIKE ? OR p.sku LIKE ?)';
       params.push(`%${search}%`, `%${search}%`);
     }
 
     if (status) {
-      query += ' AND is_active = ?';
+      query += ' AND p.is_active = ?';
       params.push(status === 'active' ? 1 : 0);
     }
 
-    query += ' ORDER BY created_at DESC LIMIT ? OFFSET ?';
+    query += ' ORDER BY p.created_at DESC LIMIT ? OFFSET ?';
     params.push(limit, offset);
 
     const products = await executeQuery(query, params);
