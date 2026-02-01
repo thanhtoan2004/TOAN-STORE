@@ -34,10 +34,10 @@ export default function HelpPage() {
   const fetchFAQs = async () => {
     try {
       setLoading(true);
-      const url = selectedCategory 
+      const url = selectedCategory
         ? `/api/faqs?categoryId=${selectedCategory}`
         : '/api/faqs';
-      
+
       const response = await fetch(url);
       const data = await response.json();
 
@@ -96,7 +96,7 @@ export default function HelpPage() {
     <div className="min-h-screen bg-gray-50">
       <div className="nike-container py-12">
         <div className="max-w-4xl mx-auto">
-          <h1 className="text-4xl font-nike-futura mb-4">Trung Tâm Trợ Giúp</h1>
+          <h1 className="text-4xl font-bold mb-4">Trung Tâm Trợ Giúp</h1>
           <p className="text-gray-600 mb-8">
             Chúng tôi ở đây để giúp bạn. Tìm câu trả lời cho các câu hỏi thường gặp hoặc liên hệ với chúng tôi.
           </p>
@@ -108,7 +108,7 @@ export default function HelpPage() {
                 <ul className="space-y-2">
                   {category.links.map((link) => (
                     <li key={link.name}>
-                      <Link 
+                      <Link
                         href={link.href}
                         className="text-gray-600 hover:text-black transition-colors"
                       >
@@ -128,11 +128,10 @@ export default function HelpPage() {
                 <div className="flex gap-2 flex-wrap">
                   <button
                     onClick={() => setSelectedCategory(null)}
-                    className={`px-4 py-2 rounded-lg text-sm transition ${
-                      selectedCategory === null
+                    className={`px-4 py-2 rounded-lg text-sm transition ${selectedCategory === null
                         ? 'bg-black text-white'
                         : 'bg-gray-100 hover:bg-gray-200'
-                    }`}
+                      }`}
                   >
                     Tất cả
                   </button>
@@ -140,11 +139,10 @@ export default function HelpPage() {
                     <button
                       key={cat.id}
                       onClick={() => setSelectedCategory(cat.id)}
-                      className={`px-4 py-2 rounded-lg text-sm transition ${
-                        selectedCategory === cat.id
+                      className={`px-4 py-2 rounded-lg text-sm transition ${selectedCategory === cat.id
                           ? 'bg-black text-white'
                           : 'bg-gray-100 hover:bg-gray-200'
-                      }`}
+                        }`}
                     >
                       {cat.name}
                     </button>

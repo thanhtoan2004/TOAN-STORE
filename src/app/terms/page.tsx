@@ -5,7 +5,7 @@ export default function TermsPage() {
     <div className="min-h-screen bg-gray-50">
       <div className="nike-container py-12">
         <div className="max-w-4xl mx-auto">
-          <h1 className="text-4xl font-nike-futura mb-6">Điều Khoản Bán Hàng</h1>
+          <h1 className="text-4xl font-bold mb-6">Điều Khoản Bán Hàng</h1>
 
           <div className="bg-white rounded-lg p-8 shadow-sm space-y-6">
             <section>
@@ -27,7 +27,7 @@ export default function TermsPage() {
             <section>
               <h2 className="text-2xl font-helvetica-medium mb-4">3. Vận Chuyển</h2>
               <p className="text-gray-700 leading-relaxed">
-                Chúng tôi sẽ cố gắng giao hàng trong thời gian đã cam kết. Tuy nhiên, thời gian giao hàng 
+                Chúng tôi sẽ cố gắng giao hàng trong thời gian đã cam kết. Tuy nhiên, thời gian giao hàng
                 có thể bị ảnh hưởng bởi các yếu tố ngoài tầm kiểm soát của chúng tôi.
               </p>
             </section>
@@ -35,7 +35,7 @@ export default function TermsPage() {
             <section>
               <h2 className="text-2xl font-helvetica-medium mb-4">4. Trả Hàng và Hoàn Tiền</h2>
               <p className="text-gray-700 leading-relaxed">
-                Bạn có thể trả hàng trong vòng 30 ngày kể từ ngày nhận hàng. Sản phẩm phải còn nguyên vẹn 
+                Bạn có thể trả hàng trong vòng 30 ngày kể từ ngày nhận hàng. Sản phẩm phải còn nguyên vẹn
                 và chưa sử dụng. Xem thêm chi tiết tại{' '}
                 <a href="/help/returns" className="text-black underline">Chính Sách Trả Hàng</a>.
               </p>
@@ -44,7 +44,7 @@ export default function TermsPage() {
             <section>
               <h2 className="text-2xl font-helvetica-medium mb-4">5. Quyền Sở Hữu Trí Tuệ</h2>
               <p className="text-gray-700 leading-relaxed">
-                Tất cả nội dung trên website, bao gồm logo, hình ảnh, văn bản đều thuộc quyền sở hữu 
+                Tất cả nội dung trên website, bao gồm logo, hình ảnh, văn bản đều thuộc quyền sở hữu
                 của TOAN và được bảo vệ bởi luật bản quyền.
               </p>
             </section>

@@ -21,11 +21,14 @@ interface BannerCarouselProps {
   interval?: number;
 }
 
+import { useLanguage } from '@/contexts/LanguageContext';
+
 export default function BannerCarousel({
   position = 'homepage',
   autoPlay = true,
   interval = 5000
 }: BannerCarouselProps) {
+  const { t } = useLanguage();
   const [banners, setBanners] = useState<Banner[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -163,7 +166,7 @@ export default function BannerCarousel({
                     onClick={() => trackBannerClick(banner.id)}
                     className="inline-block bg-white text-black px-8 py-3 rounded-full font-medium hover:bg-gray-100 transition-colors"
                   >
-                    {banner.link_text || 'Xem thêm'}
+                    {banner.link_text || t.home.read_more}
                   </Link>
                 )}
               </div>

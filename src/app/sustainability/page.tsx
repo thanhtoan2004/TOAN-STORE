@@ -5,14 +5,14 @@ export default function SustainabilityPage() {
     <div className="min-h-screen bg-gray-50">
       <div className="nike-container py-12">
         <div className="max-w-4xl mx-auto">
-          <h1 className="text-4xl font-nike-futura mb-6">Tính Bền Vững</h1>
+          <h1 className="text-4xl font-bold mb-6">Tính Bền Vững</h1>
 
           <div className="bg-white rounded-lg p-8 shadow-sm space-y-6">
             <section>
               <h2 className="text-2xl font-helvetica-medium mb-4">Cam Kết Của Chúng Tôi</h2>
               <p className="text-gray-700 leading-relaxed">
-                TOAN cam kết giảm thiểu tác động đến môi trường và tạo ra một tương lai bền vững hơn 
-                cho thế hệ mai sau. Chúng tôi đang nỗ lực để đạt được mục tiêu không phát thải carbon 
+                TOAN cam kết giảm thiểu tác động đến môi trường và tạo ra một tương lai bền vững hơn
+                cho thế hệ mai sau. Chúng tôi đang nỗ lực để đạt được mục tiêu không phát thải carbon
                 vào năm 2030.
               </p>
             </section>
@@ -60,7 +60,7 @@ export default function SustainabilityPage() {
             <section>
               <h2 className="text-2xl font-helvetica-medium mb-4">Tham Gia Cùng Chúng Tôi</h2>
               <p className="text-gray-700">
-                Bạn có thể đóng góp vào mục tiêu bền vững bằng cách tham gia chương trình tái chế, 
+                Bạn có thể đóng góp vào mục tiêu bền vững bằng cách tham gia chương trình tái chế,
                 chọn sản phẩm làm từ vật liệu tái chế, và chia sẻ thông điệp về tính bền vững.
               </p>
             </section>

@@ -105,7 +105,7 @@ export default function ChangePassword() {
             <Link href="/account/settings" className="text-sm text-blue-600 hover:underline mb-4 inline-block">
               ← Quay lại cài đặt
             </Link>
-            <h1 className="text-3xl font-nike-futura mb-2">Đổi mật khẩu</h1>
+            <h1 className="text-3xl font-bold mb-2">Đổi mật khẩu</h1>
             <p className="text-gray-600">Cập nhật mật khẩu của bạn để bảo mật tài khoản</p>
           </div>
 

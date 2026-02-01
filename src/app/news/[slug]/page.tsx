@@ -117,7 +117,7 @@ export default function NewsDetailPage() {
                             )}
 
                             {/* Title */}
-                            <h1 className="text-4xl font-nike-futura mb-4">{news.title}</h1>
+                            <h1 className="text-4xl font-bold mb-4">{news.title}</h1>
 
                             {/* Meta */}
                             <div className="flex items-center gap-4 text-sm text-gray-600 mb-6 pb-6 border-b">

@@ -9,21 +9,21 @@ async function checkAdminAuth() {
   try {
     const cookieStore = await cookies();
     const token = cookieStore.get('auth_token')?.value;
-    
+
     if (!token) return null;
-    
+
     const decoded = jwt.verify(
       token,
       process.env.JWT_SECRET || 'fallback_secret'
     ) as JWTPayload;
-    
+
     const users = await executeQuery(
       'SELECT is_admin FROM users WHERE id = ?',
       [decoded.userId]
     ) as any[];
-    
+
     if (users.length === 0 || users[0].is_admin !== 1) return null;
-    
+
     return { isAdmin: true, userId: decoded.userId };
   } catch {
     return null;
@@ -163,8 +163,8 @@ export async function PUT(request: NextRequest) {
                          description = ?, recipient_user_id = ?, valid_until = ?, 
                          status = COALESCE(?, status), updated_at = NOW() 
        WHERE id = ?`,
-      [code || null, value ? parseFloat(value.toString()) : null, description || null, 
-       recipient_user_id || null, valid_until || null, status || null, id]
+      [code || null, value ? parseFloat(value.toString()) : null, description || null,
+      recipient_user_id || null, valid_until || null, status || null, id]
     );
 
     return NextResponse.json({

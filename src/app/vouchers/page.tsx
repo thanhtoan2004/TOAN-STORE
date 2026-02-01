@@ -111,7 +111,7 @@ export default function VouchersPage() {
     <div className="min-h-screen bg-gray-50">
       <div className="bg-white border-b">
         <div className="nike-container py-8">
-          <h1 className="text-4xl font-nike-futura mb-2">Mã Giảm Giá</h1>
+          <h1 className="text-4xl font-bold mb-2">Mã Giảm Giá</h1>
           <p className="text-gray-600 mb-4">Khám phá các ưu đãi đặc biệt dành cho bạn</p>
 
           {user && (

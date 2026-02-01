@@ -41,7 +41,7 @@ export default function AdminReviewsPage() {
 
       const response = await fetch(`/api/reviews?${params}`);
       const data = await response.json();
-      
+
       if (data.success) {
         setReviews(data.data || data.reviews || []);
         setTotalPages(Math.ceil((data.pagination?.total || data.total || 0) / 20));
@@ -141,11 +141,10 @@ export default function AdminReviewsPage() {
                     setStatusFilter(status);
                     setPage(1);
                   }}
-                  className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-                    statusFilter === status
+                  className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${statusFilter === status
                       ? 'bg-black text-white'
                       : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                  }`}
+                    }`}
                 >
                   {status.charAt(0).toUpperCase() + status.slice(1)}
                 </button>
@@ -192,13 +191,12 @@ export default function AdminReviewsPage() {
                             </div>
                             <div className="flex items-center space-x-2">
                               <span
-                                className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                                  review.status === 'approved'
+                                className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${review.status === 'approved'
                                     ? 'bg-green-100 text-green-800'
                                     : review.status === 'rejected'
-                                    ? 'bg-red-100 text-red-800'
-                                    : 'bg-yellow-100 text-yellow-800'
-                                }`}
+                                      ? 'bg-red-100 text-red-800'
+                                      : 'bg-yellow-100 text-yellow-800'
+                                  }`}
                               >
                                 {review.status}
                               </span>
@@ -242,7 +240,7 @@ export default function AdminReviewsPage() {
                             )}
                             <button
                               onClick={() => deleteReview(review.id)}
-                              className="px-3 py-1 bg-gray-600 text-white text-sm rounded hover:bg-gray-700 transition-colors"
+                              className="px-3 py-1 bg-red-600 text-white text-sm rounded hover:bg-red-700 transition-colors"
                             >
                               Delete
                             </button>

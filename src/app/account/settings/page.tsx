@@ -2,22 +2,24 @@
 
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import { useLanguage } from '@/contexts/LanguageContext';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { User, Lock, MapPin, Package, Heart, Bell, CreditCard, Shield, Palette } from 'lucide-react';
+import { User, Lock, MapPin, Package, Heart, Bell, CreditCard, Shield, Palette, Star, Award } from 'lucide-react';
 
 export default function AccountSettings() {
+  const { t, language: currentLang, setLanguage } = useLanguage();
   const { user, isAuthenticated, loading: authLoading } = useAuth();
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
   const [activeTab, setActiveTab] = useState('personal');
   const [darkMode, setDarkMode] = useState(false);
-  const [language, setLanguage] = useState('vi');
+  // Removed local language state
   const [emailNotifications, setEmailNotifications] = useState(true);
   const [smsNotifications, setSmsNotifications] = useState(false);
   const [returnUrl, setReturnUrl] = useState<string | null>(null);
-  
+
   // Address state
   const [addresses, setAddresses] = useState<any[]>([]);
   const [loadingAddresses, setLoadingAddresses] = useState(false);
@@ -33,7 +35,7 @@ export default function AccountSettings() {
     postal_code: '',
     is_default: false
   });
-  
+
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
@@ -64,7 +66,7 @@ export default function AccountSettings() {
     const params = new URLSearchParams(window.location.search);
     const tab = params.get('tab');
     const returnUrlParam = params.get('returnUrl');
-    
+
     if (tab) {
       setActiveTab(tab);
     }
@@ -81,7 +83,7 @@ export default function AccountSettings() {
         dateOfBirth: user.dateOfBirth || '',
         gender: user.gender || ''
       });
-      
+
       // Load addresses
       if (activeTab === 'addresses') {
         loadAddresses();
@@ -91,7 +93,7 @@ export default function AccountSettings() {
 
   const loadAddresses = async () => {
     if (!user) return;
-    
+
     setLoadingAddresses(true);
     try {
       const response = await fetch(`/api/addresses?userId=${user.id}`);
@@ -120,12 +122,12 @@ export default function AccountSettings() {
 
     setLoading(true);
     try {
-      const url = editingAddress 
-        ? '/api/addresses' 
+      const url = editingAddress
+        ? '/api/addresses'
         : '/api/addresses';
-      
+
       const method = editingAddress ? 'PUT' : 'POST';
-      
+
       const body = editingAddress
         ? { userId: user.id, addressId: editingAddress.id, ...addressForm }
         : { userId: user.id, ...addressForm };
@@ -188,10 +190,10 @@ export default function AccountSettings() {
       const response = await fetch('/api/addresses', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          userId: user.id, 
-          addressId, 
-          action: 'setDefault' 
+        body: JSON.stringify({
+          userId: user.id,
+          addressId,
+          action: 'setDefault'
         })
       });
 
@@ -259,16 +261,41 @@ export default function AccountSettings() {
   }
 
   const menuItems = [
-    { id: 'personal', label: 'Thông tin cá nhân', icon: 'user' },
-    { id: 'security', label: 'Bảo mật & Mật khẩu', icon: 'lock' },
-    { id: 'addresses', label: 'Địa chỉ giao hàng', icon: 'map-pin' },
-    { id: 'orders', label: 'Cài đặt đơn hàng', icon: 'package' },
-    { id: 'wishlist', label: 'Wishlist', icon: 'heart' },
-    { id: 'notifications', label: 'Thông báo', icon: 'bell' },
-    { id: 'payment', label: 'Thanh toán', icon: 'credit-card' },
-    { id: 'privacy', label: 'Quyền riêng tư', icon: 'shield' },
-    { id: 'appearance', label: 'Giao diện', icon: 'palette' }
+    { id: 'membership', label: t.common.membership, icon: 'star' },
+    { id: 'personal', label: t.common.profile, icon: 'user' },
+    { id: 'security', label: t.common.security, icon: 'lock' },
+    { id: 'addresses', label: t.common.addresses, icon: 'map-pin' },
+    { id: 'orders', label: t.common.orders, icon: 'package' },
+    { id: 'wishlist', label: t.common.wishlist, icon: 'heart' },
+    { id: 'notifications', label: t.common.notifications, icon: 'bell' },
+    { id: 'payment', label: t.common.payment, icon: 'credit-card' },
+    { id: 'privacy', label: t.common.privacy, icon: 'shield' },
+    { id: 'appearance', label: t.common.appearance, icon: 'palette' }
   ];
+
+  // Helper function to calculate progress
+  const getMembershipProgress = (points: number, tier: string) => {
+    if (tier === 'gold') return 100;
+    if (tier === 'silver') return Math.min(100, (points - 1000) / (5000 - 1000) * 100);
+    return Math.min(100, points / 1000 * 100);
+  };
+
+  const getNextTierPoints = (tier: string) => {
+    if (tier === 'gold') return 0;
+    if (tier === 'silver') return 5000;
+    return 1000;
+  };
+
+  const getTierColor = (tier: string) => {
+    if (tier === 'gold') return 'text-yellow-500 bg-yellow-50 border-yellow-200';
+    if (tier === 'silver') return 'text-gray-500 bg-gray-50 border-gray-200';
+    return 'text-amber-700 bg-amber-50 border-amber-200';
+  };
+
+  const currentPoints = (user as any)?.accumulatedPoints || 0;
+  const currentTier = (user as any)?.membershipTier || 'bronze';
+  const progress = getMembershipProgress(currentPoints, currentTier);
+  const nextCheckpoint = getNextTierPoints(currentTier);
 
   // Show loading while checking auth
   if (authLoading) {
@@ -291,7 +318,7 @@ export default function AccountSettings() {
     <div className="min-h-screen bg-gray-50 py-12">
       <div className="max-w-7xl mx-auto px-4">
         <div className="mb-6">
-          <h1 className="text-3xl font-nike-futura mb-2">Cài đặt tài khoản</h1>
+          <h1 className="text-3xl font-bold mb-2">{t.common.settings}</h1>
           <p className="text-gray-600">Quản lý thông tin và tùy chọn của bạn</p>
         </div>
 
@@ -301,6 +328,7 @@ export default function AccountSettings() {
               <nav className="space-y-1">
                 {menuItems.map((item) => {
                   const IconComponent = {
+                    'star': Star,
                     'user': User,
                     'lock': Lock,
                     'map-pin': MapPin,
@@ -311,14 +339,13 @@ export default function AccountSettings() {
                     'shield': Shield,
                     'palette': Palette
                   }[item.icon];
-                  
+
                   return (
                     <button
                       key={item.id}
                       onClick={() => setActiveTab(item.id)}
-                      className={`w-full text-left px-4 py-3 rounded-lg flex items-center gap-3 transition-colors ${
-                        activeTab === item.id ? 'bg-black text-white' : 'hover:bg-gray-100'
-                      }`}
+                      className={`w-full text-left px-4 py-3 rounded-lg flex items-center gap-3 transition-colors ${activeTab === item.id ? 'bg-black text-white' : 'hover:bg-gray-100'
+                        }`}
                     >
                       {IconComponent && <IconComponent className="w-5 h-5" />}
                       <span className="text-sm font-medium">{item.label}</span>
@@ -337,48 +364,123 @@ export default function AccountSettings() {
                 </div>
               )}
 
+              {activeTab === 'membership' && (
+                <div>
+                  <h2 className="text-2xl font-semibold mb-6 flex items-center gap-2">
+                    <Award className="w-8 h-8" />
+                    Hạng thành viên
+                  </h2>
+
+                  <div className={`p-6 border rounded-xl mb-6 ${getTierColor(currentTier)}`}>
+                    <div className="flex justify-between items-start mb-4">
+                      <div>
+                        <p className="text-sm uppercase tracking-wider font-semibold opacity-70">Hạng hiện tại</p>
+                        <h3 className="text-3xl font-bold uppercase mt-1">
+                          {currentTier === 'gold' ? 'Vàng (Gold)' : currentTier === 'silver' ? 'Bạc (Silver)' : 'Đồng (Bronze)'}
+                        </h3>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-sm uppercase tracking-wider font-semibold opacity-70">Điểm tích lũy</p>
+                        <p className="text-3xl font-bold mt-1">{currentPoints.toLocaleString()} pts</p>
+                      </div>
+                    </div>
+
+                    <div className="relative pt-1">
+                      <div className="flex mb-2 items-center justify-between">
+                        <div className="text-xs font-semibold inline-block py-1 px-2 uppercase rounded-full bg-white bg-opacity-50">
+                          {Math.round(progress)}%
+                        </div>
+                        {currentTier !== 'gold' && (
+                          <div className="text-xs font-semibold inline-block">
+                            Còn {Math.max(0, nextCheckpoint - currentPoints).toLocaleString()} điểm để thăng hạng
+                          </div>
+                        )}
+                        {currentTier === 'gold' && (
+                          <div className="text-xs font-semibold inline-block">
+                            Bạn đang ở hạng cao nhất!
+                          </div>
+                        )}
+                      </div>
+                      <div className="overflow-hidden h-2 mb-4 text-xs flex rounded bg-black bg-opacity-10">
+                        <div style={{ width: `${progress}%` }} className="shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center bg-black transition-all duration-500"></div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+                    <div className={`p-4 border rounded-lg ${currentTier === 'bronze' ? 'ring-2 ring-black bg-gray-50' : 'opacity-60'}`}>
+                      <h4 className="font-bold text-lg mb-2 text-amber-900">Đồng (Bronze)</h4>
+                      <p className="text-sm text-gray-600 mb-2">0 - 999 điểm</p>
+                      <ul className="text-sm space-y-1">
+                        <li>• Tích điểm đổi quà</li>
+                        <li>• Ưu đãi sinh nhật</li>
+                      </ul>
+                    </div>
+                    <div className={`p-4 border rounded-lg ${currentTier === 'silver' ? 'ring-2 ring-black bg-gray-50' : 'opacity-60'}`}>
+                      <h4 className="font-bold text-lg mb-2 text-gray-600">Bạc (Silver)</h4>
+                      <p className="text-sm text-gray-600 mb-2">1,000 - 4,999 điểm</p>
+                      <ul className="text-sm space-y-1">
+                        <li>• Tất cả quyền lợi hạng Đồng</li>
+                        <li>• Freeship mọi đơn hàng</li>
+                        <li>• Giảm 5% khi mua hàng</li>
+                      </ul>
+                    </div>
+                    <div className={`p-4 border rounded-lg ${currentTier === 'gold' ? 'ring-2 ring-black bg-gray-50' : 'opacity-60'}`}>
+                      <h4 className="font-bold text-lg mb-2 text-yellow-600">Vàng (Gold)</h4>
+                      <p className="text-sm text-gray-600 mb-2">5,000+ điểm</p>
+                      <ul className="text-sm space-y-1">
+                        <li>• Tất cả quyền lợi hạng Bạc</li>
+                        <li>• Giảm 10% khi mua hàng</li>
+                        <li>• Quà tặng đặc biệt cuối năm</li>
+                        <li>• Hỗ trợ ưu tiên 24/7</li>
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {activeTab === 'personal' && (
                 <div>
-                  <h2 className="text-2xl font-semibold mb-6">Thông tin cá nhân</h2>
+                  <h2 className="text-2xl font-semibold mb-6">{t.common.profile}</h2>
                   <form onSubmit={handleSubmit} className="space-y-6" autoComplete="off">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
-                        <label className="block text-sm font-medium mb-2">Họ *</label>
+                        <label className="block text-sm font-medium mb-2">{t.common.last_name} *</label>
                         <input type="text" name="firstName" value={formData.firstName} onChange={handleChange} required autoComplete="given-name" className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-black focus:border-transparent" />
                       </div>
                       <div>
-                        <label className="block text-sm font-medium mb-2">Tên *</label>
+                        <label className="block text-sm font-medium mb-2">{t.common.first_name} *</label>
                         <input type="text" name="lastName" value={formData.lastName} onChange={handleChange} required autoComplete="family-name" className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-black focus:border-transparent" />
                       </div>
                     </div>
                     <div>
-                      <label className="block text-sm font-medium mb-2">Email *</label>
+                      <label className="block text-sm font-medium mb-2">{t.common.email} *</label>
                       <input type="email" name="email" value={formData.email} disabled className="w-full border border-gray-300 rounded-lg px-4 py-3 bg-gray-100 cursor-not-allowed" />
                       <p className="text-xs text-gray-500 mt-1">Email không thể thay đổi</p>
                     </div>
                     <div>
-                      <label className="block text-sm font-medium mb-2">Số điện thoại</label>
+                      <label className="block text-sm font-medium mb-2">{t.common.phone}</label>
                       <input type="tel" name="phone" value={formData.phone} onChange={handleChange} placeholder="0123456789" className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-black focus:border-transparent" />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium mb-2">Ngày sinh</label>
+                      <label className="block text-sm font-medium mb-2">{t.common.dob}</label>
                       <input type="date" name="dateOfBirth" value={formData.dateOfBirth} onChange={handleChange} className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-black focus:border-transparent" />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium mb-2">Giới tính</label>
+                      <label className="block text-sm font-medium mb-2">{t.common.gender}</label>
                       <select name="gender" value={formData.gender} onChange={handleChange} className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-black focus:border-transparent">
-                        <option value="">Chọn giới tính</option>
-                        <option value="male">Nam</option>
-                        <option value="female">Nữ</option>
-                        <option value="other">Khác</option>
+                        <option value="">{t.common.select_gender}</option>
+                        <option value="male">{t.common.male}</option>
+                        <option value="female">{t.common.female}</option>
+                        <option value="other">{t.common.other}</option>
                       </select>
                     </div>
                     <div className="flex gap-4 pt-4">
                       <button type="submit" disabled={loading} className={`flex-1 py-3 rounded-lg font-medium transition-colors ${loading ? 'bg-gray-400 cursor-not-allowed' : 'bg-black text-white hover:bg-gray-800'}`}>
-                        {loading ? 'Đang lưu...' : 'Lưu thay đổi'}
+                        {loading ? t.common.loading : t.common.save}
                       </button>
                       <Link href="/" className="flex-1">
-                        <button type="button" className="w-full py-3 rounded-lg font-medium border-2 border-gray-300 hover:border-gray-400 transition-colors">Hủy</button>
+                        <button type="button" className="w-full py-3 rounded-lg font-medium border-2 border-gray-300 hover:border-gray-400 transition-colors">{t.common.cancel}</button>
                       </Link>
                     </div>
                   </form>
@@ -400,7 +502,7 @@ export default function AccountSettings() {
                 <div>
                   <div className="flex items-center justify-between mb-6">
                     <div className="flex items-center gap-4">
-                      <h2 className="text-2xl font-semibold">Địa chỉ giao hàng</h2>
+                      <h2 className="text-2xl font-semibold">{t.common.addresses}</h2>
                       {returnUrl && (
                         <button
                           onClick={() => router.push(returnUrl)}
@@ -427,14 +529,14 @@ export default function AccountSettings() {
                       }}
                       className="px-6 py-2 bg-black text-white rounded-full font-medium hover:bg-gray-800 transition-colors"
                     >
-                      + Thêm địa chỉ mới
+                      + {t.common.add_address}
                     </button>
                   </div>
 
                   {showAddressForm && (
                     <div className="mb-6 p-6 border-2 border-black rounded-lg bg-gray-50">
                       <h3 className="text-xl font-semibold mb-4">
-                        {editingAddress ? 'Chỉnh sửa địa chỉ' : 'Thêm địa chỉ mới'}
+                        {editingAddress ? t.common.edit : t.common.add_address}
                       </h3>
                       <form onSubmit={handleAddressSubmit} className="space-y-4" autoComplete="off">
                         <div>
@@ -451,7 +553,7 @@ export default function AccountSettings() {
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                           <div>
-                            <label className="block text-sm font-medium mb-2">Tên người nhận *</label>
+                            <label className="block text-sm font-medium mb-2">{t.common.first_name} & {t.common.last_name} *</label>
                             <input
                               type="text"
                               name="recipient_name"
@@ -462,7 +564,7 @@ export default function AccountSettings() {
                             />
                           </div>
                           <div>
-                            <label className="block text-sm font-medium mb-2">Số điện thoại *</label>
+                            <label className="block text-sm font-medium mb-2">{t.common.phone} *</label>
                             <input
                               type="tel"
                               name="phone"
@@ -526,17 +628,16 @@ export default function AccountSettings() {
                             onChange={handleAddressFormChange}
                             className="w-4 h-4"
                           />
-                          <label className="text-sm font-medium">Đặt làm địa chỉ mặc định</label>
+                          <label className="text-sm font-medium">{t.common.set_default}</label>
                         </div>
                         <div className="flex gap-4 pt-4">
                           <button
                             type="submit"
                             disabled={loading}
-                            className={`flex-1 py-3 rounded-full font-medium transition-colors ${
-                              loading ? 'bg-gray-400 cursor-not-allowed' : 'bg-black text-white hover:bg-gray-800'
-                            }`}
+                            className={`flex-1 py-3 rounded-full font-medium transition-colors ${loading ? 'bg-gray-400 cursor-not-allowed' : 'bg-black text-white hover:bg-gray-800'
+                              }`}
                           >
-                            {loading ? 'Đang lưu...' : editingAddress ? 'Cập nhật' : 'Thêm địa chỉ'}
+                            {loading ? t.common.loading : editingAddress ? t.common.save : t.common.add_address}
                           </button>
                           <button
                             type="button"
@@ -546,7 +647,7 @@ export default function AccountSettings() {
                             }}
                             className="flex-1 py-3 rounded-full font-medium border-2 border-gray-300 hover:border-gray-400 transition-colors"
                           >
-                            Hủy
+                            {t.common.cancel}
                           </button>
                         </div>
                       </form>
@@ -556,7 +657,7 @@ export default function AccountSettings() {
                   {loadingAddresses ? (
                     <div className="text-center py-8">
                       <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-black mx-auto"></div>
-                      <p className="text-gray-600 mt-4">Đang tải...</p>
+                      <p className="text-gray-600 mt-4">{t.common.loading}</p>
                     </div>
                   ) : addresses.length === 0 ? (
                     <div className="text-center py-12 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
@@ -569,9 +670,8 @@ export default function AccountSettings() {
                       {addresses.map((address) => (
                         <div
                           key={address.id}
-                          className={`p-6 border-2 rounded-lg ${
-                            address.is_default ? 'border-black bg-gray-50' : 'border-gray-300'
-                          }`}
+                          className={`p-6 border-2 rounded-lg ${address.is_default ? 'border-black bg-gray-50' : 'border-gray-300'
+                            }`}
                         >
                           <div className="flex items-start justify-between mb-3">
                             <div>
@@ -582,7 +682,7 @@ export default function AccountSettings() {
                               )}
                               {address.is_default === 1 && (
                                 <span className="inline-block px-3 py-1 bg-green-500 text-white text-xs rounded-full mb-2 ml-2">
-                                  Mặc định
+                                  {t.common.default}
                                 </span>
                               )}
                             </div>
@@ -600,20 +700,20 @@ export default function AccountSettings() {
                               onClick={() => handleEditAddress(address)}
                               className="px-4 py-2 text-sm border border-gray-300 rounded-full hover:border-black transition-colors"
                             >
-                              Sửa
+                              {t.common.edit}
                             </button>
                             <button
                               onClick={() => handleDeleteAddress(address.id)}
                               className="px-4 py-2 text-sm text-red-600 border border-red-300 rounded-full hover:bg-red-50 transition-colors"
                             >
-                              Xóa
+                              {t.common.delete}
                             </button>
                             {address.is_default !== 1 && (
                               <button
                                 onClick={() => handleSetDefaultAddress(address.id)}
                                 className="px-4 py-2 text-sm border border-gray-300 rounded-full hover:border-black transition-colors"
                               >
-                                Đặt mặc định
+                                {t.common.set_default}
                               </button>
                             )}
                           </div>
@@ -626,8 +726,18 @@ export default function AccountSettings() {
 
               {activeTab === 'appearance' && (
                 <div>
-                  <h2 className="text-2xl font-semibold mb-6">Giao diện</h2>
-                  <div><label className="block text-sm font-medium mb-3">Ngôn ngữ</label><select value={language} onChange={(e) => setLanguage(e.target.value)} className="w-full border border-gray-300 rounded-lg px-4 py-3"><option value="vi">Tiếng Việt</option><option value="en">English</option></select></div>
+                  <h2 className="text-2xl font-semibold mb-6">{t.common.appearance}</h2>
+                  <div>
+                    <label className="block text-sm font-medium mb-3">{t.common.language}</label>
+                    <select
+                      value={currentLang}
+                      onChange={(e) => setLanguage(e.target.value as any)}
+                      className="w-full border border-gray-300 rounded-lg px-4 py-3"
+                    >
+                      <option value="vi">Tiếng Việt</option>
+                      <option value="en">English</option>
+                    </select>
+                  </div>
                 </div>
               )}
 

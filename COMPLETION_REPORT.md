@@ -138,7 +138,22 @@
 ✅ **POST /api/gift-card** - Tạo thẻ quà tặng mới
 ✅ **Database**: Bảng `gift_cards`, `gift_card_transactions`
 
-### 10. DATABASE INITIALIZATION
+### 10. MEMBERSHIP & BENEFITS (NEW) ✨
+✅ **Automatic Point Accumulation**
+   - ✅ 10,000 VND = 1 Point (Calculated on `delivered` status)
+   - ✅ **Database**: Stored in `users.accumulated_points`
+
+✅ **Tier System**
+   - ✅ **Bronze**: Default
+   - ✅ **Silver**: > 1000 points
+   - ✅ **Gold**: > 5000 points
+   - ✅ **Database**: Stored in `users.membership_tier`
+
+✅ **Benefits**
+   - ✅ **Discounts**: Silver (5%), Gold (10%) automatically applied at checkout
+   - ✅ **Free Shipping**: For Silver & Gold members
+
+### 11. DATABASE INITIALIZATION
 ✅ **GET /api/init-db** - Khởi tạo database
    - ✅ Tạo 15+ bảng chính
    - ✅ Tạo bảng `product_reviews` ✨ MỚI
@@ -146,10 +161,10 @@
 
 ---
 
-## 📊 DATABASE STRUCTURE (15 BẢNG CHÍNH)
+## 📊 DATABASE STRUCTURE (MERGED & CLEANED)
 
 ### Core Tables (Đã tạo & hoạt động)
-1. ✅ `users` - Khách hàng
+1. ✅ `users` - Khách hàng (Updated: `accumulated_points`, `membership_tier`, `is_banned`)
 2. ✅ `admin_users` - Admin users
 3. ✅ `user_sessions` - Phiên đăng nhập
 4. ✅ `products` - Sản phẩm
@@ -204,6 +219,8 @@
 - ✅ **Admin Panel**: 4 APIs quản lý products, orders, users, dashboard
 - ✅ **Search & Filter**: Đầy đủ cho products API
 - ✅ **Stock Management**: Auto update khi order/cancel
+- ✅ **Membership System**: Tích điểm & phân hạng tự động
+- ✅ **Migration Centralization**: Gộp tất cả logic tạo bảng vào `mysql.ts`, xóa folder rác `database/` & `migrations/`
 
 ---
 

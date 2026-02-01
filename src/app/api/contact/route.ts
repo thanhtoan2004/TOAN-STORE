@@ -12,7 +12,7 @@ interface ContactRequest {
 
 async function contactHandler(req: NextRequest): Promise<NextResponse> {
   const body: Partial<ContactRequest> = await req.json();
-  
+
   const validation = validateRequiredFields(body, ['name', 'email', 'subject', 'message']);
   if (!validation.isValid) {
     return createErrorResponse(validation.error, 400);
@@ -36,7 +36,7 @@ async function contactHandler(req: NextRequest): Promise<NextResponse> {
     await saveContactMessage({ name, email, subject, message, userId });
 
     // Log the contact form submission
-    console.log('Contact form submission:', { name, email, subject, message });
+    // console.log('Contact form submission:', { name, email, subject, message });
 
     return createSuccessResponse(
       null,

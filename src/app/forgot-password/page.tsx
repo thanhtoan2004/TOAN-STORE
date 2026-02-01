@@ -44,7 +44,7 @@ export default function ForgotPasswordPage() {
         <div className="nike-container py-10">
             <div className="max-w-md mx-auto bg-white p-8 rounded-lg shadow-sm border">
                 <div className="mb-8 text-center">
-                    <h1 className="text-3xl font-nike-futura uppercase mb-2">Quên mật khẩu?</h1>
+                    <h1 className="text-3xl font-bold uppercase mb-2">Quên mật khẩu?</h1>
                     <p className="text-sm text-gray-500">
                         Nhập email của bạn và chúng tôi sẽ gửi hướng dẫn đặt lại mật khẩu
                     </p>

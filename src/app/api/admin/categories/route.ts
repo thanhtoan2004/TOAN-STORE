@@ -4,7 +4,7 @@ import { executeQuery } from '@/lib/db/mysql';
 async function checkAdminAuth(request: NextRequest) {
   try {
     const authHeader = request.headers.get('authorization') || request.headers.get('cookie')?.match(/auth_token=([^;]+)/)?.[1];
-    
+
     if (!authHeader) {
       return null;
     }
@@ -12,7 +12,7 @@ async function checkAdminAuth(request: NextRequest) {
     // Parse JWT or get from database
     const token = authHeader.replace('Bearer ', '');
     const decoded: any = JSON.parse(Buffer.from(token.split('.')[1], 'base64').toString());
-    
+
     const result = await executeQuery('SELECT is_admin FROM users WHERE id = ?', [decoded.userId]) as any[];
     return result.length > 0 && (result[0] as any).is_admin === 1 ? result[0] : null;
   } catch {
@@ -23,9 +23,9 @@ async function checkAdminAuth(request: NextRequest) {
 export async function GET(request: NextRequest) {
   try {
     const result = await executeQuery(
-      'SELECT id, name, slug, description, position, is_active FROM categories ORDER BY position ASC'
+      'SELECT id, name, slug, description, image_url, position, is_active FROM categories ORDER BY position ASC'
     );
-    
+
     return NextResponse.json({
       success: true,
       data: result
@@ -43,11 +43,11 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const { name, slug, description, position } = await request.json();
+    const { name, slug, description, image_url, position } = await request.json();
 
     const result = await executeQuery(
-      'INSERT INTO categories (name, slug, description, position, is_active) VALUES (?, ?, ?, ?, 1)',
-      [name, slug, description, position]
+      'INSERT INTO categories (name, slug, description, image_url, position, is_active) VALUES (?, ?, ?, ?, ?, 1)',
+      [name, slug, description, image_url || null, position]
     ) as any;
 
     return NextResponse.json({

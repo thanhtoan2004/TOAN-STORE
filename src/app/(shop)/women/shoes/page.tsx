@@ -52,7 +52,7 @@ export default function WomenShoesPage() {
             <span className="mx-2">/</span>
             <span className="text-black">Giày</span>
           </nav>
-          <h1 className="text-4xl font-nike-futura mb-2">Giày Nữ</h1>
+          <h1 className="text-4xl font-bold mb-2">Giày Nữ</h1>
           <p className="text-gray-600">Khám phá bộ sưu tập giày thể thao và lifestyle dành cho nữ</p>
         </div>
       </div>

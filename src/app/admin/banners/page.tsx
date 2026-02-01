@@ -260,6 +260,7 @@ export default function AdminBannersPage() {
                     className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-black focus:border-transparent"
                   >
                     <option value="homepage">Homepage</option>
+                    <option value="home_featured">Featured Section (Home)</option>
                     <option value="category">Category</option>
                     <option value="product">Product</option>
                   </select>
@@ -335,13 +336,16 @@ export default function AdminBannersPage() {
                     <div className="flex flex-col space-y-2">
                       <button
                         onClick={() => editBanner(banner)}
-                        className="px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
+                        className="px-3 py-1 text-sm border border-gray-300 rounded hover:bg-gray-50 text-gray-700"
                       >
                         Edit
                       </button>
                       <button
                         onClick={() => toggleBannerStatus(banner.id, banner.is_active)}
-                        className="px-3 py-1 text-sm bg-yellow-600 text-white rounded hover:bg-yellow-700 transition-colors"
+                        className={`px-3 py-1 text-sm border rounded hover:opacity-80 ${banner.is_active === 1
+                          ? 'border-yellow-300 text-yellow-700 bg-yellow-50'
+                          : 'border-green-300 text-green-700 bg-green-50'
+                          }`}
                       >
                         {banner.is_active === 1 ? 'Deactivate' : 'Activate'}
                       </button>

@@ -30,12 +30,12 @@ function AdminLoginContent() {
 
     try {
       const success = await login(email, password);
-      
+
       if (success) {
         // Fetch user data to check if admin
         const userResponse = await fetch('/api/auth/me');
         const userData = await userResponse.json();
-        
+
         if (userData.is_admin || userData.user?.is_admin) {
           router.push('/admin/dashboard');
         } else {
@@ -56,7 +56,7 @@ function AdminLoginContent() {
     <div className="nike-container py-10">
       <div className="max-w-md mx-auto bg-white p-8 rounded-lg shadow-sm border">
         <div className="mb-8 text-center">
-          <h1 className="text-3xl font-nike-futura uppercase mb-2">ADMIN</h1>
+          <h1 className="text-3xl font-bold uppercase mb-2">ADMIN</h1>
           <p className="text-sm text-gray-500">
             Đăng nhập admin để quản lý trang web.
           </p>

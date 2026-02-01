@@ -2,12 +2,15 @@
 
 import React, { useState } from 'react';
 
+import { useLanguage } from '@/contexts/LanguageContext';
+
 interface ProductFilterProps {
   filterParams: Record<string, string>;
   onFilterChange: (filters: Record<string, string>) => void;
 }
 
 const ProductFilter: React.FC<ProductFilterProps> = ({ filterParams, onFilterChange }) => {
+  const { t } = useLanguage();
   const [isOpen, setIsOpen] = useState(false);
 
   const handleFilterChange = (key: string, value: string) => {
@@ -34,13 +37,13 @@ const ProductFilter: React.FC<ProductFilterProps> = ({ filterParams, onFilterCha
   return (
     <div className="bg-white rounded-lg border border-gray-200 p-4">
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-semibold">Bộ Lọc</h3>
+        <h3 className="text-lg font-semibold">{t.filters.title}</h3>
         {hasActiveFilters && (
           <button
             onClick={clearFilters}
             className="text-sm text-gray-600 hover:text-black underline"
           >
-            Xóa tất cả
+            {t.filters.clear_all}
           </button>
         )}
       </div>
@@ -49,27 +52,27 @@ const ProductFilter: React.FC<ProductFilterProps> = ({ filterParams, onFilterCha
         {/* Category Filter */}
         <div>
           <div className="flex items-center justify-between mb-3">
-            <h4 className="font-medium text-sm">Danh Mục</h4>
+            <h4 className="font-medium text-sm">{t.filters.category}</h4>
             {filterParams.category && (
               <button
                 onClick={() => handleFilterChange('category', '')}
                 className="text-xs text-gray-500 hover:text-black underline"
               >
-                Xóa
+                {t.filters.clear}
               </button>
             )}
           </div>
           <div className="space-y-2">
-            <label className="flex items-center">
+            <label className="flex items-center cursor-pointer">
               <input
                 type="radio"
                 name="category"
                 value=""
                 checked={!filterParams.category}
                 onChange={(e) => handleFilterChange('category', e.target.value)}
-                className="mr-2"
+                className="mr-2 cursor-pointer"
               />
-              <span className="text-sm text-gray-700">Tất cả</span>
+              <span className="text-sm text-gray-700">{t.filters.all}</span>
             </label>
             {['Lifestyle', 'Running', 'Basketball', 'Training', 'Skate'].map((category) => (
               <label key={category} className="flex items-center cursor-pointer">
@@ -81,7 +84,7 @@ const ProductFilter: React.FC<ProductFilterProps> = ({ filterParams, onFilterCha
                   onChange={(e) => handleFilterChange('category', e.target.value)}
                   className="mr-2 cursor-pointer"
                 />
-                <span className="text-sm text-gray-700">{category}</span>
+                <span className="text-sm text-gray-700">{t.filters[category.toLowerCase() as keyof typeof t.filters] || category}</span>
               </label>
             ))}
           </div>
@@ -90,13 +93,13 @@ const ProductFilter: React.FC<ProductFilterProps> = ({ filterParams, onFilterCha
         {/* Sport Filter */}
         <div>
           <div className="flex items-center justify-between mb-3">
-            <h4 className="font-medium text-sm">Thể Thao</h4>
+            <h4 className="font-medium text-sm">{t.filters.sport}</h4>
             {filterParams.sport && (
               <button
                 onClick={() => handleFilterChange('sport', '')}
                 className="text-xs text-gray-500 hover:text-black underline"
               >
-                Xóa
+                {t.filters.clear}
               </button>
             )}
           </div>
@@ -110,7 +113,7 @@ const ProductFilter: React.FC<ProductFilterProps> = ({ filterParams, onFilterCha
                 onChange={(e) => handleFilterChange('sport', e.target.value)}
                 className="mr-2 cursor-pointer"
               />
-              <span className="text-sm text-gray-700">Tất cả</span>
+              <span className="text-sm text-gray-700">{t.filters.all}</span>
             </label>
             {['Running', 'Basketball', 'Training', 'Tennis', 'Golf'].map((sport) => (
               <label key={sport} className="flex items-center cursor-pointer">
@@ -122,7 +125,7 @@ const ProductFilter: React.FC<ProductFilterProps> = ({ filterParams, onFilterCha
                   onChange={(e) => handleFilterChange('sport', e.target.value)}
                   className="mr-2 cursor-pointer"
                 />
-                <span className="text-sm text-gray-700">{sport}</span>
+                <span className="text-sm text-gray-700">{t.filters[sport.toLowerCase() as keyof typeof t.filters] || sport}</span>
               </label>
             ))}
           </div>
@@ -131,13 +134,13 @@ const ProductFilter: React.FC<ProductFilterProps> = ({ filterParams, onFilterCha
         {/* Price Filter */}
         <div>
           <div className="flex items-center justify-between mb-3">
-            <h4 className="font-medium text-sm">Giá</h4>
+            <h4 className="font-medium text-sm">{t.filters.price}</h4>
             {filterParams.price && (
               <button
                 onClick={() => handleFilterChange('price', '')}
                 className="text-xs text-gray-500 hover:text-black underline"
               >
-                Xóa
+                {t.filters.clear}
               </button>
             )}
           </div>
@@ -151,13 +154,13 @@ const ProductFilter: React.FC<ProductFilterProps> = ({ filterParams, onFilterCha
                 onChange={(e) => handleFilterChange('price', e.target.value)}
                 className="mr-2 cursor-pointer"
               />
-              <span className="text-sm text-gray-700">Tất cả</span>
+              <span className="text-sm text-gray-700">{t.filters.all}</span>
             </label>
             {[
-              { label: 'Dưới 1.000.000₫', value: 'under-1000000' },
-              { label: '1.000.000₫ - 2.000.000₫', value: '1000000-2000000' },
-              { label: '2.000.000₫ - 3.000.000₫', value: '2000000-3000000' },
-              { label: 'Trên 3.000.000₫', value: 'over-3000000' },
+              { label: t.filters.under_1m, value: 'under-1000000' },
+              { label: t.filters.from_1m_to_2m, value: '1000000-2000000' },
+              { label: t.filters.from_2m_to_3m, value: '2000000-3000000' },
+              { label: t.filters.over_3m, value: 'over-3000000' },
             ].map((price) => (
               <label key={price.value} className="flex items-center cursor-pointer">
                 <input
@@ -177,13 +180,13 @@ const ProductFilter: React.FC<ProductFilterProps> = ({ filterParams, onFilterCha
         {/* Gender Filter */}
         <div>
           <div className="flex items-center justify-between mb-3">
-            <h4 className="font-medium text-sm">Giới Tính</h4>
+            <h4 className="font-medium text-sm">{t.filters.gender}</h4>
             {filterParams.gender && (
               <button
                 onClick={() => handleFilterChange('gender', '')}
                 className="text-xs text-gray-500 hover:text-black underline"
               >
-                Xóa
+                {t.filters.clear}
               </button>
             )}
           </div>
@@ -197,19 +200,23 @@ const ProductFilter: React.FC<ProductFilterProps> = ({ filterParams, onFilterCha
                 onChange={(e) => handleFilterChange('gender', e.target.value)}
                 className="mr-2 cursor-pointer"
               />
-              <span className="text-sm text-gray-700">Tất cả</span>
+              <span className="text-sm text-gray-700">{t.filters.all}</span>
             </label>
-            {['Men', 'Women', 'Kids'].map((gender) => (
-              <label key={gender} className="flex items-center cursor-pointer">
+            {[
+              { label: t.nav.men, value: 'men' },
+              { label: t.nav.women, value: 'women' },
+              { label: t.nav.kids, value: 'kids' }
+            ].map((gender) => (
+              <label key={gender.value} className="flex items-center cursor-pointer">
                 <input
                   type="radio"
                   name="gender"
-                  value={gender.toLowerCase()}
-                  checked={filterParams.gender === gender.toLowerCase()}
+                  value={gender.value}
+                  checked={filterParams.gender === gender.value}
                   onChange={(e) => handleFilterChange('gender', e.target.value)}
                   className="mr-2 cursor-pointer"
                 />
-                <span className="text-sm text-gray-700">{gender}</span>
+                <span className="text-sm text-gray-700">{gender.label}</span>
               </label>
             ))}
           </div>

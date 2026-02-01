@@ -49,7 +49,7 @@ export default function NewsPage() {
     <div className="min-h-screen bg-gray-50">
       <div className="nike-container py-12">
         <div className="max-w-6xl mx-auto">
-          <h1 className="text-4xl font-nike-futura mb-4">Tin Tức</h1>
+          <h1 className="text-4xl font-bold mb-4">Tin Tức</h1>
           <p className="text-gray-600 mb-8">
             Cập nhật những tin tức mới nhất từ TOAN
           </p>

@@ -5,14 +5,14 @@ export default function AboutPage() {
     <div className="min-h-screen bg-gray-50">
       <div className="nike-container py-12">
         <div className="max-w-4xl mx-auto">
-          <h1 className="text-4xl font-nike-futura mb-6">Về TOAN</h1>
+          <h1 className="text-4xl font-bold mb-6">Về TOAN</h1>
 
           <div className="bg-white rounded-lg p-8 shadow-sm space-y-6">
             <section>
               <h2 className="text-2xl font-helvetica-medium mb-4">Câu Chuyện Của Chúng Tôi</h2>
               <p className="text-gray-700 leading-relaxed">
-                TOAN được thành lập với sứ mệnh mang đến những sản phẩm thể thao chất lượng cao, 
-                phù hợp với phong cách sống năng động của người Việt Nam. Chúng tôi tin rằng mọi người 
+                TOAN được thành lập với sứ mệnh mang đến những sản phẩm thể thao chất lượng cao,
+                phù hợp với phong cách sống năng động của người Việt Nam. Chúng tôi tin rằng mọi người
                 đều xứng đáng có cơ hội trải nghiệm những sản phẩm tốt nhất.
               </p>
             </section>
@@ -20,7 +20,7 @@ export default function AboutPage() {
             <section>
               <h2 className="text-2xl font-helvetica-medium mb-4">Tầm Nhìn</h2>
               <p className="text-gray-700 leading-relaxed">
-                Trở thành thương hiệu thể thao hàng đầu tại Việt Nam, được tin tưởng và yêu thích 
+                Trở thành thương hiệu thể thao hàng đầu tại Việt Nam, được tin tưởng và yêu thích
                 bởi hàng triệu khách hàng trên cả nước.
               </p>
             </section>
@@ -50,8 +50,8 @@ export default function AboutPage() {
             <section>
               <h2 className="text-2xl font-helvetica-medium mb-4">Cam Kết</h2>
               <p className="text-gray-700 leading-relaxed">
-                Chúng tôi cam kết mang đến trải nghiệm mua sắm tuyệt vời nhất cho khách hàng, 
-                từ chất lượng sản phẩm đến dịch vụ chăm sóc khách hàng. Mọi phản hồi của bạn 
+                Chúng tôi cam kết mang đến trải nghiệm mua sắm tuyệt vời nhất cho khách hàng,
+                từ chất lượng sản phẩm đến dịch vụ chăm sóc khách hàng. Mọi phản hồi của bạn
                 đều được chúng tôi lắng nghe và cải thiện.
               </p>
             </section>

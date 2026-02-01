@@ -15,6 +15,7 @@ const nextConfig = {
       { protocol: "https", hostname: "ext.same-assets.com", pathname: "/**" },
       { protocol: "https", hostname: "ugc.same-assets.com", pathname: "/**" },
       { protocol: "https", hostname: "static.nike.com", pathname: "/**" },
+      { protocol: "https", hostname: "via.placeholder.com", pathname: "/**" },
     ],
   },
   webpack: (config, { isServer }) => {

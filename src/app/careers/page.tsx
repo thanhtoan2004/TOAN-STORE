@@ -39,7 +39,7 @@ export default function CareersPage() {
     <div className="min-h-screen bg-gray-50">
       <div className="nike-container py-12">
         <div className="max-w-6xl mx-auto">
-          <h1 className="text-4xl font-nike-futura mb-4">Nghề Nghiệp</h1>
+          <h1 className="text-4xl font-bold mb-4">Nghề Nghiệp</h1>
           <p className="text-gray-600 mb-8">
             Tham gia đội ngũ TOAN và cùng chúng tôi tạo ra những sản phẩm thể thao hàng đầu
           </p>
@@ -91,10 +91,10 @@ export default function CareersPage() {
             <h2 className="text-2xl font-helvetica-medium mb-4">Nộp Đơn</h2>
             <p className="text-gray-700 mb-6">
               Hiện tại chúng tôi không có vị trí nào đang tuyển dụng. Vui lòng gửi CV của bạn đến{' '}
-              <a href="mailto:careers@toan.com" className="text-black underline">careers@toan.com</a> để 
+              <a href="mailto:careers@toan.com" className="text-black underline">careers@toan.com</a> để
               chúng tôi có thể liên hệ khi có cơ hội phù hợp.
             </p>
-            <Link 
+            <Link
               href="/help/contact"
               className="inline-block px-6 py-3 bg-black text-white rounded-lg hover:bg-gray-800 transition"
             >

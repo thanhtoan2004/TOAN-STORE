@@ -57,39 +57,48 @@ interface ErrorStateProps {
   onRetry: () => void;
 }
 
-const ErrorState = memo(({ error, onRetry }: ErrorStateProps) => (
-  <div className="text-center py-12">
-    <div className="bg-red-50 border border-red-200 rounded-lg p-6 max-w-md mx-auto">
-      <h3 className="text-lg font-semibold text-red-800 mb-2">Đã xảy ra lỗi</h3>
-      <p className="text-red-600">{error}</p>
-      <button 
-        onClick={onRetry}
-        className="mt-4 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition-colors"
-      >
-        Thử lại
-      </button>
+import { useLanguage } from '@/contexts/LanguageContext';
+
+const ErrorState = memo(({ error, onRetry }: ErrorStateProps) => {
+  const { t } = useLanguage();
+  return (
+    <div className="text-center py-12">
+      <div className="bg-red-50 border border-red-200 rounded-lg p-6 max-w-md mx-auto">
+        <h3 className="text-lg font-semibold text-red-800 mb-2">{t.plp.error_title}</h3>
+        <p className="text-red-600">{error}</p>
+        <button
+          onClick={onRetry}
+          className="mt-4 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition-colors"
+        >
+          {t.plp.try_again}
+        </button>
+      </div>
     </div>
-  </div>
-));
+  );
+});
 ErrorState.displayName = 'ErrorState';
 
 // Empty state component
-const EmptyState = memo(() => (
-  <div className="text-center py-12">
-    <div className="bg-gray-50 border border-gray-200 rounded-lg p-8">
-      <h3 className="text-lg font-semibold text-gray-800 mb-2">Không tìm thấy sản phẩm</h3>
-      <p className="text-gray-600">Thử thay đổi bộ lọc hoặc tìm kiếm từ khóa khác</p>
+const EmptyState = memo(() => {
+  const { t } = useLanguage();
+  return (
+    <div className="text-center py-12">
+      <div className="bg-gray-50 border border-gray-200 rounded-lg p-8">
+        <h3 className="text-lg font-semibold text-gray-800 mb-2">{t.plp.empty_title}</h3>
+        <p className="text-gray-600">{t.plp.empty_desc}</p>
+      </div>
     </div>
-  </div>
-));
+  );
+});
 EmptyState.displayName = 'EmptyState';
 
 const ProductsGrid = ({
-  title = "Sản Phẩm",
+  title,
   showSortOptions = true,
   filterParams = {},
   onError
 }: ProductsGridProps) => {
+  const { t } = useLanguage();
   const [products, setProducts] = useState<ProductType[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -120,23 +129,23 @@ const ProductsGrid = ({
       });
 
       const response = await fetch(`/api/products?${params}`);
-      
+
       if (!response.ok) {
-        throw new Error('Không thể tải sản phẩm');
+        throw new Error(t.plp.loading_error);
       }
 
       const data = await response.json();
-      
+
       setProducts(data.products || []);
       setPagination(data.pagination || { page: 1, limit: 12, total: 0, totalPages: 0 });
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Đã xảy ra lỗi';
+      const errorMessage = err instanceof Error ? err.message : t.plp.generic_error;
       setError(errorMessage);
       onError?.(err instanceof Error ? err : new Error(errorMessage));
     } finally {
       setLoading(false);
     }
-  }, [filterParams, onError]);
+  }, [filterParams, onError, t]);
 
   useEffect(() => {
     fetchProducts(1, sortOrder);
@@ -166,18 +175,18 @@ const ProductsGrid = ({
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold">{title}</h2>
-        
+        <h2 className="text-2xl font-bold">{title || t.plp.all_products}</h2>
+
         {showSortOptions && (
           <select
             value={sortOrder}
             onChange={(e) => handleSortChange(e.target.value)}
             className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-black"
           >
-            <option value="newest">Mới nhất</option>
-            <option value="price-asc">Giá: Thấp đến Cao</option>
-            <option value="price-desc">Giá: Cao đến Thấp</option>
-            <option value="discount">Giảm giá nhiều nhất</option>
+            <option value="newest">{t.plp.sort_newest}</option>
+            <option value="price-asc">{t.plp.sort_price_asc}</option>
+            <option value="price-desc">{t.plp.sort_price_desc}</option>
+            <option value="discount">{t.plp.sort_discount}</option>
           </select>
         )}
       </div>
@@ -188,8 +197,8 @@ const ProductsGrid = ({
         <>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             {products.map((product) => (
-              <ProductCard 
-                key={product.id} 
+              <ProductCard
+                key={product.id}
                 id={product.id.toString()}
                 name={product.name}
                 category={product.category}

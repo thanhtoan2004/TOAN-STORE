@@ -62,12 +62,12 @@ export default function GiftCardBalancePage() {
 
   const loadHistory = async () => {
     if (!cardNumber || !pin) return;
-    
+
     setLoadingHistory(true);
     try {
       const response = await fetch(`/api/giftcard/history?cardNumber=${encodeURIComponent(cardNumber)}&pin=${encodeURIComponent(pin)}`);
       const data = await response.json();
-      
+
       if (data.success && data.data?.transactions) {
         setHistory(data.data.transactions);
         setShowHistory(true);
@@ -83,7 +83,7 @@ export default function GiftCardBalancePage() {
     <div className="min-h-screen bg-gray-50">
       <div className="nike-container py-12">
         <div className="max-w-2xl mx-auto">
-          <h1 className="text-4xl font-nike-futura mb-4">Kiểm Tra Số Dư Thẻ Quà Tặng</h1>
+          <h1 className="text-4xl font-bold mb-4">Kiểm Tra Số Dư Thẻ Quà Tặng</h1>
           <p className="text-gray-600 mb-8">
             Nhập thông tin thẻ quà tặng của bạn để kiểm tra số dư
           </p>
@@ -154,9 +154,9 @@ export default function GiftCardBalancePage() {
                         <div className="flex justify-between items-start mb-2">
                           <div>
                             <p className="font-medium">
-                              {transaction.type === 'purchase' ? 'Mua thẻ' : 
-                               transaction.type === 'redeem' ? 'Sử dụng thẻ' : 
-                               transaction.type === 'refund' ? 'Hoàn tiền' : 'Giao dịch'}
+                              {transaction.type === 'purchase' ? 'Mua thẻ' :
+                                transaction.type === 'redeem' ? 'Sử dụng thẻ' :
+                                  transaction.type === 'refund' ? 'Hoàn tiền' : 'Giao dịch'}
                             </p>
                             <p className="text-sm text-gray-600">{transaction.description || 'Không có mô tả'}</p>
                             {transaction.orderId && (

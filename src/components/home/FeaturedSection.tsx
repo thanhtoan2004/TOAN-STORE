@@ -4,6 +4,8 @@ import React, { useEffect, useState } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 
+import { useLanguage } from '@/contexts/LanguageContext';
+
 interface FeaturedItemProps {
   imageUrl: string
   title: string
@@ -57,54 +59,57 @@ const FeaturedItem = ({
 
 //SẢN PHẨM NỔI BẬT
 const FeaturedSection = () => {
+  const { t } = useLanguage();
+  const [featuredItems, setFeaturedItems] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchFeatured = async () => {
+      try {
+        const response = await fetch('/api/banners?position=home_featured&activeOnly=true');
+        const data = await response.json();
+        if (data.success) {
+          setFeaturedItems(data.data);
+        }
+      } catch (error) {
+        console.error('Error fetching featured items:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchFeatured();
+  }, []);
+
+  if (loading) return <div className="h-96 flex items-center justify-center">Loading...</div>;
+  if (featuredItems.length === 0) return null; // Or keep hardcoded as fallback? Better to default to null or user content.
+
+  // Helper to map banner to featured item
+  const mapBannerToItem = (banner: any, size: 'full' | 'half' = 'half') => (
+    <FeaturedItem
+      key={banner.id}
+      imageUrl={banner.image_url}
+      title={banner.title}
+      subtitle={banner.description}
+      actionText={banner.link_text || t.home.shop_now}
+      actionLink={banner.link_url || '#'}
+      size={size}
+    />
+  );
+
   return (
     <section className="nike-container py-8 md:py-16">
-      <h2 className="text-2xl font-nike-futura mb-8 text-center">SẢN PHẨM NỔI BẬT</h2>
+      <h2 className="text-2xl font-nike-futura mb-8 text-center">{t.home.featured}</h2>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <FeaturedItem
-          imageUrl="https://ext.same-assets.com/3155489436/3334072619.jpeg"
-          title="Coming Soon"
-          subtitle="Luka 4"
-          actionText="Get Notified"
-          actionLink="/products/luka-4"
-        />
-
-        <FeaturedItem
-          imageUrl="https://ext.same-assets.com/3155489436/3598712307.jpeg"
-          title="Style By Gabi Ruffels"
-          subtitle="Subtlety's Not in the Lineup"
-          actionText="Shop"
-          actionLink="/style/gabi-ruffels"
-        />
-
-        <FeaturedItem
-          imageUrl="https://ext.same-assets.com/3155489436/33375423.jpeg"
-          title="Style By College Hoops' Best"
-          subtitle="Dylan Harper's Winning Formula"
-          actionText="Shop"
-          actionLink="/style/dylan-harper"
-        />
-
-        <FeaturedItem
-          imageUrl="https://ext.same-assets.com/3155489436/1929546920.jpeg"
-          title="Max Cushioning For The Ultimate Ride"
-          subtitle="Vomero 18"
-          actionText="Shop"
-          actionLink="/products/vomero-18"
-        />
+        {featuredItems.slice(0, 4).map((item) => mapBannerToItem(item, 'half'))}
       </div>
 
-      <div className="mt-12">
-        <FeaturedItem
-          imageUrl="https://ext.same-assets.com/3155489436/1895450608.jpeg"
-          title="NIKE 24.7 COLLECTION"
-          subtitle="Polished looks with a luxurious feel."
-          actionText="Shop"
-          actionLink="/collections/247"
-          size="full"
-        />
-      </div>
+      {featuredItems.length > 4 && (
+        <div className="mt-12">
+          {featuredItems.slice(4).map((item) => mapBannerToItem(item, 'full'))}
+        </div>
+      )}
     </section>
   )
 }

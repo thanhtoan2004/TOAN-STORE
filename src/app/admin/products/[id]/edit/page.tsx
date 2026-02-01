@@ -47,7 +47,7 @@ export default function EditProductPage() {
 
         if (result.success || response.ok) {
           const product = result.data || result;
-          console.log('Product loaded:', product);
+          // console.log('Product loaded:', product);
 
           // Extract image URL from various sources
           let imageUrl = '';

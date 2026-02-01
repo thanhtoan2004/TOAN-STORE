@@ -56,28 +56,25 @@ export default function OrderDetailPage() {
     const fetchOrderData = async () => {
       try {
         setLoading(true);
-        
+
         const response = await fetch(`/api/orders/${orderNumber}`);
-        
+
         if (!response.ok) {
           throw new Error('Order not found');
         }
-        
+
         const data = await response.json();
         const order = data.order;
-        console.log('Order data from API:', order);
-        console.log('Subtotal:', order.subtotal);
-        console.log('Items:', order.items);
-        
+
         // Transform API data to match OrderData interface
         const transformedData: OrderData = {
           orderNumber: order.order_number,
           orderDate: new Date(order.placed_at).toLocaleDateString('vi-VN'),
           status: order.status === 'pending' ? 'Chờ xác nhận' :
-                 order.status === 'processing' ? 'Đã xác nhận' :
-                 order.status === 'shipped' ? 'Đang giao hàng' :
-                 order.status === 'delivered' ? 'Đã giao' :
-                 order.status === 'cancelled' ? 'Đã hủy' : order.status,
+            order.status === 'processing' ? 'Đã xác nhận' :
+              order.status === 'shipped' ? 'Đang giao hàng' :
+                order.status === 'delivered' ? 'Đã giao' :
+                  order.status === 'cancelled' ? 'Đã hủy' : order.status,
           totalAmount: parseFloat(order.subtotal || 0),
           shippingFee: parseFloat(order.shipping_fee || 0),
           tax: parseFloat(order.tax || 0),
@@ -109,7 +106,7 @@ export default function OrderDetailPage() {
             quantity: item.quantity
           })) || []
         };
-        
+
         setOrderData(transformedData);
         setLoading(false);
       } catch (error) {
@@ -210,7 +207,7 @@ export default function OrderDetailPage() {
               <Link href="/orders" className="text-blue-600 hover:text-blue-800 flex items-center mb-2">
                 ← Quay lại danh sách đơn hàng
               </Link>
-              <h1 className="text-3xl font-nike-futura">Chi tiết đơn hàng #{orderData.orderNumber}</h1>
+              <h1 className="text-3xl font-bold">Chi tiết đơn hàng #{orderData.orderNumber}</h1>
               <p className="text-gray-600">Đặt hàng ngày {orderData.orderDate}</p>
             </div>
             <div className="text-right">
@@ -350,7 +347,7 @@ export default function OrderDetailPage() {
                   </button>
                 </Link>
                 {orderData.status === 'Chờ xác nhận' && (
-                  <button 
+                  <button
                     onClick={handleCancelOrder}
                     disabled={cancelling}
                     className="w-full border border-red-500 text-red-500 py-2 px-4 rounded-full hover:bg-red-50 transition-colors disabled:opacity-50"

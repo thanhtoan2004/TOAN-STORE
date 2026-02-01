@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 interface Order {
   orderNumber: string;
@@ -14,6 +15,7 @@ interface Order {
 }
 
 export default function OrdersPage() {
+  const { t } = useLanguage();
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -23,43 +25,38 @@ export default function OrdersPage() {
       try {
         setLoading(true);
         setError(null);
-        
+
         // Get user info from API to ensure it's always up-to-date
         const userResponse = await fetch('/api/auth/me');
         if (!userResponse.ok) {
-          setError('Vui lòng đăng nhập để xem đơn hàng');
+          setError(t.common.error); // Or a specific login error
           setLoading(false);
           return;
         }
-        
+
         const userData = await userResponse.json();
-        console.log('User data:', userData);
         const response = await fetch(`/api/orders?userId=${userData.user.id}`);
-        console.log('Orders API response status:', response.status);
-        
+
         if (!response.ok) {
-          const errorData = await response.json();
-          console.error('Orders API error:', errorData);
           throw new Error('Failed to fetch orders');
         }
-        
+
         const data = await response.json();
-        console.log('Orders data:', data);
-        
+
         // Transform API data to match Order interface
         const transformedOrders = data.orders?.map((order: any) => ({
           orderNumber: order.order_number,
           orderDate: new Date(order.placed_at).toLocaleDateString('vi-VN'),
-          status: order.status === 'pending' ? 'Chờ xác nhận' :
-                 order.status === 'processing' ? 'Đã xác nhận' :
-                 order.status === 'shipped' ? 'Đang giao hàng' :
-                 order.status === 'delivered' ? 'Đã giao' :
-                 order.status === 'cancelled' ? 'Đã hủy' : order.status,
+          status: order.status === 'pending' ? 'pending' :
+            order.status === 'processing' ? 'confirmed' :
+              order.status === 'shipped' ? 'shipping' :
+                order.status === 'delivered' ? 'delivered' :
+                  order.status === 'cancelled' ? 'cancelled' : order.status,
           totalAmount: parseFloat(order.total),
           itemCount: order.item_count || 0,
           previewImage: order.preview_image || '/placeholder-product.png'
         })) || [];
-        
+
         setOrders(transformedOrders);
         setLoading(false);
       } catch (error) {
@@ -75,15 +72,15 @@ export default function OrdersPage() {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'Chờ xác nhận':
+      case 'pending':
         return 'bg-yellow-100 text-yellow-800';
-      case 'Đã xác nhận':
+      case 'confirmed':
         return 'bg-blue-100 text-blue-800';
-      case 'Đang giao hàng':
+      case 'shipping':
         return 'bg-purple-100 text-purple-800';
-      case 'Đã giao':
+      case 'delivered':
         return 'bg-green-100 text-green-800';
-      case 'Đã hủy':
+      case 'cancelled':
         return 'bg-red-100 text-red-800';
       default:
         return 'bg-gray-100 text-gray-800';
@@ -102,7 +99,7 @@ export default function OrdersPage() {
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-black mx-auto mb-4"></div>
-          <p className="text-gray-600">Đang tải danh sách đơn hàng...</p>
+          <p className="text-gray-600">{t.common.loading}</p>
         </div>
       </div>
     );
@@ -114,7 +111,7 @@ export default function OrdersPage() {
         <div className="text-center">
           <p className="text-red-600 mb-4">{error}</p>
           <Link href="/sign-in" className="text-black underline hover:no-underline">
-            Đăng nhập ngay
+            {t.common.login}
           </Link>
         </div>
       </div>
@@ -128,11 +125,11 @@ export default function OrdersPage() {
         <div className="nike-container py-8">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-3xl font-nike-futura mb-2">Đơn hàng của tôi</h1>
-              <p className="text-gray-600">Quản lý và theo dõi các đơn hàng của bạn</p>
+              <h1 className="text-3xl font-bold mb-2">{t.orders.title}</h1>
+              <p className="text-gray-600">{t.orders.subtitle}</p>
             </div>
             <Link href="/" className="text-blue-600 hover:text-blue-800">
-              ← Về trang chủ
+              ← {t.orders.back_home}
             </Link>
           </div>
         </div>
@@ -145,11 +142,11 @@ export default function OrdersPage() {
             <div className="w-24 h-24 mx-auto mb-6 bg-gray-100 rounded-full flex items-center justify-center">
               <span className="text-4xl">📦</span>
             </div>
-            <h2 className="text-2xl font-helvetica-medium mb-4">Chưa có đơn hàng nào</h2>
-            <p className="text-gray-600 mb-8">Bạn chưa có đơn hàng nào. Hãy khám phá các sản phẩm Nike tuyệt vời!</p>
+            <h2 className="text-2xl font-helvetica-medium mb-4">{t.orders.empty}</h2>
+            <p className="text-gray-600 mb-8">{t.orders.empty_desc}</p>
             <Link href="/">
               <button className="shop-button">
-                Mua sắm ngay
+                {t.orders.shop_now}
               </button>
             </Link>
           </div>
@@ -158,16 +155,16 @@ export default function OrdersPage() {
           <div className="space-y-6">
             <div className="flex items-center justify-between">
               <h2 className="text-xl font-helvetica-medium">
-                Tổng cộng {orders.length} đơn hàng
+                {t.orders.total_orders.replace('{count}', orders.length.toString())}
               </h2>
               <div className="flex items-center space-x-4">
                 <select className="border border-gray-300 rounded-lg px-4 py-2">
-                  <option value="">Tất cả trạng thái</option>
-                  <option value="pending">Chờ xác nhận</option>
-                  <option value="confirmed">Đã xác nhận</option>
-                  <option value="shipping">Đang giao hàng</option>
-                  <option value="delivered">Đã giao</option>
-                  <option value="cancelled">Đã hủy</option>
+                  <option value="">{t.orders.status_filter}</option>
+                  <option value="pending">{t.orders.pending}</option>
+                  <option value="confirmed">{t.orders.confirmed}</option>
+                  <option value="shipping">{t.orders.shipping}</option>
+                  <option value="delivered">{t.orders.delivered}</option>
+                  <option value="cancelled">{t.orders.cancelled}</option>
                 </select>
               </div>
             </div>
@@ -179,14 +176,14 @@ export default function OrdersPage() {
                     <div className="flex items-center space-x-4">
                       <Image
                         src={order.previewImage}
-                        alt="Sản phẩm"
+                        alt={t.common.product || 'Product'}
                         width={64}
                         height={64}
                         className="w-16 h-16 object-cover rounded-lg"
                       />
                       <div>
                         <h3 className="font-helvetica-medium">#{order.orderNumber}</h3>
-                        <p className="text-sm text-gray-600">{order.itemCount} sản phẩm</p>
+                        <p className="text-sm text-gray-600">{order.itemCount} {t.orders.items}</p>
                         <p className="text-sm text-gray-600">{order.orderDate}</p>
                       </div>
                     </div>
@@ -194,7 +191,7 @@ export default function OrdersPage() {
                     {/* Status */}
                     <div>
                       <span className={`inline-block px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(order.status)}`}>
-                        {order.status}
+                        {t.orders[order.status as keyof typeof t.orders] || order.status}
                       </span>
                     </div>
 
@@ -207,17 +204,17 @@ export default function OrdersPage() {
                     <div className="flex space-x-2 justify-end">
                       <Link href={`/orders/${order.orderNumber}`}>
                         <button className="border border-black text-black px-4 py-2 rounded-full hover:bg-black hover:text-white transition-colors text-sm">
-                          Xem chi tiết
+                          {t.orders.view_detail}
                         </button>
                       </Link>
-                      {order.status === 'Đã giao' && (
+                      {order.status === 'delivered' && (
                         <button className="border border-gray-300 text-gray-700 px-4 py-2 rounded-full hover:bg-gray-50 transition-colors text-sm">
-                          Mua lại
+                          {t.orders.buy_again}
                         </button>
                       )}
-                      {order.status === 'Đang giao hàng' && (
+                      {order.status === 'shipping' && (
                         <button className="border border-blue-500 text-blue-500 px-4 py-2 rounded-full hover:bg-blue-50 transition-colors text-sm">
-                          Theo dõi
+                          {t.orders.track_order}
                         </button>
                       )}
                     </div>
@@ -230,7 +227,7 @@ export default function OrdersPage() {
             <div className="flex justify-center mt-12">
               <div className="flex items-center space-x-2">
                 <button className="px-4 py-2 border border-gray-300 rounded-full hover:bg-gray-50 transition-colors disabled:opacity-50" disabled>
-                  ← Trước
+                  ← {t.common.prev || 'Trước'}
                 </button>
                 <button className="px-4 py-2 bg-black text-white rounded-full">
                   1
@@ -242,7 +239,7 @@ export default function OrdersPage() {
                   3
                 </button>
                 <button className="px-4 py-2 border border-gray-300 rounded-full hover:bg-gray-50 transition-colors">
-                  Sau →
+                  {t.common.next || 'Sau'} →
                 </button>
               </div>
             </div>

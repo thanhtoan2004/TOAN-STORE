@@ -12,22 +12,28 @@ interface CategoryItemProps {
 
 const CategoryItem = ({ title, imageUrl, link }: CategoryItemProps) => {
   const [isMounted, setIsMounted] = useState(false);
-  
+  const [imgError, setImgError] = useState(false);
 
   useEffect(() => {
     setIsMounted(true);
-  }, []);
+    setImgError(false);
+  }, [imageUrl]);
 
   return (
     <Link href={link} className="group">
-      <div className="relative h-[250px] w-full overflow-hidden">
-        {isMounted && (
+      <div className="relative h-[250px] w-full overflow-hidden bg-gray-100">
+        {isMounted && !imgError ? (
           <Image
             src={imageUrl}
             alt={title}
             fill
             className="object-cover group-hover:scale-105 transition-transform duration-700"
+            onError={() => setImgError(true)}
           />
+        ) : (
+          <div className="absolute inset-0 flex items-center justify-center bg-gray-100 text-gray-400">
+            <span className="text-sm">No Image</span>
+          </div>
         )}
       </div>
       <h3 className="mt-3 text-base font-helvetica">{title}</h3>
@@ -53,12 +59,22 @@ const CategoriesSection = () => {
       link: '/clothing'
     }
   ]);
-  
-  // Optionally fetch categories from database
+
+  // Fetch categories from database
   useEffect(() => {
-    // fetch('/api/categories').then(res => res.json()).then(data => {
-    //   if (data.categories) setCategories(data.categories);
-    // }).catch(console.error);
+    fetch('/api/categories')
+      .then(res => res.json())
+      .then(data => {
+        if (data.success && data.data && data.data.length > 0) {
+          const mappedCategories = data.data.map((cat: any) => ({
+            title: cat.name,
+            imageUrl: cat.image_url || 'https://via.placeholder.com/400x600?text=No+Image', // Fallback
+            link: `/categories/${cat.slug}` // Assumes category page structure
+          }));
+          setCategories(mappedCategories);
+        }
+      })
+      .catch(console.error);
   }, [])
 
   return (
@@ -79,4 +95,4 @@ const CategoriesSection = () => {
   )
 }
 
-export default  CategoriesSection
+export default CategoriesSection

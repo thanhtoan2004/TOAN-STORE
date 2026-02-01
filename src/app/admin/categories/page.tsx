@@ -9,6 +9,7 @@ interface Category {
   name: string;
   slug: string;
   description: string;
+  image_url?: string;
   position: number;
   is_active: number;
 }
@@ -16,9 +17,9 @@ interface Category {
 export default function CategoriesPage() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
-  const [newCategory, setNewCategory] = useState({ name: '', slug: '', description: '', position: 0 });
+  const [newCategory, setNewCategory] = useState({ name: '', slug: '', description: '', image_url: '', position: 0 });
   const [editingId, setEditingId] = useState<number | null>(null);
-  const [editForm, setEditForm] = useState({ name: '', slug: '', description: '', position: 0 });
+  const [editForm, setEditForm] = useState({ name: '', slug: '', description: '', image_url: '', position: 0 });
 
   useEffect(() => {
     fetchCategories();
@@ -28,7 +29,7 @@ export default function CategoriesPage() {
     try {
       const response = await fetch('/api/categories');
       const data = await response.json();
-      
+
       if (data.success) {
         setCategories(data.data);
       } else if (Array.isArray(data)) {
@@ -43,7 +44,7 @@ export default function CategoriesPage() {
 
   const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     try {
       const response = await fetch('/api/admin/categories', {
         method: 'POST',
@@ -52,7 +53,7 @@ export default function CategoriesPage() {
       });
 
       if (response.ok) {
-        setNewCategory({ name: '', slug: '', description: '', position: 0 });
+        setNewCategory({ name: '', slug: '', description: '', image_url: '', position: 0 });
         fetchCategories();
       }
     } catch (error) {
@@ -66,6 +67,7 @@ export default function CategoriesPage() {
       name: category.name,
       slug: category.slug,
       description: category.description,
+      image_url: category.image_url || '',
       position: category.position
     });
   };
@@ -124,7 +126,7 @@ export default function CategoriesPage() {
                 type="text"
                 placeholder="Tên danh mục"
                 value={newCategory.name}
-                onChange={(e) => setNewCategory({...newCategory, name: e.target.value})}
+                onChange={(e) => setNewCategory({ ...newCategory, name: e.target.value })}
                 required
                 className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent"
               />
@@ -132,7 +134,7 @@ export default function CategoriesPage() {
                 type="text"
                 placeholder="Slug"
                 value={newCategory.slug}
-                onChange={(e) => setNewCategory({...newCategory, slug: e.target.value})}
+                onChange={(e) => setNewCategory({ ...newCategory, slug: e.target.value })}
                 required
                 className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent"
               />
@@ -140,15 +142,22 @@ export default function CategoriesPage() {
             <textarea
               placeholder="Mô tả"
               value={newCategory.description}
-              onChange={(e) => setNewCategory({...newCategory, description: e.target.value})}
+              onChange={(e) => setNewCategory({ ...newCategory, description: e.target.value })}
               rows={3}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent"
+            />
+            <input
+              type="text"
+              placeholder="URL Hình ảnh"
+              value={newCategory.image_url}
+              onChange={(e) => setNewCategory({ ...newCategory, image_url: e.target.value })}
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent"
             />
             <input
               type="number"
               placeholder="Vị trí"
               value={newCategory.position}
-              onChange={(e) => setNewCategory({...newCategory, position: parseInt(e.target.value)})}
+              onChange={(e) => setNewCategory({ ...newCategory, position: parseInt(e.target.value) })}
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent"
             />
             <button
@@ -184,26 +193,34 @@ export default function CategoriesPage() {
                           <input
                             type="text"
                             value={editForm.name}
-                            onChange={(e) => setEditForm({...editForm, name: e.target.value})}
+                            onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
                             className="px-3 py-2 border border-gray-300 rounded-lg"
                           />
                           <input
                             type="text"
                             value={editForm.slug}
-                            onChange={(e) => setEditForm({...editForm, slug: e.target.value})}
+                            onChange={(e) => setEditForm({ ...editForm, slug: e.target.value })}
                             className="px-3 py-2 border border-gray-300 rounded-lg"
                           />
                         </div>
                         <textarea
                           value={editForm.description}
-                          onChange={(e) => setEditForm({...editForm, description: e.target.value})}
+                          onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
                           rows={2}
+                          placeholder="Mô tả"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                        />
+                        <input
+                          type="text"
+                          value={editForm.image_url}
+                          onChange={(e) => setEditForm({ ...editForm, image_url: e.target.value })}
+                          placeholder="URL Hình ảnh"
                           className="w-full px-3 py-2 border border-gray-300 rounded-lg"
                         />
                         <input
                           type="number"
                           value={editForm.position}
-                          onChange={(e) => setEditForm({...editForm, position: parseInt(e.target.value)})}
+                          onChange={(e) => setEditForm({ ...editForm, position: parseInt(e.target.value) })}
                           className="w-full px-3 py-2 border border-gray-300 rounded-lg"
                         />
                         <div className="flex gap-2">
@@ -221,18 +238,20 @@ export default function CategoriesPage() {
                     <td className="px-6 py-4 text-sm text-gray-500">{cat.description?.substring(0, 50)}</td>
                     <td className="px-6 py-4 text-sm text-gray-900">{cat.position}</td>
                     <td className="px-6 py-4 text-right text-sm space-x-2">
-                      <button
-                        onClick={() => handleEdit(cat)}
-                        className="text-blue-600 hover:text-blue-900"
-                      >
-                        Sửa
-                      </button>
-                      <button
-                        onClick={() => handleDelete(cat.id)}
-                        className="text-red-600 hover:text-red-900"
-                      >
-                        Xóa
-                      </button>
+                      <div className="flex items-center justify-end gap-2">
+                        <button
+                          onClick={() => handleEdit(cat)}
+                          className="px-3 py-1 text-sm border border-gray-300 rounded hover:bg-gray-50 text-gray-700"
+                        >
+                          Sửa
+                        </button>
+                        <button
+                          onClick={() => handleDelete(cat.id)}
+                          className="px-3 py-1 text-sm bg-red-600 text-white rounded hover:bg-red-700"
+                        >
+                          Xóa
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}

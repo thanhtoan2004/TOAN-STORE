@@ -68,8 +68,8 @@ export default function ContactPage() {
           <Link href="/help" className="text-gray-600 hover:text-black mb-4 inline-block">
             ← Quay lại Trung Tâm Trợ Giúp
           </Link>
-          
-          <h1 className="text-4xl font-nike-futura mb-6">Liên Hệ Chúng Tôi</h1>
+
+          <h1 className="text-4xl font-bold mb-6">Liên Hệ Chúng Tôi</h1>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
             <div className="bg-white rounded-lg p-6 shadow-sm">
@@ -99,7 +99,7 @@ export default function ContactPage() {
               <p className="text-gray-700 mb-4">
                 Tìm cửa hàng TOAN gần nhất để trải nghiệm sản phẩm trực tiếp.
               </p>
-              <Link 
+              <Link
                 href="/store"
                 className="inline-block px-4 py-2 bg-black text-white rounded-lg hover:bg-gray-800 transition"
               >
@@ -110,7 +110,7 @@ export default function ContactPage() {
 
           <div className="bg-white rounded-lg p-8 shadow-sm">
             <h2 className="text-2xl font-helvetica-medium mb-6">Gửi Tin Nhắn</h2>
-            
+
             {submitted ? (
               <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
                 <p className="text-green-800">Cảm ơn bạn đã liên hệ! Chúng tôi sẽ phản hồi trong vòng 24 giờ.</p>

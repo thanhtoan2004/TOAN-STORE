@@ -135,8 +135,13 @@ export async function PUT(request: NextRequest) {
 
     Object.keys(updates).forEach((key) => {
       if (allowedFields.includes(key)) {
+        let value = updates[key];
+        // Convert empty strings to null for date fields
+        if ((key === 'start_date' || key === 'end_date') && value === '') {
+          value = null;
+        }
         updateFields.push(`${key} = ?`);
-        updateValues.push(updates[key]);
+        updateValues.push(value);
       }
     });
 

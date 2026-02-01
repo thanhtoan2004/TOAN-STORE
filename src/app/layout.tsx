@@ -5,10 +5,30 @@ import { AuthProvider } from "@/contexts/AuthContext";
 
 import { CartProvider } from "@/contexts/CartContext";
 import { WishlistProvider } from "@/contexts/WishlistContext";
+import { LanguageProvider } from "@/contexts/LanguageContext";
 
 export const metadata: Metadata = {
-  title: "TOAN. Just Do It. TOAN.com",
+  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'),
+  title: {
+    template: '%s | Nike Clone Store',
+    default: 'Nike Clone Store - Just Do It',
+  },
   description: "Nike delivers innovative products, experiences and services to inspire athletes.",
+  openGraph: {
+    title: 'Nike Clone Store',
+    description: 'The best place to buy Nike products.',
+    url: process.env.NEXT_PUBLIC_APP_URL,
+    siteName: 'Nike Clone Store',
+    images: [
+      {
+        url: '/og-image.jpg', // Make sure this exists or use a default
+        width: 1200,
+        height: 630,
+      },
+    ],
+    locale: 'vi_VN',
+    type: 'website',
+  },
 };
 
 export default function RootLayout({
@@ -28,9 +48,11 @@ export default function RootLayout({
         <AuthProvider>
           <CartProvider>
             <WishlistProvider>
-              <RootLayoutWrapper>
-                {children}
-              </RootLayoutWrapper>
+              <LanguageProvider>
+                <RootLayoutWrapper>
+                  {children}
+                </RootLayoutWrapper>
+              </LanguageProvider>
             </WishlistProvider>
           </CartProvider>
         </AuthProvider>

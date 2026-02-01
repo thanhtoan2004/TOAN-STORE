@@ -2,8 +2,11 @@
 
 import React, { useState, useEffect } from 'react'
 import Link from 'next/link'
+import LanguageSwitcher from '../ui/LanguageSwitcher'
+import { useLanguage } from '@/contexts/LanguageContext';
 
 const Footer = () => {
+  const { t } = useLanguage();
   const [isMounted, setIsMounted] = useState(false);
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
@@ -37,7 +40,7 @@ const Footer = () => {
         setMessageType('error');
       }
     } catch (error) {
-      setMessage('Đã xảy ra lỗi khi đăng ký');
+      setMessage(t.common.error);
       setMessageType('error');
     } finally {
       setLoading(false);
@@ -71,28 +74,28 @@ const Footer = () => {
       { name: 'Kids Running Shoes', href: '/kids-running-shoes' },
     ],
     help: [
-      { name: 'Giúp Đỡ', href: '/help' },
-      { name: 'Trạng Thái Đơn Hàng', href: '/orders' },
-      { name: 'Vận Chuyển Và Giao Hàng', href: '/help/shipping-delivery' },
-      { name: 'Trả Hàng', href: '/help/returns' },
-      { name: 'Hủy Đơn', href: '/help/order-cancellation' },
-      { name: 'Tùy Chọn Thanh Toán', href: '/help/payment-options' },
-      { name: 'Mã Giảm Giá', href: '/vouchers' },
-      { name: 'Số Dư Thẻ Qùa Tặng', href: '/gift-card-balance' },
-      { name: 'Liên Hệ Chúng Tôi', href: '/help/contact' },
+      { name: t.footer.get_help, href: '/help' },
+      { name: t.footer.order_status, href: '/orders' },
+      { name: t.footer.shipping, href: '/help/shipping-delivery' },
+      { name: t.footer.returns, href: '/help/returns' },
+      { name: t.footer.cancellation, href: '/help/order-cancellation' },
+      { name: t.footer.payment_options, href: '/help/payment-options' },
+      { name: t.footer.vouchers, href: '/vouchers' },
+      { name: t.footer.gift_card, href: '/gift-card-balance' },
+      { name: t.footer.contact, href: '/help/contact' },
     ],
     company: [
-      { name: 'Về TOAN', href: '/about' },
-      { name: 'Tin Tức', href: '/news' },
-      { name: 'Nghề Nghiệp', href: '/careers' },
-      { name: 'Đầu Tư', href: '/investors' },
-      { name: 'Mục Đích', href: '/purpose' },
-      { name: 'Tính Bền Vững', href: '/sustainability' },
+      { name: t.footer.about_nike, href: '/about' },
+      { name: t.footer.news, href: '/news' },
+      { name: t.footer.careers, href: '/careers' },
+      { name: t.footer.investors, href: '/investors' },
+      { name: t.footer.purpose, href: '/purpose' },
+      { name: t.footer.sustainability, href: '/sustainability' },
     ],
     promotions: [
-      { name: 'Học Sinh', href: '/promo/student' },
-      { name: 'Giáo Viên', href: '/promo/teacher' },
-      { name: 'Sinh Nhật', href: '/promo/birthday' },
+      { name: t.footer.students, href: '/promo/student' },
+      { name: t.footer.teachers, href: '/promo/teacher' },
+      { name: t.footer.birthday, href: '/promo/birthday' },
     ]
   };
 
@@ -104,23 +107,23 @@ const Footer = () => {
           <div className="space-y-4">
             <nav className="flex flex-col space-y-2">
               <Link href="/store" className="text-white font-helvetica-medium text-sm">
-                Tìm cửa hàng
+                {t.footer.find_store}
               </Link>
               <Link href="/sign-up" className="text-white font-helvetica-medium text-sm">
-                Trở thành thành viên
+                {t.footer.join_member}
               </Link>
               <Link href="/about" className="text-white font-helvetica-medium text-sm">
-                Về TOAN
+                {t.footer.about_nike}
               </Link>
               <Link href="/help/contact" className="text-white font-helvetica-medium text-sm">
-                Gửi phản hồi
+                {t.footer.feedback}
               </Link>
             </nav>
           </div>
 
           {/* Middle sections - GET HELP, ABOUT NIKE */}
           <div className="space-y-4">
-            <h3 className="font-helvetica-medium text-sm">GET HELP</h3>
+            <h3 className="font-helvetica-medium text-sm">{t.footer.get_help}</h3>
             <nav className="flex flex-col space-y-2">
               {footerLinks.help.map((link) => (
                 <Link
@@ -135,7 +138,7 @@ const Footer = () => {
           </div>
 
           <div className="space-y-4">
-            <h3 className="font-helvetica-medium text-sm">GIOI THIEU VE TOAN</h3>
+            <h3 className="font-helvetica-medium text-sm">{t.footer.about_nike}</h3>
             <nav className="flex flex-col space-y-2">
               {footerLinks.company.map((link) => (
                 <Link
@@ -151,7 +154,7 @@ const Footer = () => {
 
           {/* Last section - Promotions & Newsletter */}
           <div className="space-y-4">
-            <h3 className="font-helvetica-medium text-sm">PROMOTIONS & DISCOUNTS</h3>
+            <h3 className="font-helvetica-medium text-sm">{t.footer.promotions}</h3>
             <nav className="flex flex-col space-y-2">
               {footerLinks.promotions.map((link) => (
                 <Link
@@ -166,7 +169,7 @@ const Footer = () => {
 
             {/* Newsletter */}
             <div className="pt-4 border-t border-gray-700 mt-6">
-              <h4 className="font-helvetica-medium text-xs mb-2">ĐĂNG KÝ NHẬN TIN</h4>
+              <h4 className="font-helvetica-medium text-xs mb-2">{t.footer.signup_news}</h4>
               <p className="text-gray-400 text-xs mb-3">
                 Nhận thông tin về sản phẩm mới, ưu đãi độc quyền
               </p>
@@ -175,7 +178,7 @@ const Footer = () => {
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="Email của bạn"
+                  placeholder={t.footer.email_placeholder}
                   required
                   className="w-full px-3 py-2 rounded-lg bg-white text-black text-sm focus:outline-none focus:ring-2 focus:ring-white"
                   suppressHydrationWarning
@@ -186,7 +189,7 @@ const Footer = () => {
                   className="w-full px-4 py-2 bg-white text-black rounded-lg hover:bg-gray-200 transition disabled:opacity-50 font-medium text-sm"
                   suppressHydrationWarning
                 >
-                  {loading ? 'Đang gửi...' : 'Đăng ký'}
+                  {loading ? t.footer.subscribing : t.footer.subscribe}
                 </button>
               </form>
               {isMounted && message && (
@@ -225,23 +228,26 @@ const Footer = () => {
         {/* Bottom footer - Legal and location */}
         <div className="py-6 border-t border-gray-700 flex flex-col md:flex-row justify-between text-gray-400 text-[10px]">
           <div className="flex items-center space-x-2 mb-4 md:mb-0">
-            <span className="flex items-center">
-              <svg className="w-4 h-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <circle cx="12" cy="12" r="10" />
-                <line x1="2" y1="12" x2="22" y2="12" />
-                <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
-              </svg>
-              <span className="ml-1">Việt Nam</span>
-            </span>
-            <span>© 2025 TOAN, Inc. All Rights Reserved</span>
+            <div className="flex items-center gap-4">
+              <span className="flex items-center">
+                <svg className="w-4 h-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="12" r="10" />
+                  <line x1="2" y1="12" x2="22" y2="12" />
+                  <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
+                </svg>
+                <span className="ml-1">{t.footer.location}</span>
+              </span>
+              <LanguageSwitcher />
+              <span>{t.footer.rights}</span>
+            </div>
           </div>
 
           <div className="flex flex-wrap gap-x-4 gap-y-2">
-            <Link href="/guides" className="hover:text-white">Guides</Link>
-            <Link href="/terms" className="hover:text-white">Terms of Sale</Link>
-            <Link href="/terms-of-use" className="hover:text-white">Terms of Use</Link>
-            <Link href="/privacy-policy" className="hover:text-white">TOAN Privacy Policy</Link>
-            <Link href="/csr" className="hover:text-white">Corporate Social Responsibility</Link>
+            <Link href="/guides" className="hover:text-white">{t.footer.guides}</Link>
+            <Link href="/terms" className="hover:text-white">{t.footer.terms_sale}</Link>
+            <Link href="/terms-of-use" className="hover:text-white">{t.footer.terms_use}</Link>
+            <Link href="/privacy-policy" className="hover:text-white">{t.footer.privacy}</Link>
+            <Link href="/csr" className="hover:text-white">{t.footer.csr}</Link>
           </div>
         </div>
       </div>

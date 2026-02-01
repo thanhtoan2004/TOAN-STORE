@@ -5,7 +5,7 @@ export default function PrivacyPolicyPage() {
     <div className="min-h-screen bg-gray-50">
       <div className="nike-container py-12">
         <div className="max-w-4xl mx-auto">
-          <h1 className="text-4xl font-nike-futura mb-6">Chính Sách Bảo Mật</h1>
+          <h1 className="text-4xl font-bold mb-6">Chính Sách Bảo Mật</h1>
 
           <div className="bg-white rounded-lg p-8 shadow-sm space-y-6">
             <section>
@@ -31,7 +31,7 @@ export default function PrivacyPolicyPage() {
             <section>
               <h2 className="text-2xl font-helvetica-medium mb-4">3. Bảo Mật Thông Tin</h2>
               <p className="text-gray-700 leading-relaxed">
-                Chúng tôi sử dụng các biện pháp bảo mật tiên tiến để bảo vệ thông tin của bạn. 
+                Chúng tôi sử dụng các biện pháp bảo mật tiên tiến để bảo vệ thông tin của bạn.
                 Tất cả dữ liệu được mã hóa và lưu trữ an toàn.
               </p>
             </section>
@@ -39,8 +39,8 @@ export default function PrivacyPolicyPage() {
             <section>
               <h2 className="text-2xl font-helvetica-medium mb-4">4. Chia Sẻ Thông Tin</h2>
               <p className="text-gray-700 leading-relaxed">
-                Chúng tôi không bán hoặc cho thuê thông tin cá nhân của bạn. Chúng tôi chỉ chia sẻ 
-                thông tin với các đối tác cần thiết để cung cấp dịch vụ (như đơn vị vận chuyển, 
+                Chúng tôi không bán hoặc cho thuê thông tin cá nhân của bạn. Chúng tôi chỉ chia sẻ
+                thông tin với các đối tác cần thiết để cung cấp dịch vụ (như đơn vị vận chuyển,
                 đối tác thanh toán).
               </p>
             </section>
@@ -58,7 +58,7 @@ export default function PrivacyPolicyPage() {
             <section>
               <h2 className="text-2xl font-helvetica-medium mb-4">6. Cookies</h2>
               <p className="text-gray-700 leading-relaxed">
-                Chúng tôi sử dụng cookies để cải thiện trải nghiệm của bạn. Bạn có thể tắt cookies 
+                Chúng tôi sử dụng cookies để cải thiện trải nghiệm của bạn. Bạn có thể tắt cookies
                 trong cài đặt trình duyệt, nhưng điều này có thể ảnh hưởng đến chức năng của website.
               </p>
             </section>

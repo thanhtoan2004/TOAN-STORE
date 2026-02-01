@@ -29,10 +29,10 @@ export default function StorePage() {
   const fetchStores = async (city?: string) => {
     try {
       setLoading(true);
-      const url = city 
+      const url = city
         ? `/api/stores?city=${encodeURIComponent(city)}`
         : '/api/stores';
-      
+
       const response = await fetch(url);
       const data = await response.json();
 
@@ -56,7 +56,7 @@ export default function StorePage() {
       fetchStores();
     }
   };
-  
+
   const filteredStores = stores.filter(store =>
     store.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     store.address.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -67,7 +67,7 @@ export default function StorePage() {
     <div className="min-h-screen bg-gray-50">
       <div className="nike-container py-12">
         <div className="max-w-6xl mx-auto">
-          <h1 className="text-4xl font-nike-futura mb-4">Tìm Cửa Hàng</h1>
+          <h1 className="text-4xl font-bold mb-4">Tìm Cửa Hàng</h1>
           <p className="text-gray-600 mb-8">
             Tìm cửa hàng TOAN gần nhất để trải nghiệm sản phẩm trực tiếp
           </p>
@@ -84,7 +84,7 @@ export default function StorePage() {
                   className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-black focus:border-transparent"
                 />
               </div>
-              <button 
+              <button
                 onClick={handleSearch}
                 className="px-6 py-2 bg-black text-white rounded-lg hover:bg-gray-800 transition"
               >

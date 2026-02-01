@@ -41,8 +41,13 @@ const heroSlides: HeroSlide[] = [
   }
 ]
 
+import { useLanguage } from '@/contexts/LanguageContext';
+
 export default function WomenPage() {
+  const { t } = useLanguage();
   const [currentSlide, setCurrentSlide] = useState(0)
+
+  // ... useEffects and handlers ...
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -71,10 +76,9 @@ export default function WomenPage() {
         {heroSlides.map((slide, index) => (
           <div
             key={slide.id}
-            className={`absolute inset-0 transition-transform duration-500 ease-in-out ${
-              index === currentSlide ? 'translate-x-0' : 
+            className={`absolute inset-0 transition-transform duration-500 ease-in-out ${index === currentSlide ? 'translate-x-0' :
               index < currentSlide ? '-translate-x-full' : 'translate-x-full'
-            }`}
+              }`}
           >
             <div className="relative h-full w-full">
               <Image
@@ -87,13 +91,13 @@ export default function WomenPage() {
               <div className="absolute inset-0 bg-black/20" />
               <div className="absolute inset-0 flex items-center justify-center">
                 <div className="text-center text-white max-w-2xl px-6">
-                  <h1 className="text-4xl md:text-6xl font-bold mb-4 font-nike-futura">
+                  <h1 className="text-4xl md:text-6xl font-bold mb-4">
                     {slide.title}
                   </h1>
                   <p className="text-lg md:text-xl mb-8 font-light">
                     {slide.subtitle}
                   </p>
-                  <Link 
+                  <Link
                     href={slide.ctaLink}
                     className="inline-block bg-white text-black px-8 py-3 rounded-full font-medium hover:bg-gray-100 transition-colors"
                   >
@@ -115,7 +119,7 @@ export default function WomenPage() {
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
           </svg>
         </button>
-        
+
         <button
           onClick={nextSlide}
           className="absolute right-4 top-1/2 -translate-y-1/2 bg-white/80 hover:bg-white text-black p-2 rounded-full transition-colors z-10"
@@ -132,9 +136,8 @@ export default function WomenPage() {
             <button
               key={index}
               onClick={() => goToSlide(index)}
-              className={`w-3 h-3 rounded-full transition-colors ${
-                index === currentSlide ? 'bg-white' : 'bg-white/50'
-              }`}
+              className={`w-3 h-3 rounded-full transition-colors ${index === currentSlide ? 'bg-white' : 'bg-white/50'
+                }`}
               aria-label={`Go to slide ${index + 1}`}
             />
           ))}
@@ -143,8 +146,8 @@ export default function WomenPage() {
 
       {/* Categories Section */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
-        <h2 className="text-3xl font-bold text-center mb-12">Danh Mục Sản Phẩm Nữ</h2>
-        
+        <h2 className="text-3xl font-bold text-center mb-12">{t.hub.womens_title} {t.filters.category}</h2>
+
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
           <div className="group cursor-pointer">
             <div className="relative overflow-hidden rounded-lg">
@@ -157,8 +160,8 @@ export default function WomenPage() {
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
               <div className="absolute bottom-4 left-4 text-white">
-                <h3 className="text-xl font-semibold">Giày Thể Thao</h3>
-                <p className="text-sm opacity-90">Khám phá bộ sưu tập giày nữ</p>
+                <h3 className="text-xl font-semibold">{t.hub.shop_shoes}</h3>
+                <p className="text-sm opacity-90">{t.hub.womens_desc}</p>
               </div>
             </div>
           </div>
@@ -174,8 +177,8 @@ export default function WomenPage() {
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
               <div className="absolute bottom-4 left-4 text-white">
-                <h3 className="text-xl font-semibold">Quần Áo</h3>
-                <p className="text-sm opacity-90">Thời trang thể thao hiện đại</p>
+                <h3 className="text-xl font-semibold">{t.hub.shop_clothing}</h3>
+                <p className="text-sm opacity-90">{t.hub.womens_desc}</p>
               </div>
             </div>
           </div>
@@ -191,8 +194,8 @@ export default function WomenPage() {
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
               <div className="absolute bottom-4 left-4 text-white">
-                <h3 className="text-xl font-semibold">Phụ Kiện</h3>
-                <p className="text-sm opacity-90">Hoàn thiện phong cách của bạn</p>
+                <h3 className="text-xl font-semibold">{t.filters.category}</h3>
+                <p className="text-sm opacity-90">{t.hub.womens_desc}</p>
               </div>
             </div>
           </div>
@@ -201,7 +204,7 @@ export default function WomenPage() {
 
       {/* Women's Featured Products */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <h2 className="text-2xl font-bold mb-8">Bộ Sưu Tập Nổi Bật</h2>
+        <h2 className="text-2xl font-bold mb-8">{t.hub.featured_collections}</h2>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
           <div className="relative">
@@ -216,11 +219,11 @@ export default function WomenPage() {
             <div className="mt-4">
               <h3 className="text-lg font-semibold">Essentials Nữ</h3>
               <p className="mb-4 text-gray-600">Phong cách cho mọi buổi tập luyện</p>
-              <Link 
+              <Link
                 href="/collections/womens-essentials"
                 className="inline-block bg-black text-white px-6 py-2 rounded-full hover:bg-gray-800 transition-colors"
               >
-                Mua Ngay
+                {t.home.shop_now}
               </Link>
             </div>
           </div>
@@ -237,11 +240,11 @@ export default function WomenPage() {
             <div className="mt-4">
               <h3 className="text-lg font-semibold">Bộ Sưu Tập Yoga</h3>
               <p className="mb-4 text-gray-600">Thoải mái trong từng động tác</p>
-              <Link 
+              <Link
                 href="/collections/yoga"
                 className="inline-block bg-black text-white px-6 py-2 rounded-full hover:bg-gray-800 transition-colors"
               >
-                Mua Ngay
+                {t.home.shop_now}
               </Link>
             </div>
           </div>
@@ -250,8 +253,9 @@ export default function WomenPage() {
 
       {/* Style By Women Athletes Section */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 border-t border-gray-200">
-        <h2 className="text-2xl font-bold mb-8">Phong Cách Từ Các Vận Động Viên</h2>
+        <h2 className="text-2xl font-bold mb-8">{t.hub.style_by_athletes}</h2>
 
+        {/* ... keeping athletes grid as is but replacing generic buttons ... */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div className="relative group">
             <div className="relative h-[400px] w-full overflow-hidden bg-gray-100 rounded-lg">
@@ -266,7 +270,7 @@ export default function WomenPage() {
               <h3 className="text-lg font-semibold">Phong Cách Đặc Trưng<br />Của Naomi Osaka</h3>
               <div className="mt-4">
                 <button className="border border-black rounded-full text-sm px-4 py-1.5 hover:bg-black hover:text-white transition-colors">
-                  Xem Bộ Sưu Tập
+                  {t.hub.shop_collection}
                 </button>
               </div>
             </div>
@@ -285,7 +289,7 @@ export default function WomenPage() {
               <h3 className="text-lg font-semibold">Bộ Sưu Tập<br />Serena Williams</h3>
               <div className="mt-4">
                 <button className="border border-black rounded-full text-sm px-4 py-1.5 hover:bg-black hover:text-white transition-colors">
-                  Xem Bộ Sưu Tập
+                  {t.hub.shop_collection}
                 </button>
               </div>
             </div>
@@ -304,7 +308,7 @@ export default function WomenPage() {
               <h3 className="text-lg font-semibold">Phong Cách Thi Đấu<br />Của Alex Morgan</h3>
               <div className="mt-4">
                 <button className="border border-black rounded-full text-sm px-4 py-1.5 hover:bg-black hover:text-white transition-colors">
-                  Xem Bộ Sưu Tập
+                  {t.hub.shop_collection}
                 </button>
               </div>
             </div>

@@ -9,8 +9,8 @@ export default function ShippingDeliveryPage() {
           <Link href="/help" className="text-gray-600 hover:text-black mb-4 inline-block">
             ← Quay lại Trung Tâm Trợ Giúp
           </Link>
-          
-          <h1 className="text-4xl font-nike-futura mb-6">Vận Chuyển Và Giao Hàng</h1>
+
+          <h1 className="text-4xl font-bold mb-6">Vận Chuyển Và Giao Hàng</h1>
 
           <div className="bg-white rounded-lg p-8 shadow-sm space-y-6">
             <section>

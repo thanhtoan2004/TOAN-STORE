@@ -5,8 +5,10 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 function SignInContent() {
+  const { t } = useLanguage();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [rememberMe, setRememberMe] = useState(false);
@@ -19,7 +21,7 @@ function SignInContent() {
 
   useEffect(() => {
     if (searchParams.get('registered') === 'true') {
-      setSuccessMessage('Đăng ký thành công! Vui lòng đăng nhập để tiếp tục.');
+      setSuccessMessage(t.auth.created_account);
     }
 
     // Load saved email if exists
@@ -28,7 +30,7 @@ function SignInContent() {
       setEmail(savedEmail);
       setRememberMe(true);
     }
-  }, [searchParams]);
+  }, [searchParams, t]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -50,7 +52,7 @@ function SignInContent() {
       router.push('/');
     } catch (err: unknown) {
       // Display the actual error message from API
-      const errorMessage = err instanceof Error ? err.message : 'Có lỗi xảy ra khi đăng nhập';
+      const errorMessage = err instanceof Error ? err.message : t.auth.login_error;
       setError(errorMessage);
     } finally {
       setIsLoading(false);
@@ -61,9 +63,9 @@ function SignInContent() {
     <div className="nike-container py-10">
       <div className="max-w-md mx-auto bg-white p-8 rounded-lg shadow-sm border">
         <div className="mb-8 text-center">
-          <h1 className="text-3xl font-nike-futura uppercase mb-2">Đăng nhập tài khoản</h1>
+          <h1 className="text-3xl font-bold uppercase mb-2">{t.auth.sign_in}</h1>
           <p className="text-sm text-gray-500">
-            Đăng nhập để mua sắm hàng độc quyền và cá nhân hóa trải nghiệm của bạn.
+            {t.auth.sign_in_desc}
           </p>
         </div>
 
@@ -82,7 +84,7 @@ function SignInContent() {
         <form onSubmit={handleSubmit}>
           <div className="mb-4">
             <label htmlFor="email" className="block text-sm font-helvetica-medium mb-1">
-              Địa chỉ Email
+              {t.common.email}
             </label>
             <input
               type="email"
@@ -90,14 +92,14 @@ function SignInContent() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               className="w-full p-3 border rounded focus:outline-none focus:ring-2 focus:ring-black"
-              placeholder="name@example.com"
+              placeholder={t.footer.email_placeholder || "name@example.com"}
               required
             />
           </div>
 
           <div className="mb-4">
             <label htmlFor="password" className="block text-sm font-helvetica-medium mb-1">
-              Mật khẩu
+              {t.common.password}
             </label>
             <input
               type="password"
@@ -105,7 +107,7 @@ function SignInContent() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               className="w-full p-3 border rounded focus:outline-none focus:ring-2 focus:ring-black"
-              placeholder="Mật khẩu của bạn"
+              placeholder={t.auth.password}
               required
               minLength={6}
             />
@@ -120,10 +122,10 @@ function SignInContent() {
               className="h-4 w-4 border border-gray-300 rounded"
             />
             <label htmlFor="remember" className="ml-2 text-sm text-gray-600">
-              Lưu thông tin đăng nhập
+              {t.auth.remember_me}
             </label>
             <Link href="/forgot-password" className="ml-auto text-sm text-black hover:underline">
-              Quên mật khẩu?
+              {t.auth.forgot_password}
             </Link>
           </div>
 
@@ -135,15 +137,15 @@ function SignInContent() {
               isLoading && "opacity-70 cursor-not-allowed"
             )}
           >
-            {isLoading ? "Đang xử lý..." : "Đăng nhập"}
+            {isLoading ? t.auth.loading : t.common.login}
           </button>
         </form>
 
         <div className="mt-6 text-center">
           <p className="text-sm text-gray-600">
-            Chưa có tài khoản?{" "}
+            {t.auth.no_account}{" "}
             <Link href="/sign-up" className="text-black font-helvetica-medium hover:underline">
-              Đăng ký
+              {t.common.register}
             </Link>
           </p>
         </div>

@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 import { LinksSection } from '@/components/home';
 
@@ -124,11 +125,12 @@ interface HeroBannerProps {
   onIndicatorClick: (index: number) => void;
 }
 
-const HeroBanner: React.FC<HeroBannerProps> = ({ 
-  isMounted, 
-  currentImageIndex, 
-  onIndicatorClick 
+const HeroBanner: React.FC<HeroBannerProps> = ({
+  isMounted,
+  currentImageIndex,
+  onIndicatorClick
 }) => {
+  const { t } = useLanguage();
   return (
     <div className="relative w-full h-[500px] md:h-[600px]">
       {isMounted && (
@@ -139,9 +141,8 @@ const HeroBanner: React.FC<HeroBannerProps> = ({
               src={image}
               alt={`Men's Nike Collection ${index + 1}`}
               fill
-              className={`object-cover transition-opacity duration-1000 ${
-                index === currentImageIndex ? 'opacity-100' : 'opacity-0'
-              }`}
+              className={`object-cover transition-opacity duration-1000 ${index === currentImageIndex ? 'opacity-100' : 'opacity-0'
+                }`}
               priority={index === 0}
             />
           ))}
@@ -150,36 +151,35 @@ const HeroBanner: React.FC<HeroBannerProps> = ({
       <div className="absolute inset-0 bg-black/20"></div>
       <div className="absolute inset-0 flex items-center justify-center">
         <div className="text-center p-6 bg-white/90 backdrop-blur-sm max-w-lg rounded-lg shadow-xl">
-          <h1 className="text-5xl md:text-6xl font-nike-futura uppercase mb-4 text-black">
-            Men's
+          <h1 className="text-5xl md:text-6xl font-bold uppercase mb-4 text-black">
+            {t.hub.mens_title}
           </h1>
           <p className="font-helvetica mb-6 text-lg text-gray-700">
-            Discover the latest in men's athletic and casual wear.
+            {t.hub.mens_desc}
           </p>
           <div className="flex flex-col sm:flex-row justify-center gap-4">
             <Link href="/men/clothing">
               <button className="shop-button w-full sm:w-auto">
-                Shop Clothing
+                {t.hub.shop_clothing}
               </button>
             </Link>
             <Link href="/men/shoes">
               <button className="shop-button w-full sm:w-auto">
-                Shop Shoes
+                {t.hub.shop_shoes}
               </button>
             </Link>
           </div>
         </div>
       </div>
-      
+
       {/* Carousel Indicators */}
       <div className="absolute bottom-6 left-1/2 transform -translate-x-1/2 flex space-x-2">
         {HERO_IMAGES.map((_, index) => (
           <button
             key={index}
             onClick={() => onIndicatorClick(index)}
-            className={`w-3 h-3 rounded-full transition-all duration-300 ${
-              index === currentImageIndex ? 'bg-white' : 'bg-white/50'
-            }`}
+            className={`w-3 h-3 rounded-full transition-all duration-300 ${index === currentImageIndex ? 'bg-white' : 'bg-white/50'
+              }`}
             aria-label={`Go to slide ${index + 1}`}
           />
         ))}
@@ -193,10 +193,11 @@ interface CategoryGridProps {
 }
 
 const CategoryGrid: React.FC<CategoryGridProps> = ({ categories }) => {
+  const { t } = useLanguage();
   return (
     <section className="nike-container py-16">
-      <h2 className="text-3xl font-nike-futura mb-8 text-center">
-        Shop by Category
+      <h2 className="text-3xl font-bold mb-8 text-center">
+        {t.hub.shop_by_category}
       </h2>
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
         {categories.map((category) => (
@@ -206,7 +207,7 @@ const CategoryGrid: React.FC<CategoryGridProps> = ({ categories }) => {
                 {category.icon}
               </div>
               <h3 className="font-helvetica-medium text-lg mb-1">
-                {category.name}
+                {t.filters[category.name.toLowerCase() as keyof typeof t.filters] || category.name}
               </h3>
               <p className="text-sm text-gray-600">{category.count} items</p>
             </div>
@@ -222,14 +223,15 @@ interface FeaturedCollectionsProps {
   isMounted: boolean;
 }
 
-const FeaturedCollections: React.FC<FeaturedCollectionsProps> = ({ 
-  collections, 
-  isMounted 
+const FeaturedCollections: React.FC<FeaturedCollectionsProps> = ({
+  collections,
+  isMounted
 }) => {
+  const { t } = useLanguage();
   return (
     <section className="nike-container py-16">
-      <h2 className="text-3xl font-nike-futura mb-12 text-center">
-        Featured Collections
+      <h2 className="text-3xl font-bold mb-12 text-center">
+        {t.hub.featured_collections}
       </h2>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
         {collections.map((collection) => (
@@ -253,7 +255,7 @@ const FeaturedCollections: React.FC<FeaturedCollectionsProps> = ({
               <p className="mb-4 text-gray-600">{collection.subtitle}</p>
               <Link href={collection.link}>
                 <button className="shop-button w-full">
-                  Shop Collection
+                  {t.hub.shop_collection}
                 </button>
               </Link>
             </div>
@@ -304,17 +306,18 @@ interface AthleteSectionProps {
 }
 
 const AthleteSection: React.FC<AthleteSectionProps> = ({ athletes, isMounted }) => {
+  const { t } = useLanguage();
   return (
     <section className="nike-container py-12 border-t border-gray-200">
-      <h2 className="text-2xl font-nike-futura mb-8">
-        Style By Elite Athletes
+      <h2 className="text-2xl font-bold mb-8">
+        {t.hub.style_by_athletes}
       </h2>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {athletes.map((athlete) => (
-          <AthleteCard 
-            key={athlete.id} 
-            athlete={athlete} 
-            isMounted={isMounted} 
+          <AthleteCard
+            key={athlete.id}
+            athlete={athlete}
+            isMounted={isMounted}
           />
         ))}
       </div>
@@ -355,14 +358,14 @@ export default function MenPage() {
 
       <CategoryGrid categories={CATEGORIES} />
 
-      <FeaturedCollections 
-        collections={FEATURED_COLLECTIONS} 
-        isMounted={isMounted} 
+      <FeaturedCollections
+        collections={FEATURED_COLLECTIONS}
+        isMounted={isMounted}
       />
 
-      <AthleteSection 
-        athletes={ATHLETE_COLLECTIONS} 
-        isMounted={isMounted} 
+      <AthleteSection
+        athletes={ATHLETE_COLLECTIONS}
+        isMounted={isMounted}
       />
 
       <LinksSection />

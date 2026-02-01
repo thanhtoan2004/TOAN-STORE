@@ -230,25 +230,30 @@ export default function AdminProductsPage() {
                           {product.is_active === 1 ? 'Active' : 'Inactive'}
                         </span>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2">
-                        <Link
-                          href={`/admin/products/${product.id}/edit`}
-                          className="text-blue-600 hover:text-blue-900"
-                        >
-                          Edit
-                        </Link>
-                        <button
-                          onClick={() => toggleProductStatus(product.id, product.is_active)}
-                          className="text-yellow-600 hover:text-yellow-900"
-                        >
-                          {product.is_active === 1 ? 'Deactivate' : 'Activate'}
-                        </button>
-                        <button
-                          onClick={() => deleteProduct(product.id)}
-                          className="text-red-600 hover:text-red-900"
-                        >
-                          Delete
-                        </button>
+                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                        <div className="flex items-center justify-end gap-2">
+                          <Link
+                            href={`/admin/products/${product.id}/edit`}
+                            className="px-3 py-1 text-sm border border-gray-300 rounded hover:bg-gray-50 text-gray-700"
+                          >
+                            Edit
+                          </Link>
+                          <button
+                            onClick={() => toggleProductStatus(product.id, product.is_active)}
+                            className={`px-3 py-1 text-sm border rounded hover:opacity-80 ${product.is_active === 1
+                                ? 'border-yellow-300 text-yellow-700 bg-yellow-50'
+                                : 'border-green-300 text-green-700 bg-green-50'
+                              }`}
+                          >
+                            {product.is_active === 1 ? 'Deactivate' : 'Activate'}
+                          </button>
+                          <button
+                            onClick={() => deleteProduct(product.id)}
+                            className="px-3 py-1 text-sm bg-red-600 text-white rounded hover:bg-red-700"
+                          >
+                            Delete
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}

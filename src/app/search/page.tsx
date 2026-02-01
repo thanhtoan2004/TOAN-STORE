@@ -50,7 +50,7 @@ export default function SearchPage() {
     <div className="min-h-screen bg-gray-50">
       <div className="nike-container py-12">
         <div className="max-w-6xl mx-auto">
-          <h1 className="text-4xl font-nike-futura mb-6">Tìm Kiếm</h1>
+          <h1 className="text-4xl font-bold mb-6">Tìm Kiếm</h1>
 
           <form onSubmit={handleSubmit} className="mb-8">
             <div className="flex gap-4">

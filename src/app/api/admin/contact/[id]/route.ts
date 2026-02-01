@@ -14,10 +14,11 @@ async function checkAdminAuth(request: NextRequest) {
   }
 }
 
-export async function PATCH(request: NextRequest, { params }: { params: { id: string } }) {
+export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     await checkAdminAuth(request);
-    const id = parseInt(params.id);
+    const { id: idStr } = await params;
+    const id = parseInt(idStr);
     const { status } = await request.json();
 
     await executeQuery('UPDATE contact_messages SET status = ? WHERE id = ?', [status, id]);

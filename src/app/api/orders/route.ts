@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getOrdersByUserId, createOrder } from '@/lib/db/mysql';
+import { getOrdersByUserId, createOrder, executeQuery } from '@/lib/db/mysql';
+import { sendOrderConfirmation } from '@/lib/mail';
 
 // GET - Lấy danh sách đơn hàng
 export async function GET(request: NextRequest) {
@@ -100,8 +101,35 @@ export async function POST(request: NextRequest) {
       return sum + (item.price * item.quantity);
     }, 0);
 
-    const finalShippingFee = shippingFee || (subtotal >= 500000 ? 0 : 30000);
-    const finalDiscount = discount || 0;
+    let finalShippingFee = shippingFee || (subtotal >= 500000 ? 0 : 30000);
+    let finalDiscount = discount || 0;
+
+    // Membership logic
+    let membershipDiscount = 0;
+    if (userId) {
+      const users = await executeQuery(
+        'SELECT membership_tier FROM users WHERE id = ?',
+        [userId]
+      ) as any[];
+
+      if (users.length > 0) {
+        const tier = users[0].membership_tier;
+
+        // Tier Discount
+        if (tier === 'gold') {
+          membershipDiscount = Math.round(subtotal * 0.10); // 10%
+        } else if (tier === 'silver') {
+          membershipDiscount = Math.round(subtotal * 0.05); // 5%
+        }
+
+        // Tier Free Shipping
+        if (tier === 'gold' || tier === 'silver') {
+          finalShippingFee = 0;
+        }
+      }
+    }
+
+    finalDiscount += membershipDiscount;
     const totalAmount = subtotal + finalShippingFee - finalDiscount;
 
     // Tạo order trong database
@@ -119,8 +147,9 @@ export async function POST(request: NextRequest) {
       shippingAddress: typeof shippingAddress === 'string' ? shippingAddress : JSON.stringify(shippingAddress),
       phone,
       email,
-      paymentMethod: paymentMethod || 'COD',
-      notes,
+      paymentMethod: paymentMethod || 'cod',
+      paymentStatus: body.paymentStatus || 'pending',
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       items: items.map((item: any) => ({
         productId: item.productId || item.product_id,
         productName: item.productName || item.name,
@@ -128,8 +157,12 @@ export async function POST(request: NextRequest) {
         size: item.size,
         quantity: item.quantity,
         price: item.price
-      }))
+      })),
+      notes: notes ? `${notes} (Membership Discount: ${membershipDiscount.toLocaleString()} VND)` : `Membership Discount: ${membershipDiscount.toLocaleString()} VND`
     });
+
+    // Gửi email xác nhận đơn hàng
+    sendOrderConfirmation(email, orderNumber, totalAmount).catch(console.error);
 
     return NextResponse.json({
       success: true,
@@ -137,7 +170,8 @@ export async function POST(request: NextRequest) {
       data: {
         orderId,
         orderNumber,
-        totalAmount
+        totalAmount,
+        membershipDiscount
       }
     });
   } catch (error) {

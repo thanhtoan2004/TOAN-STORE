@@ -76,6 +76,20 @@ async function initDb() {
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
     `);
 
+    // Migration: Thêm cột accumulated_points và membership_tier cho users nếu chưa có
+    try {
+      await connection.query(`
+        ALTER TABLE users 
+        ADD COLUMN IF NOT EXISTS accumulated_points INT DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS membership_tier ENUM('bronze', 'silver', 'gold', 'platinum') DEFAULT 'bronze',
+        ADD COLUMN IF NOT EXISTS is_banned TINYINT(1) DEFAULT 0 COMMENT 'User banned status: 0 = active, 1 = banned'
+      `);
+    } catch (e) {
+      // Ignore error if columns exist (cho cac version MySQL cu khong support IF NOT EXISTS trong ALTER)
+      // Hoac dung query check column schema, nhung o day ta try catch cho don gian
+      console.log('Columns might already exist or error adding columns:', e);
+    }
+
     // Tạo bảng settings phục vụ trang admin/settings
     await connection.query(`
       CREATE TABLE IF NOT EXISTS settings (
@@ -284,6 +298,43 @@ async function initDb() {
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
     `);
 
+    // Tạo bảng password_resets
+    await connection.query(`
+      CREATE TABLE IF NOT EXISTS password_resets (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        email VARCHAR(255) NOT NULL,
+        token VARCHAR(255) NOT NULL UNIQUE,
+        expires_at DATETIME NOT NULL,
+        used TINYINT(1) DEFAULT 0,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        INDEX idx_token (token),
+        INDEX idx_email (email),
+        INDEX idx_expires_at (expires_at)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    `);
+
+    // Tạo bảng review_media
+    await connection.query(`
+      CREATE TABLE IF NOT EXISTS review_media (
+        id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+        review_id BIGINT UNSIGNED NOT NULL,
+        media_type ENUM('image', 'video') NOT NULL,
+        media_url VARCHAR(1000) NOT NULL,
+        thumbnail_url VARCHAR(1000) DEFAULT NULL,
+        file_size INT DEFAULT NULL,
+        mime_type VARCHAR(100) DEFAULT NULL,
+        position INT DEFAULT 0,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (id),
+        KEY idx_review_id (review_id),
+        KEY idx_media_type (media_type),
+        CONSTRAINT fk_review_media_review 
+          FOREIGN KEY (review_id) 
+          REFERENCES product_reviews(id) 
+          ON DELETE CASCADE
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    `);
+
     // Tạo bảng admin_users
     await connection.query(`
       CREATE TABLE IF NOT EXISTS admin_users (
@@ -333,6 +384,7 @@ async function initDb() {
   }
 }
 
+// Hàm thực thi truy vấn
 // Hàm thực thi truy vấn
 async function executeQuery<T = unknown[]>(query: string, params: (string | number | null)[] = []): Promise<T> {
   try {
@@ -642,6 +694,7 @@ async function createOrder(orderData: {
   phone: string;
   email: string;
   paymentMethod?: string;
+  paymentStatus?: string;
   notes?: string;
   items: Array<{
     productId: number;
@@ -701,8 +754,8 @@ async function createOrder(orderData: {
 
     // Tạo order
     const [orderResult]: any = await connection.execute(
-      `INSERT INTO orders (user_id, order_number, subtotal, shipping_fee, discount, voucher_code, voucher_discount, giftcard_number, giftcard_discount, tax, total, shipping_address_id, status, placed_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', NOW())`,
+      `INSERT INTO orders (user_id, order_number, subtotal, shipping_fee, discount, voucher_code, voucher_discount, giftcard_number, giftcard_discount, tax, total, shipping_address_id, status, payment_method, payment_status, placed_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, NOW())`,
       [
         orderData.userId || null,
         orderData.orderNumber,
@@ -715,7 +768,9 @@ async function createOrder(orderData: {
         orderData.giftcardDiscount || 0,
         tax,
         subtotal + shippingFee - discount + tax,
-        shippingAddressId
+        shippingAddressId,
+        orderData.paymentMethod || 'cod',
+        orderData.paymentStatus || 'pending'
       ]
     );
 
@@ -832,10 +887,67 @@ async function getOrderByNumber(orderNumber: string) {
 }
 
 async function updateOrderStatus(orderNumber: string, status: string) {
-  await executeQuery(
-    'UPDATE orders SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE order_number = ?',
-    [status, orderNumber]
-  );
+  const connection = await pool.getConnection();
+  try {
+    await connection.beginTransaction();
+
+    // 1. Cập nhật trạng thái đơn hàng
+    await connection.execute(
+      'UPDATE orders SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE order_number = ?',
+      [status, orderNumber]
+    );
+
+    // 2. Nếu trạng thái là 'delivered', tính điểm và cập nhật hạng thành viên
+    if (status === 'delivered') {
+      // Lấy thông tin đơn hàng
+      const [orders]: any = await connection.execute(
+        'SELECT user_id, total FROM orders WHERE order_number = ?',
+        [orderNumber]
+      );
+
+      if (orders.length > 0 && orders[0].user_id) {
+        const userId = orders[0].user_id;
+        const total = Number(orders[0].total);
+
+        // Quy tắc: 10,000 VND = 1 điểm
+        const pointsEarned = Math.floor(total / 10000);
+
+        if (pointsEarned > 0) {
+          // Lấy điểm hiện tại
+          const [users]: any = await connection.execute(
+            'SELECT accumulated_points FROM users WHERE id = ? FOR UPDATE',
+            [userId]
+          );
+
+          if (users.length > 0) {
+            const currentPoints = users[0].accumulated_points || 0;
+            const newPoints = currentPoints + pointsEarned;
+
+            // Tính hạng mới
+            let newTier = 'bronze';
+            if (newPoints >= 5000) newTier = 'gold';
+            else if (newPoints >= 1000) newTier = 'silver';
+
+            // Cập nhật user
+            await connection.execute(
+              `UPDATE users 
+               SET accumulated_points = ?, 
+                   membership_tier = ? 
+               WHERE id = ?`,
+              [newPoints, newTier, userId]
+            );
+          }
+        }
+      }
+    }
+
+    await connection.commit();
+  } catch (error) {
+    await connection.rollback();
+    throw error;
+  } finally {
+    connection.release();
+  }
 }
 
 async function cancelOrder(orderNumber: string) {

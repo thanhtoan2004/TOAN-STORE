@@ -9,7 +9,7 @@ export default function TeacherPromoPage() {
         <div className="absolute inset-0 bg-black/20"></div>
         <div className="relative nike-container h-full flex flex-col justify-center items-center text-center px-4">
           <div className="text-5xl md:text-6xl mb-4">👨‍🏫</div>
-          <h1 className="text-3xl md:text-5xl lg:text-6xl font-nike-futura mb-3 md:mb-4">
+          <h1 className="text-3xl md:text-5xl lg:text-6xl font-bold mb-3 md:mb-4">
             ƯU ĐÃI GIÁO VIÊN
           </h1>
           <p className="text-base md:text-lg lg:text-xl max-w-2xl">

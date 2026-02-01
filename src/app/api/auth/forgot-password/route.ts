@@ -1,81 +1,58 @@
+
 import { NextResponse } from 'next/server';
-import crypto from 'crypto';
 import { executeQuery } from '@/lib/db/mysql';
-import { sendPasswordResetEmail } from '@/lib/email';
-import { createErrorResponse, createSuccessResponse, validateRequiredFields, withErrorHandling } from '@/lib/api-utils';
+import { sendPasswordResetEmail } from '@/lib/mail';
+import crypto from 'crypto';
 
-async function forgotPasswordHandler(req: Request): Promise<NextResponse> {
-    const body: { email?: string } = await req.json();
-
-    // Validate required fields
-    const validation = validateRequiredFields(body, ['email']);
-    if (!validation.isValid) {
-        return createErrorResponse(validation.error, 400, 'VALIDATION_ERROR');
-    }
-
-    const { email } = body as { email: string };
-
-    // Validate email format
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
-        return createErrorResponse('Email không hợp lệ', 400, 'INVALID_EMAIL');
-    }
-
+export async function POST(req: Request) {
     try {
+        const { email } = await req.json();
+
+        if (!email) {
+            return NextResponse.json(
+                { message: 'Vui lòng nhập email' },
+                { status: 400 }
+            );
+        }
+
         // Check if user exists
         const users = await executeQuery(
-            'SELECT id, email FROM users WHERE email = ?',
+            'SELECT id, first_name FROM users WHERE email = ?',
             [email]
         ) as any[];
 
-        if (users.length > 0) {
-            // Generate reset token
-            const resetToken = crypto.randomBytes(32).toString('hex');
-            const expiresAt = new Date(Date.now() + 3600000); // 1 hour from now
-            const expiresAtString = expiresAt.toISOString().slice(0, 19).replace('T', ' '); // MySQL datetime format
-
-            // Delete any existing reset tokens for this email
-            await executeQuery(
-                'DELETE FROM password_resets WHERE email = ?',
-                [email]
-            );
-
-            // Store reset token in database
-            await executeQuery(
-                'INSERT INTO password_resets (email, token, expires_at) VALUES (?, ?, ?)',
-                [email, resetToken, expiresAtString]
-            );
-
-            // Send reset email
-            try {
-                await sendPasswordResetEmail(email, resetToken);
-                console.log(`Password reset email sent to: ${email}`);
-            } catch (emailError) {
-                console.error('Failed to send email:', emailError);
-                // Delete the token if email failed
-                await executeQuery('DELETE FROM password_resets WHERE token = ?', [resetToken]);
-                return createErrorResponse(
-                    'Không thể gửi email. Vui lòng kiểm tra lại địa chỉ email hoặc thử lại sau.',
-                    500,
-                    'EMAIL_SEND_FAILED'
-                );
-            }
+        if (users.length === 0) {
+            // Don't reveal that user does not exist
+            return NextResponse.json({
+                success: true,
+                message: 'Nếu email tồn tại, chúng tôi sẽ gửi hướng dẫn đến bạn.'
+            });
         }
 
-        // Always return success message (security: don't reveal if email exists)
-        return NextResponse.json(
-            createSuccessResponse({
-                message: 'Nếu email tồn tại trong hệ thống, bạn sẽ nhận được hướng dẫn đặt lại mật khẩu trong vài phút.'
-            })
+        // Generate token
+        const token = crypto.randomBytes(32).toString('hex');
+        const expiresAt = new Date(Date.now() + 3600000); // 1 hour
+
+        // Save token to DB
+        await executeQuery(
+            `INSERT INTO password_resets (email, token, expires_at) VALUES (?, ?, ?)`,
+            [email, token, expiresAt]
         );
+
+        // Send email
+        // Don't await to avoid blocking response
+        sendPasswordResetEmail(email, token).catch(console.error);
+
+        return NextResponse.json({
+            success: true,
+            message: 'Đã gửi hướng dẫn đến email của bạn.'
+        });
+
     } catch (error) {
         console.error('Forgot password error:', error);
-        return createErrorResponse(
-            'Có lỗi xảy ra. Vui lòng thử lại sau.',
-            500,
-            'SERVER_ERROR'
+        return NextResponse.json(
+            { message: 'Có lỗi xảy ra. Vui lòng thử lại sau.' },
+            { status: 500 }
         );
     }
 }
-
-export const POST = withErrorHandling(forgotPasswordHandler);

@@ -5,7 +5,10 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { Play } from 'lucide-react'
 
+import { useLanguage } from '@/contexts/LanguageContext';
+
 const HeroSection = () => {
+  const { t } = useLanguage();
   // State to track if the component is mounted (client-side only)
   const [isMounted, setIsMounted] = useState(false);
 
@@ -18,7 +21,7 @@ const HeroSection = () => {
 
     <section className="relative w-full">
       {/* Video/image container */}
-      
+
       <div className="relative w-full h-[70vh] md:h-[80vh] overflow-hidden bg-black">
         {/* Only render image on client-side to avoid hydration errors */}
         {isMounted && (
@@ -47,14 +50,14 @@ const HeroSection = () => {
         <div className="text-center max-w-3xl mx-auto">
           <p className="text-sm font-helvetica-medium mb-2">Sophia Smith</p>
           <h1 className="text-5xl md:text-6xl font-nike-futura uppercase tracking-tighter mb-4">
-            Is Winning Selfish?
+            {t.home.hero_title}
           </h1>
           <p className="text-sm md:text-base font-helvetica mb-6">
-            Sophia Smith has a lot to give. And give and give and give.
+            {t.home.hero_subtitle}
           </p>
           <Link href="/collection/sophia-smith">
             <button className="shop-button">
-              Shop
+              {t.home.shop_now}
             </button>
           </Link>
         </div>

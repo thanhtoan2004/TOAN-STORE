@@ -32,7 +32,8 @@ export async function GET(request: NextRequest) {
     if (statusParam && !productIdStr) {
       const status = statusParam || 'pending';
       const reviews = await executeQuery<any[]>(
-        `SELECT r.*, u.full_name as user_name, p.name as product_name
+        `SELECT r.*, u.full_name as user_name, p.name as product_name,
+         (SELECT url FROM product_images WHERE product_id = p.id AND is_main = 1 LIMIT 1) as product_image
          FROM product_reviews r
          LEFT JOIN users u ON r.user_id = u.id
          LEFT JOIN products p ON r.product_id = p.id

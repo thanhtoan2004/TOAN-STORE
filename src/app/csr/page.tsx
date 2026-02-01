@@ -5,7 +5,7 @@ export default function CorporateSocialResponsibilityPage() {
     <div className="min-h-screen bg-gray-50">
       <div className="nike-container py-12">
         <div className="max-w-4xl mx-auto">
-          <h1 className="text-4xl font-nike-futura mb-6">Cam Kết Trách Nhiệm Xã Hội</h1>
+          <h1 className="text-4xl font-bold mb-6">Cam Kết Trách Nhiệm Xã Hội</h1>
           <p className="text-lg text-gray-600 mb-8">
             TOAN cam kết phát triển bền vững thông qua các hoạt động kinh doanh có trách nhiệm với môi trường,
             xã hội và cộng đồng.

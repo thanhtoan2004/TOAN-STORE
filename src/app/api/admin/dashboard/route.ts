@@ -125,13 +125,14 @@ export async function GET(request: NextRequest) {
       SELECT 
         u.id,
         u.email,
+        u.membership_tier,
         CONCAT(u.first_name, ' ', u.last_name) as full_name,
         COALESCE(SUM(o.total), 0) as total_spent,
         COUNT(o.id) as order_count
       FROM users u
       JOIN orders o ON u.id = o.user_id
       WHERE o.status = 'delivered'
-      GROUP BY u.id, u.email, u.first_name, u.last_name
+      GROUP BY u.id, u.email, u.membership_tier, u.first_name, u.last_name
       ORDER BY total_spent DESC
       LIMIT 5
     `);
@@ -221,6 +222,7 @@ export async function GET(request: NextRequest) {
         id: c.id,
         email: c.email,
         name: c.full_name,
+        membershipTier: c.membership_tier,
         totalSpent: parseFloat(c.total_spent) || 0,
         orderCount: parseInt(c.order_count)
       })),

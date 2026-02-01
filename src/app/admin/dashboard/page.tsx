@@ -23,7 +23,7 @@ interface DashboardStats {
   lowStockProducts: Array<{ id: number; name: string; quantity: number; image: string }>;
   newCustomersMonth: number;
   returningCustomers: number;
-  topCustomers: Array<{ id: number; email: string; name: string; totalSpent: number; orderCount: number }>;
+  topCustomers: Array<{ id: number; email: string; name: string; totalSpent: number; orderCount: number; membershipTier: string }>;
   todayRevenue: number;
   yesterdayRevenue: number;
   recentOrders: any[];
@@ -370,7 +370,17 @@ export default function AdminDashboardPage() {
                         {index + 1}
                       </span>
                       <div className="ml-3">
-                        <p className="font-medium text-gray-900">{customer.name}</p>
+                        <div className="flex items-center gap-2">
+                          <p className="font-medium text-gray-900">{customer.name}</p>
+                          {customer.membershipTier && (
+                            <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase ${customer.membershipTier === 'gold' ? 'bg-yellow-100 text-yellow-800 border border-yellow-200' :
+                                customer.membershipTier === 'silver' ? 'bg-gray-100 text-gray-700 border border-gray-200' :
+                                  'bg-amber-50 text-amber-800 border border-amber-200'
+                              }`}>
+                              {customer.membershipTier}
+                            </span>
+                          )}
+                        </div>
                         <p className="text-xs text-gray-500">{customer.orderCount} orders</p>
                       </div>
                     </div>

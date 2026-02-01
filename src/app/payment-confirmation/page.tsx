@@ -104,7 +104,7 @@ export default function PaymentConfirmationPage() {
             ← Quay lại Trung Tâm Trợ Giúp
           </Link>
 
-          <h1 className="text-4xl font-nike-futura mb-6">Xác Nhận Thanh Toán</h1>
+          <h1 className="text-4xl font-bold mb-6">Xác Nhận Thanh Toán</h1>
 
           <div className="bg-white rounded-lg p-8 shadow-sm">
             {submitted ? (
@@ -116,10 +116,10 @@ export default function PaymentConfirmationPage() {
                 </div>
                 <h2 className="text-2xl font-helvetica-medium mb-2">Xác Nhận Thành Công!</h2>
                 <p className="text-gray-600 mb-6">
-                  Chúng tôi đã nhận được thông tin xác nhận thanh toán của bạn. 
+                  Chúng tôi đã nhận được thông tin xác nhận thanh toán của bạn.
                   Đơn hàng sẽ được xử lý trong vòng 1-2 giờ làm việc.
                 </p>
-                <Link 
+                <Link
                   href="/orders"
                   className="inline-block px-6 py-3 bg-black text-white rounded-lg hover:bg-gray-800 transition"
                 >
@@ -230,11 +230,10 @@ export default function PaymentConfirmationPage() {
                   <button
                     type="submit"
                     disabled={loading}
-                    className={`w-full py-3 rounded-lg font-medium transition-colors ${
-                      loading
+                    className={`w-full py-3 rounded-lg font-medium transition-colors ${loading
                         ? 'bg-gray-400 cursor-not-allowed text-white'
                         : 'bg-black text-white hover:bg-gray-800'
-                    }`}
+                      }`}
                   >
                     {loading ? 'Đang xử lý...' : 'Xác Nhận Thanh Toán'}
                   </button>

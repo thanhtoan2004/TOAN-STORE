@@ -119,30 +119,21 @@ export async function PATCH(
 
         // Deduct gift card balance when order is delivered
         if (status === 'delivered') {
-            console.log('🎁 Order delivered, checking gift card...');
             const orderDetailsResult = await executeQuery(
                 'SELECT giftcard_number, giftcard_discount FROM orders WHERE id = ?',
                 [parseInt(id)]
             ) as any[];
 
-            console.log('📦 Order details:', orderDetailsResult);
-
             if (orderDetailsResult && orderDetailsResult.length > 0) {
                 const orderDetails = orderDetailsResult[0];
-                console.log('💳 Gift card info:', {
-                    number: orderDetails.giftcard_number,
-                    discount: orderDetails.giftcard_discount
-                });
 
                 if (orderDetails.giftcard_number && orderDetails.giftcard_discount > 0) {
-                    console.log('✅ Deducting gift card balance...');
-                    const updateResult = await executeQuery(
+                    await executeQuery(
                         `UPDATE gift_cards 
                SET current_balance = current_balance - ?
                WHERE card_number = ?`,
                         [orderDetails.giftcard_discount, orderDetails.giftcard_number]
                     );
-                    console.log('✅ Gift card UPDATE executed!', updateResult);
 
                     // Verify the update
                     const verifyResult = await executeQuery(
@@ -150,7 +141,6 @@ export async function PATCH(
                         [orderDetails.giftcard_number]
                     ) as any[];
                     const newBalance = parseFloat(verifyResult[0]?.current_balance || '0');
-                    console.log('💰 New balance:', newBalance);
 
                     // Update status to 'used' if balance is 0 or less
                     if (newBalance <= 0) {
@@ -158,13 +148,8 @@ export async function PATCH(
                             `UPDATE gift_cards SET status = 'used' WHERE card_number = ?`,
                             [orderDetails.giftcard_number]
                         );
-                        console.log('🏷️ Gift card status updated to: used');
                     }
-                } else {
-                    console.log('⚠️ No gift card or zero discount');
                 }
-            } else {
-                console.log('❌ Order not found!');
             }
         }
 

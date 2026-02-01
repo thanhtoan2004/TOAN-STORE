@@ -51,7 +51,7 @@ export async function GET(request: NextRequest) {
       // If settings table doesn't exist, return defaults
       if (dbError.code === 'ER_NO_SUCH_TABLE') {
         await ensureSettingsTable();
-        console.log('Settings table not found, created new table and using defaults');
+        // console.log('Settings table not found, created new table and using defaults');
         result = [];
       } else {
         throw dbError;
@@ -97,11 +97,8 @@ export async function PUT(request: NextRequest) {
 
     // Update each setting in database
     for (const [key, value] of Object.entries(settings)) {
-      await executeQuery(
-        `INSERT INTO settings (\`key\`, value) VALUES (?, ?) 
-         ON DUPLICATE KEY UPDATE value = VALUES(value)`,
-        [key, String(value)]
-      );
+      const query = "INSERT INTO settings (`key`, value) VALUES (?, ?) ON DUPLICATE KEY UPDATE value = VALUES(value)";
+      await executeQuery(query, [key, String(value)]);
     }
 
     return NextResponse.json({ success: true, message: 'Settings saved' });

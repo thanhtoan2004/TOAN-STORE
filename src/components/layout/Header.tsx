@@ -13,22 +13,25 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger
 } from '@/components/ui/DropdownMenu'
+import { useLanguage } from '@/contexts/LanguageContext';
 import { useAuth } from "@/contexts/AuthContext";
 
 const Header = () => {
-  useEffect(() => {
-    console.log('Header mounted');
-  }, []);
+  // useEffect(() => {
+  //   console.log('Header mounted');
+  // }, []);
 
+  const { t } = useLanguage();
   const { user, isAuthenticated, logout } = useAuth();
   const { wishlist } = useWishlist();
+
   const mainNavigationLinks = [
-    { name: 'Mới', href: '/categories?sort=newest' },
-    { name: 'Nam', href: '/men' },
-    { name: 'Nữ', href: '/women' },
-    { name: 'Trẻ Em', href: '/categories?gender=kids' },
-    { name: 'Jordan', href: '/categories?sport=basketball' },
-    { name: 'Thể Thao', href: '/categories?sport=running' },
+    { name: t.nav.new, href: '/categories?sort=newest' },
+    { name: t.nav.men, href: '/men' },
+    { name: t.nav.women, href: '/women' },
+    { name: t.nav.kids, href: '/categories?gender=kids' },
+    { name: t.nav.jordan, href: '/categories?sport=basketball' },
+    { name: t.nav.sports, href: '/categories?sport=running' },
   ];
 
   return (
@@ -39,51 +42,51 @@ const Header = () => {
           <div className="flex space-x-1.5">
             <Link href="/categories?sport=basketball" className="flex items-center hover:opacity-70 transition-opacity">
               <svg className="w-6 h-6" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
-                <path d="M17.09 11l-5.7-9.15c-.11-.17-.32-.17-.43 0L5.25 11h11.84zm.82 1H6.09l-.57 9.25c-.01.18.13.32.31.32h12.34c.18 0 .32-.14.31-.32l-.57-9.25z"/>
+                <path d="M17.09 11l-5.7-9.15c-.11-.17-.32-.17-.43 0L5.25 11h11.84zm.82 1H6.09l-.57 9.25c-.01.18.13.32.31.32h12.34c.18 0 .32-.14.31-.32l-.57-9.25z" />
               </svg>
             </Link>
             <Link href="/categories?brand=converse" className="flex items-center hover:opacity-70 transition-opacity">
               <svg className="w-6 h-6" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
-                <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+                <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
               </svg>
             </Link>
           </div>
           <div className="flex space-x-4 font-helvetica text-[11px]">
-            <Link href="/store" className="hover:text-black text-[#757575]">Find a Store</Link>
+            <Link href="/store" className="hover:text-black text-[#757575]">{t.common.find_store}</Link>
             <span className="text-[#757575]">|</span>
-            <Link href="/help" className="hover:text-black text-[#757575]">Help</Link>
+            <Link href="/help" className="hover:text-black text-[#757575]">{t.common.help}</Link>
             <span className="text-[#757575]">|</span>
-            
+
             {isAuthenticated ? (
               <>
                 <DropdownMenu>
                   <DropdownMenuTrigger className="hover:text-black text-[#757575] flex items-center gap-1">
-                    Xin chào, {(user as any)?.firstName && (user as any)?.lastName ? `${(user as any).firstName} ${(user as any).lastName}` : user?.email}
+                    {t.common.hello}, {(user as any)?.firstName && (user as any)?.lastName ? `${(user as any).firstName} ${(user as any).lastName}` : user?.email}
                     <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                     </svg>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="w-48">
                     <DropdownMenuItem asChild>
-                      <Link href="/orders" className="w-full cursor-pointer">Đơn hàng của tôi</Link>
+                      <Link href="/orders" className="w-full cursor-pointer">{t.common.my_orders}</Link>
                     </DropdownMenuItem>
                     <DropdownMenuItem asChild>
-                      <Link href="/wishlist" className="w-full cursor-pointer">Danh sách yêu thích</Link>
+                      <Link href="/wishlist" className="w-full cursor-pointer">{t.common.wishlist}</Link>
                     </DropdownMenuItem>
                     <DropdownMenuItem asChild>
-                      <Link href="/account/settings" className="w-full cursor-pointer">Cài đặt tài khoản</Link>
+                      <Link href="/account/settings" className="w-full cursor-pointer">{t.common.settings}</Link>
                     </DropdownMenuItem>
                     <DropdownMenuItem onClick={logout} className="cursor-pointer text-red-600">
-                      Đăng xuất
+                      {t.common.logout}
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
               </>
             ) : (
               <>
-                <Link href="/sign-up" className="hover:text-black text-[#757575]">Đăng ký</Link>
+                <Link href="/sign-up" className="hover:text-black text-[#757575]">{t.common.register}</Link>
                 <span className="text-[#757575]">|</span>
-                <Link href="/sign-in" className="hover:text-black text-[#757575]">Đăng nhập</Link>
+                <Link href="/sign-in" className="hover:text-black text-[#757575]">{t.common.login}</Link>
               </>
             )}
           </div>
@@ -117,8 +120,8 @@ const Header = () => {
 
           {/* Search & Icons */}
           <div className="flex items-center space-x-4">
-            <form 
-              action="/search" 
+            <form
+              action="/search"
               method="get"
               className="hidden md:flex items-center bg-[#f5f5f5] rounded-full px-3 py-2"
             >
@@ -126,7 +129,7 @@ const Header = () => {
               <input
                 type="text"
                 name="q"
-                placeholder="Search"
+                placeholder={t.common.search}
                 className="bg-transparent border-none outline-none px-2 text-sm w-32"
               />
             </form>
@@ -150,7 +153,7 @@ const Header = () => {
         <button className="flex items-center space-x-1 text-sm">
           <span>Menu</span>
           <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M6 9l6 6 6-6"/>
+            <path d="M6 9l6 6 6-6" />
           </svg>
         </button>
       </div>
