@@ -3,7 +3,7 @@ import React, { createContext, useContext, useEffect, useState, ReactNode } from
 import { useAuth } from './AuthContext';
 
 export interface WishlistItem {
-  id: string;
+  id: string | number;
   name: string;
   category: string;
   price: number;
@@ -16,8 +16,8 @@ interface WishlistContextType {
   wishlist: WishlistItem[];
   loading: boolean;
   addToWishlist: (item: WishlistItem) => Promise<void>;
-  removeFromWishlist: (id: string) => Promise<void>;
-  isInWishlist: (id: string) => boolean;
+  removeFromWishlist: (id: string | number) => Promise<void>;
+  isInWishlist: (id: string | number) => boolean;
 }
 
 const WishlistContext = createContext<WishlistContextType | undefined>(undefined);
@@ -42,7 +42,30 @@ export const WishlistProvider = ({ children }: { children: ReactNode }) => {
           const response = await fetch(`/api/wishlist?userId=${user.id}`);
           if (response.ok) {
             const data = await response.json();
-            setWishlist(data);
+            // Ensure numbers for prices as MySQL driver might return strings for DECIMAL
+            const typedData = data.map((item: any) => {
+              const basePrice = Number(item.price); // DB returns base_price as 'price'
+              const retailPrice = item.sale_price ? Number(item.sale_price) : 0; // DB returns retail_price as 'sale_price'
+
+              // Logic: ProductCard expects price = Original(MSRP) and sale_price = Discounted(Base)
+              // If retailPrice > basePrice (MSRP > Selling), then we have a discount.
+
+              if (retailPrice && retailPrice > basePrice) {
+                return {
+                  ...item,
+                  price: retailPrice,      // Original Price (Crossed out)
+                  sale_price: basePrice    // Selling Price (Red)
+                };
+              }
+
+              // No discount or invalid data, just show selling price as standard price
+              return {
+                ...item,
+                price: basePrice,
+                sale_price: undefined
+              };
+            });
+            setWishlist(typedData);
           }
         } catch (error) {
           console.error('Lỗi khi tải wishlist:', error);
@@ -64,7 +87,7 @@ export const WishlistProvider = ({ children }: { children: ReactNode }) => {
       alert('Vui lòng đăng nhập để thêm vào yêu thích');
       return;
     }
-    
+
     try {
       const response = await fetch('/api/wishlist', {
         method: 'POST',
@@ -74,7 +97,8 @@ export const WishlistProvider = ({ children }: { children: ReactNode }) => {
 
       if (response.ok) {
         // Add to local state
-        if (!wishlist.find((i) => i.id === item.id)) {
+        // Ensure strictly comparable via String()
+        if (!wishlist.find((i) => String(i.id) === String(item.id))) {
           setWishlist((prev) => [...prev, item]);
         }
       } else {
@@ -86,7 +110,7 @@ export const WishlistProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const removeFromWishlist = async (id: string) => {
+  const removeFromWishlist = async (id: string | number) => {
     if (!isAuthenticated || !user) {
       return;
     }
@@ -112,7 +136,7 @@ export const WishlistProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const isInWishlist = (id: string) => wishlist.some((item) => item.id === id);
+  const isInWishlist = (id: string | number) => wishlist.some((item) => String(item.id) === String(id));
 
   return (
     <WishlistContext.Provider value={{ wishlist, loading, addToWishlist, removeFromWishlist, isInWishlist }}>

@@ -36,7 +36,7 @@ async function contactHandler(req: NextRequest): Promise<NextResponse> {
     await saveContactMessage({ name, email, subject, message, userId });
 
     // Log the contact form submission
-    // console.log('Contact form submission:', { name, email, subject, message });
+
 
     return createSuccessResponse(
       null,

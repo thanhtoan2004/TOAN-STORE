@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
+import { useLanguage } from '@/contexts/LanguageContext';
 
 interface CategoryItemProps {
   title: string
@@ -42,6 +43,7 @@ const CategoryItem = ({ title, imageUrl, link }: CategoryItemProps) => {
 }
 
 const CategoriesSection = () => {
+  const { t, language } = useLanguage();
   const [categories, setCategories] = useState([
     {
       title: 'Phụ kiện',
@@ -77,9 +79,11 @@ const CategoriesSection = () => {
       .catch(console.error);
   }, [])
 
+  const fontClass = language === 'vi' ? 'font-bold' : 'font-nike-futura';
+
   return (
     <section className="nike-container py-10">
-      <h2 className="text-2xl font-nike-futura mb-8 text-center">MUA SẮM THEO DOANH MỤC</h2>
+      <h2 className={`text-2xl ${fontClass} mb-8 text-center uppercase`}>{t.hub.shop_by_category || 'MUA SẮM THEO DANH MỤC'}</h2>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {categories.map((category, index) => (

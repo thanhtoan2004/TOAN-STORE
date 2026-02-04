@@ -18,7 +18,7 @@ import { useAuth } from "@/contexts/AuthContext";
 
 const Header = () => {
   // useEffect(() => {
-  //   console.log('Header mounted');
+
   // }, []);
 
   const { t } = useLanguage();

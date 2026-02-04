@@ -52,8 +52,8 @@ export async function GET(request: NextRequest) {
       countParams.push(`%${search}%`, `%${search}%`);
     }
 
-    const countResult = await executeQuery(countQuery, countParams) as any[];
-    const total = countResult[0]?.total || 0;
+    const [countRow] = await executeQuery(countQuery, countParams) as any[];
+    const total = countRow?.total || 0;
 
     return NextResponse.json({
       success: true,

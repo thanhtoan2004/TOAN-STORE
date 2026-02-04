@@ -93,11 +93,11 @@ export async function GET(request: NextRequest) {
       LIMIT ? OFFSET ?
     `, [...queryParams, limit, offset]);
 
-        const countResult = await executeQuery(`
+        const [countRow] = await executeQuery(`
       SELECT COUNT(*) as total FROM news n ${whereClause}
     `, queryParams) as any[];
 
-        const total = countResult[0].total;
+        const total = countRow?.total || 0;
 
         return NextResponse.json({
             success: true,

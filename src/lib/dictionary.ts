@@ -181,6 +181,8 @@ export const dictionary = {
             shipping: 'Đang giao hàng',
             delivered: 'Đã giao',
             cancelled: 'Đã hủy',
+            pending_payment_confirmation: 'Chờ xác nhận thanh toán',
+            payment_received: 'Đã nhận thanh toán',
             items: 'sản phẩm',
             view_detail: 'Xem chi tiết',
             buy_again: 'Mua lại',
@@ -278,6 +280,15 @@ export const dictionary = {
             verified_purchase: 'Đã mua hàng',
             stars: 'Sao',
             filter_rating: 'Lọc theo đánh giá',
+        },
+        wishlist: {
+            title: 'Danh sách yêu thích',
+            empty_title: 'Danh sách yêu thích trống',
+            empty_desc: 'Bạn chưa thêm sản phẩm nào vào danh sách yêu thích.',
+            login_required: 'Vui lòng đăng nhập',
+            login_desc: 'Bạn cần đăng nhập để xem danh sách yêu thích',
+            return_shop: 'Quay lại mua sắm',
+            loading: 'Đang tải danh sách yêu thích...',
         }
     },
     en: {
@@ -460,6 +471,8 @@ export const dictionary = {
             shipping: 'Shipping',
             delivered: 'Delivered',
             cancelled: 'Cancelled',
+            pending_payment_confirmation: 'Pending Payment Confirmation',
+            payment_received: 'Payment Received',
             items: 'items',
             view_detail: 'View Detail',
             buy_again: 'Buy Again',
@@ -557,6 +570,15 @@ export const dictionary = {
             verified_purchase: 'Verified Purchase',
             stars: 'Stars',
             filter_rating: 'Filter by Rating',
+        },
+        wishlist: {
+            title: 'Wishlist',
+            empty_title: 'Your Wishlist is Empty',
+            empty_desc: 'You haven\'t added any items to your wishlist yet.',
+            login_required: 'Please Log In',
+            login_desc: 'You need to be logged in to view your wishlist',
+            return_shop: 'Return to Shop',
+            loading: 'Loading wishlist...',
         }
     }
 };

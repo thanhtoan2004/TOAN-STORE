@@ -51,7 +51,7 @@ export async function GET(request: NextRequest) {
       // If settings table doesn't exist, return defaults
       if (dbError.code === 'ER_NO_SUCH_TABLE') {
         await ensureSettingsTable();
-        // console.log('Settings table not found, created new table and using defaults');
+
         result = [];
       } else {
         throw dbError;

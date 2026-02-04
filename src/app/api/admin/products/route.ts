@@ -90,8 +90,8 @@ export async function GET(request: NextRequest) {
       countParams.push(status === 'active' ? 1 : 0);
     }
 
-    const [countResult] = await executeQuery<any[]>(countQuery, countParams);
-    const total = countResult[0]?.total || 0;
+    const [countRow] = await executeQuery<any[]>(countQuery, countParams);
+    const total = countRow?.total || 0;
 
     return NextResponse.json({
       success: true,
@@ -137,7 +137,10 @@ export async function POST(request: NextRequest) {
       brand_id,
       category_id,
       collection_id,
-      is_active
+      is_active,
+      image_url,
+      gallery_images,
+      is_new_arrival
     } = body;
 
     // Use base_price or fallback to price
@@ -154,8 +157,8 @@ export async function POST(request: NextRequest) {
 
     // Insert product
     const result = await executeQuery<any>(
-      `INSERT INTO products (sku, name, slug, base_price, retail_price, description, short_description, brand_id, category_id, collection_id, is_active)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO products (sku, name, slug, base_price, retail_price, description, short_description, brand_id, category_id, collection_id, is_active, is_new_arrival)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         sku || `NK-${Date.now()}`,
         name,
@@ -167,9 +170,31 @@ export async function POST(request: NextRequest) {
         brand_id || null,
         category_id || null,
         collection_id || null,
-        is_active !== undefined ? is_active : 1
+        is_active !== undefined ? is_active : 1,
+        is_new_arrival ? 1 : 0
       ]
     );
+
+    // Insert main image if provided
+    if (image_url) {
+      await executeQuery(
+        'INSERT INTO product_images (product_id, url, is_main, alt_text) VALUES (?, ?, 1, ?)',
+        [result.insertId, image_url, name]
+      );
+    }
+
+    // Insert gallery images if provided
+    if (Array.isArray(gallery_images)) {
+      for (let i = 0; i < gallery_images.length; i++) {
+        const url = gallery_images[i];
+        if (url && url.trim()) {
+          await executeQuery(
+            'INSERT INTO product_images (product_id, url, is_main, position, alt_text) VALUES (?, ?, 0, ?, ?)',
+            [result.insertId, url, i + 1, name]
+          );
+        }
+      }
+    }
 
     return NextResponse.json({
       success: true,
@@ -207,21 +232,40 @@ export async function PUT(request: NextRequest) {
     }
 
     // Build update query dynamically
-    const fields = Object.keys(updates);
-    if (fields.length === 0) {
-      return NextResponse.json(
-        { success: false, message: 'No fields to update' },
-        { status: 400 }
+    // Separate image_url from product fields
+    const { image_url, ...productUpdates } = updates;
+    const fields = Object.keys(productUpdates);
+
+    if (fields.length > 0) {
+      const setClause = fields.map(f => `${f} = ?`).join(', ');
+      const values = [...fields.map(f => productUpdates[f]), id];
+
+      await executeQuery(
+        `UPDATE products SET ${setClause}, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
+        values
       );
     }
 
-    const setClause = fields.map(f => `${f} = ?`).join(', ');
-    const values = [...fields.map(f => updates[f]), id];
+    // Update image if provided
+    if (image_url !== undefined) {
+      // Check if main image exists
+      const existingImages = await executeQuery<any[]>(
+        'SELECT id FROM product_images WHERE product_id = ? AND is_main = 1',
+        [id]
+      );
 
-    await executeQuery(
-      `UPDATE products SET ${setClause}, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
-      values
-    );
+      if (existingImages.length > 0) {
+        await executeQuery(
+          'UPDATE product_images SET url = ? WHERE id = ?',
+          [image_url, existingImages[0].id]
+        );
+      } else {
+        await executeQuery(
+          'INSERT INTO product_images (product_id, url, is_main) VALUES (?, ?, 1)',
+          [id, image_url]
+        );
+      }
+    }
 
     return NextResponse.json({
       success: true,

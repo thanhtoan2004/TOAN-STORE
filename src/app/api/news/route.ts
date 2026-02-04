@@ -29,7 +29,7 @@ export async function GET(request: NextRequest) {
       LIMIT ? OFFSET ?
     `, [...queryParams, limit, offset]);
 
-        const countResult = await executeQuery(`
+        const [countRow] = await executeQuery(`
       SELECT COUNT(*) as total FROM news WHERE ${whereClause}
     `, queryParams) as any[];
 
@@ -40,8 +40,8 @@ export async function GET(request: NextRequest) {
                 pagination: {
                     page,
                     limit,
-                    total: countResult[0].total,
-                    totalPages: Math.ceil(countResult[0].total / limit)
+                    total: countRow?.total || 0,
+                    totalPages: Math.ceil((countRow?.total || 0) / limit)
                 }
             }
         });

@@ -14,7 +14,9 @@ interface ProductFormData {
   category_id: number;
   brand_id: number;
   is_new_arrival: boolean;
+  is_active: boolean;
   image_url: string;
+  gallery_images: string[];
 }
 
 export default function NewProductPage() {
@@ -30,12 +32,14 @@ export default function NewProductPage() {
     category_id: 1,
     brand_id: 1,
     is_new_arrival: false,
+    is_active: true,
     image_url: '',
+    gallery_images: [],
   });
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target;
-    
+
     if (type === 'checkbox') {
       setFormData(prev => ({
         ...prev,
@@ -54,16 +58,40 @@ export default function NewProductPage() {
     }
   };
 
+  const handleGalleryChange = (index: number, value: string) => {
+    const newGallery = [...formData.gallery_images];
+    newGallery[index] = value;
+    setFormData(prev => ({ ...prev, gallery_images: newGallery }));
+  };
+
+  const addGalleryImage = () => {
+    setFormData(prev => ({
+      ...prev,
+      gallery_images: [...prev.gallery_images, '']
+    }));
+  };
+
+  const removeGalleryImage = (index: number) => {
+    const newGallery = formData.gallery_images.filter((_, i) => i !== index);
+    setFormData(prev => ({ ...prev, gallery_images: newGallery }));
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError('');
 
     try {
+      const submissionData = {
+        ...formData,
+        is_new_arrival: formData.is_new_arrival ? 1 : 0,
+        is_active: formData.is_active ? 1 : 0
+      };
+
       const response = await fetch('/api/admin/products', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData)
+        body: JSON.stringify(submissionData)
       });
 
       const result = await response.json();
@@ -227,19 +255,90 @@ export default function NewProductPage() {
               </div>
             </div>
 
-            {/* URL ảnh */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                URL ảnh chính
-              </label>
-              <input
-                type="url"
-                name="image_url"
-                value={formData.image_url}
-                onChange={handleChange}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent"
-                placeholder="https://..."
-              />
+            {/* URL ảnh chính */}
+            <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
+              <h3 className="text-lg font-semibold mb-4">Hình ảnh sản phẩm</h3>
+
+              <div className="mb-6">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  URL ảnh chính *
+                </label>
+                <div className="flex gap-4">
+                  <input
+                    type="url"
+                    name="image_url"
+                    value={formData.image_url}
+                    onChange={handleChange}
+                    required
+                    className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent"
+                    placeholder="https://..."
+                  />
+                </div>
+                {formData.image_url && (
+                  <div className="mt-2">
+                    <img
+                      src={formData.image_url}
+                      alt="Preview"
+                      className="w-24 h-24 object-cover rounded border border-gray-300"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).src = '/placeholder.png';
+                      }}
+                    />
+                  </div>
+                )}
+              </div>
+
+              {/* Gallery */}
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="block text-sm font-medium text-gray-700">
+                    Ảnh phụ (Gallery)
+                  </label>
+                  <button
+                    type="button"
+                    onClick={addGalleryImage}
+                    className="text-sm text-blue-600 hover:text-blue-800 font-medium"
+                  >
+                    + Thêm ảnh
+                  </button>
+                </div>
+
+                <div className="space-y-4">
+                  {formData.gallery_images.map((url, index) => (
+                    <div key={index} className="flex flex-col gap-2 p-3 bg-white rounded border border-gray-200">
+                      <div className="flex gap-2">
+                        <input
+                          type="url"
+                          value={url}
+                          onChange={(e) => handleGalleryChange(index, e.target.value)}
+                          className="flex-1 px-3 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-black focus:border-transparent"
+                          placeholder="Link ảnh phụ..."
+                        />
+                        <button
+                          type="button"
+                          onClick={() => removeGalleryImage(index)}
+                          className="px-2 py-1 text-red-600 hover:bg-red-50 rounded"
+                        >
+                          Xóa
+                        </button>
+                      </div>
+                      {url && (
+                        <img
+                          src={url}
+                          alt={`Gallery ${index}`}
+                          className="w-16 h-16 object-cover rounded border border-gray-200"
+                          onError={(e) => {
+                            (e.target as HTMLImageElement).src = '/placeholder.png';
+                          }}
+                        />
+                      )}
+                    </div>
+                  ))}
+                  {formData.gallery_images.length === 0 && (
+                    <p className="text-sm text-gray-400 italic">Chưa có ảnh phụ nào</p>
+                  )}
+                </div>
+              </div>
             </div>
 
             {/* Checkbox */}
@@ -253,6 +352,19 @@ export default function NewProductPage() {
               />
               <label className="ml-2 text-sm font-medium text-gray-700">
                 Đánh dấu là sản phẩm mới
+              </label>
+            </div>
+
+            <div className="flex items-center">
+              <input
+                type="checkbox"
+                name="is_active"
+                checked={formData.is_active}
+                onChange={handleChange}
+                className="w-4 h-4 border-gray-300 rounded focus:ring-black"
+              />
+              <label className="ml-2 text-sm font-medium text-gray-700">
+                Đang kinh doanh (Active)
               </label>
             </div>
 

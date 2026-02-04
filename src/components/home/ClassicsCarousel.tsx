@@ -10,6 +10,7 @@ import {
   CarouselNext,
   CarouselPrevious,
 } from "@/components/ui/Carousel"
+import { useLanguage } from '@/contexts/LanguageContext';
 
 interface ClassicProductProps {
   imageUrl: string
@@ -42,6 +43,7 @@ const ClassicProduct = ({ imageUrl, name, link }: ClassicProductProps) => {
 }
 
 const ClassicsCarousel = () => {
+  const { t, language } = useLanguage();
   const [products, setProducts] = useState<Array<{
     id: number;
     name: string;
@@ -106,10 +108,12 @@ const ClassicsCarousel = () => {
     },
   ];
 
+  const fontClass = language === 'vi' ? 'font-bold' : 'font-nike-futura';
+
   return (
     <section className="nike-container py-10">
       <div className="mb-8">
-        <h2 className="text-2xl font-nike-futura mb-2">SẢN PHẨM</h2>
+        <h2 className={`text-2xl ${fontClass} mb-2 uppercase`}>{t.common.product || 'SẢN PHẨM'}</h2>
       </div>
 
       {loading ? (

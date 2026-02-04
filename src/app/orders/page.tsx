@@ -19,6 +19,9 @@ export default function OrdersPage() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const limit = 5; // Show 5 orders per page
 
   useEffect(() => {
     const fetchOrders = async () => {
@@ -35,7 +38,7 @@ export default function OrdersPage() {
         }
 
         const userData = await userResponse.json();
-        const response = await fetch(`/api/orders?userId=${userData.user.id}`);
+        const response = await fetch(`/api/orders?userId=${userData.user.id}&page=${page}&limit=${limit}`);
 
         if (!response.ok) {
           throw new Error('Failed to fetch orders');
@@ -58,6 +61,7 @@ export default function OrdersPage() {
         })) || [];
 
         setOrders(transformedOrders);
+        setTotalPages(data.pagination?.totalPages || 1);
         setLoading(false);
       } catch (error) {
         console.error('Lỗi khi tải danh sách đơn hàng:', error);
@@ -68,7 +72,7 @@ export default function OrdersPage() {
     };
 
     fetchOrders();
-  }, []);
+  }, [page, t.common.error]); // Re-fetch when page changes
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -82,6 +86,10 @@ export default function OrdersPage() {
         return 'bg-green-100 text-green-800';
       case 'cancelled':
         return 'bg-red-100 text-red-800';
+      case 'pending_payment_confirmation':
+        return 'bg-orange-100 text-orange-800';
+      case 'payment_received':
+        return 'bg-teal-100 text-teal-800';
       default:
         return 'bg-gray-100 text-gray-800';
     }
@@ -92,6 +100,13 @@ export default function OrdersPage() {
       style: 'currency',
       currency: 'VND'
     }).format(price);
+  };
+
+  const handlePageChange = (newPage: number) => {
+    if (newPage >= 1 && newPage <= totalPages) {
+      setPage(newPage);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
   };
 
   if (loading) {
@@ -155,7 +170,7 @@ export default function OrdersPage() {
           <div className="space-y-6">
             <div className="flex items-center justify-between">
               <h2 className="text-xl font-helvetica-medium">
-                {t.orders.total_orders.replace('{count}', orders.length.toString())}
+                {t.orders.total_orders.replace('{count}', orders.length.toString())} (Page {page}/{totalPages})
               </h2>
               <div className="flex items-center space-x-4">
                 <select className="border border-gray-300 rounded-lg px-4 py-2">
@@ -172,7 +187,8 @@ export default function OrdersPage() {
             <div className="space-y-4">
               {orders.map((order) => (
                 <div key={order.orderNumber} className="bg-white rounded-lg shadow-sm border p-6 hover:shadow-md transition-shadow">
-                  <div className="grid grid-cols-1 md:grid-cols-4 gap-6 items-center">                    {/* Order Image & Info */}
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-6 items-center">
+                    {/* Order Image & Info */}
                     <div className="flex items-center space-x-4">
                       <Image
                         src={order.previewImage}
@@ -224,25 +240,40 @@ export default function OrdersPage() {
             </div>
 
             {/* Pagination */}
-            <div className="flex justify-center mt-12">
-              <div className="flex items-center space-x-2">
-                <button className="px-4 py-2 border border-gray-300 rounded-full hover:bg-gray-50 transition-colors disabled:opacity-50" disabled>
-                  ← {t.common.prev || 'Trước'}
-                </button>
-                <button className="px-4 py-2 bg-black text-white rounded-full">
-                  1
-                </button>
-                <button className="px-4 py-2 border border-gray-300 rounded-full hover:bg-gray-50 transition-colors">
-                  2
-                </button>
-                <button className="px-4 py-2 border border-gray-300 rounded-full hover:bg-gray-50 transition-colors">
-                  3
-                </button>
-                <button className="px-4 py-2 border border-gray-300 rounded-full hover:bg-gray-50 transition-colors">
-                  {t.common.next || 'Sau'} →
-                </button>
+            {totalPages > 1 && (
+              <div className="flex justify-center mt-12">
+                <div className="flex items-center space-x-2">
+                  <button
+                    onClick={() => handlePageChange(page - 1)}
+                    className="px-4 py-2 border border-gray-300 rounded-full hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    disabled={page === 1}
+                  >
+                    ← {t.common.prev || 'Trước'}
+                  </button>
+
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
+                    <button
+                      key={p}
+                      onClick={() => handlePageChange(p)}
+                      className={`px-4 py-2 rounded-full ${page === p
+                          ? 'bg-black text-white'
+                          : 'border border-gray-300 hover:bg-gray-50 transition-colors'
+                        }`}
+                    >
+                      {p}
+                    </button>
+                  ))}
+
+                  <button
+                    onClick={() => handlePageChange(page + 1)}
+                    className="px-4 py-2 border border-gray-300 rounded-full hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    disabled={page === totalPages}
+                  >
+                    {t.common.next || 'Sau'} →
+                  </button>
+                </div>
               </div>
-            </div>
+            )}
           </div>
         )}
       </div>

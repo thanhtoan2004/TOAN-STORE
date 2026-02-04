@@ -24,6 +24,7 @@ export default function AdminProductsPage() {
   const [status, setStatus] = useState('all');
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [total, setTotal] = useState(0);
 
   useEffect(() => {
     fetchProducts();
@@ -45,6 +46,7 @@ export default function AdminProductsPage() {
       if (data.success) {
         setProducts(data.data);
         setTotalPages(data.pagination.totalPages);
+        setTotal(data.pagination.total);
       }
     } catch (error) {
       console.error('Error fetching products:', error);
@@ -96,12 +98,17 @@ export default function AdminProductsPage() {
             <h1 className="text-3xl font-bold text-gray-900">Products</h1>
             <p className="mt-1 text-sm text-gray-500">Manage your product inventory</p>
           </div>
-          <Link
-            href="/admin/products/new"
-            className="px-4 py-2 bg-black text-white rounded-md hover:bg-gray-800 transition-colors"
-          >
-            + Add Product
-          </Link>
+          <div className="flex items-center gap-4">
+            <div className="text-sm font-medium bg-gray-100 px-4 py-2 rounded-full">
+              Total Products: <span className="font-bold">{total}</span>
+            </div>
+            <Link
+              href="/admin/products/new"
+              className="px-4 py-2 bg-black text-white rounded-md hover:bg-gray-800 transition-colors"
+            >
+              + Add Product
+            </Link>
+          </div>
         </div>
 
         {/* Filters */}
@@ -181,7 +188,7 @@ export default function AdminProductsPage() {
                 <tbody className="bg-white divide-y divide-gray-200">
                   {products.map((product) => (
                     <tr key={product.id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap">
+                      <td className="px-6 py-4 min-w-[200px]">
                         <div className="flex items-center">
                           <div className="w-12 h-12 relative flex-shrink-0">
                             {product.primary_image ? (
@@ -209,10 +216,10 @@ export default function AdminProductsPage() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm text-gray-900">
-                          ${(Number(product.base_price) || 0).toFixed(2)}
+                          {(Number(product.base_price) || 0).toLocaleString('vi-VN')} VNĐ
                           {product.retail_price && product.retail_price !== product.base_price && (
                             <span className="ml-2 text-xs text-gray-500 line-through">
-                              ${(Number(product.retail_price) || 0).toFixed(2)}
+                              {(Number(product.retail_price) || 0).toLocaleString('vi-VN')} VNĐ
                             </span>
                           )}
                         </div>
@@ -238,15 +245,6 @@ export default function AdminProductsPage() {
                           >
                             Edit
                           </Link>
-                          <button
-                            onClick={() => toggleProductStatus(product.id, product.is_active)}
-                            className={`px-3 py-1 text-sm border rounded hover:opacity-80 ${product.is_active === 1
-                                ? 'border-yellow-300 text-yellow-700 bg-yellow-50'
-                                : 'border-green-300 text-green-700 bg-green-50'
-                              }`}
-                          >
-                            {product.is_active === 1 ? 'Deactivate' : 'Activate'}
-                          </button>
                           <button
                             onClick={() => deleteProduct(product.id)}
                             className="px-3 py-1 text-sm bg-red-600 text-white rounded hover:bg-red-700"

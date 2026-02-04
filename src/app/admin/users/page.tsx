@@ -21,6 +21,7 @@ export default function AdminUsersPage() {
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [total, setTotal] = useState(0);
 
   useEffect(() => {
     fetchUsers();
@@ -40,7 +41,8 @@ export default function AdminUsersPage() {
 
       if (data.success) {
         setUsers(data.data);
-        setTotalPages(data.pagination.totalPages);
+        setTotalPages(Math.max(1, data.pagination.totalPages));
+        setTotal(data.pagination.total);
       }
     } catch (error) {
       console.error('Error fetching users:', error);
@@ -112,23 +114,41 @@ export default function AdminUsersPage() {
     <AdminLayout>
       <div className="space-y-6">
         {/* Header */}
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Users</h1>
-          <p className="mt-1 text-sm text-gray-500">Manage user accounts and permissions</p>
+        <div className="flex justify-between items-end">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">Users</h1>
+            <p className="mt-1 text-sm text-gray-500">Manage user accounts and permissions</p>
+          </div>
+          <div className="text-sm font-medium bg-gray-100 px-4 py-2 rounded-full">
+            Total Users: <span className="font-bold">{total}</span>
+          </div>
         </div>
 
         {/* Search */}
         <div className="bg-white rounded-lg shadow p-4">
-          <input
-            type="text"
-            value={search}
-            onChange={(e) => {
-              setSearch(e.target.value);
-              setPage(1);
-            }}
-            placeholder="Search by name or email..."
-            className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-black focus:border-transparent"
-          />
+          <div className="flex gap-4">
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => {
+                setSearch(e.target.value);
+                setPage(1);
+              }}
+              placeholder="Search by name or email..."
+              className="flex-1 px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-black focus:border-transparent"
+            />
+            {search && (
+              <button
+                onClick={() => {
+                  setSearch('');
+                  setPage(1);
+                }}
+                className="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
+              >
+                Clear
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Users Table */}

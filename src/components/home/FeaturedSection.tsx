@@ -58,8 +58,9 @@ const FeaturedItem = ({
 
 
 //SẢN PHẨM NỔI BẬT
+//SẢN PHẨM NỔI BẬT
 const FeaturedSection = () => {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const [featuredItems, setFeaturedItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -97,9 +98,11 @@ const FeaturedSection = () => {
     />
   );
 
+  const fontClass = language === 'vi' ? 'font-bold' : 'font-nike-futura';
+
   return (
     <section className="nike-container py-8 md:py-16">
-      <h2 className="text-2xl font-nike-futura mb-8 text-center">{t.home.featured}</h2>
+      <h2 className={`text-2xl ${fontClass} mb-8 text-center`}>{t.home.featured}</h2>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {featuredItems.slice(0, 4).map((item) => mapBannerToItem(item, 'half'))}

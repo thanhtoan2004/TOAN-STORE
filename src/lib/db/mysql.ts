@@ -43,7 +43,7 @@ const pool = mysql.createPool(poolConfig);
 async function testConnection() {
   try {
     const connection = await pool.getConnection();
-    console.log('Kết nối MySQL thành công!');
+
     connection.release();
     return true;
   } catch (error) {
@@ -393,6 +393,125 @@ async function executeQuery<T = unknown[]>(query: string, params: (string | numb
   } catch (error) {
     console.error('Lỗi thực thi truy vấn:', error);
     throw error;
+  }
+}
+
+// Chatbot Search Function
+async function searchProductsForChat(keyword: string) {
+  try {
+    // Search products by name (limit 5)
+    const products = await executeQuery<any[]>(
+      `SELECT id, name, base_price, retail_price, slug, short_description 
+       FROM products 
+       WHERE name LIKE ? AND is_active = 1 
+       LIMIT 5`,
+      [`%${keyword}%`]
+    );
+
+    // For each product, fetch available sizes and ratings via helper
+    const result = await formatProductsForChat(products);
+    return result;
+  } catch (error) {
+    console.error('Chatbot Search Error:', error);
+    return [];
+  }
+}
+
+async function getNewArrivalsForChat() {
+  try {
+    const products = await executeQuery<any[]>(
+      `SELECT id, name, base_price, retail_price, slug 
+       FROM products 
+       WHERE is_active = 1 
+       ORDER BY created_at DESC 
+       LIMIT 5`
+    );
+    return formatProductsForChat(products);
+  } catch (error) {
+    console.error('Chatbot New Arrivals Error:', error);
+    return [];
+  }
+}
+
+async function getDiscountedProductsForChat() {
+  try {
+    const products = await executeQuery<any[]>(
+      `SELECT id, name, base_price, retail_price, slug 
+       FROM products 
+       WHERE is_active = 1 AND retail_price < base_price 
+       ORDER BY (base_price - retail_price) DESC 
+       LIMIT 5`
+    );
+    return formatProductsForChat(products);
+  } catch (error) {
+    console.error('Chatbot Discount Error:', error);
+    return [];
+  }
+}
+
+async function getProductsByCategoryForChat(categorySlug: string) {
+  try {
+    const products = await executeQuery<any[]>(
+      `SELECT p.id, p.name, p.base_price, p.retail_price, p.slug 
+       FROM products p
+       JOIN categories c ON p.category_id = c.id
+       WHERE p.is_active = 1 AND (c.slug = ? OR c.name LIKE ?)
+       ORDER BY p.created_at DESC 
+       LIMIT 5`,
+      [categorySlug, `%${categorySlug}%`]
+    );
+    return formatProductsForChat(products);
+  } catch (error) {
+    console.error('Chatbot Category Error:', error);
+    return [];
+  }
+}
+
+// Helper to format products consistently for chat
+async function formatProductsForChat(products: any[]) {
+  // For each product, fetch available sizes
+  const result = await Promise.all(products.map(async (p) => {
+    const sizes = await executeQuery<any[]>(
+      `SELECT pv.size, (COALESCE(i.quantity, 0) - COALESCE(i.reserved, 0)) as stock 
+         FROM product_variants pv 
+         LEFT JOIN inventory i ON i.product_variant_id = pv.id
+         WHERE pv.product_id = ? AND (COALESCE(i.quantity, 0) - COALESCE(i.reserved, 0)) > 0
+         ORDER BY CAST(pv.size AS DECIMAL(10,1))`,
+      [p.id]
+    );
+
+    const availableSizes = sizes.map(s => s.size).join(', ');
+    const price = p.base_price;
+    const originalPrice = p.retail_price;
+
+    return {
+      id: p.id,
+      name: p.name,
+      price: price,
+      originalPrice: originalPrice,
+      sizes: availableSizes || 'Hết hàng', // Vietnamese 'Out of stock'
+      link: `/products/${p.id}`
+    };
+  }));
+  return result;
+}
+
+export async function searchOrderForChat(orderNumber: string) {
+  try {
+    const orders = await executeQuery<any[]>(
+      `SELECT o.order_number, o.status, o.total, o.payment_status, o.created_at,
+              (SELECT COUNT(*) FROM order_items WHERE order_id = o.id) as item_count
+       FROM orders o
+       WHERE o.order_number = ?
+       LIMIT 1`,
+      [orderNumber]
+    );
+
+    if (!orders || orders.length === 0) return null;
+    return orders[0];
+  } catch (error) {
+    console.error('Chatbot Order Search Error:', error);
+    return null;
   }
 }
 
@@ -1076,6 +1195,10 @@ export {
   checkGiftCardBalance,
   // Order functions
   createOrder,
+  searchProductsForChat,
+  getNewArrivalsForChat,
+  getDiscountedProductsForChat,
+  getProductsByCategoryForChat,
   getOrdersByUserId,
   getOrderByNumber,
   updateOrderStatus,

@@ -54,8 +54,8 @@ export async function GET(request: NextRequest) {
       [limit, offset]
     ) as any[];
 
-    const countResult = await executeQuery(`SELECT COUNT(*) as total FROM vouchers`) as any[];
-    const total = countResult[0]?.total || 0;
+    const [countRow] = await executeQuery(`SELECT COUNT(*) as total FROM vouchers`) as any[];
+    const total = countRow?.total || 0;
     const totalPages = Math.ceil(total / limit);
 
     return NextResponse.json({

@@ -21,14 +21,33 @@ export default function InventoryPage() {
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [total, setTotal] = useState(0);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editQuantity, setEditQuantity] = useState(0);
+
+  // Add inventory modal state
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [products, setProducts] = useState<any[]>([]);
+  const [newInventory, setNewInventory] = useState({
+    product_id: '',
+    size: '',
+    color: '',
+    quantity: 0
+  });
+  const [adding, setAdding] = useState(false);
 
   useEffect(() => {
     fetchInventory();
   }, [page, search]);
 
+  useEffect(() => {
+    if (showAddModal) {
+      fetchProducts();
+    }
+  }, [showAddModal]);
+
   const fetchInventory = async () => {
+    // ... (keep existing fetchInventory)
     try {
       const params = new URLSearchParams({
         page: page.toString(),
@@ -42,6 +61,7 @@ export default function InventoryPage() {
       if (data.success) {
         setInventory(data.data);
         setTotalPages(data.pagination?.totalPages || 1);
+        setTotal(data.pagination?.total || 0);
       }
     } catch (error) {
       console.error('Error fetching inventory:', error);
@@ -50,7 +70,20 @@ export default function InventoryPage() {
     }
   };
 
+  const fetchProducts = async () => {
+    try {
+      const response = await fetch('/api/admin/products?limit=100'); // Fetch a good amount for selection
+      const data = await response.json();
+      if (data.success) {
+        setProducts(data.data);
+      }
+    } catch (error) {
+      console.error('Error fetching products:', error);
+    }
+  };
+
   const handleUpdateQuantity = async (id: number) => {
+    // ... (keep existing handleUpdateQuantity)
     try {
       const response = await fetch(`/api/admin/inventory/${id}`, {
         method: 'PATCH',
@@ -64,6 +97,32 @@ export default function InventoryPage() {
       }
     } catch (error) {
       console.error('Error updating inventory:', error);
+    }
+  };
+
+  const handleAddInventory = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setAdding(true);
+    try {
+      const response = await fetch('/api/admin/inventory', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newInventory)
+      });
+
+      if (response.ok) {
+        setShowAddModal(false);
+        setNewInventory({ product_id: '', size: '', color: '', quantity: 0 });
+        fetchInventory();
+      } else {
+        const errorData = await response.json();
+        alert(errorData.message || 'Lỗi khi thêm kho');
+      }
+    } catch (error) {
+      console.error('Error adding inventory:', error);
+      alert('Có lỗi xảy ra');
+    } finally {
+      setAdding(false);
     }
   };
 
@@ -81,11 +140,25 @@ export default function InventoryPage() {
     <AdminLayout>
       <div className="space-y-6">
         {/* Header */}
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Quản lý Kho hàng</h1>
-          <p className="mt-1 text-sm text-gray-500">Theo dõi và cập nhật số lượng sản phẩm</p>
+        <div className="flex justify-between items-end">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">Quản lý Kho hàng</h1>
+            <p className="mt-1 text-sm text-gray-500">Theo dõi và cập nhật số lượng sản phẩm</p>
+          </div>
+          <div className="flex items-center gap-4">
+            <button
+              onClick={() => setShowAddModal(true)}
+              className="px-4 py-2 bg-black text-white rounded-lg hover:bg-gray-800 transition-colors flex items-center gap-2"
+            >
+              <span>+ Thêm tồn kho</span>
+            </button>
+            <div className="text-sm font-medium bg-gray-100 px-4 py-2 rounded-full">
+              Total Items: <span className="font-bold">{total}</span>
+            </div>
+          </div>
         </div>
 
+        {/* ... (rest of search and table) */}
         {/* Tìm kiếm */}
         <div className="bg-white rounded-lg shadow p-4">
           <input
@@ -120,7 +193,7 @@ export default function InventoryPage() {
               <tbody className="divide-y divide-gray-200">
                 {inventory.map((item) => (
                   <tr key={item.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                    <td className="px-6 py-4 text-sm font-medium text-gray-900 min-w-[200px]">
                       {item.product_name}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
@@ -155,13 +228,13 @@ export default function InventoryPage() {
                         <>
                           <button
                             onClick={() => handleUpdateQuantity(item.id)}
-                            className="text-green-600 hover:text-green-900"
+                            className="text-green-600 hover:text-green-900 px-2"
                           >
                             Lưu
                           </button>
                           <button
                             onClick={() => setEditingId(null)}
-                            className="text-gray-600 hover:text-gray-900"
+                            className="text-gray-600 hover:text-gray-900 px-2"
                           >
                             Hủy
                           </button>
@@ -180,12 +253,19 @@ export default function InventoryPage() {
                     </td>
                   </tr>
                 ))}
+                {inventory.length === 0 && !loading && (
+                  <tr>
+                    <td colSpan={7} className="px-6 py-10 text-center text-gray-500">
+                      Không tìm thấy dữ liệu tồn kho.
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
           )}
         </div>
 
-        {/* Pagination */}
+        {/* Pagination ... */}
         {totalPages > 1 && (
           <div className="flex justify-center gap-2">
             <button
@@ -203,6 +283,91 @@ export default function InventoryPage() {
             >
               Sau
             </button>
+          </div>
+        )}
+
+        {/* Add Inventory Modal */}
+        {showAddModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-lg shadow-xl w-full max-w-md overflow-hidden">
+              <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
+                <h3 className="text-xl font-bold text-gray-900">Thêm tồn kho mới</h3>
+                <button
+                  onClick={() => setShowAddModal(false)}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+              <form onSubmit={handleAddInventory} className="p-6 space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Sản phẩm *</label>
+                  <select
+                    required
+                    value={newInventory.product_id}
+                    onChange={(e) => setNewInventory({ ...newInventory, product_id: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black outline-none"
+                  >
+                    <option value="">Chọn sản phẩm...</option>
+                    {products.map((p) => (
+                      <option key={p.id} value={p.id}>{p.name} ({p.sku})</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Size *</label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="VD: 42, M, ..."
+                      value={newInventory.size}
+                      onChange={(e) => setNewInventory({ ...newInventory, size: e.target.value })}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Màu sắc</label>
+                    <input
+                      type="text"
+                      placeholder="Trắng, Đen..."
+                      value={newInventory.color}
+                      onChange={(e) => setNewInventory({ ...newInventory, color: e.target.value })}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black outline-none"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Số lượng tồn kho *</label>
+                  <input
+                    type="number"
+                    required
+                    min="0"
+                    value={newInventory.quantity}
+                    onChange={(e) => setNewInventory({ ...newInventory, quantity: parseInt(e.target.value) })}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black outline-none"
+                  />
+                </div>
+                <div className="pt-4 flex gap-3">
+                  <button
+                    type="submit"
+                    disabled={adding}
+                    className="flex-1 bg-black text-white py-2 rounded-lg hover:bg-gray-800 transition-colors disabled:bg-gray-400"
+                  >
+                    {adding ? 'Đang thêm...' : 'Xác nhận'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowAddModal(false)}
+                    className="flex-1 border border-gray-300 py-2 rounded-lg hover:bg-gray-50 transition-colors"
+                  >
+                    Hủy
+                  </button>
+                </div>
+              </form>
+            </div>
           </div>
         )}
       </div>

@@ -80,6 +80,26 @@ export default function AdminDashboardPage() {
     ? ((stats.todayRevenue - stats.yesterdayRevenue) / stats.yesterdayRevenue) * 100
     : 0;
 
+  const formatStatus = (status: string) => {
+    return status
+      .split('_')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ');
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'delivered': return 'bg-green-100 text-green-800';
+      case 'processing': return 'bg-blue-100 text-blue-800';
+      case 'pending': return 'bg-yellow-100 text-yellow-800';
+      case 'cancelled': return 'bg-red-100 text-red-800';
+      case 'shipped': return 'bg-purple-100 text-purple-800';
+      case 'pending_payment_confirmation': return 'bg-orange-100 text-orange-800';
+      case 'payment_received': return 'bg-teal-100 text-teal-800';
+      default: return 'bg-gray-100 text-gray-800';
+    }
+  };
+
   return (
     <AdminLayout>
       <div className="space-y-6">
@@ -210,14 +230,14 @@ export default function AdminDashboardPage() {
                     cx="50%"
                     cy="50%"
                     outerRadius={100}
-                    label={(props: any) => `${props.status}: ${(props.revenue / 1000).toFixed(0)}k`}
+                    label={(props: any) => `${formatStatus(props.status)}: ${(props.revenue / 1000).toFixed(0)}k`}
                   >
                     {stats.revenueByStatus.map((entry, index) => (
                       <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                     ))}
                   </Pie>
                   <Tooltip formatter={(value: number | undefined) => value ? `${value.toLocaleString('vi-VN')} ₫` : '0 ₫'} />
-                  <Legend />
+                  <Legend formatter={(value) => formatStatus(value)} />
                 </PieChart>
               </ResponsiveContainer>
             ) : (
@@ -374,8 +394,8 @@ export default function AdminDashboardPage() {
                           <p className="font-medium text-gray-900">{customer.name}</p>
                           {customer.membershipTier && (
                             <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase ${customer.membershipTier === 'gold' ? 'bg-yellow-100 text-yellow-800 border border-yellow-200' :
-                                customer.membershipTier === 'silver' ? 'bg-gray-100 text-gray-700 border border-gray-200' :
-                                  'bg-amber-50 text-amber-800 border border-amber-200'
+                              customer.membershipTier === 'silver' ? 'bg-gray-100 text-gray-700 border border-gray-200' :
+                                'bg-amber-50 text-amber-800 border border-amber-200'
                               }`}>
                               {customer.membershipTier}
                             </span>
@@ -407,19 +427,15 @@ export default function AdminDashboardPage() {
               {stats?.recentOrders && stats.recentOrders.length > 0 ? (
                 <div className="space-y-4">
                   {stats.recentOrders.slice(0, 5).map((order: any) => (
-                    <div key={order.id} className="flex items-center justify-between pb-4 border-b border-gray-100 last:border-0">
-                      <div>
-                        <p className="font-medium text-gray-900">#{order.order_number}</p>
-                        <p className="text-sm text-gray-500">{order.customer_name}</p>
+                    <div key={order.id} className="flex items-start justify-between pb-4 border-b border-gray-100 last:border-0">
+                      <div className="min-w-0 flex-1 mr-4">
+                        <p className="font-medium text-gray-900 truncate" title={order.order_number}>#{order.order_number}</p>
+                        <p className="text-sm text-gray-500 truncate" title={order.customer_name}>{order.customer_name}</p>
                       </div>
-                      <div className="text-right">
-                        <p className="font-semibold text-gray-900">{parseFloat(order.total || 0).toLocaleString('vi-VN')} ₫</p>
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${order.status === 'delivered' ? 'bg-green-100 text-green-800' :
-                          order.status === 'processing' ? 'bg-blue-100 text-blue-800' :
-                            order.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
-                              'bg-gray-100 text-gray-800'
-                          }`}>
-                          {order.status}
+                      <div className="text-right flex-shrink-0 max-w-[50%]">
+                        <p className="font-semibold text-gray-900 mb-1">{parseFloat(order.total || 0).toLocaleString('vi-VN')} ₫</p>
+                        <span className={`inline-block px-2.5 py-1 rounded-full text-xs font-medium text-center ${getStatusColor(order.status)}`}>
+                          {formatStatus(order.status)}
                         </span>
                       </div>
                     </div>

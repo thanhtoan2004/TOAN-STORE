@@ -21,6 +21,7 @@ export default function AdminGiftCardsPage() {
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [total, setTotal] = useState(0);
 
   useEffect(() => {
     fetchGiftCards();
@@ -40,6 +41,7 @@ export default function AdminGiftCardsPage() {
       if (data.success) {
         setGiftCards(data.data);
         setTotalPages(data.pagination?.totalPages || 1);
+        setTotal(data.pagination?.total || 0);
       }
     } catch (error) {
       console.error('Error fetching gift cards:', error);
@@ -72,12 +74,17 @@ export default function AdminGiftCardsPage() {
             <h1 className="text-3xl font-bold text-gray-900">Quản lý Gift Card</h1>
             <p className="mt-1 text-sm text-gray-500">Quản lý mã gift card và số dư</p>
           </div>
-          <Link
-            href="/admin/gift-cards/new"
-            className="px-4 py-2 bg-black text-white rounded hover:bg-gray-800"
-          >
-            + Tạo Gift Card
-          </Link>
+          <div className="flex items-center gap-4">
+            <div className="text-sm font-medium bg-gray-100 px-4 py-2 rounded-full">
+              Total Cards: <span className="font-bold">{total}</span>
+            </div>
+            <Link
+              href="/admin/gift-cards/new"
+              className="px-4 py-2 bg-black text-white rounded hover:bg-gray-800"
+            >
+              + Tạo Gift Card
+            </Link>
+          </div>
         </div>
 
         <div className="bg-white rounded-lg shadow p-4">
@@ -121,11 +128,10 @@ export default function AdminGiftCardsPage() {
                       ${(Number(card.current_balance) || 0).toFixed(2)}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm">
-                      <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
-                        card.status === 'active' ? 'bg-green-100 text-green-800' :
-                        card.status === 'used' ? 'bg-blue-100 text-blue-800' :
-                        'bg-red-100 text-red-800'
-                      }`}>
+                      <span className={`px-2 py-1 rounded-full text-xs font-semibold ${card.status === 'active' ? 'bg-green-100 text-green-800' :
+                          card.status === 'used' ? 'bg-blue-100 text-blue-800' :
+                            'bg-red-100 text-red-800'
+                        }`}>
                         {card.status}
                       </span>
                     </td>

@@ -37,8 +37,8 @@ export async function GET(request: NextRequest) {
       [limit, offset]
     ) as any[];
 
-    const countResult = await executeQuery('SELECT COUNT(DISTINCT product_id) as total FROM wishlist_items') as any[];
-    const totalProductsWishlisted = countResult[0]?.total || 0;
+    const [countRow] = await executeQuery('SELECT COUNT(DISTINCT product_id) as total FROM wishlist_items') as any[];
+    const totalProductsWishlisted = countRow?.total || 0;
 
     // Summary + wishlists (the container per user)
     const wishlistSummaryRows = await executeQuery<any[]>(

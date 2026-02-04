@@ -22,6 +22,7 @@ export default function AdminOrdersPage() {
   const [statusFilter, setStatusFilter] = useState('all');
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [total, setTotal] = useState(0);
 
   useEffect(() => {
     fetchOrders();
@@ -33,15 +34,16 @@ export default function AdminOrdersPage() {
         page: page.toString(),
         limit: '20',
       });
-      
+
       if (statusFilter !== 'all') params.append('status', statusFilter);
 
       const response = await fetch(`/api/admin/orders?${params}`);
       const data = await response.json();
-      
+
       if (data.success) {
         setOrders(data.data);
         setTotalPages(data.pagination.totalPages);
+        setTotal(data.pagination.total);
       }
     } catch (error) {
       console.error('Error fetching orders:', error);
@@ -73,17 +75,31 @@ export default function AdminOrdersPage() {
       shipped: 'bg-purple-100 text-purple-800',
       delivered: 'bg-green-100 text-green-800',
       cancelled: 'bg-red-100 text-red-800',
+      pending_payment_confirmation: 'bg-orange-100 text-orange-800',
+      payment_received: 'bg-teal-100 text-teal-800',
     };
     return colors[status] || 'bg-gray-100 text-gray-800';
+  };
+
+  const formatStatus = (status: string) => {
+    return status
+      .split('_')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ');
   };
 
   return (
     <AdminLayout>
       <div className="space-y-6">
         {/* Header */}
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Orders</h1>
-          <p className="mt-1 text-sm text-gray-500">Manage customer orders</p>
+        <div className="flex justify-between items-end">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">Orders</h1>
+            <p className="mt-1 text-sm text-gray-500">Manage customer orders</p>
+          </div>
+          <div className="text-sm font-medium bg-gray-100 px-4 py-2 rounded-full">
+            Total Orders: <span className="font-bold">{total}</span>
+          </div>
         </div>
 
         {/* Filters */}
@@ -104,12 +120,14 @@ export default function AdminOrdersPage() {
               <option value="shipped">Shipped</option>
               <option value="delivered">Delivered</option>
               <option value="cancelled">Cancelled</option>
+              <option value="pending_payment_confirmation">Pending Payment Confirmation</option>
+              <option value="payment_received">Payment Received</option>
             </select>
           </div>
         </div>
 
         {/* Orders Table */}
-        <div className="bg-white rounded-lg shadow overflow-hidden">
+        <div className="bg-white rounded-lg shadow overflow-x-auto">
           {loading ? (
             <div className="flex items-center justify-center h-64">
               <div className="text-center">
@@ -159,7 +177,7 @@ export default function AdminOrdersPage() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(order.status)}`}>
-                          {order.status}
+                          {formatStatus(order.status)}
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
@@ -174,6 +192,8 @@ export default function AdminOrdersPage() {
                           className="text-sm border border-gray-300 rounded px-2 py-1 focus:ring-2 focus:ring-black focus:border-transparent"
                         >
                           <option value="pending">Pending</option>
+                          <option value="pending_payment_confirmation">Pending Payment Confirmation</option>
+                          <option value="payment_received">Payment Received</option>
                           <option value="processing">Processing</option>
                           <option value="shipped">Shipped</option>
                           <option value="delivered">Delivered</option>

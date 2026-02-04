@@ -21,6 +21,11 @@ async function checkAdminAuth(request: NextRequest) {
 }
 
 export async function GET(request: NextRequest) {
+  const admin = await checkAdminAuth(request);
+  if (!admin) {
+    return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
+  }
+
   try {
     const result = await executeQuery(
       'SELECT id, name, slug, description, image_url, position, is_active FROM categories ORDER BY position ASC'

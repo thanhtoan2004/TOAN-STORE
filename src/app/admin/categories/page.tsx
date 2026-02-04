@@ -27,7 +27,7 @@ export default function CategoriesPage() {
 
   const fetchCategories = async () => {
     try {
-      const response = await fetch('/api/categories');
+      const response = await fetch('/api/admin/categories');
       const data = await response.json();
 
       if (data.success) {
@@ -112,9 +112,14 @@ export default function CategoriesPage() {
     <AdminLayout>
       <div className="space-y-6">
         {/* Header */}
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Quản lý Danh mục</h1>
-          <p className="mt-1 text-sm text-gray-500">Thêm, sửa, xóa danh mục sản phẩm</p>
+        <div className="flex justify-between items-end">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">Quản lý Danh mục</h1>
+            <p className="mt-1 text-sm text-gray-500">Thêm, sửa, xóa danh mục sản phẩm</p>
+          </div>
+          <div className="text-sm font-medium bg-gray-100 px-4 py-2 rounded-full">
+            Total Categories: <span className="font-bold">{categories.length}</span>
+          </div>
         </div>
 
         {/* Form Thêm */}

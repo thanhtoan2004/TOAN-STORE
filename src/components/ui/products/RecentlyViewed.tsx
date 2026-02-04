@@ -16,7 +16,7 @@ interface ViewedProduct {
 import { useLanguage } from '@/contexts/LanguageContext';
 
 export default function RecentlyViewed() {
-    const { t } = useLanguage();
+    const { t, language } = useLanguage();
     const [viewedProducts, setViewedProducts] = useState<ViewedProduct[]>([]);
 
     useEffect(() => {
@@ -36,14 +36,16 @@ export default function RecentlyViewed() {
 
     if (viewedProducts.length === 0) return null;
 
+    const fontClass = language === 'vi' ? 'font-bold' : 'font-nike-futura';
+
     return (
         <section className="py-12 border-t">
-            <h2 className="text-2xl font-nike-futura mb-6 uppercase">{t.product.recently_viewed}</h2>
+            <h2 className={`text-2xl ${fontClass} mb-6 uppercase`}>{t.product.recently_viewed}</h2>
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                 {viewedProducts.map((product) => (
                     <ProductCard
                         key={product.id}
-                        id={product.id}
+                        id={String(product.id)}
                         name={product.name}
                         category={product.category}
                         price={product.price}

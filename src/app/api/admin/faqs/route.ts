@@ -9,21 +9,21 @@ async function checkAdminAuth() {
   try {
     const cookieStore = await cookies();
     const token = cookieStore.get('auth_token')?.value;
-    
+
     if (!token) return null;
-    
+
     const decoded = jwt.verify(
       token,
       process.env.JWT_SECRET || 'fallback_secret'
     ) as JWTPayload;
-    
+
     const users = await executeQuery(
       'SELECT is_admin FROM users WHERE id = ?',
       [decoded.userId]
     ) as any[];
-    
+
     if (users.length === 0 || users[0].is_admin !== 1) return null;
-    
+
     return { isAdmin: true, userId: decoded.userId };
   } catch {
     return null;
@@ -50,8 +50,8 @@ export async function GET(request: NextRequest) {
       [limit, offset]
     ) as any[];
 
-    const countResult = await executeQuery(`SELECT COUNT(*) as total FROM faqs`) as any[];
-    const total = countResult[0]?.total || 0;
+    const [countRow] = await executeQuery(`SELECT COUNT(*) as total FROM faqs`) as any[];
+    const total = countRow?.total || 0;
     const totalPages = Math.ceil(total / limit);
 
     return NextResponse.json({

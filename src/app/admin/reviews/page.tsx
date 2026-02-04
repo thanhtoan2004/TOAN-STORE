@@ -24,6 +24,7 @@ export default function AdminReviewsPage() {
   const [statusFilter, setStatusFilter] = useState('pending');
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [total, setTotal] = useState(0);
   const [replyingTo, setReplyingTo] = useState<number | null>(null);
   const [replyText, setReplyText] = useState('');
 
@@ -44,7 +45,9 @@ export default function AdminReviewsPage() {
 
       if (data.success) {
         setReviews(data.data || data.reviews || []);
-        setTotalPages(Math.ceil((data.pagination?.total || data.total || 0) / 20));
+        const totalCount = data.pagination?.total || data.total || 0;
+        setTotalPages(Math.ceil(totalCount / 20));
+        setTotal(totalCount);
       }
     } catch (error) {
       console.error('Error fetching reviews:', error);
@@ -124,9 +127,14 @@ export default function AdminReviewsPage() {
     <AdminLayout>
       <div className="space-y-6">
         {/* Header */}
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Reviews</h1>
-          <p className="mt-1 text-sm text-gray-500">Moderate product reviews</p>
+        <div className="flex justify-between items-end">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">Reviews</h1>
+            <p className="mt-1 text-sm text-gray-500">Moderate product reviews</p>
+          </div>
+          <div className="text-sm font-medium bg-gray-100 px-4 py-2 rounded-full">
+            Total Reviews: <span className="font-bold">{total}</span>
+          </div>
         </div>
 
         {/* Filter */}
@@ -142,8 +150,8 @@ export default function AdminReviewsPage() {
                     setPage(1);
                   }}
                   className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${statusFilter === status
-                      ? 'bg-black text-white'
-                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    ? 'bg-black text-white'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                     }`}
                 >
                   {status.charAt(0).toUpperCase() + status.slice(1)}
@@ -192,10 +200,10 @@ export default function AdminReviewsPage() {
                             <div className="flex items-center space-x-2">
                               <span
                                 className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${review.status === 'approved'
-                                    ? 'bg-green-100 text-green-800'
-                                    : review.status === 'rejected'
-                                      ? 'bg-red-100 text-red-800'
-                                      : 'bg-yellow-100 text-yellow-800'
+                                  ? 'bg-green-100 text-green-800'
+                                  : review.status === 'rejected'
+                                    ? 'bg-red-100 text-red-800'
+                                    : 'bg-yellow-100 text-yellow-800'
                                   }`}
                               >
                                 {review.status}

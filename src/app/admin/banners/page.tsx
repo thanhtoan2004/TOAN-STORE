@@ -47,7 +47,7 @@ export default function AdminBannersPage() {
 
   const fetchBanners = async () => {
     try {
-      const response = await fetch('/api/banners?activeOnly=false');
+      const response = await fetch('/api/admin/banners');
       const data = await response.json();
 
       if (data.success) {
@@ -69,7 +69,7 @@ export default function AdminBannersPage() {
         ? { id: editingBanner.id, ...formData }
         : formData;
 
-      const response = await fetch('/api/banners', {
+      const response = await fetch('/api/admin/banners', {
         method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
@@ -88,7 +88,7 @@ export default function AdminBannersPage() {
     if (!confirm('Are you sure you want to delete this banner?')) return;
 
     try {
-      const response = await fetch(`/api/banners?id=${bannerId}`, {
+      const response = await fetch(`/api/admin/banners?id=${bannerId}`, {
         method: 'DELETE',
       });
 
@@ -102,7 +102,7 @@ export default function AdminBannersPage() {
 
   const toggleBannerStatus = async (bannerId: number, currentStatus: number) => {
     try {
-      const response = await fetch('/api/banners', {
+      const response = await fetch('/api/admin/banners', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

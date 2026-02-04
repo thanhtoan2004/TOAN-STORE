@@ -2,7 +2,7 @@ const fetch = require('node-fetch');
 
 // Config
 const BASE_URL = 'http://localhost:3000';
-const EMAIL = `test_verification_${Date.now()}@test.com`;
+const EMAIL = `test_verification_${Date.now()}_${Math.floor(Math.random() * 1000)}@test.com`;
 const PASSWORD = 'Password123!';
 const PRODUCT_ID = 1; // Assuming product ID 1 exists
 const SIZE = '42'; // Assuming size 42 exists
@@ -26,8 +26,12 @@ async function runVerification() {
                 phone: '0123456789'
             })
         });
+        if (!registerRes.ok) {
+            const errorText = await registerRes.text();
+            console.error('❌ [REGISTER] Response Text:', errorText);
+            throw new Error(`Status: ${registerRes.status} ${registerRes.statusText}`);
+        }
         const registerData = await registerRes.json();
-        if (!registerRes.ok) throw new Error(registerData.error || registerData.message);
         console.log('✅ [REGISTER] Success:', registerData);
     } catch (err) {
         console.error('❌ [REGISTER] Failed:', err.message);
@@ -97,9 +101,49 @@ async function runVerification() {
         if (!orderRes.ok) throw new Error(orderData.message);
         console.log('✅ [ORDER] Success! Order Number:', orderData.data.orderNumber);
         console.log('✅ [EMAIL] Order Confirmation Email Triggered (See Server Logs)');
+
+        // 4. CONFIRM PAYMENT (Manual Step Simulation - INSIDE runVerification)
+        console.log(`\n4. [PAYMENT] Confirming payment for Order: ${orderData.data.orderNumber}...`);
+
+        // Create form data for payment confirmation
+        const formData = new URLSearchParams();
+        formData.append('orderNumber', orderData.data.orderNumber);
+        formData.append('amount', orderData.data.totalAmount.toString());
+        formData.append('phoneNumber', '0987654321');
+        formData.append('transactionNote', 'Test Payment');
+
+        const paymentRes = await fetch(`${BASE_URL}/api/payment/confirm`, {
+            method: 'POST',
+            body: formData
+        });
+
+        let paymentData;
+        const contentType = paymentRes.headers.get("content-type");
+        if (contentType && contentType.includes("application/json")) {
+            paymentData = await paymentRes.json();
+        } else {
+            const text = await paymentRes.text();
+            throw new Error(`Non-JSON response: ${text.substring(0, 500)}`);
+        }
+
+        if (!paymentRes.ok) throw new Error(paymentData.message || 'Payment failed');
+
+        console.log('✅ [PAYMENT] Success:', paymentData.message);
+        console.log('✅ [EMAIL] Payment Received Email Triggered (See Server Logs)');
+
     } catch (err) {
-        console.error('❌ [ORDER] Failed:', err.message);
+        console.error('\n❌ [ORDER/PAYMENT] Failed Details:');
+        if (err.stack) console.error(err.stack);
+        else console.error(err);
     }
+
+    console.log('\n🏁 Verification Complete!');
 }
 
+
+process.on('unhandledRejection', (reason, p) => {
+    console.error('Unhandled Rejection at:', p, 'reason:', reason);
+});
+
 runVerification();
+

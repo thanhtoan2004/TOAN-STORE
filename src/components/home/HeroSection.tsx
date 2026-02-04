@@ -8,7 +8,7 @@ import { Play } from 'lucide-react'
 import { useLanguage } from '@/contexts/LanguageContext';
 
 const HeroSection = () => {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   // State to track if the component is mounted (client-side only)
   const [isMounted, setIsMounted] = useState(false);
 
@@ -16,6 +16,8 @@ const HeroSection = () => {
   useEffect(() => {
     setIsMounted(true);
   }, []);
+
+  const fontClass = language === 'vi' ? 'font-bold' : 'font-nike-futura';
 
   return (
 
@@ -49,7 +51,7 @@ const HeroSection = () => {
       <div className="nike-container py-8 md:py-12 flex flex-col items-center">
         <div className="text-center max-w-3xl mx-auto">
           <p className="text-sm font-helvetica-medium mb-2">Sophia Smith</p>
-          <h1 className="text-5xl md:text-6xl font-nike-futura uppercase tracking-tighter mb-4">
+          <h1 className={`text-5xl md:text-6xl ${fontClass} uppercase tracking-tighter mb-4`}>
             {t.home.hero_title}
           </h1>
           <p className="text-sm md:text-base font-helvetica mb-6">

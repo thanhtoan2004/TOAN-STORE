@@ -46,7 +46,7 @@ export async function GET(
         retail_price: product.retail_price ? parseFloat(product.retail_price) : 0,
         sizes: sizes,
         images: images,
-        image_url: images.find((img: any) => img.is_main)?.url || images[0]?.url || '/placeholder.jpg',
+        image_url: images.find((img: any) => img.is_main)?.url || images[0]?.url || '/placeholder.png',
         availableSizes: availableSizes.map((s: any) => s.size),
         inStock: availableSizes.length > 0
       }

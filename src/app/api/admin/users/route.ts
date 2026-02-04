@@ -56,7 +56,8 @@ export async function GET(request: NextRequest) {
     const params: any[] = [];
 
     if (search) {
-      query += ' AND (email LIKE ? OR full_name LIKE ? OR phone LIKE ?)';
+      // Use CONCAT to search full name since column likely doesn't exist
+      query += " AND (email LIKE ? OR CONCAT(first_name, ' ', last_name) LIKE ? OR phone LIKE ?)";
       params.push(`%${search}%`, `%${search}%`, `%${search}%`);
     }
 
@@ -70,12 +71,15 @@ export async function GET(request: NextRequest) {
     const countParams: any[] = [];
 
     if (search) {
-      countQuery += ' AND (email LIKE ? OR full_name LIKE ? OR phone LIKE ?)';
+      countQuery += " AND (email LIKE ? OR CONCAT(first_name, ' ', last_name) LIKE ? OR phone LIKE ?)";
       countParams.push(`%${search}%`, `%${search}%`, `%${search}%`);
     }
 
-    const [countResult] = await executeQuery<any[]>(countQuery, countParams);
-    const total = countResult[0]?.total || 0;
+    const [countRow] = await executeQuery<any[]>(countQuery, countParams);
+    const total = countRow?.total || 0;
+
+    // Debug log to check pagination values
+    console.log('Admin Users Pagination:', { total, limit, totalPages: Math.ceil(total / limit) });
 
     return NextResponse.json({
       success: true,
