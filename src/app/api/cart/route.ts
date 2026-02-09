@@ -48,11 +48,11 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    
+
     // Nếu có cardNumber và pin => check gift card balance
     if (body.cardNumber && body.pin) {
       const { cardNumber, pin } = body;
-      
+
       // Validate gift card
       if (!/^\d{16}$/.test(cardNumber)) {
         return NextResponse.json(
@@ -60,32 +60,32 @@ export async function POST(request: NextRequest) {
           { status: 400 }
         );
       }
-      
+
       if (!/^\d{4}$/.test(pin)) {
         return NextResponse.json(
           { success: false, message: 'Mã PIN không hợp lệ' },
           { status: 400 }
         );
       }
-      
+
       // Import checkGiftCardBalance
       const { checkGiftCardBalance } = await import('@/lib/db/mysql');
       const card = await checkGiftCardBalance(cardNumber, pin);
-      
+
       if (!card) {
         return NextResponse.json(
           { success: false, message: 'Thẻ quà tặng không tồn tại hoặc đã hết hạn' },
           { status: 404 }
         );
       }
-      
+
       if (card.expires_at && new Date(card.expires_at) < new Date()) {
         return NextResponse.json(
           { success: false, message: 'Thẻ quà tặng đã hết hạn' },
           { status: 400 }
         );
       }
-      
+
       return NextResponse.json({
         success: true,
         message: 'Kiểm tra số dư thành công',
@@ -96,7 +96,7 @@ export async function POST(request: NextRequest) {
         }
       });
     }
-    
+
     // Xử lý thêm vào giỏ hàng bình thường
     const { userId, productId, quantity = 1, size } = body;
 
@@ -124,7 +124,7 @@ export async function POST(request: NextRequest) {
 
     // Find the product variant by size
     const variant = await findVariantBySize(parseInt(productId), size);
-    
+
     if (!variant) {
       return NextResponse.json(
         { success: false, message: 'Size không tồn tại' },
@@ -134,11 +134,11 @@ export async function POST(request: NextRequest) {
 
     // Check stock availability
     const hasStock = await checkStock(variant.id, quantity);
-    
+
     if (!hasStock) {
       return NextResponse.json(
-        { 
-          success: false, 
+        {
+          success: false,
           message: `Không đủ hàng. Chỉ còn ${variant.available} sản phẩm`,
           available: variant.available
         },

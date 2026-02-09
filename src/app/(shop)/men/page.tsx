@@ -6,6 +6,8 @@ import Link from 'next/link';
 import { useLanguage } from '@/contexts/LanguageContext';
 
 import { LinksSection } from '@/components/home';
+import { Button } from "@/components/ui/Button";
+import { Footprints, Shirt, Backpack, Dumbbell, Trophy, Timer } from 'lucide-react';
 
 // ============================================================================
 // Constants
@@ -77,12 +79,12 @@ const ATHLETE_COLLECTIONS = [
 ];
 
 const CATEGORIES = [
-  { name: "Shoes", icon: "👟", link: "/categories?gender=men&category=shoes", count: "200+" },
-  { name: "Clothing", icon: "👕", link: "/categories?gender=men&category=clothing", count: "150+" },
-  { name: "Accessories", icon: "🎒", link: "/categories?gender=men&category=accessories", count: "80+" },
-  { name: "Training", icon: "🏋️", link: "/categories?sport=training", count: "90+" },
-  { name: "Basketball", icon: "🏀", link: "/categories?sport=basketball", count: "60+" },
-  { name: "Running", icon: "🏃", link: "/categories?sport=running", count: "75+" }
+  { name: "Shoes", icon: <Footprints className="w-8 h-8" />, link: "/categories?gender=men&category=shoes", count: "200+" },
+  { name: "Clothing", icon: <Shirt className="w-8 h-8" />, link: "/categories?gender=men&category=clothing", count: "150+" },
+  { name: "Accessories", icon: <Backpack className="w-8 h-8" />, link: "/categories?gender=men&category=accessories", count: "80+" },
+  { name: "Training", icon: <Dumbbell className="w-8 h-8" />, link: "/categories?sport=training", count: "90+" },
+  { name: "Basketball", icon: <Trophy className="w-8 h-8" />, link: "/categories?sport=basketball", count: "60+" },
+  { name: "Running", icon: <Timer className="w-8 h-8" />, link: "/categories?sport=running", count: "75+" }
 ];
 
 const CAROUSEL_INTERVAL = 5000;
@@ -110,7 +112,7 @@ interface Athlete {
 
 interface Category {
   name: string;
-  icon: string;
+  icon: React.ReactNode;
   link: string;
   count: string;
 }
@@ -159,14 +161,14 @@ const HeroBanner: React.FC<HeroBannerProps> = ({
           </p>
           <div className="flex flex-col sm:flex-row justify-center gap-4">
             <Link href="/men/clothing">
-              <button className="shop-button w-full sm:w-auto">
+              <Button className="w-full sm:w-auto rounded-full" size="lg">
                 {t.hub.shop_clothing}
-              </button>
+              </Button>
             </Link>
             <Link href="/men/shoes">
-              <button className="shop-button w-full sm:w-auto">
+              <Button className="w-full sm:w-auto rounded-full" size="lg">
                 {t.hub.shop_shoes}
-              </button>
+              </Button>
             </Link>
           </div>
         </div>
@@ -203,7 +205,7 @@ const CategoryGrid: React.FC<CategoryGridProps> = ({ categories }) => {
         {categories.map((category) => (
           <Link key={category.name} href={category.link}>
             <div className="text-center p-6 border border-gray-200 rounded-lg hover:border-black hover:shadow-lg transition-all duration-300 group">
-              <div className="text-4xl mb-3 group-hover:scale-110 transition-transform duration-300">
+              <div className="flex justify-center mb-3 group-hover:scale-110 transition-transform duration-300">
                 {category.icon}
               </div>
               <h3 className="font-helvetica-medium text-lg mb-1">
@@ -254,9 +256,9 @@ const FeaturedCollections: React.FC<FeaturedCollectionsProps> = ({
             <div className="mt-4">
               <p className="mb-4 text-gray-600">{collection.subtitle}</p>
               <Link href={collection.link}>
-                <button className="shop-button w-full">
+                <Button className="w-full rounded-full">
                   {t.hub.shop_collection}
-                </button>
+                </Button>
               </Link>
             </div>
           </div>
@@ -290,9 +292,9 @@ const AthleteCard: React.FC<AthleteCardProps> = ({ athlete, isMounted }) => {
         </h3>
         <div className="mt-4">
           <Link href={athlete.link}>
-            <button className="border border-black rounded-full text-sm px-4 py-1.5 hover:bg-black hover:text-white transition-colors">
+            <Button variant="outline" className="rounded-full h-8 text-sm px-4 border-black hover:bg-black hover:text-white">
               Shop The Look
-            </button>
+            </Button>
           </Link>
         </div>
       </div>

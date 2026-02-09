@@ -11,7 +11,7 @@ export async function GET() {
         { status: 500 }
       );
     }
-    
+
     // Khởi tạo bảng users
     const initialized = await initDb();
     if (!initialized) {
@@ -20,7 +20,7 @@ export async function GET() {
         { status: 500 }
       );
     }
-    
+
     return NextResponse.json({
       success: true,
       message: 'Cơ sở dữ liệu đã được khởi tạo thành công'

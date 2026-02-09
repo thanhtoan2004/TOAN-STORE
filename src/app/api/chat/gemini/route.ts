@@ -1,6 +1,8 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextRequest, NextResponse } from 'next/server';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { searchProductsForChat, getNewArrivalsForChat, getDiscountedProductsForChat, getProductsByCategoryForChat } from '@/lib/db/mysql';
+import { getAllFAQs } from '@/lib/db/faqs';
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
 
@@ -90,9 +92,9 @@ export async function POST(req: NextRequest) {
                         if (requestedSize) {
                             const availableSizes = p.sizes.split(',').map((s: string) => s.trim());
                             if (availableSizes.includes(requestedSize)) {
-                                sizeMsg = `đang **CÓ SẴN** size ${requestedSize}`;
+                                sizeMsg = `đang có sẵn size ${requestedSize}`;
                             } else {
-                                sizeMsg = `hiện **HẾT HÀNG** size ${requestedSize} (chỉ còn: ${p.sizes})`;
+                                sizeMsg = `hiện hết hàng size ${requestedSize} (chỉ còn: ${p.sizes})`;
                             }
                         }
 
@@ -115,6 +117,17 @@ export async function POST(req: NextRequest) {
         // Search again for context (in case it was complex query or direct lookup failed but AI can handle it)
         let productContext = "";
         const searchQuery = cleanSearchQuery(message);
+
+        // Fetch FAQs for context
+        const faqs = await getAllFAQs();
+        let faqContext = "";
+        if (faqs.length > 0) {
+            faqContext = `
+FAQ_DATA (General Policies):
+${faqs.map((f: any) => `Q: ${f.question}\nA: ${f.answer}`).join('\n\n')}
+ENDS_FAQ_DATA
+`;
+        }
 
         try {
             if (searchQuery.length > 1) {
@@ -155,9 +168,12 @@ ENDS_CONTEXT_DATA
             })) : []
         });
 
-        const messageWithContext = productContext
-            ? `${productContext}\n\nUser Question: ${message}`
-            : message;
+        const messageWithContext = `
+${faqContext}
+${productContext}
+
+User Question: ${message}
+`;
 
         const result = await chat.sendMessage(messageWithContext);
         const response = await result.response;

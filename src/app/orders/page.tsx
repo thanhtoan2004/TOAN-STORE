@@ -4,6 +4,8 @@ import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { Button } from "@/components/ui/Button";
+import { Package } from 'lucide-react';
 
 interface Order {
   orderNumber: string;
@@ -155,14 +157,14 @@ export default function OrdersPage() {
           // Empty state
           <div className="text-center py-16">
             <div className="w-24 h-24 mx-auto mb-6 bg-gray-100 rounded-full flex items-center justify-center">
-              <span className="text-4xl">📦</span>
+              <Package className="w-12 h-12 text-gray-400" />
             </div>
             <h2 className="text-2xl font-helvetica-medium mb-4">{t.orders.empty}</h2>
             <p className="text-gray-600 mb-8">{t.orders.empty_desc}</p>
             <Link href="/">
-              <button className="shop-button">
+              <Button className="rounded-full px-6 py-6">
                 {t.orders.shop_now}
-              </button>
+              </Button>
             </Link>
           </div>
         ) : (
@@ -219,19 +221,19 @@ export default function OrdersPage() {
                     {/* Actions */}
                     <div className="flex space-x-2 justify-end">
                       <Link href={`/orders/${order.orderNumber}`}>
-                        <button className="border border-black text-black px-4 py-2 rounded-full hover:bg-black hover:text-white transition-colors text-sm">
+                        <Button variant="outline" size="sm" className="rounded-full border-black text-black hover:bg-black hover:text-white">
                           {t.orders.view_detail}
-                        </button>
+                        </Button>
                       </Link>
                       {order.status === 'delivered' && (
-                        <button className="border border-gray-300 text-gray-700 px-4 py-2 rounded-full hover:bg-gray-50 transition-colors text-sm">
+                        <Button variant="outline" size="sm" className="rounded-full border-gray-300 text-gray-700 hover:bg-gray-50">
                           {t.orders.buy_again}
-                        </button>
+                        </Button>
                       )}
                       {order.status === 'shipping' && (
-                        <button className="border border-blue-500 text-blue-500 px-4 py-2 rounded-full hover:bg-blue-50 transition-colors text-sm">
+                        <Button variant="outline" size="sm" className="rounded-full border-blue-500 text-blue-500 hover:bg-blue-50">
                           {t.orders.track_order}
-                        </button>
+                        </Button>
                       )}
                     </div>
                   </div>
@@ -243,34 +245,34 @@ export default function OrdersPage() {
             {totalPages > 1 && (
               <div className="flex justify-center mt-12">
                 <div className="flex items-center space-x-2">
-                  <button
+                  <Button
                     onClick={() => handlePageChange(page - 1)}
-                    className="px-4 py-2 border border-gray-300 rounded-full hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    variant="outline"
+                    className="rounded-full"
                     disabled={page === 1}
                   >
                     ← {t.common.prev || 'Trước'}
-                  </button>
+                  </Button>
 
                   {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
-                    <button
+                    <Button
                       key={p}
                       onClick={() => handlePageChange(p)}
-                      className={`px-4 py-2 rounded-full ${page === p
-                          ? 'bg-black text-white'
-                          : 'border border-gray-300 hover:bg-gray-50 transition-colors'
-                        }`}
+                      variant={page === p ? "default" : "outline"}
+                      className={`rounded-full ${page !== p ? 'border-gray-300' : ''}`}
                     >
                       {p}
-                    </button>
+                    </Button>
                   ))}
 
-                  <button
+                  <Button
                     onClick={() => handlePageChange(page + 1)}
-                    className="px-4 py-2 border border-gray-300 rounded-full hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    variant="outline"
+                    className="rounded-full"
                     disabled={page === totalPages}
                   >
                     {t.common.next || 'Sau'} →
-                  </button>
+                  </Button>
                 </div>
               </div>
             )}

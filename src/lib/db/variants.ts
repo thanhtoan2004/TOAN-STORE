@@ -59,9 +59,9 @@ export async function getProductVariants(productId: number): Promise<(ProductVar
     WHERE pv.product_id = ?
     ORDER BY pv.id
   `;
-  
+
   const results = await query<RowDataPacket[]>(sql, [productId]);
-  
+
   return results.map(row => ({
     ...row,
     attributes: row.attributes && typeof row.attributes === 'string' ? JSON.parse(row.attributes) : (row.attributes || {})
@@ -84,11 +84,11 @@ export async function getVariantById(variantId: number): Promise<(ProductVariant
     LEFT JOIN inventory i ON i.product_variant_id = pv.id
     WHERE pv.id = ?
   `;
-  
+
   const results = await query<RowDataPacket[]>(sql, [variantId]);
-  
+
   if (results.length === 0) return null;
-  
+
   const row = results[0];
   return {
     ...row,
@@ -113,11 +113,11 @@ export async function findVariantBySize(productId: number, size: string): Promis
     WHERE pv.product_id = ?
     AND pv.size = ?
   `;
-  
+
   const results = await query<RowDataPacket[]>(sql, [productId, size]);
-  
+
   if (results.length === 0) return null;
-  
+
   const row = results[0];
   return {
     ...row,
@@ -134,11 +134,11 @@ export async function checkStock(variantId: number, requestedQuantity: number): 
     FROM inventory i
     WHERE i.product_variant_id = ?
   `;
-  
+
   const results = await query<RowDataPacket[]>(sql, [variantId]);
-  
+
   if (results.length === 0) return false;
-  
+
   return results[0].available >= requestedQuantity;
 }
 
@@ -148,10 +148,10 @@ export async function checkStock(variantId: number, requestedQuantity: number): 
 export async function reserveStock(variantId: number, quantity: number, orderId: string): Promise<boolean> {
   const { getConnection } = await import('./mysql');
   const connection = await getConnection();
-  
+
   try {
     await connection.beginTransaction();
-    
+
     // Check and update inventory
     const [rows]: any = await connection.query(
       `UPDATE inventory 
@@ -160,12 +160,12 @@ export async function reserveStock(variantId: number, quantity: number, orderId:
        AND (quantity - reserved) >= ?`,
       [quantity, variantId, quantity]
     );
-    
+
     if (rows.affectedRows === 0) {
       await connection.rollback();
       return false;
     }
-    
+
     // Log the reservation
     await connection.query(
       `INSERT INTO inventory_logs (inventory_id, quantity_change, reason, reference_id)
@@ -174,7 +174,7 @@ export async function reserveStock(variantId: number, quantity: number, orderId:
        WHERE product_variant_id = ?`,
       [-quantity, orderId, variantId]
     );
-    
+
     await connection.commit();
     return true;
   } catch (error) {
@@ -191,17 +191,17 @@ export async function reserveStock(variantId: number, quantity: number, orderId:
 export async function releaseStock(variantId: number, quantity: number, orderId: string): Promise<void> {
   const { getConnection } = await import('./mysql');
   const connection = await getConnection();
-  
+
   try {
     await connection.beginTransaction();
-    
+
     await connection.query(
       `UPDATE inventory 
        SET reserved = reserved - ?
        WHERE product_variant_id = ?`,
       [quantity, variantId]
     );
-    
+
     await connection.query(
       `INSERT INTO inventory_logs (inventory_id, quantity_change, reason, reference_id)
        SELECT id, ?, 'order_cancelled', ?
@@ -209,7 +209,7 @@ export async function releaseStock(variantId: number, quantity: number, orderId:
        WHERE product_variant_id = ?`,
       [quantity, orderId, variantId]
     );
-    
+
     await connection.commit();
   } catch (error) {
     await connection.rollback();
@@ -225,10 +225,10 @@ export async function releaseStock(variantId: number, quantity: number, orderId:
 export async function deductStock(variantId: number, quantity: number, orderId: string): Promise<void> {
   const { getConnection } = await import('./mysql');
   const connection = await getConnection();
-  
+
   try {
     await connection.beginTransaction();
-    
+
     await connection.query(
       `UPDATE inventory 
        SET quantity = quantity - ?,
@@ -236,7 +236,7 @@ export async function deductStock(variantId: number, quantity: number, orderId: 
        WHERE product_variant_id = ?`,
       [quantity, quantity, variantId]
     );
-    
+
     await connection.query(
       `INSERT INTO inventory_logs (inventory_id, quantity_change, reason, reference_id)
        SELECT id, ?, 'order_fulfilled', ?
@@ -244,7 +244,7 @@ export async function deductStock(variantId: number, quantity: number, orderId: 
        WHERE product_variant_id = ?`,
       [-quantity, orderId, variantId]
     );
-    
+
     await connection.commit();
   } catch (error) {
     await connection.rollback();
@@ -258,24 +258,24 @@ export async function deductStock(variantId: number, quantity: number, orderId: 
  * Add stock (restocking, returns, etc.)
  */
 export async function addStock(
-  variantId: number, 
-  quantity: number, 
-  reason: string = 'restock', 
+  variantId: number,
+  quantity: number,
+  reason: string = 'restock',
   referenceId?: string
 ): Promise<void> {
   const { getConnection } = await import('./mysql');
   const connection = await getConnection();
-  
+
   try {
     await connection.beginTransaction();
-    
+
     await connection.query(
       `UPDATE inventory 
        SET quantity = quantity + ?
        WHERE product_variant_id = ?`,
       [quantity, variantId]
     );
-    
+
     await connection.query(
       `INSERT INTO inventory_logs (inventory_id, quantity_change, reason, reference_id)
        SELECT id, ?, ?, ?
@@ -283,7 +283,7 @@ export async function addStock(
        WHERE product_variant_id = ?`,
       [quantity, reason, referenceId, variantId]
     );
-    
+
     await connection.commit();
   } catch (error) {
     await connection.rollback();

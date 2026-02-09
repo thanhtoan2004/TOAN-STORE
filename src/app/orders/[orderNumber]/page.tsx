@@ -4,6 +4,8 @@ import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useParams } from 'next/navigation';
+import { useLanguage } from '@/contexts/LanguageContext';
+import { Button } from "@/components/ui/Button";
 
 interface OrderItem {
   id: string;
@@ -46,6 +48,7 @@ interface OrderData {
 
 
 export default function OrderDetailPage() {
+  const { t } = useLanguage();
   const params = useParams();
   const orderNumber = params.orderNumber as string;
   const [orderData, setOrderData] = useState<OrderData | null>(null);
@@ -70,11 +73,11 @@ export default function OrderDetailPage() {
         const transformedData: OrderData = {
           orderNumber: order.order_number,
           orderDate: new Date(order.placed_at).toLocaleDateString('vi-VN'),
-          status: order.status === 'pending' ? 'Chờ xác nhận' :
-            order.status === 'processing' ? 'Đã xác nhận' :
-              order.status === 'shipped' ? 'Đang giao hàng' :
-                order.status === 'delivered' ? 'Đã giao' :
-                  order.status === 'cancelled' ? 'Đã hủy' : order.status,
+          status: order.status === 'pending' ? 'pending' :
+            order.status === 'processing' ? 'confirmed' :
+              order.status === 'shipped' ? 'shipping' :
+                order.status === 'delivered' ? 'delivered' :
+                  order.status === 'cancelled' ? 'cancelled' : order.status,
           totalAmount: parseFloat(order.subtotal || 0),
           shippingFee: parseFloat(order.shipping_fee || 0),
           tax: parseFloat(order.tax || 0),
@@ -88,12 +91,12 @@ export default function OrderDetailPage() {
           trackingNumber: order.tracking_number || 'Chưa có',
           paymentMethod: order.payment_method || 'Thanh toán khi nhận hàng',
           shippingAddress: {
-            name: order.shipping_name || '',
-            phone: order.shipping_phone || '',
-            address: order.shipping_address || '',
-            city: order.shipping_city || '',
-            district: order.shipping_district || '',
-            ward: ''
+            name: order.delivery_name || order.shipping_name || '',
+            phone: order.delivery_phone || order.shipping_phone || '',
+            address: order.delivery_address || order.shipping_address || '',
+            city: order.delivery_city || order.shipping_city || '',
+            district: order.delivery_district || order.shipping_district || '',
+            ward: '' // Ward might not be in the joined data depending on DB schema, keeping empty for now or map if available
           },
           items: order.items?.map((item: any) => ({
             id: item.id.toString(),
@@ -123,16 +126,20 @@ export default function OrderDetailPage() {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'Chờ xác nhận':
+      case 'pending':
         return 'bg-yellow-100 text-yellow-800';
-      case 'Đã xác nhận':
+      case 'confirmed':
         return 'bg-blue-100 text-blue-800';
-      case 'Đang giao hàng':
+      case 'shipping':
         return 'bg-purple-100 text-purple-800';
-      case 'Đã giao':
+      case 'delivered':
         return 'bg-green-100 text-green-800';
-      case 'Đã hủy':
+      case 'cancelled':
         return 'bg-red-100 text-red-800';
+      case 'pending_payment_confirmation':
+        return 'bg-orange-100 text-orange-800';
+      case 'payment_received':
+        return 'bg-teal-100 text-teal-800';
       default:
         return 'bg-gray-100 text-gray-800';
     }
@@ -189,9 +196,9 @@ export default function OrderDetailPage() {
           <h2 className="text-2xl font-bold mb-4">Không tìm thấy đơn hàng</h2>
           <p className="text-gray-600 mb-6">Đơn hàng với mã số {orderNumber} không tồn tại.</p>
           <Link href="/orders">
-            <button className="shop-button">
+            <Button className="rounded-full">
               Xem tất cả đơn hàng
-            </button>
+            </Button>
           </Link>
         </div>
       </div>
@@ -212,7 +219,7 @@ export default function OrderDetailPage() {
             </div>
             <div className="text-right">
               <span className={`inline-block px-4 py-2 rounded-full text-sm font-medium ${getStatusColor(orderData.status)}`}>
-                {orderData.status}
+                {t.orders[orderData.status as keyof typeof t.orders] || orderData.status}
               </span>
             </div>
           </div>
@@ -226,21 +233,21 @@ export default function OrderDetailPage() {
               <h2 className="text-xl font-helvetica-medium mb-6">Trạng thái đơn hàng</h2>
               <div className="space-y-4">
                 <div className="flex items-center">
-                  <div className="w-4 h-4 bg-green-500 rounded-full mr-4"></div>
+                  <div className={`w-4 h-4 rounded-full mr-4 ${['confirmed', 'shipping', 'delivered'].includes(orderData.status) ? 'bg-green-500' : 'bg-gray-300'}`}></div>
                   <div>
                     <p className="font-medium">Đơn hàng đã được xác nhận</p>
                     <p className="text-sm text-gray-600">{orderData.orderDate}</p>
                   </div>
                 </div>
                 <div className="flex items-center">
-                  <div className="w-4 h-4 bg-blue-500 rounded-full mr-4"></div>
+                  <div className={`w-4 h-4 rounded-full mr-4 ${['shipping', 'delivered'].includes(orderData.status) ? 'bg-blue-500' : 'bg-gray-300'}`}></div>
                   <div>
                     <p className="font-medium">Đang vận chuyển</p>
                     <p className="text-sm text-gray-600">Mã vận đơn: {orderData.trackingNumber}</p>
                   </div>
                 </div>
                 <div className="flex items-center">
-                  <div className="w-4 h-4 bg-gray-300 rounded-full mr-4"></div>
+                  <div className={`w-4 h-4 rounded-full mr-4 ${orderData.status === 'delivered' ? 'bg-green-500' : 'bg-gray-300'}`}></div>
                   <div>
                     <p className="font-medium text-gray-500">Dự kiến giao hàng</p>
                     <p className="text-sm text-gray-600">{orderData.estimatedDelivery}</p>
@@ -337,23 +344,24 @@ export default function OrderDetailPage() {
               <h2 className="text-xl font-helvetica-medium mb-4">Hành động</h2>
               <div className="space-y-3">
                 <Link href={`/orders/${orderNumber}`}>
-                  <button className="w-full border border-black text-black py-2 px-4 rounded-full hover:bg-black hover:text-white transition-colors">
+                  <Button variant="outline" className="w-full rounded-full border-black text-black hover:bg-black hover:text-white">
                     Theo dõi đơn hàng
-                  </button>
+                  </Button>
                 </Link>
                 <Link href="/help/contact">
-                  <button className="w-full border border-gray-300 text-gray-700 py-2 px-4 rounded-full hover:bg-gray-50 transition-colors">
+                  <Button variant="outline" className="w-full rounded-full border-gray-300 text-gray-700 hover:bg-gray-50">
                     Liên hệ hỗ trợ
-                  </button>
+                  </Button>
                 </Link>
-                {orderData.status === 'Chờ xác nhận' && (
-                  <button
+                {orderData.status === 'pending' && (
+                  <Button
+                    variant="outline"
                     onClick={handleCancelOrder}
                     disabled={cancelling}
-                    className="w-full border border-red-500 text-red-500 py-2 px-4 rounded-full hover:bg-red-50 transition-colors disabled:opacity-50"
+                    className="w-full rounded-full border-red-500 text-red-500 hover:bg-red-50 disabled:opacity-50"
                   >
                     {cancelling ? 'Đang hủy...' : 'Hủy đơn hàng'}
-                  </button>
+                  </Button>
                 )}
               </div>
             </div>
@@ -361,9 +369,9 @@ export default function OrderDetailPage() {
             <div className="bg-white rounded-lg shadow-sm border p-6">
               <h2 className="text-xl font-helvetica-medium mb-4">Mua lại</h2>
               <Link href="/cart">
-                <button className="w-full shop-button">
+                <Button className="w-full rounded-full">
                   Đặt lại đơn hàng này
-                </button>
+                </Button>
               </Link>
             </div>
           </div>

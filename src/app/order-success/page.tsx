@@ -3,13 +3,19 @@
 import React, { useEffect, useState, Suspense } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-import { Order } from '@/types/auth';
+import { Order } from '@/types/auth'; // Ensure this type exists or adjust import
+import { Button } from "@/components/ui/Button";
+import { CheckCircle, Facebook, Twitter, CreditCard } from 'lucide-react';
 
 function OrderSuccessContent() {
   const searchParams = useSearchParams();
   const orderNumber = searchParams.get('orderNumber');
+  // Define Order interface locally if not available in types/auth to be safe, 
+  // or use any if strict typing is an issue, but better to stick to existing patterns.
+  // Assuming Order type matches what we need based on previous file content.
   const [orderData, setOrderData] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
+
   useEffect(() => {
     const fetchOrderData = async () => {
       try {
@@ -86,9 +92,9 @@ function OrderSuccessContent() {
           <h2 className="text-2xl font-bold mb-4">Lỗi</h2>
           <p className="text-gray-600 mb-6">Không tìm thấy thông tin đơn hàng</p>
           <Link href="/">
-            <button className="shop-button">
+            <Button className="rounded-full">
               Về trang chủ
-            </button>
+            </Button>
           </Link>
         </div>
       </div>
@@ -101,9 +107,7 @@ function OrderSuccessContent() {
         <div className="max-w-2xl mx-auto text-center">
           {/* Success Icon */}
           <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
-            <svg className="w-10 h-10 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-            </svg>
+            <CheckCircle className="w-10 h-10 text-green-600" />
           </div>
 
           {/* Success Message */}
@@ -138,14 +142,17 @@ function OrderSuccessContent() {
           {/* Payment Confirmation for MoMo */}
           {orderData.paymentMethod?.includes('MoMo') && (
             <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6 mb-8">
-              <h3 className="font-helvetica-medium text-lg mb-3">💳 Xác Nhận Thanh Toán</h3>
+              <h3 className="font-helvetica-medium text-lg mb-3 flex items-center gap-2">
+                <CreditCard className="w-5 h-5" />
+                Xác Nhận Thanh Toán
+              </h3>
               <p className="text-sm text-gray-700 mb-4">
                 Sau khi đã chuyển khoản qua MoMo, vui lòng xác nhận thanh toán để đơn hàng được xử lý nhanh chóng.
               </p>
               <Link href="/payment-confirmation">
-                <button className="bg-black text-white px-6 py-3 rounded-lg hover:bg-gray-800 transition-colors">
+                <Button className="bg-black text-white px-6 py-3 rounded-lg hover:bg-gray-800 transition-colors">
                   Xác Nhận Đã Thanh Toán
-                </button>
+                </Button>
               </Link>
             </div>
           )}
@@ -153,19 +160,19 @@ function OrderSuccessContent() {
           {/* Action Buttons */}
           <div className="flex flex-col sm:flex-row justify-center gap-4 mb-8">
             <Link href={`/orders/${orderNumber}`}>
-              <button className="shop-button">
+              <Button className="rounded-full">
                 Xem chi tiết đơn hàng
-              </button>
+              </Button>
             </Link>
             <Link href="/orders">
-              <button className="border border-gray-300 text-gray-700 px-6 py-3 rounded-full hover:bg-gray-50 transition-colors">
+              <Button variant="outline" className="rounded-full border-gray-300 text-gray-700 hover:bg-gray-50">
                 Xem tất cả đơn hàng
-              </button>
+              </Button>
             </Link>
             <Link href="/">
-              <button className="border border-gray-300 text-gray-700 px-6 py-3 rounded-full hover:bg-gray-50 transition-colors">
+              <Button variant="outline" className="rounded-full border-gray-300 text-gray-700 hover:bg-gray-50">
                 Tiếp tục mua sắm
-              </button>
+              </Button>
             </Link>
           </div>
 
@@ -183,16 +190,12 @@ function OrderSuccessContent() {
           <div className="mt-8 pt-8 border-t">
             <p className="text-sm text-gray-600 mb-4">Chia sẻ niềm vui với bạn bè:</p>
             <div className="flex justify-center space-x-4">
-              <button className="p-2 bg-blue-600 text-white rounded-full hover:bg-blue-700 transition-colors">
-                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M24 4.557c-.883.392-1.832.656-2.828.775 1.017-.609 1.798-1.574 2.165-2.724-.951.564-2.005.974-3.127 1.195-.897-.957-2.178-1.555-3.594-1.555-3.179 0-5.515 2.966-4.797 6.045-4.091-.205-7.719-2.165-10.148-5.144-1.29 2.213-.669 5.108 1.523 6.574-.806-.026-1.566-.247-2.229-.616-.054 2.281 1.581 4.415 3.949 4.89-.693.188-1.452.232-2.224.084.626 1.956 2.444 3.379 4.6 3.419-2.07 1.623-4.678 2.348-7.29 2.04 2.179 1.397 4.768 2.212 7.548 2.212 9.142 0 14.307-7.721 13.995-14.646.962-.695 1.797-1.562 2.457-2.549z" />
-                </svg>
-              </button>
-              <button className="p-2 bg-blue-800 text-white rounded-full hover:bg-blue-900 transition-colors">
-                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
-                </svg>
-              </button>
+              <Button variant="ghost" size="icon" className="p-2 bg-blue-600 text-white rounded-full hover:bg-blue-700 hover:text-white transition-colors">
+                <Facebook className="w-5 h-5" />
+              </Button>
+              <Button variant="ghost" size="icon" className="p-2 bg-blue-800 text-white rounded-full hover:bg-blue-900 hover:text-white transition-colors">
+                <Twitter className="w-5 h-5" />
+              </Button>
             </div>
           </div>
         </div>

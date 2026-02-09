@@ -17,7 +17,15 @@ export async function GET(
     }
 
     // Get product details from database
-    const product = await getProductById(productId);
+    // Execute queries in parallel
+    const [product, sizes, images] = await Promise.all([
+      getProductById(productId),
+      getProductSizes(productId),
+      executeQuery<any[]>(
+        'SELECT id, url, alt_text, position, is_main FROM product_images WHERE product_id = ? ORDER BY position',
+        [productId]
+      )
+    ]);
 
     if (!product) {
       return NextResponse.json(
@@ -25,15 +33,6 @@ export async function GET(
         { status: 404 }
       );
     }
-
-    // Get product sizes and stock
-    const sizes = await getProductSizes(productId);
-
-    // Get product images
-    const images = await executeQuery<any[]>(
-      'SELECT id, url, alt_text, position, is_main FROM product_images WHERE product_id = ? ORDER BY position',
-      [productId]
-    );
 
     // Calculate available stock
     const availableSizes = sizes.filter((s: any) => (s.stock - s.reserved) > 0);

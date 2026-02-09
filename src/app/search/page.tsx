@@ -4,45 +4,31 @@ import { useState, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import ProductCard from '@/components/ui/products/ProductCard';
+import { useProductSearch } from '@/hooks/queries/useProductSearch';
 
 export default function SearchPage() {
   const searchParams = useSearchParams();
   const query = searchParams.get('q') || '';
-  const [products, setProducts] = useState<any[]>([]);
-  const [loading, setLoading] = useState(false);
+  const { data: searchData, isLoading: loading } = useProductSearch({
+    q: query,
+    limit: 12
+  });
+
+  const products = searchData?.products || [];
+
   const [searchQuery, setSearchQuery] = useState(query);
 
+  // Effect to sync search query input when URL matches
   useEffect(() => {
     if (query) {
-      handleSearch(query);
+      setSearchQuery(query);
     }
   }, [query]);
-
-  const handleSearch = async (searchTerm: string) => {
-    if (!searchTerm.trim()) {
-      setProducts([]);
-      return;
-    }
-
-    setLoading(true);
-    try {
-      // Search products by name or category
-      const response = await fetch(`/api/products?search=${encodeURIComponent(searchTerm)}`);
-      const data = await response.json();
-      setProducts(data.data || []);
-    } catch (error) {
-      console.error('Search error:', error);
-      setProducts([]);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (searchQuery.trim()) {
-      window.history.pushState({}, '', `/search?q=${encodeURIComponent(searchQuery)}`);
-      handleSearch(searchQuery);
+      window.location.href = `/search?q=${encodeURIComponent(searchQuery)}`;
     }
   };
 
@@ -85,12 +71,12 @@ export default function SearchPage() {
                   {products.map((product) => (
                     <ProductCard
                       key={product.id}
-                      id={product.id}
+                      id={String(product.id)}
                       name={product.name}
-                      category={product.category}
-                      price={product.price}
-                      sale_price={product.sale_price}
-                      image_url={product.image_url}
+                      category={product.category || ''}
+                      price={product.retail_price || product.base_price || 0}
+                      sale_price={product.base_price && product.retail_price && product.base_price < product.retail_price ? product.base_price : undefined}
+                      image_url={product.image_url || '/placeholder.png'}
                       is_new_arrival={product.is_new_arrival}
                     />
                   ))}

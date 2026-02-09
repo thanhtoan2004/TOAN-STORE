@@ -3,6 +3,8 @@
 import React, { useEffect, useState } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
+import { Button } from "@/components/ui/Button"
+import { useBanners } from '@/hooks/queries/useBanners';
 
 import { useLanguage } from '@/contexts/LanguageContext';
 
@@ -46,9 +48,9 @@ const FeaturedItem = ({
         {subtitle && <p className="text-sm md:text-base mt-1">{subtitle}</p>}
         <div className="mt-4">
           <Link href={actionLink}>
-            <button className="shop-button">
+            <Button className="rounded-full px-6 py-6 text-base">
               {actionText}
-            </button>
+            </Button>
           </Link>
         </div>
       </div>
@@ -61,26 +63,7 @@ const FeaturedItem = ({
 //SẢN PHẨM NỔI BẬT
 const FeaturedSection = () => {
   const { t, language } = useLanguage();
-  const [featuredItems, setFeaturedItems] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const fetchFeatured = async () => {
-      try {
-        const response = await fetch('/api/banners?position=home_featured&activeOnly=true');
-        const data = await response.json();
-        if (data.success) {
-          setFeaturedItems(data.data);
-        }
-      } catch (error) {
-        console.error('Error fetching featured items:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchFeatured();
-  }, []);
+  const { data: featuredItems = [], isLoading: loading } = useBanners('home_featured', true);
 
   if (loading) return <div className="h-96 flex items-center justify-center">Loading...</div>;
   if (featuredItems.length === 0) return null; // Or keep hardcoded as fallback? Better to default to null or user content.

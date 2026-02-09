@@ -8,6 +8,20 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useRouter } from 'next/navigation';
 import PaymentQRCode from '@/components/checkout/PaymentQRCode';
+import { Button } from "@/components/ui/Button";
+import { Lock } from 'lucide-react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import * as z from 'zod';
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
 
 export default function CheckoutPage() {
   const { t } = useLanguage();
@@ -30,17 +44,36 @@ export default function CheckoutPage() {
   const [selectedAddressId, setSelectedAddressId] = useState<number | null>(null);
   const [useNewAddress, setUseNewAddress] = useState(false);
 
-  const [formData, setFormData] = useState({
-    fullName: user?.firstName ? `${user.firstName} ${user.lastName || ''}`.trim() : '',
-    phone: '',
-    email: user?.email || '',
-    address: '',
-    city: 'TP. Hồ Chí Minh',
-    district: '',
-    ward: '',
-    paymentMethod: 'cod',
-    note: ''
+  // Form Schema
+  const checkoutSchema = z.object({
+    fullName: z.string().min(2, "Họ tên phải có ít nhất 2 ký tự"),
+    phone: z.string().regex(/^[0-9]{10,11}$/, "Số điện thoại không hợp lệ"),
+    email: z.string().email("Email không hợp lệ").optional().or(z.literal('')),
+    address: z.string().min(5, "Địa chỉ quá ngắn"),
+    city: z.string().min(1, "Vui lòng chọn Tỉnh/Thành phố"),
+    district: z.string().min(1, "Vui lòng nhập Quận/Huyện"),
+    ward: z.string().min(1, "Vui lòng nhập Phường/Xã"),
+    paymentMethod: z.enum(["cod", "bank", "momo"]),
+    note: z.string().optional(),
   });
+
+  const form = useForm<z.infer<typeof checkoutSchema>>({
+    resolver: zodResolver(checkoutSchema),
+    defaultValues: {
+      fullName: user?.firstName ? `${user.firstName} ${user.lastName || ''}`.trim() : '',
+      phone: '',
+      email: user?.email || '',
+      address: '',
+      city: 'TP. Hồ Chí Minh',
+      district: '',
+      ward: '',
+      paymentMethod: 'cod',
+      note: ''
+    },
+  });
+
+  // Watch selected address to conditionally show fields? Or just rely on state?
+  // We keep `useNewAddress` state for visibility, but `form` handles data.
 
   // Load addresses on mount
   useEffect(() => {
@@ -55,7 +88,9 @@ export default function CheckoutPage() {
       setGiftCardNumber('');
       setGiftCardPin('');
       setAppliedGiftCard(null);
-      setFormData({
+      setGiftCardPin('');
+      setAppliedGiftCard(null);
+      form.reset({
         fullName: '',
         phone: '',
         email: '',
@@ -98,15 +133,12 @@ export default function CheckoutPage() {
   };
 
   const fillFormWithAddress = (address: any) => {
-    setFormData(prev => ({
-      ...prev,
-      fullName: address.recipient_name || prev.fullName,
-      phone: address.phone || prev.phone,
-      address: address.address_line || '',
-      city: address.city || 'TP. Hồ Chí Minh',
-      district: address.state || '',
-      ward: address.postal_code || ''
-    }));
+    form.setValue('fullName', address.recipient_name || form.getValues('fullName'));
+    form.setValue('phone', address.phone || form.getValues('phone'));
+    form.setValue('address', address.address_line || '');
+    form.setValue('city', address.city || 'TP. Hồ Chí Minh');
+    form.setValue('district', address.state || '');
+    form.setValue('ward', address.postal_code || '');
   };
 
   const handleAddressSelect = (addressId: number) => {
@@ -126,10 +158,8 @@ export default function CheckoutPage() {
   const giftCardDiscount = Math.min(appliedGiftCard?.balance || 0, subtotal + shippingFee + tax - voucherDiscount);
   const total = Math.max(0, subtotal + shippingFee + tax - voucherDiscount - giftCardDiscount);
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
-  };
+  // handleInputChange removed as react-hook-form handles it
+
 
   const handleApplyVoucher = async () => {
     if (!voucherCode.trim()) return alert('Vui lòng nhập mã voucher');
@@ -186,19 +216,17 @@ export default function CheckoutPage() {
 
   const getPaymentMethodText = (method: string) => method === 'bank' ? 'Chuyển khoản ngân hàng' : method === 'momo' ? 'Ví MoMo' : 'Thanh toán khi nhận hàng';
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const onSubmit = async (values: z.infer<typeof checkoutSchema>) => {
     if (!user) return alert('Vui lòng đăng nhập để đặt hàng');
     if (cartItems.length === 0) return alert('Giỏ hàng trống');
-    if (!formData.fullName.trim() || !formData.phone.trim() || !formData.address.trim() || !formData.district.trim() || !formData.ward.trim()) return alert('Vui lòng điền đầy đủ thông tin giao hàng');
 
     // Payment Logic
-    if (formData.paymentMethod === 'bank' && !isPaid) {
+    if (values.paymentMethod === 'bank' && !isPaid) {
       setShowQR(true);
       return;
     }
 
-    if (formData.paymentMethod === 'momo' && !isPaid) {
+    if (values.paymentMethod === 'momo' && !isPaid) {
       const confirm = window.confirm('Chuyển hướng đến ví MoMo... (Mock)\n\nNhấn OK để thanh toán thành công, Cancel để hủy.');
       if (confirm) {
         setIsPaid(true);
@@ -213,7 +241,7 @@ export default function CheckoutPage() {
     // Determine payment status based on method and isPaid flag
     // For MoMo mock, if confirmed, it's paid.
     // For Bank, if coming from QR modal "I have paid", it's marked paid or pending verification.
-    const finalPaymentStatus = (formData.paymentMethod === 'momo' && !isPaid) ? 'paid' : (isPaid ? 'paid' : 'pending');
+    const finalPaymentStatus = (values.paymentMethod === 'momo' && !isPaid) ? 'paid' : (isPaid ? 'paid' : 'pending');
 
     try {
       setLoading(true);
@@ -228,10 +256,17 @@ export default function CheckoutPage() {
           color: item.color,
           quantity: item.quantity
         })),
-        shippingAddress: { name: formData.fullName, phone: formData.phone, address: formData.address, city: formData.city, district: formData.district, ward: formData.ward },
-        phone: formData.phone,
-        email: formData.email,
-        paymentMethod: getPaymentMethodText(formData.paymentMethod),
+        shippingAddress: {
+          name: values.fullName,
+          phone: values.phone,
+          address: values.address,
+          city: values.city,
+          district: values.district,
+          ward: values.ward
+        },
+        phone: values.phone,
+        email: values.email || '',
+        paymentMethod: getPaymentMethodText(values.paymentMethod),
         totalAmount: subtotal,
         shippingFee,
         tax,
@@ -240,7 +275,7 @@ export default function CheckoutPage() {
         voucherDiscount: voucherDiscount,
         giftcardNumber: appliedGiftCard?.cardNumber || null,
         giftcardDiscount: giftCardDiscount,
-        notes: isPaid ? `${formData.note} [Đã thanh toán Online/CK]` : formData.note,
+        notes: isPaid ? `${values.note} [Đã thanh toán Online/CK]` : values.note,
         paymentStatus: finalPaymentStatus
       };
 
@@ -266,12 +301,13 @@ export default function CheckoutPage() {
     setShowQR(false);
 
     // Trigger submission
-    // Since we can't easily pass the event 'e' here, we construct a fake one or extract submit logic.
-    // simpler: call a function that calls api
-    submitOrderAfterPayment();
+    // since we can't easily pass the event 'e' here, we construct a fake one or extract submit logic.
+    // calls form submit programmatically or just reuse logic
+    const values = form.getValues();
+    submitOrderAfterPayment(values);
   };
 
-  const submitOrderAfterPayment = async () => {
+  const submitOrderAfterPayment = async (values: z.infer<typeof checkoutSchema>) => {
     if (!user) return;
     try {
       setLoading(true);
@@ -286,10 +322,17 @@ export default function CheckoutPage() {
           color: item.color,
           quantity: item.quantity
         })),
-        shippingAddress: { name: formData.fullName, phone: formData.phone, address: formData.address, city: formData.city, district: formData.district, ward: formData.ward },
-        phone: formData.phone,
-        email: formData.email,
-        paymentMethod: getPaymentMethodText(formData.paymentMethod),
+        shippingAddress: {
+          name: values.fullName,
+          phone: values.phone,
+          address: values.address,
+          city: values.city,
+          district: values.district,
+          ward: values.ward
+        },
+        phone: values.phone,
+        email: values.email || '',
+        paymentMethod: getPaymentMethodText(values.paymentMethod),
         totalAmount: subtotal,
         shippingFee,
         tax,
@@ -298,18 +341,30 @@ export default function CheckoutPage() {
         voucherDiscount: voucherDiscount,
         giftcardNumber: appliedGiftCard?.cardNumber || null,
         giftcardDiscount: giftCardDiscount,
-        notes: `${formData.note} [Đã thanh toán chuyển khoản]`,
+        notes: `${values.note} [Đã thanh toán chuyển khoản]`,
         paymentStatus: 'paid'
       };
+      // 3. Create Order
+      const orderResponse = await fetch('/api/orders', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(orderData),
+      });
 
-      const response = await fetch('/api/orders', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(orderData) });
-      const result = await response.json();
-      if (result.success) {
-        await clearCart();
-        router.push(`/order-success?orderNumber=${result.data.orderNumber}`);
-      } else {
-        alert(result.message || 'Lỗi khi đặt hàng');
+      const orderResult = await orderResponse.json();
+
+      if (!orderResponse.ok) {
+        throw new Error(orderResult.message || 'Đặt hàng thất bại');
       }
+
+      // 4. Save address if valid and user wants to (logic to be added if needed, currently implicitly saved in order)
+      // If we want to save to user_addresses table, we should have a checkbox "Save to address book"
+      // For now, we rely on the order saving the address snapshot.
+      // IF existing logic was here to save address, REMOVE it or wrap in if (saveAddress) check.
+
+      // ... existing success handling ...
+      clearCart();
+      router.push(`/order-success?orderId=${orderResult.data.orderNumber}`);
     } catch (error) {
       console.error('Lỗi khi đặt hàng:', error);
       alert('Lỗi khi đặt hàng. Vui lòng thử lại.');
@@ -324,7 +379,8 @@ export default function CheckoutPage() {
         <div className="text-center">
           <h2 className="text-2xl font-bold mb-4">{t.common.login}</h2>
           <p className="text-gray-600 mb-6">{t.auth.sign_in_title}</p>
-          <Link href="/sign-in"><button className="shop-button">{t.common.login}</button></Link>
+          <p className="text-gray-600 mb-6">{t.auth.sign_in_title}</p>
+          <Link href="/sign-in"><Button className="rounded-full">{t.common.login}</Button></Link>
         </div>
       </div>
     );
@@ -336,7 +392,7 @@ export default function CheckoutPage() {
         <div className="text-center">
           <h2 className="text-2xl font-bold mb-4">{t.cart.empty}</h2>
           <p className="text-gray-600 mb-6">{t.cart.empty_desc}</p>
-          <Link href="/cart"><button className="shop-button">{t.cart.bag}</button></Link>
+          <Link href="/cart"><Button className="rounded-full">{t.cart.bag}</Button></Link>
         </div>
       </div>
     );
@@ -353,21 +409,77 @@ export default function CheckoutPage() {
         </div>
       </div>
 
-      <form onSubmit={handleSubmit} className="nike-container py-8" autoComplete="off">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          <div className="lg:col-span-2 space-y-6">
-            <div className="bg-white rounded-lg shadow-sm border p-6">
-              <h2 className="text-xl font-helvetica-medium mb-6">{t.checkout.shipping_address}</h2>
+      <Form {...form}>
+        <form onSubmit={form.handleSubmit(onSubmit)} className="nike-container py-8" autoComplete="off">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div className="lg:col-span-2 space-y-6">
+              <div className="bg-white rounded-lg shadow-sm border p-6">
+                <h2 className="text-xl font-helvetica-medium mb-6">{t.checkout.shipping_address}</h2>
 
-              {/* Address Selection */}
-              {addresses.length > 0 && (
-                <div className="mb-6">
-                  <label className="block text-sm font-medium mb-3">{t.checkout.delivery_options}</label>
-                  <div className="space-y-3">
-                    {addresses.map((address) => (
+                {/* Address Selection */}
+                {addresses.length > 0 && (
+                  <div className="mb-6">
+                    <label className="block text-sm font-medium mb-3">{t.checkout.delivery_options}</label>
+                    <div className="space-y-3">
+                      {addresses.map((address) => (
+                        <div
+                          key={address.id}
+                          className={`p-4 border-2 rounded-lg transition-colors ${selectedAddressId === address.id && !useNewAddress
+                            ? 'border-black bg-gray-50'
+                            : 'border-gray-300 hover:border-gray-400'
+                            }`}
+                        >
+                          <div className="flex items-start gap-3">
+                            <input
+                              type="radio"
+                              name="selectedAddress"
+                              checked={selectedAddressId === address.id && !useNewAddress}
+                              onChange={() => handleAddressSelect(address.id)}
+                              onClick={() => handleAddressSelect(address.id)}
+                              className="mt-1 cursor-pointer"
+                            />
+                            <div
+                              className="flex-1 cursor-pointer"
+                              onClick={() => handleAddressSelect(address.id)}
+                            >
+                              <div className="flex items-center gap-2 mb-1">
+                                <p className="font-semibold">{address.recipient_name}</p>
+                                {address.label && (
+                                  <span className="px-2 py-0.5 bg-gray-200 text-xs rounded">
+                                    {address.label}
+                                  </span>
+                                )}
+                                {address.is_default === 1 && (
+                                  <span className="px-2 py-0.5 bg-green-500 text-white text-xs rounded">
+                                    {t.common.default}
+                                  </span>
+                                )}
+                              </div>
+                              <p className="text-sm text-gray-600">{address.phone}</p>
+                              <p className="text-sm text-gray-600">
+                                {address.address_line}
+                                {address.state && `, ${address.state}`}
+                                {address.city && `, ${address.city}`}
+                              </p>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                router.push('/account/settings?tab=addresses&returnUrl=/checkout');
+                              }}
+                              className="px-3 py-1 text-sm border border-gray-300 rounded-full hover:border-black transition-colors"
+                            >
+                              {t.common.edit}
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+
+                      {/* Use New Address Option */}
                       <div
-                        key={address.id}
-                        className={`p-4 border-2 rounded-lg transition-colors ${selectedAddressId === address.id && !useNewAddress
+                        onClick={() => setUseNewAddress(true)}
+                        className={`p-4 border-2 rounded-lg cursor-pointer transition-colors ${useNewAddress
                           ? 'border-black bg-gray-50'
                           : 'border-gray-300 hover:border-gray-400'
                           }`}
@@ -376,278 +488,329 @@ export default function CheckoutPage() {
                           <input
                             type="radio"
                             name="selectedAddress"
-                            checked={selectedAddressId === address.id && !useNewAddress}
-                            onChange={() => handleAddressSelect(address.id)}
-                            onClick={() => handleAddressSelect(address.id)}
-                            className="mt-1 cursor-pointer"
+                            checked={useNewAddress}
+                            onChange={() => setUseNewAddress(true)}
+                            className="mt-1"
                           />
-                          <div
-                            className="flex-1 cursor-pointer"
-                            onClick={() => handleAddressSelect(address.id)}
-                          >
-                            <div className="flex items-center gap-2 mb-1">
-                              <p className="font-semibold">{address.recipient_name}</p>
-                              {address.label && (
-                                <span className="px-2 py-0.5 bg-gray-200 text-xs rounded">
-                                  {address.label}
-                                </span>
-                              )}
-                              {address.is_default === 1 && (
-                                <span className="px-2 py-0.5 bg-green-500 text-white text-xs rounded">
-                                  {t.common.default}
-                                </span>
-                              )}
-                            </div>
-                            <p className="text-sm text-gray-600">{address.phone}</p>
-                            <p className="text-sm text-gray-600">
-                              {address.address_line}
-                              {address.state && `, ${address.state}`}
-                              {address.city && `, ${address.city}`}
-                            </p>
+                          <div>
+                            <p className="font-semibold">+ {t.common.add_address}</p>
+                            <p className="text-sm text-gray-600">{t.checkout.contact_info}</p>
                           </div>
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              router.push('/account/settings?tab=addresses&returnUrl=/checkout');
-                            }}
-                            className="px-3 py-1 text-sm border border-gray-300 rounded-full hover:border-black transition-colors"
-                          >
-                            {t.common.edit}
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-
-                    {/* Use New Address Option */}
-                    <div
-                      onClick={() => setUseNewAddress(true)}
-                      className={`p-4 border-2 rounded-lg cursor-pointer transition-colors ${useNewAddress
-                        ? 'border-black bg-gray-50'
-                        : 'border-gray-300 hover:border-gray-400'
-                        }`}
-                    >
-                      <div className="flex items-start gap-3">
-                        <input
-                          type="radio"
-                          name="selectedAddress"
-                          checked={useNewAddress}
-                          onChange={() => setUseNewAddress(true)}
-                          className="mt-1"
-                        />
-                        <div>
-                          <p className="font-semibold">+ {t.common.add_address}</p>
-                          <p className="text-sm text-gray-600">{t.checkout.contact_info}</p>
                         </div>
                       </div>
                     </div>
                   </div>
-                </div>
-              )}
+                )}
 
-              {/* Show form if using new address or no addresses */}
-              {(useNewAddress || addresses.length === 0) && (
-                <>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium mb-2">{t.auth.full_name} *</label>
-                      <input type="text" name="fullName" value={formData.fullName} onChange={handleInputChange} required className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-black focus:border-transparent" />
+                {/* Show form if using new address or no addresses */}
+                {(useNewAddress || addresses.length === 0) && (
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <FormField
+                        control={form.control}
+                        name="fullName"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Họ và tên *</FormLabel>
+                            <FormControl>
+                              <Input placeholder="Nguyễn Văn A" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="phone"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Số điện thoại *</FormLabel>
+                            <FormControl>
+                              <Input placeholder="0901234567" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
                     </div>
-                    <div>
-                      <label className="block text-sm font-medium mb-2">{t.common.phone} *</label>
-                      <input type="tel" name="phone" value={formData.phone} onChange={handleInputChange} required className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-black focus:border-transparent" />
-                    </div>
-                    <div className="md:col-span-2">
-                      <label className="block text-sm font-medium mb-2">{t.common.email}</label>
-                      <input type="email" name="email" value={formData.email} onChange={handleInputChange} className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-black focus:border-transparent" />
-                    </div>
-                    <div className="md:col-span-2">
-                      <label className="block text-sm font-medium mb-2">{t.common.addresses} *</label>
-                      <input type="text" name="address" value={formData.address} onChange={handleInputChange} required placeholder="Số nhà, tên đường..." className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-black focus:border-transparent" />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium mb-2">Tỉnh/Thành phố</label>
-                      <select name="city" value={formData.city} onChange={handleInputChange} className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-black focus:border-transparent">
-                        <option value="TP. Hồ Chí Minh">TP. Hồ Chí Minh</option>
-                        <option value="Hà Nội">Hà Nội</option>
-                        <option value="Đà Nẵng">Đà Nẵng</option>
-                        <option value="Cần Thơ">Cần Thơ</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium mb-2">Quận/Huyện *</label>
-                      <input type="text" name="district" value={formData.district} onChange={handleInputChange} required className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-black focus:border-transparent" />
-                    </div>
-                    <div className="md:col-span-2">
-                      <label className="block text-sm font-medium mb-2">Phường/Xã *</label>
-                      <input type="text" name="ward" value={formData.ward} onChange={handleInputChange} required className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-black focus:border-transparent" />
-                    </div>
-                  </div>
-                </>
-              )}
-            </div>
 
-            <div className="bg-white rounded-lg shadow-sm border p-6">
-              <h2 className="text-xl font-helvetica-medium mb-6">{t.checkout.payment}</h2>
-              <div className="space-y-3">
-                <label className="flex items-center p-3 border rounded-lg cursor-pointer hover:bg-gray-50">
-                  <input type="radio" name="paymentMethod" value="cod" checked={formData.paymentMethod === 'cod'} onChange={handleInputChange} className="mr-3" />
-                  <div>
-                    <div className="font-medium">{t.checkout.cod}</div>
-                    <div className="text-sm text-gray-600">Thanh toán bằng tiền mặt khi nhận được hàng</div>
-                  </div>
-                </label>
-                <label className="flex items-center p-3 border rounded-lg cursor-pointer hover:bg-gray-50">
-                  <input type="radio" name="paymentMethod" value="bank" checked={formData.paymentMethod === 'bank'} onChange={handleInputChange} className="mr-3" />
-                  <div>
-                    <div className="font-medium">{t.checkout.bank_transfer}</div>
-                    <div className="text-sm text-gray-600">Chuyển khoản qua QR Code (VietQR)</div>
-                  </div>
-                </label>
-                <label className="flex items-center p-3 border rounded-lg cursor-pointer hover:bg-gray-50">
-                  <input type="radio" name="paymentMethod" value="momo" checked={formData.paymentMethod === 'momo'} onChange={handleInputChange} className="mr-3" />
-                  <div>
-                    <div className="font-medium">{t.checkout.momo}</div>
-                    <div className="text-sm text-gray-600">Thanh toán qua ví điện tử MoMo</div>
-                  </div>
-                </label>
-              </div>
-            </div>
+                    <FormField
+                      control={form.control}
+                      name="email"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Email</FormLabel>
+                          <FormControl>
+                            <Input placeholder="email@example.com" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
 
-            <div className="bg-white rounded-lg shadow-sm border p-6">
-              <h2 className="text-xl font-helvetica-medium mb-4">Ghi chú đơn hàng (tuỳ chọn)</h2>
-              <textarea name="note" value={formData.note} onChange={handleInputChange} rows={3} placeholder="Ghi chú về đơn hàng của bạn..." className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-black focus:border-transparent" />
-            </div>
-          </div>
+                    <FormField
+                      control={form.control}
+                      name="address"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Địa chỉ *</FormLabel>
+                          <FormControl>
+                            <Input placeholder="Số nhà, đường..." {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
 
-          <div>
-            <div className="bg-white rounded-lg shadow-sm border p-6 sticky top-4">
-              <h2 className="text-xl font-helvetica-medium mb-6">{t.checkout.order_summary}</h2>
-
-              {/* Voucher Section */}
-              <div className="mb-4">
-                <label className="block text-sm font-medium mb-2">{t.footer.vouchers}</label>
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    value={voucherCode}
-                    onChange={(e) => setVoucherCode(e.target.value.toUpperCase())}
-                    placeholder="Nhập mã voucher"
-                    className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-black focus:border-transparent"
-                  />
-                  <button
-                    type="button"
-                    onClick={handleApplyVoucher}
-                    className="px-4 py-2 bg-black text-white rounded-lg text-sm font-medium hover:bg-gray-800"
-                  >
-                    {t.cart.apply || 'Áp dụng'}
-                  </button>
-                </div>
-                {appliedVoucher && (
-                  <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded text-sm text-green-800">
-                    ✓ {appliedVoucher.description || `Giảm ${formatPrice(appliedVoucher.discountAmount)}`}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <FormField
+                        control={form.control}
+                        name="city"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Tỉnh / Thành phố *</FormLabel>
+                            <FormControl>
+                              <select
+                                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 w-full"
+                                {...field}
+                              >
+                                <option value="TP. Hồ Chí Minh">TP. Hồ Chí Minh</option>
+                                <option value="Hà Nội">Hà Nội</option>
+                                <option value="Đà Nẵng">Đà Nẵng</option>
+                                <option value="Cần Thơ">Cần Thơ</option>
+                                <option value="Hải Phòng">Hải Phòng</option>
+                              </select>
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="district"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Quận / Huyện *</FormLabel>
+                            <FormControl>
+                              <Input placeholder="Quận/Huyện" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="ward"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Phường / Xã *</FormLabel>
+                            <FormControl>
+                              <Input placeholder="Phường/Xã" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
                   </div>
                 )}
               </div>
 
-              {/* Gift Card Section */}
-              <div className="mb-4 pb-4 border-b">
-                <label className="block text-sm font-medium mb-2">Thẻ quà tặng</label>
-                <div className="space-y-2">
-                  <input
-                    type="text"
-                    value={giftCardNumber}
-                    onChange={(e) => setGiftCardNumber(e.target.value)}
-                    placeholder="Số thẻ (16 số)"
-                    maxLength={16}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-black focus:border-transparent"
-                  />
+              <div className="bg-white rounded-lg shadow-sm border p-6">
+                <h2 className="text-xl font-helvetica-medium mb-6">{t.checkout.payment}</h2>
+                <FormField
+                  control={form.control}
+                  name="paymentMethod"
+                  render={({ field }) => (
+                    <FormItem className="space-y-3">
+                      <FormControl>
+                        <div className="space-y-3">
+                          <label className="flex items-center p-3 border rounded-lg cursor-pointer hover:bg-gray-50">
+                            <input type="radio" {...field} value="cod" checked={field.value === 'cod'} className="mr-3" />
+                            <div>
+                              <div className="font-medium">{t.checkout.cod}</div>
+                              <div className="text-sm text-gray-600">Thanh toán bằng tiền mặt khi nhận được hàng</div>
+                            </div>
+                          </label>
+                          <label className="flex items-center p-3 border rounded-lg cursor-pointer hover:bg-gray-50">
+                            <input type="radio" {...field} value="bank" checked={field.value === 'bank'} className="mr-3" />
+                            <div>
+                              <div className="font-medium">{t.checkout.bank_transfer}</div>
+                              <div className="text-sm text-gray-600">Chuyển khoản qua QR Code (VietQR)</div>
+                            </div>
+                          </label>
+                          <label className="flex items-center p-3 border rounded-lg cursor-pointer hover:bg-gray-50">
+                            <input type="radio" {...field} value="momo" checked={field.value === 'momo'} className="mr-3" />
+                            <div>
+                              <div className="font-medium">{t.checkout.momo}</div>
+                              <div className="text-sm text-gray-600">Thanh toán qua ví điện tử MoMo</div>
+                            </div>
+                          </label>
+                        </div>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              <div className="bg-white rounded-lg shadow-sm border p-6">
+                <h2 className="text-xl font-helvetica-medium mb-4">Ghi chú đơn hàng (tuỳ chọn)</h2>
+                <FormField
+                  control={form.control}
+                  name="note"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormControl>
+                        <textarea
+                          rows={3}
+                          placeholder="Ghi chú về đơn hàng..."
+                          className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-black focus:border-transparent"
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+            </div>
+
+            <div>
+              <div className="bg-white rounded-lg shadow-sm border p-6 sticky top-4">
+                <h2 className="text-xl font-helvetica-medium mb-6">{t.checkout.order_summary}</h2>
+
+                {/* Voucher Section */}
+                <div className="mb-4">
+                  <label className="block text-sm font-medium mb-2">{t.footer.vouchers}</label>
                   <div className="flex gap-2">
                     <input
                       type="text"
-                      value={giftCardPin}
-                      onChange={(e) => setGiftCardPin(e.target.value)}
-                      placeholder="Mã PIN (4 số)"
-                      maxLength={4}
+                      value={voucherCode}
+                      onChange={(e) => setVoucherCode(e.target.value.toUpperCase())}
+                      placeholder="Nhập mã voucher"
                       className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-black focus:border-transparent"
                     />
-                    <button
+                    <Button
                       type="button"
-                      onClick={handleApplyGiftCard}
-                      className="px-4 py-2 bg-black text-white rounded-lg text-sm font-medium hover:bg-gray-800"
+                      onClick={handleApplyVoucher}
+                      className="bg-black text-white hover:bg-gray-800"
+                      size="sm"
                     >
                       {t.cart.apply || 'Áp dụng'}
-                    </button>
+                    </Button>
                   </div>
-                  {appliedGiftCard && (
+                  {appliedVoucher && (
                     <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded text-sm text-green-800">
-                      ✓ Số dư: {formatPrice(appliedGiftCard.balance)} • Sử dụng: {formatPrice(giftCardDiscount)}
+                      ✓ {appliedVoucher.description || `Giảm ${formatPrice(appliedVoucher.discountAmount)}`}
                     </div>
                   )}
                 </div>
-              </div>
 
-              <div className="space-y-3 pt-4 border-t">
-                <div className="flex justify-between"><span>{t.cart.subtotal}:</span><span>{formatPrice(subtotal)}</span></div>
-                <div className="flex justify-between"><span>{t.checkout.shipping_fee}:</span><span>{shippingFee === 0 ? <span className="text-green-600">{t.checkout.free}</span> : formatPrice(shippingFee)}</span></div>
-                <div className="flex justify-between"><span>{t.cart.tax}:</span><span>{formatPrice(tax)}</span></div>
-                {voucherDiscount > 0 && (
-                  <div className="flex justify-between text-green-600">
-                    <span>{t.footer.vouchers}:</span>
-                    <span>-{formatPrice(voucherDiscount)}</span>
+                {/* Gift Card Section */}
+                <div className="mb-4 pb-4 border-b">
+                  <label className="block text-sm font-medium mb-2">Thẻ quà tặng</label>
+                  <div className="space-y-2">
+                    <input
+                      type="text"
+                      value={giftCardNumber}
+                      onChange={(e) => setGiftCardNumber(e.target.value)}
+                      placeholder="Số thẻ (16 số)"
+                      maxLength={16}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-black focus:border-transparent"
+                    />
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={giftCardPin}
+                        onChange={(e) => setGiftCardPin(e.target.value)}
+                        placeholder="Mã PIN (4 số)"
+                        maxLength={4}
+                        className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-black focus:border-transparent"
+                      />
+                      <Button
+                        type="button"
+                        onClick={handleApplyGiftCard}
+                        className="bg-black text-white hover:bg-gray-800"
+                        size="sm"
+                      >
+                        {t.cart.apply || 'Áp dụng'}
+                      </Button>
+                    </div>
+                    {appliedGiftCard && (
+                      <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded text-sm text-green-800">
+                        ✓ Số dư: {formatPrice(appliedGiftCard.balance)} • Sử dụng: {formatPrice(giftCardDiscount)}
+                      </div>
+                    )}
                   </div>
-                )}
-                {giftCardDiscount > 0 && (
-                  <div className="flex justify-between text-green-600">
-                    <span>Thẻ quà tặng:</span>
-                    <span>-{formatPrice(giftCardDiscount)}</span>
+                </div>
+
+                <div className="space-y-3 pt-4 border-t">
+                  <div className="flex justify-between"><span>{t.cart.subtotal}:</span><span>{formatPrice(subtotal)}</span></div>
+                  <div className="flex justify-between"><span>{t.checkout.shipping_fee}:</span><span>{shippingFee === 0 ? <span className="text-green-600">{t.checkout.free}</span> : formatPrice(shippingFee)}</span></div>
+                  <div className="flex justify-between"><span>{t.cart.tax}:</span><span>{formatPrice(tax)}</span></div>
+                  {voucherDiscount > 0 && (
+                    <div className="flex justify-between text-green-600">
+                      <span>{t.footer.vouchers}:</span>
+                      <span>-{formatPrice(voucherDiscount)}</span>
+                    </div>
+                  )}
+                  {giftCardDiscount > 0 && (
+                    <div className="flex justify-between text-green-600">
+                      <span>Thẻ quà tặng:</span>
+                      <span>-{formatPrice(giftCardDiscount)}</span>
+                    </div>
+                  )}
+                  <hr />
+                  <div className="flex justify-between font-helvetica-medium text-lg"><span>{t.cart.total}:</span><span>{formatPrice(total)}</span></div>
+                </div>
+                <Button type="submit" disabled={loading} size="lg" className="w-full mt-6 rounded-full font-medium transition-colors">{loading ? t.checkout.processing : `${t.checkout.place_order} • ${formatPrice(total)}`}</Button>
+                <div className="mt-4 p-3 bg-gray-50 rounded-lg">
+                  <div className="flex items-center text-sm text-gray-600">
+                    <Lock className="w-4 h-4 mr-2" />
+                    {t.common.security || 'Secure Transaction'}
                   </div>
-                )}
-                <hr />
-                <div className="flex justify-between font-helvetica-medium text-lg"><span>{t.cart.total}:</span><span>{formatPrice(total)}</span></div>
-              </div>
-              <button type="submit" disabled={loading} className={`w-full mt-6 py-3 rounded-lg font-medium transition-colors ${loading ? 'bg-gray-400 cursor-not-allowed' : 'bg-black text-white hover:bg-gray-800'}`}>{loading ? t.checkout.processing : `${t.checkout.place_order} • ${formatPrice(total)}`}</button>
-              <div className="mt-4 p-3 bg-gray-50 rounded-lg">
-                <div className="flex items-center text-sm text-gray-600">
-                  <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
-                  {t.common.security || 'Secure Transaction'}
                 </div>
               </div>
             </div>
           </div>
-        </div>
-      </form>
+        </form>
+
+      </Form>
 
       {/* QR Code Modal */}
-      {showQR && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-lg p-6 max-w-sm w-full">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="font-bold text-lg">{t.checkout.payment}</h3>
-              <button onClick={() => setShowQR(false)} className="text-gray-500 hover:text-black">✕</button>
-            </div>
-            <PaymentQRCode
-              amount={total}
-              description={`CK Don hang ${user.email} (Demo)`}
-            />
-            <div className="mt-4 space-y-2">
-              <button
-                onClick={handleQRPaymentConfirmed}
-                disabled={loading}
-                className="w-full bg-black text-white py-2 rounded font-medium hover:bg-gray-800"
-              >
-                {loading ? t.checkout.processing : 'Tôi đã chuyển khoản'}
-              </button>
-              <button
-                onClick={() => setShowQR(false)}
-                className="w-full border border-gray-300 py-2 rounded font-medium hover:bg-gray-50"
-              >
-                Thanh toán sau (COD)
-              </button>
+      {
+        showQR && (
+          <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+            <div className="bg-white rounded-lg p-6 max-w-sm w-full">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="font-bold text-lg">{t.checkout.payment}</h3>
+                <button onClick={() => setShowQR(false)} className="text-gray-500 hover:text-black">✕</button>
+              </div>
+              <PaymentQRCode
+                amount={total}
+                description={`CK Don hang ${user.email} (Demo)`}
+              />
+              <div className="mt-4 space-y-2">
+                <Button
+                  onClick={handleQRPaymentConfirmed}
+                  disabled={loading}
+                  className="w-full bg-black text-white hover:bg-gray-800"
+                >
+                  {loading ? t.checkout.processing : 'Tôi đã chuyển khoản'}
+                </Button>
+                <Button
+                  onClick={() => setShowQR(false)}
+                  variant="outline"
+                  className="w-full border-gray-300 hover:bg-gray-50"
+                >
+                  Thanh toán sau (COD)
+                </Button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
-    </div>
+        )
+      }
+    </div >
   );
 }

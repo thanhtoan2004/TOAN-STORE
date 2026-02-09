@@ -15,9 +15,9 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     console.error('Error fetching stores:', error);
     return NextResponse.json(
-      { 
-        success: false, 
-        message: 'Không thể lấy danh sách cửa hàng' 
+      {
+        success: false,
+        message: 'Không thể lấy danh sách cửa hàng'
       },
       { status: 500 }
     );

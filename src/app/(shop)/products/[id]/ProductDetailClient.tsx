@@ -11,6 +11,10 @@ import { useWishlist } from "@/contexts/WishlistContext";
 import ReviewMediaUpload from "@/components/reviews/ReviewMediaUpload";
 import ProductRecommendations from "@/components/ui/products/ProductRecommendations";
 import RecentlyViewed from "@/components/ui/products/RecentlyViewed";
+import { useProduct } from "@/hooks/queries/useProduct";
+import { useReviews } from "@/hooks/queries/useReviews";
+import { useCheckPurchase } from "@/hooks/queries/useCheckPurchase";
+import { useQueryClient } from "@tanstack/react-query";
 
 interface ProductSize {
     size: string;
@@ -30,6 +34,7 @@ interface Product {
     is_new_arrival: boolean;
     created_at: string;
     images?: Array<{ url: string; alt_text?: string }>;
+    sizes?: Array<{ size: string; stock: number; reserved?: number }>;
 }
 
 interface ReviewMedia {
@@ -64,6 +69,7 @@ interface ReviewStats {
 }
 
 export default function ProductDetailClient({ id }: { id: string }) {
+    const queryClient = useQueryClient();
     const { user } = useAuth();
     const { t } = useLanguage();
     const [product, setProduct] = useState<Product | null>(null);
@@ -75,16 +81,26 @@ export default function ProductDetailClient({ id }: { id: string }) {
 
     const [sizes, setSizes] = useState<ProductSize[]>([]);
     const [selectedSize, setSelectedSize] = useState<string | null>(null);
-    const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const { addToCart } = useCart();
     const { addToWishlist, removeFromWishlist, isInWishlist } = useWishlist();
     const inWishlist = isInWishlist(id);
     const [wishlistLoading, setWishlistLoading] = useState(false);
 
-    // Reviews state
+    const [reviewMediaFiles, setReviewMediaFiles] = useState<File[]>([]);
+
+    // Image gallery state
+    const [currentImageIndex, setCurrentImageIndex] = useState(0);
+    const [productImages, setProductImages] = useState<string[]>([]);
+
+    const { data: productData, isLoading: productLoading, error: productError } = useProduct(id);
+    const { data: reviewsData, isLoading: reviewsLoading } = useReviews(id);
+    const { data: purchaseData, isLoading: purchaseLoading } = useCheckPurchase(user?.id, id);
+
+    // Dynamic states that might need local management (for optimistic updates or form sync)
     const [reviews, setReviews] = useState<Review[]>([]);
     const [reviewStats, setReviewStats] = useState<ReviewStats | null>(null);
+    const [hasPurchased, setHasPurchased] = useState(false);
     const [showReviewForm, setShowReviewForm] = useState(false);
     const [reviewForm, setReviewForm] = useState({
         rating: 5,
@@ -98,78 +114,47 @@ export default function ProductDetailClient({ id }: { id: string }) {
         title: '',
         comment: ''
     });
-    const [hasPurchased, setHasPurchased] = useState(false);
-    const [checkingPurchase, setCheckingPurchase] = useState(false);
-    const [reviewMediaFiles, setReviewMediaFiles] = useState<File[]>([]);
-
-    // Image gallery state
-    const [currentImageIndex, setCurrentImageIndex] = useState(0);
-    const [productImages, setProductImages] = useState<string[]>([]);
 
     useEffect(() => {
-        const fetchProduct = async () => {
-            try {
-                setLoading(true);
-                const response = await fetch(`/api/products/${id}`);
-                if (!response.ok) {
-                    if (response.status === 404) {
-                        notFound();
-                    }
-                    throw new Error("Failed to fetch product");
-                }
-                const result = await response.json();
-                const data = result.data || result;
-                setProduct(data);
+        if (productData) {
+            setProduct(productData);
+            // Set product images (main image + additional images if available)
+            const images = productData.images && productData.images.length > 0
+                ? productData.images.map((img: any) => img.url)
+                : [productData.image_url];
+            setProductImages(images);
 
-                // Set product images (main image + additional images if available)
-                const images = data.images && data.images.length > 0
-                    ? data.images.map((img: any) => img.url)
-                    : [data.image_url];
-                setProductImages(images);
-
-                // Fetch variants/sizes from database
-                const variantsResponse = await fetch(`/api/products/${id}/variants`);
-                if (variantsResponse.ok) {
-                    const variantsData = await variantsResponse.json();
-                    if (variantsData.success && variantsData.data) {
-                        const productSizes = variantsData.data.map((v: any) => ({
-                            size: v.size,
-                            stock: v.stock.available
-                        }));
-                        setSizes(productSizes);
-                    }
-                }
-
-                // Fetch reviews
-                const reviewsResponse = await fetch(`/api/reviews?productId=${id}&page=1&limit=10`);
-                if (reviewsResponse.ok) {
-                    const reviewsData = await reviewsResponse.json();
-                    if (reviewsData.success) {
-                        setReviews(reviewsData.data.reviews);
-                        setReviewStats(reviewsData.data.statistics);
-                    }
-                }
-
-                // Check if user has purchased this product
-                if (user) {
-                    setCheckingPurchase(true);
-                    const purchaseResponse = await fetch(`/api/reviews/check-purchase?userId=${user.id}&productId=${id}`);
-                    if (purchaseResponse.ok) {
-                        const purchaseData = await purchaseResponse.json();
-                        if (purchaseData.success) {
-                            setHasPurchased(purchaseData.data.hasPurchased);
-                        }
-                    }
-                    setCheckingPurchase(false);
-                }
-            } catch (error) {
-                setError("Không thể tải thông tin sản phẩm");
-            } finally {
-                setLoading(false);
+            // Set sizes directly from product data (no need for separate fetch)
+            if (productData.sizes) {
+                const productSizes = (productData as any).sizes.map((v: any) => ({
+                    size: v.size,
+                    stock: (v.stock || 0) - (v.reserved || 0)
+                }));
+                setSizes(productSizes);
             }
-        };
-        fetchProduct();
-    }, [id]);
+        }
+    }, [productData]);
+
+    useEffect(() => {
+        if (reviewsData) {
+            setReviews(reviewsData.reviews);
+            setReviewStats(reviewsData.statistics);
+        }
+    }, [reviewsData]);
+
+    useEffect(() => {
+        if (purchaseData !== undefined) {
+            setHasPurchased(purchaseData);
+        }
+    }, [purchaseData]);
+
+    useEffect(() => {
+        if (productError) {
+            setError("Không thể tải thông tin sản phẩm");
+        }
+    }, [productError]);
+
+
 
     // Save to Recently Viewed
     useEffect(() => {
@@ -203,7 +188,7 @@ export default function ProductDetailClient({ id }: { id: string }) {
         }
     }, [product]);
 
-    if (loading) {
+    if (productLoading) {
         return (
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
                 <div className="flex flex-col md:flex-row gap-8">
@@ -221,26 +206,30 @@ export default function ProductDetailClient({ id }: { id: string }) {
         );
     }
 
-    if (error) {
+    if (productError) {
         return (
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 text-center">
                 <div className="bg-red-50 border border-red-200 rounded-lg p-6">
                     <h2 className="text-lg font-semibold text-red-800 mb-2">Đã xảy ra lỗi</h2>
-                    <p className="text-red-600">{error}</p>
+                    <p className="text-red-600">{error || "Không thể tải thông tin sản phẩm"}</p>
                 </div>
             </div>
         );
     }
 
-    if (!product) {
+    if (!productData) {
         return notFound();
     }
 
+    // Assign productData to product for the rest of the component
+    // (Or use productData directly, but keeping product variable for minimal changes)
+    const activeProduct = product || productData;
+
     // Xác định giá hiển thị
-    const displayPrice = product.retail_price || product.price || 0;
-    const salePrice = product.base_price && product.retail_price && product.base_price < product.retail_price
-        ? product.base_price
-        : product.sale_price;
+    const displayPrice = activeProduct.retail_price || activeProduct.price || 0;
+    const salePrice = activeProduct.base_price && activeProduct.retail_price && activeProduct.base_price < activeProduct.retail_price
+        ? activeProduct.base_price
+        : activeProduct.sale_price;
 
     const discountPercent = salePrice && displayPrice > salePrice
         ? Math.round(((displayPrice - salePrice) / displayPrice) * 100)
@@ -248,6 +237,36 @@ export default function ProductDetailClient({ id }: { id: string }) {
 
     const formatPrice = (price: number) => {
         return price.toLocaleString("vi-VN") + " ₫";
+    };
+
+    const handleWishlist = async () => {
+        if (!user) {
+            alert(t.common?.login || 'Vui lòng đăng nhập để xem hoặc thêm vào danh sách yêu thích');
+            return;
+        }
+
+        if (!activeProduct) return;
+
+        setWishlistLoading(true);
+        try {
+            if (inWishlist) {
+                await removeFromWishlist(id);
+            } else {
+                await addToWishlist({
+                    id: String(activeProduct.id),
+                    name: activeProduct.name,
+                    category: activeProduct.category,
+                    price: activeProduct.retail_price || activeProduct.price,
+                    sale_price: salePrice,
+                    image_url: activeProduct.image_url,
+                    is_new_arrival: activeProduct.is_new_arrival
+                });
+            }
+        } catch (error) {
+            console.error('Error updating wishlist:', error);
+        } finally {
+            setWishlistLoading(false);
+        }
     };
 
     const handleSubmitReview = async (e: React.FormEvent) => {
@@ -299,6 +318,8 @@ export default function ProductDetailClient({ id }: { id: string }) {
                 setShowReviewForm(false);
                 setReviewForm({ rating: 5, title: '', comment: '' });
                 setReviewMediaFiles([]);
+                // Invalidate reviews to refetch
+                queryClient.invalidateQueries({ queryKey: ['reviews', id] });
             } else {
                 alert(result.message || t.common?.error || 'Error');
             }
@@ -333,15 +354,8 @@ export default function ProductDetailClient({ id }: { id: string }) {
             if (result.success) {
                 alert(result.message || t.common?.success || 'Success');
                 setEditingReviewId(null);
-                // Reload reviews
-                const reviewsResponse = await fetch(`/api/reviews?productId=${id}&page=1&limit=10`);
-                if (reviewsResponse.ok) {
-                    const reviewsData = await reviewsResponse.json();
-                    if (reviewsData.success) {
-                        setReviews(reviewsData.data.reviews);
-                        setReviewStats(reviewsData.data.statistics);
-                    }
-                }
+                // Invalidate reviews to refetch
+                queryClient.invalidateQueries({ queryKey: ['reviews', id] });
             } else {
                 alert(result.message || t.common?.error || 'Error');
             }
@@ -369,15 +383,8 @@ export default function ProductDetailClient({ id }: { id: string }) {
 
             if (result.success) {
                 alert(result.message || t.common?.success || 'Success');
-                // Reload reviews
-                const reviewsResponse = await fetch(`/api/reviews?productId=${id}&page=1&limit=10`);
-                if (reviewsResponse.ok) {
-                    const reviewsData = await reviewsResponse.json();
-                    if (reviewsData.success) {
-                        setReviews(reviewsData.data.reviews);
-                        setReviewStats(reviewsData.data.statistics);
-                    }
-                }
+                // Invalidate reviews to refetch
+                queryClient.invalidateQueries({ queryKey: ['reviews', id] });
             } else {
                 alert(result.message || t.common?.error || 'Error');
             }
@@ -419,7 +426,7 @@ export default function ProductDetailClient({ id }: { id: string }) {
                                     className={`relative aspect-square overflow-hidden rounded-lg bg-gray-100 border-2 transition-all ${currentImageIndex === index ? 'border-black' : 'border-transparent hover:border-gray-300'
                                         }`}
                                 >
-                                    <Image src={img} alt={`${product.name} ${index + 1}`} fill className="object-cover" />
+                                    <Image src={img} alt={`${activeProduct.name} ${index + 1}`} fill className="object-cover" />
                                 </button>
                             ))}
                         </div>
@@ -427,16 +434,16 @@ export default function ProductDetailClient({ id }: { id: string }) {
                         {/* Main Image with Navigation */}
                         <div className="flex-1 relative aspect-square overflow-hidden rounded-lg bg-gray-100 group">
                             <Image
-                                src={productImages[currentImageIndex] || product.image_url}
-                                alt={product.name}
+                                src={productImages[currentImageIndex] || activeProduct.image_url}
+                                alt={activeProduct.name}
                                 fill
                                 className="object-cover"
                                 priority
                             />
 
                             {/* Badges */}
-                            {product.is_new_arrival && (
-                                <div className="absolute top-4 left-4 bg-black text-white px-3 py-1 text-sm font-medium rounded z-10">MỚI</div>
+                            {activeProduct.is_new_arrival && (
+                                <div className="absolute top-4 left-4 bg-black text-white px-3 py-1 text-sm font-medium rounded z-10">{t.product.new || 'Mới'}</div>
                             )}
                             {discountPercent > 0 && (
                                 <div className="absolute top-4 right-4 bg-red-600 text-white px-3 py-1 text-sm font-medium rounded z-10">-{discountPercent}%</div>
@@ -480,8 +487,8 @@ export default function ProductDetailClient({ id }: { id: string }) {
                     <div className="space-y-6">
                         <div className="flex items-start justify-between">
                             <div>
-                                <h1 className="text-3xl font-bold text-gray-900 mb-2">{product.name}</h1>
-                                <p className="text-lg text-gray-500 uppercase tracking-wide">{product.category}</p>
+                                <h1 className="text-3xl font-bold text-gray-900 mb-2">{activeProduct.name}</h1>
+                                <p className="text-lg text-gray-500 uppercase tracking-wide">{activeProduct.category}</p>
                             </div>
                         </div>
                         <div className="text-2xl font-bold">
@@ -527,17 +534,29 @@ export default function ProductDetailClient({ id }: { id: string }) {
                             )}
                         </div>
 
-                        {product.description && (
+                        {activeProduct.description && (
                             <div className="border-t pt-6">
                                 <h3 className="text-lg font-semibold mb-3">{t.product.description}</h3>
-                                <p className="text-gray-600 leading-relaxed">{product.description}</p>
+                                <p className="text-gray-600 leading-relaxed">{activeProduct.description}</p>
                             </div>
                         )}
 
                         <div className="border-t pt-6 space-y-3">
-                            <AddToCartButton productId={typeof product.id === 'number' ? product.id : parseInt(product.id as string)} size={selectedSize || ""} disabled={!selectedSize} className="w-full">
+                            <AddToCartButton productId={typeof activeProduct.id === 'number' ? activeProduct.id : parseInt(activeProduct.id as string)} size={selectedSize || ""} disabled={!selectedSize} className="w-full">
                                 {t.product.add_to_cart}
                             </AddToCartButton>
+
+                            <button
+                                onClick={handleWishlist}
+                                disabled={wishlistLoading}
+                                className={`w-full py-4 px-6 rounded-full border-2 font-medium flex items-center justify-center gap-2 transition-all ${inWishlist
+                                    ? 'border-black bg-black text-white hover:bg-gray-800'
+                                    : 'border-gray-200 hover:border-black text-black'
+                                    }`}
+                            >
+                                <Heart className={`w-5 h-5 ${inWishlist ? 'fill-current' : ''}`} />
+                                {inWishlist ? t.product.in_wishlist : t.product.add_to_wishlist}
+                            </button>
                         </div>
 
                         <div className="border-t pt-6 space-y-3 text-sm text-gray-600">
@@ -573,7 +592,7 @@ export default function ProductDetailClient({ id }: { id: string }) {
                 </div>
 
                 {/* Purchase requirement message */}
-                {user && !hasPurchased && !checkingPurchase && (
+                {user && !hasPurchased && !purchaseLoading && (
                     <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
                         <p className="text-sm text-yellow-800">
                             <strong>{t.common?.note || 'Note'}:</strong> {t.reviews.purchase_req}
@@ -877,9 +896,9 @@ export default function ProductDetailClient({ id }: { id: string }) {
             </div>
 
             {/* Related & Recently Viewed */}
-            {product && (
+            {activeProduct && (
                 <div className="mt-16 space-y-8">
-                    <ProductRecommendations currentProductId={Number(product.id)} />
+                    <ProductRecommendations currentProductId={Number(activeProduct.id)} />
                     <RecentlyViewed />
                 </div>
             )}

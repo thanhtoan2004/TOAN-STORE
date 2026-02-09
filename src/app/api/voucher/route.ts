@@ -37,7 +37,7 @@ async function validateCouponHandler(req: NextRequest): Promise<NextResponse> {
       `SELECT COUNT(*) as count FROM coupon_usage WHERE coupon_id = ?`,
       [coupon.id]
     );
-    
+
     if (usageCount[0].count >= coupon.usage_limit) {
       return createErrorResponse('Mã voucher đã hết lượt sử dụng', 400);
     }

@@ -2,6 +2,7 @@
 import { Metadata, ResolvingMetadata } from 'next';
 import { executeQuery } from '@/lib/db/mysql';
 import ProductDetailClient from './ProductDetailClient';
+import { notFound } from 'next/navigation';
 
 interface Props {
   params: Promise<{ id: string }>;
@@ -21,25 +22,39 @@ export async function generateMetadata(
   ) as any[];
 
   if (products.length === 0) {
-    return {
-      title: 'Sản phẩm không tồn tại',
-    }
+    return notFound();
   }
 
   const product = products[0];
 
   return {
-    title: product.name,
+    title: `${product.name} | Nike Clone`,
     description: product.description ? product.description.substring(0, 160) : `Mua ${product.name} tại Nike Clone Store`,
     openGraph: {
       title: product.name,
       description: product.description ? product.description.substring(0, 160) : `Mua ${product.name} tại Nike Clone Store`,
-      images: [product.image_url || '/og-image.jpg'],
+      images: [{
+        url: product.image_url || '/og-image.jpg',
+        width: 1200,
+        height: 630,
+        alt: product.name
+      }],
     },
   }
 }
 
 export default async function Page({ params }: Props) {
-  const id = (await params).id;
+  const { id } = await params;
+
+  // Verify product existence on server for correct 404 status/rendering
+  const products = await executeQuery(
+    'SELECT id FROM products WHERE id = ?',
+    [id]
+  ) as any[];
+
+  if (products.length === 0) {
+    return notFound();
+  }
+
   return <ProductDetailClient id={id} />
 }

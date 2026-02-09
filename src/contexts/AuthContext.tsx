@@ -13,6 +13,8 @@ type User = {
   isActive?: boolean;
   isVerified?: boolean;
   is_admin?: boolean;
+  membershipTier?: string;
+  accumulatedPoints?: number;
 } | null;
 
 type AuthContextType = {

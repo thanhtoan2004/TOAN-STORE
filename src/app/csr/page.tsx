@@ -1,4 +1,5 @@
 import React from 'react';
+import { Leaf, HardHat, Heart, BarChart, Check } from 'lucide-react';
 
 export default function CorporateSocialResponsibilityPage() {
   return (
@@ -15,33 +16,33 @@ export default function CorporateSocialResponsibilityPage() {
             {/* Bảo vệ Môi trường */}
             <section className="bg-white rounded-lg p-8 shadow-sm">
               <div className="flex items-center mb-4">
-                <span className="text-3xl mr-3">🌱</span>
+                <Leaf className="w-8 h-8 mr-3 text-green-600" />
                 <h2 className="text-2xl font-helvetica-medium">Bảo Vệ Môi Trường</h2>
               </div>
               <ul className="space-y-3 text-gray-700">
                 <li className="flex items-start">
-                  <span className="text-green-600 font-bold mr-2">✓</span>
+                  <Check className="w-5 h-5 text-green-600 font-bold mr-2 mt-0.5" />
                   <span>
                     <strong>Giảm Khí Thải Carbon:</strong> Cam kết giảm 30% lượng khí thải CO₂ trong quá trình
                     sản xuất và vận chuyển đến năm 2030.
                   </span>
                 </li>
                 <li className="flex items-start">
-                  <span className="text-green-600 font-bold mr-2">✓</span>
+                  <Check className="w-5 h-5 text-green-600 font-bold mr-2 mt-0.5" />
                   <span>
                     <strong>Sử Dụng Năng Lượng Tái Tạo:</strong> Chuyển đổi 50% nguồn năng lượng sang năng lượng
                     tái tạo (mặt trời, gió) trong các cơ sở sản xuất.
                   </span>
                 </li>
                 <li className="flex items-start">
-                  <span className="text-green-600 font-bold mr-2">✓</span>
+                  <Check className="w-5 h-5 text-green-600 font-bold mr-2 mt-0.5" />
                   <span>
                     <strong>Tái Chế & Giảm Rác Thải:</strong> Thu gom và tái chế giày cũ, giảm 80% rác thải nhựa
                     trong bao bì sản phẩm.
                   </span>
                 </li>
                 <li className="flex items-start">
-                  <span className="text-green-600 font-bold mr-2">✓</span>
+                  <Check className="w-5 h-5 text-green-600 font-bold mr-2 mt-0.5" />
                   <span>
                     <strong>Vật Liệu Bền Vững:</strong> Sử dụng vải tái chế, da thuộc thân thiện môi trường và
                     cao su tự nhiên trong sản xuất.
@@ -53,40 +54,40 @@ export default function CorporateSocialResponsibilityPage() {
             {/* Quyền Lợi Người Lao Động */}
             <section className="bg-white rounded-lg p-8 shadow-sm">
               <div className="flex items-center mb-4">
-                <span className="text-3xl mr-3">👷</span>
+                <HardHat className="w-8 h-8 mr-3 text-blue-600" />
                 <h2 className="text-2xl font-helvetica-medium">Quyền Lợi Người Lao Động</h2>
               </div>
               <ul className="space-y-3 text-gray-700">
                 <li className="flex items-start">
-                  <span className="text-blue-600 font-bold mr-2">✓</span>
+                  <Check className="w-5 h-5 text-blue-600 font-bold mr-2 mt-0.5" />
                   <span>
                     <strong>Môi Trường Làm Việc An Toàn:</strong> Đảm bảo tiêu chuẩn an toàn lao động theo
                     Luật Lao động Việt Nam và các quy định quốc tế.
                   </span>
                 </li>
                 <li className="flex items-start">
-                  <span className="text-blue-600 font-bold mr-2">✓</span>
+                  <Check className="w-5 h-5 text-blue-600 font-bold mr-2 mt-0.5" />
                   <span>
                     <strong>Lương Công Bằng & Phúc Lợi:</strong> Trả lương tối thiểu theo quy định, bảo hiểm đầy đủ,
                     thưởng hiệu quả và các chế độ phúc lợi khác.
                   </span>
                 </li>
                 <li className="flex items-start">
-                  <span className="text-blue-600 font-bold mr-2">✓</span>
+                  <Check className="w-5 h-5 text-blue-600 font-bold mr-2 mt-0.5" />
                   <span>
                     <strong>Không Phân Biệt Đối Xử:</strong> Tôn trọng đa dạng và bình đẳng giới, không phân biệt
                     chủng tộc, tôn giáo hay giới tính.
                   </span>
                 </li>
                 <li className="flex items-start">
-                  <span className="text-blue-600 font-bold mr-2">✓</span>
+                  <Check className="w-5 h-5 text-blue-600 font-bold mr-2 mt-0.5" />
                   <span>
                     <strong>Đào Tạo & Phát Triển:</strong> Cung cấp chương trình đào tạo kỹ năng, nâng cao tay nghề
                     và cơ hội thăng tiến cho nhân viên.
                   </span>
                 </li>
                 <li className="flex items-start">
-                  <span className="text-blue-600 font-bold mr-2">✓</span>
+                  <Check className="w-5 h-5 text-blue-600 font-bold mr-2 mt-0.5" />
                   <span>
                     <strong>Không Sử Dụng Lao Động Trẻ Em:</strong> Tuân thủ nghiêm ngặt quy định về độ tuổi lao động,
                     không thuê lao động dưới 18 tuổi.
@@ -98,33 +99,33 @@ export default function CorporateSocialResponsibilityPage() {
             {/* Đóng Góp Cộng Đồng */}
             <section className="bg-white rounded-lg p-8 shadow-sm">
               <div className="flex items-center mb-4">
-                <span className="text-3xl mr-3">❤️</span>
+                <Heart className="w-8 h-8 mr-3 text-red-600" />
                 <h2 className="text-2xl font-helvetica-medium">Đóng Góp Cộng Đồng</h2>
               </div>
               <ul className="space-y-3 text-gray-700">
                 <li className="flex items-start">
-                  <span className="text-red-600 font-bold mr-2">✓</span>
+                  <Check className="w-5 h-5 text-red-600 font-bold mr-2 mt-0.5" />
                   <span>
                     <strong>Hỗ Trợ Giáo Dục:</strong> Tài trợ học bổng, xây dựng thư viện và sân chơi cho trẻ em
                     vùng khó khăn.
                   </span>
                 </li>
                 <li className="flex items-start">
-                  <span className="text-red-600 font-bold mr-2">✓</span>
+                  <Check className="w-5 h-5 text-red-600 font-bold mr-2 mt-0.5" />
                   <span>
                     <strong>Khuyến Khích Thể Thao:</strong> Tổ chức giải chạy từ thiện, hỗ trợ vận động viên trẻ
                     và phát triển thể thao cộng đồng.
                   </span>
                 </li>
                 <li className="flex items-start">
-                  <span className="text-red-600 font-bold mr-2">✓</span>
+                  <Check className="w-5 h-5 text-red-600 font-bold mr-2 mt-0.5" />
                   <span>
                     <strong>Từ Thiện & Cứu Trợ:</strong> Ủng hộ các hoàn cảnh khó khăn, cứu trợ thiên tai và
                     hỗ trợ y tế cho người dân.
                   </span>
                 </li>
                 <li className="flex items-start">
-                  <span className="text-red-600 font-bold mr-2">✓</span>
+                  <Check className="w-5 h-5 text-red-600 font-bold mr-2 mt-0.5" />
                   <span>
                     <strong>Hợp Tác Với Nhà Cung Cấp Địa Phương:</strong> Ưu tiên làm việc với các doanh nghiệp
                     và nhà cung cấp Việt Nam để phát triển kinh tế địa phương.
@@ -136,7 +137,7 @@ export default function CorporateSocialResponsibilityPage() {
             {/* Minh Bạch & Báo Cáo */}
             <section className="bg-white rounded-lg p-8 shadow-sm">
               <div className="flex items-center mb-4">
-                <span className="text-3xl mr-3">📊</span>
+                <BarChart className="w-8 h-8 mr-3 text-purple-600" />
                 <h2 className="text-2xl font-helvetica-medium">Minh Bạch & Báo Cáo</h2>
               </div>
               <p className="text-gray-700 leading-relaxed mb-4">
@@ -145,15 +146,15 @@ export default function CorporateSocialResponsibilityPage() {
               </p>
               <ul className="space-y-3 text-gray-700">
                 <li className="flex items-start">
-                  <span className="text-purple-600 font-bold mr-2">✓</span>
+                  <Check className="w-5 h-5 text-purple-600 font-bold mr-2 mt-0.5" />
                   <span>Kiểm toán định kỳ bởi tổ chức độc lập về môi trường và lao động</span>
                 </li>
                 <li className="flex items-start">
-                  <span className="text-purple-600 font-bold mr-2">✓</span>
+                  <Check className="w-5 h-5 text-purple-600 font-bold mr-2 mt-0.5" />
                   <span>Công bố báo cáo tác động xã hội và môi trường hàng quý</span>
                 </li>
                 <li className="flex items-start">
-                  <span className="text-purple-600 font-bold mr-2">✓</span>
+                  <Check className="w-5 h-5 text-purple-600 font-bold mr-2 mt-0.5" />
                   <span>Hệ thống phản hồi mở để tiếp nhận ý kiến từ cộng đồng và khách hàng</span>
                 </li>
               </ul>

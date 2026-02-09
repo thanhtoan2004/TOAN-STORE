@@ -1,9 +1,10 @@
+"use client";
 import React from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { Heart, ShoppingCart } from "lucide-react";
+import { Heart } from "lucide-react";
 import { useWishlist } from "@/contexts/WishlistContext";
-import { useCart } from "@/contexts/CartContext";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 interface ProductCardProps {
   id: string;
@@ -43,8 +44,7 @@ const ProductCard = ({
 
   const { addToWishlist, removeFromWishlist, isInWishlist } = useWishlist();
   const inWishlist = isInWishlist(id);
-  const { addToCart } = useCart();
-  const [adding, setAdding] = React.useState(false);
+  const { t } = useLanguage();
 
   const handleWishlist = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -54,14 +54,6 @@ const ProductCard = ({
     } else {
       addToWishlist({ id, name, category, price, sale_price, image_url, is_new_arrival });
     }
-  };
-
-  const handleAddToCart = async (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setAdding(true);
-    await addToCart(Number(id), 1);
-    setAdding(false);
   };
 
   return (
@@ -76,8 +68,8 @@ const ProductCard = ({
             className="object-cover transition-transform duration-300 group-hover:scale-105"
             loading="lazy"
           />
-          {/* Wishlist & Add to Cart icons */}
-          <div className="absolute top-2 right-2 z-10 flex gap-1">
+          {/* Wishlist icon */}
+          <div className="absolute top-2 right-2 z-10">
             <button
               onClick={handleWishlist}
               className="p-1 rounded-full bg-white/80 hover:bg-white shadow transition-all duration-200"
@@ -85,27 +77,20 @@ const ProductCard = ({
             >
               <Heart size={22} className={`transition-colors duration-200 ${inWishlist ? 'text-red-500 fill-red-500' : 'text-gray-400 hover:text-red-500'}`} fill={inWishlist ? 'currentColor' : 'none'} />
             </button>
-            <button
-              onClick={handleAddToCart}
-              className="p-1 rounded-full bg-white/80 hover:bg-white shadow transition-all duration-200 disabled:opacity-50"
-              aria-label="Thêm vào giỏ hàng"
-              disabled={adding}
-            >
-              <ShoppingCart size={22} className={`transition-colors duration-200 ${adding ? 'text-gray-300' : 'text-gray-500 hover:text-black'}`} />
-            </button>
           </div>
-          {/* Thẻ giảm giá */}
-          {hasDiscount && (
-            <div className="absolute left-2 top-2 bg-red-600 px-2 py-1 text-xs font-bold text-white rounded">
-              -{discountPercent}%
-            </div>
-          )}
-          {/* Thẻ sản phẩm mới */}
-          {is_new_arrival && !hasDiscount && (
-            <div className="absolute left-2 top-2 bg-black px-2 py-1 text-xs font-bold text-white rounded">
-              MỚI
-            </div>
-          )}
+          {/* Các thẻ badges (Giảm giá & Mới) */}
+          <div className="absolute left-2 top-2 z-10 flex flex-col gap-1 items-start">
+            {!!is_new_arrival && (
+              <div className="bg-black px-2 py-1 text-xs font-bold text-white rounded shadow-sm min-w-[50px] text-center">
+                {t.product.new || 'Mới'}
+              </div>
+            )}
+            {hasDiscount && (
+              <div className="bg-red-600 px-2 py-1 text-xs font-bold text-white rounded shadow-sm min-w-[50px] text-center">
+                -{discountPercent}%
+              </div>
+            )}
+          </div>
         </div>
         {/* Chi tiết sản phẩm */}
         <div className="space-y-1">

@@ -4,8 +4,9 @@ import { useEffect } from 'react';
 // import React from 'react';
 import Link from 'next/link'
 import Image from 'next/image'
-import { Search, Heart } from 'lucide-react'
+import { Heart, Menu, ChevronDown } from 'lucide-react'
 import { CartIcon } from '@/components/ui/cart'
+import SearchBar from '@/components/ui/SearchBar'
 import { useWishlist } from "@/contexts/WishlistContext";
 import {
   DropdownMenu,
@@ -62,9 +63,7 @@ const Header = () => {
                 <DropdownMenu>
                   <DropdownMenuTrigger className="hover:text-black text-[#757575] flex items-center gap-1">
                     {t.common.hello}, {(user as any)?.firstName && (user as any)?.lastName ? `${(user as any).firstName} ${(user as any).lastName}` : user?.email}
-                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                    </svg>
+                    <ChevronDown className="w-3 h-3" />
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="w-48">
                     <DropdownMenuItem asChild>
@@ -120,28 +119,20 @@ const Header = () => {
 
           {/* Search & Icons */}
           <div className="flex items-center space-x-4">
-            <form
-              action="/search"
-              method="get"
-              className="hidden md:flex items-center bg-[#f5f5f5] rounded-full px-3 py-2"
+            <div className="hidden md:block w-64">
+              <SearchBar />
+            </div>
+            <Link
+              href="/wishlist"
+              className="relative p-2 hover:bg-gray-100 rounded-lg transition-colors group text-black"
+              aria-label={t.common.wishlist}
             >
-              <Search className="w-4 h-4 text-zinc-500" />
-              <input
-                type="text"
-                name="q"
-                placeholder={t.common.search}
-                className="bg-transparent border-none outline-none px-2 text-sm w-32"
-              />
-            </form>
-            <Link href="/wishlist">
-              <button className="relative p-2 hover:bg-gray-100 rounded-lg transition-colors">
-                <Heart className="w-6 h-6" />
-                {wishlist.length > 0 && (
-                  <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center border border-white z-20">
-                    {wishlist.length}
-                  </span>
-                )}
-              </button>
+              <Heart className="w-6 h-6" />
+              {wishlist.length > 0 && (
+                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold rounded-full w-4.5 h-4.5 flex items-center justify-center border-2 border-white z-20 min-w-[18px] px-1">
+                  {wishlist.length}
+                </span>
+              )}
             </Link>
             <CartIcon />
           </div>
@@ -149,12 +140,10 @@ const Header = () => {
       </div>
 
       {/* Mobile menu button - only shows on small screens */}
-      <div className="md:hidden nike-container pb-2">
+      <div className="md:hidden nike-container pb-2 text-black">
         <button className="flex items-center space-x-1 text-sm">
-          <span>Menu</span>
-          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M6 9l6 6 6-6" />
-          </svg>
+          <span>{t.common.menu}</span>
+          <Menu className="w-4 h-4" />
         </button>
       </div>
     </header>

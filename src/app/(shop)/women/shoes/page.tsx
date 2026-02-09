@@ -3,35 +3,18 @@
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
+import { useProducts } from '@/hooks/queries/useProducts';
 
-interface Product {
-  id: number;
-  name: string;
-  base_price: number;
-  retail_price: number;
-  image_url: string;
-  category: string;
-}
+
 
 export default function WomenShoesPage() {
-  const [products, setProducts] = useState<Product[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { data, isLoading: loading } = useProducts({
+    gender: 'women',
+    category: 'shoes',
+    limit: 24
+  });
 
-  useEffect(() => {
-    fetchProducts();
-  }, []);
-
-  const fetchProducts = async () => {
-    try {
-      const response = await fetch('/api/products?gender=women&category=shoes&limit=24');
-      const data = await response.json();
-      setProducts(data.products || []);
-    } catch (error) {
-      console.error('Error fetching products:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const products = data?.products || [];
 
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat('vi-VN', {
@@ -85,10 +68,10 @@ export default function WomenShoesPage() {
                     <p className="text-sm text-gray-600 mb-1">{product.category}</p>
                     <h3 className="font-medium mb-2 line-clamp-2">{product.name}</h3>
                     <div className="flex items-center gap-2">
-                      {product.base_price < product.retail_price ? (
+                      {product.base_price < (product.retail_price ?? product.base_price) ? (
                         <>
                           <span className="font-medium">{formatPrice(product.base_price)}</span>
-                          <span className="text-sm text-gray-500 line-through">{formatPrice(product.retail_price)}</span>
+                          <span className="text-sm text-gray-500 line-through">{formatPrice(product.retail_price || 0)}</span>
                         </>
                       ) : (
                         <span className="font-medium">{formatPrice(product.retail_price || product.base_price)}</span>

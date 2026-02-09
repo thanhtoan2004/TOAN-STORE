@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
+import { Button } from "@/components/ui/Button";
 
 interface Coupon {
   id: number;
@@ -147,7 +148,7 @@ export default function VouchersPage() {
                 <div className="col-span-full text-center py-12">
                   <p className="text-gray-600 text-lg mb-4">Hiện chưa có voucher nào</p>
                   <Link href="/">
-                    <button className="shop-button">Quay lại trang chủ</button>
+                    <Button className="rounded-full">Quay lại trang chủ</Button>
                   </Link>
                 </div>
               ) : (
@@ -165,12 +166,15 @@ export default function VouchersPage() {
                       <div className="mb-4">
                         <div className="flex items-center justify-between mb-2">
                           <span className="text-sm text-gray-600">Mã voucher:</span>
-                          <button
+                          <span className="text-sm text-gray-600">Mã voucher:</span>
+                          <Button
+                            variant="ghost"
+                            size="sm"
                             onClick={() => copyToClipboard(coupon.code)}
-                            className="text-sm text-blue-600 hover:text-blue-800"
+                            className="text-blue-600 hover:text-blue-800 hover:bg-blue-50 h-auto p-0 px-2"
                           >
                             Sao chép
-                          </button>
+                          </Button>
                         </div>
                         <div className="bg-gray-100 rounded-lg px-4 py-3 text-center">
                           <span className="text-xl font-bold tracking-wider">{coupon.code}</span>
@@ -192,9 +196,9 @@ export default function VouchersPage() {
 
                       <div className="mt-4 pt-4 border-t">
                         <Link href="/checkout">
-                          <button className="w-full px-4 py-2 bg-black text-white rounded-lg font-medium hover:bg-gray-800 transition">
+                          <Button className="w-full rounded-lg">
                             Sử dụng ngay
-                          </button>
+                          </Button>
                         </Link>
                       </div>
                     </div>
@@ -238,9 +242,9 @@ export default function VouchersPage() {
               <div className="text-center py-12">
                 <p className="text-gray-600 text-lg mb-4">Bạn chưa sử dụng voucher nào</p>
                 <Link href="/vouchers">
-                  <button className="shop-button" onClick={() => setActiveTab('list')}>
+                  <Button className="rounded-full" onClick={() => setActiveTab('list')}>
                     Xem Danh Sách Voucher
-                  </button>
+                  </Button>
                 </Link>
               </div>
             ) : (

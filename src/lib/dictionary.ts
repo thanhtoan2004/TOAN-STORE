@@ -31,8 +31,8 @@ export const dictionary = {
             default: 'Mặc định',
             add_address: 'Thêm địa chỉ mới',
             set_default: 'Đặt làm mặc định',
-            first_name: 'Họ',
-            last_name: 'Tên',
+            first_name: 'Tên',
+            last_name: 'Họ',
             email: 'Email',
             phone: 'Số điện thoại',
             dob: 'Ngày sinh',
@@ -130,6 +130,9 @@ export const dictionary = {
             save: 'Tiết kiệm',
             free_shipping: 'Miễn phí giao hàng cho đơn hàng trên 1,500,000₫',
             free_return: 'Đổi trả miễn phí trong 30 ngày',
+            new: 'Mới',
+            add_to_wishlist: 'Thêm vào yêu thích',
+            in_wishlist: 'Đã thêm vào yêu thích',
         },
         footer: {
             get_help: 'HỖ TRỢ',
@@ -289,6 +292,12 @@ export const dictionary = {
             login_desc: 'Bạn cần đăng nhập để xem danh sách yêu thích',
             return_shop: 'Quay lại mua sắm',
             loading: 'Đang tải danh sách yêu thích...',
+        },
+        not_found: {
+            title: 'Không tìm thấy trang',
+            desc: 'Có vẻ như đôi giày này đã được bán sạch hoặc đường dẫn này không còn tồn tại nữa. Đừng lo, vẫn còn rất nhiều sản phẩm tuyệt vời khác đang chờ bạn.',
+            back_home: 'Về Trang Chủ',
+            shop_now: 'Tiếp Tục Mua Sắm',
         }
     },
     en: {
@@ -420,6 +429,9 @@ export const dictionary = {
             save: 'Save',
             free_shipping: 'Free shipping for orders over 1,500,000₫',
             free_return: 'Free returns within 30 days',
+            new: 'New',
+            add_to_wishlist: 'Add to Wishlist',
+            in_wishlist: 'In Wishlist',
         },
         footer: {
             get_help: 'GET HELP',
@@ -579,6 +591,12 @@ export const dictionary = {
             login_desc: 'You need to be logged in to view your wishlist',
             return_shop: 'Return to Shop',
             loading: 'Loading wishlist...',
+        },
+        not_found: {
+            title: 'Page Not Found',
+            desc: "It looks like these shoes have sold out or this link no longer exists. Don't worry, there are plenty of other great products waiting for you.",
+            back_home: 'Back to Home',
+            shop_now: 'Continue Shopping',
         }
     }
 };

@@ -1,37 +1,39 @@
 import React from 'react';
 import Link from 'next/link';
 
+import { Laptop, Palette, Megaphone, ShoppingBag, Settings, Users } from 'lucide-react';
+
 export default function CareersPage() {
   const departments = [
     {
       name: 'Công Nghệ',
       description: 'Phát triển sản phẩm và công nghệ mới',
-      icon: '💻'
+      icon: <Laptop className="w-8 h-8 text-black" />
     },
     {
       name: 'Thiết Kế',
       description: 'Tạo ra những thiết kế sáng tạo và đột phá',
-      icon: '🎨'
+      icon: <Palette className="w-8 h-8 text-black" />
     },
     {
       name: 'Marketing',
       description: 'Xây dựng thương hiệu và kết nối với khách hàng',
-      icon: '📢'
+      icon: <Megaphone className="w-8 h-8 text-black" />
     },
     {
       name: 'Bán Hàng',
       description: 'Phục vụ khách hàng và phát triển kinh doanh',
-      icon: '🛍️'
+      icon: <ShoppingBag className="w-8 h-8 text-black" />
     },
     {
       name: 'Vận Hành',
       description: 'Đảm bảo hoạt động hiệu quả của công ty',
-      icon: '⚙️'
+      icon: <Settings className="w-8 h-8 text-black" />
     },
     {
       name: 'Nhân Sự',
       description: 'Phát triển đội ngũ và văn hóa công ty',
-      icon: '👥'
+      icon: <Users className="w-8 h-8 text-black" />
     }
   ];
 

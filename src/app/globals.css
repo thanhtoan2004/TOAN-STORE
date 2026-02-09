@@ -109,10 +109,7 @@
   font-family: 'HelveticaNowDisplayMedium', sans-serif;
 }
 
-.shop-button {
-  @apply bg-black text-white py-1.5 px-5 rounded-full hover:bg-zinc-800 transition-colors;
-  font-family: 'HelveticaNowTextMedium', sans-serif;
-}
+
 
 .nike-container {
   @apply max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8;

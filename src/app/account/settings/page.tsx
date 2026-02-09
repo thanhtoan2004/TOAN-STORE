@@ -5,7 +5,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { User, Lock, MapPin, Package, Heart, Bell, CreditCard, Shield, Palette, Star, Award } from 'lucide-react';
+import { User, Lock, MapPin, Package, Heart, Bell, CreditCard, Shield, Palette, Star, Award, Building2, Wallet } from 'lucide-react';
 
 export default function AccountSettings() {
   const { t, language: currentLang, setLanguage } = useLanguage();
@@ -74,13 +74,24 @@ export default function AccountSettings() {
       setReturnUrl(returnUrlParam);
     }
 
+    const formatDateForInput = (dateStr: string | undefined) => {
+      if (!dateStr) return '';
+      try {
+        const date = new Date(dateStr);
+        if (isNaN(date.getTime())) return '';
+        return date.toISOString().split('T')[0];
+      } catch (e) {
+        return '';
+      }
+    };
+
     if (user) {
       setFormData({
         firstName: user.firstName || '',
         lastName: user.lastName || '',
         email: user.email || '',
         phone: user.phone || '',
-        dateOfBirth: user.dateOfBirth || '',
+        dateOfBirth: formatDateForInput(user.dateOfBirth),
         gender: user.gender || ''
       });
 
@@ -276,8 +287,8 @@ export default function AccountSettings() {
   // Helper function to calculate progress
   const getMembershipProgress = (points: number, tier: string) => {
     if (tier === 'gold') return 100;
-    if (tier === 'silver') return Math.min(100, (points - 1000) / (5000 - 1000) * 100);
-    return Math.min(100, points / 1000 * 100);
+    if (tier === 'silver') return Math.max(0, Math.min(100, (points - 1000) / (5000 - 1000) * 100));
+    return Math.max(0, Math.min(100, points / 1000 * 100));
   };
 
   const getNextTierPoints = (tier: string) => {
@@ -441,16 +452,36 @@ export default function AccountSettings() {
 
               {activeTab === 'personal' && (
                 <div>
-                  <h2 className="text-2xl font-semibold mb-6">{t.common.profile}</h2>
+                  <div className="flex items-center justify-between mb-6">
+                    <h2 className="text-2xl font-semibold">{t.common.profile}</h2>
+                    <div className="flex gap-2">
+                      {user?.membershipTier && (
+                        <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider ${getTierColor(user.membershipTier)}`}>
+                          {user.membershipTier}
+                        </span>
+                      )}
+                      {!!user?.isVerified && (
+                        <span className="px-3 py-1 bg-blue-50 text-blue-600 rounded-full text-xs font-bold flex items-center gap-1 border border-blue-100">
+                          <Star className="w-3 h-3 fill-current" />
+                          Verified
+                        </span>
+                      )}
+                      {!!user?.is_admin && (
+                        <span className="px-3 py-1 bg-purple-50 text-purple-600 rounded-full text-xs font-bold border border-purple-100">
+                          Admin
+                        </span>
+                      )}
+                    </div>
+                  </div>
                   <form onSubmit={handleSubmit} className="space-y-6" autoComplete="off">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
                         <label className="block text-sm font-medium mb-2">{t.common.last_name} *</label>
-                        <input type="text" name="firstName" value={formData.firstName} onChange={handleChange} required autoComplete="given-name" className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-black focus:border-transparent" />
+                        <input type="text" name="lastName" value={formData.lastName} onChange={handleChange} required autoComplete="family-name" className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-black focus:border-transparent" />
                       </div>
                       <div>
                         <label className="block text-sm font-medium mb-2">{t.common.first_name} *</label>
-                        <input type="text" name="lastName" value={formData.lastName} onChange={handleChange} required autoComplete="family-name" className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-black focus:border-transparent" />
+                        <input type="text" name="firstName" value={formData.firstName} onChange={handleChange} required autoComplete="given-name" className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-black focus:border-transparent" />
                       </div>
                     </div>
                     <div>
@@ -825,17 +856,26 @@ export default function AccountSettings() {
                       <h3 className="font-medium mb-2">Phương thức thanh toán</h3>
                       <p className="text-sm text-gray-600 mb-4">Quản lý các phương thức thanh toán của bạn</p>
                       <div className="space-y-2">
-                        <div className="p-3 border rounded bg-gray-50">
-                          <p className="text-sm font-medium">💳 Thẻ tín dụng / Ghi nợ</p>
-                          <p className="text-xs text-gray-500">Thêm hoặc quản lý thẻ của bạn</p>
+                        <div className="p-3 border rounded bg-gray-50 flex items-center gap-3">
+                          <CreditCard className="w-5 h-5 text-gray-600" />
+                          <div>
+                            <p className="text-sm font-medium">Thẻ tín dụng / Ghi nợ</p>
+                            <p className="text-xs text-gray-500">Thêm hoặc quản lý thẻ của bạn</p>
+                          </div>
                         </div>
-                        <div className="p-3 border rounded bg-gray-50">
-                          <p className="text-sm font-medium">🏦 Chuyển khoản ngân hàng</p>
-                          <p className="text-xs text-gray-500">Thanh toán trực tiếp từ tài khoản ngân hàng</p>
+                        <div className="p-3 border rounded bg-gray-50 flex items-center gap-3">
+                          <Building2 className="w-5 h-5 text-gray-600" />
+                          <div>
+                            <p className="text-sm font-medium">Chuyển khoản ngân hàng</p>
+                            <p className="text-xs text-gray-500">Thanh toán trực tiếp từ tài khoản ngân hàng</p>
+                          </div>
                         </div>
-                        <div className="p-3 border rounded bg-gray-50">
-                          <p className="text-sm font-medium">💰 Ví điện tử</p>
-                          <p className="text-xs text-gray-500">Liên kết ví điện tử của bạn</p>
+                        <div className="p-3 border rounded bg-gray-50 flex items-center gap-3">
+                          <Wallet className="w-5 h-5 text-gray-600" />
+                          <div>
+                            <p className="text-sm font-medium">Ví điện tử</p>
+                            <p className="text-xs text-gray-500">Liên kết ví điện tử của bạn</p>
+                          </div>
                         </div>
                       </div>
                     </div>

@@ -2,7 +2,8 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { MessageSquare, X, Send, Loader2, Sparkles } from 'lucide-react';
+import { MessageSquare, X, Send, Loader2, Sparkles, Headphones } from 'lucide-react';
+import LiveSupportChat from './LiveSupportChat';
 
 interface Message {
     id: string;
@@ -10,8 +11,22 @@ interface Message {
     content: string;
 }
 
+import { useAuth } from '@/contexts/AuthContext';
+
+type ChatMode = 'ai' | 'live';
+
+import { usePathname } from 'next/navigation';
+
 export default function ChatWidget() {
+    const pathname = usePathname();
     const [isOpen, setIsOpen] = useState(false);
+
+    // Don't show chat widget on admin pages
+    if (pathname?.startsWith('/admin')) return null;
+
+    const [chatMode, setChatMode] = useState<ChatMode>('ai');
+    const { user } = useAuth();
+    const userId = user?.id ? parseInt(user.id.toString()) : undefined;
     const [messages, setMessages] = useState<Message[]>([
         {
             id: 'welcome',
@@ -100,8 +115,12 @@ export default function ChatWidget() {
                         {/* Header */}
                         <div className="bg-black text-white p-4 flex justify-between items-center">
                             <div className="flex items-center gap-2">
-                                <Sparkles size={18} className="text-yellow-400" />
-                                <h3 className="font-bold">Nike Chatbox</h3>
+                                {chatMode === 'ai' ? (
+                                    <Sparkles size={18} className="text-yellow-400" />
+                                ) : (
+                                    <Headphones size={18} className="text-green-400" />
+                                )}
+                                <h3 className="font-bold">Nike Support</h3>
                             </div>
                             <button
                                 onClick={() => setIsOpen(false)}
@@ -111,54 +130,89 @@ export default function ChatWidget() {
                             </button>
                         </div>
 
-                        {/* Messages */}
-                        <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50">
-                            {messages.map((msg) => (
-                                <div
-                                    key={msg.id}
-                                    className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
-                                >
-                                    <div
-                                        className={`max-w-[80%] px-4 py-3 rounded-2xl text-sm ${msg.role === 'user'
-                                            ? 'bg-black text-white rounded-tr-sm'
-                                            : 'bg-white border border-gray-200 text-gray-800 rounded-tl-sm shadow-sm'
-                                            }`}
-                                    >
-                                        {msg.content}
-                                    </div>
+                        {/* Tabs */}
+                        <div className="flex border-b border-gray-200 bg-white">
+                            <button
+                                onClick={() => setChatMode('ai')}
+                                className={`flex-1 py-3 text-sm font-medium transition-colors ${chatMode === 'ai'
+                                    ? 'text-black border-b-2 border-black'
+                                    : 'text-gray-500 hover:text-gray-700'
+                                    }`}
+                            >
+                                <div className="flex items-center justify-center gap-2">
+                                    <Sparkles size={16} />
+                                    <span>AI Assistant</span>
                                 </div>
-                            ))}
-                            {isLoading && (
-                                <div className="flex justify-start">
-                                    <div className="bg-white border border-gray-200 px-4 py-3 rounded-2xl rounded-tl-sm shadow-sm flex items-center gap-2">
-                                        <Loader2 size={16} className="animate-spin text-gray-500" />
-                                        <span className="text-xs text-gray-400">Đang trả lời...</span>
-                                    </div>
+                            </button>
+                            <button
+                                onClick={() => setChatMode('live')}
+                                className={`flex-1 py-3 text-sm font-medium transition-colors ${chatMode === 'live'
+                                    ? 'text-black border-b-2 border-black'
+                                    : 'text-gray-500 hover:text-gray-700'
+                                    }`}
+                            >
+                                <div className="flex items-center justify-center gap-2">
+                                    <Headphones size={16} />
+                                    <span>Live Support</span>
                                 </div>
-                            )}
-                            <div ref={messagesEndRef} />
+                            </button>
                         </div>
 
-                        {/* Input */}
-                        <form onSubmit={handleSubmit} className="p-4 bg-white border-t border-gray-100">
-                            <div className="flex gap-2">
-                                <input
-                                    type="text"
-                                    value={inputValue}
-                                    onChange={(e) => setInputValue(e.target.value)}
-                                    placeholder="Hỏi gì đó..."
-                                    className="flex-1 px-4 py-2 border border-gray-200 rounded-full focus:outline-none focus:border-black focus:ring-1 focus:ring-black text-sm"
-                                    disabled={isLoading}
-                                />
-                                <button
-                                    type="submit"
-                                    disabled={!inputValue.trim() || isLoading}
-                                    className="p-2 bg-black text-white rounded-full hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                                >
-                                    <Send size={18} />
-                                </button>
-                            </div>
-                        </form>
+                        {/* Content */}
+                        {chatMode === 'ai' ? (
+                            <>
+                                {/* AI Messages */}
+                                <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50">
+                                    {messages.map((msg) => (
+                                        <div
+                                            key={msg.id}
+                                            className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
+                                        >
+                                            <div
+                                                className={`max-w-[80%] px-4 py-3 rounded-2xl text-sm ${msg.role === 'user'
+                                                    ? 'bg-black text-white rounded-tr-sm'
+                                                    : 'bg-white border border-gray-200 text-gray-800 rounded-tl-sm shadow-sm'
+                                                    }`}
+                                            >
+                                                {msg.content}
+                                            </div>
+                                        </div>
+                                    ))}
+                                    {isLoading && (
+                                        <div className="flex justify-start">
+                                            <div className="bg-white border border-gray-200 px-4 py-3 rounded-2xl rounded-tl-sm shadow-sm flex items-center gap-2">
+                                                <Loader2 size={16} className="animate-spin text-gray-500" />
+                                                <span className="text-xs text-gray-400">Đang trả lời...</span>
+                                            </div>
+                                        </div>
+                                    )}
+                                    <div ref={messagesEndRef} />
+                                </div>
+
+                                {/* AI Input */}
+                                <form onSubmit={handleSubmit} className="p-4 bg-white border-t border-gray-100">
+                                    <div className="flex gap-2">
+                                        <input
+                                            type="text"
+                                            value={inputValue}
+                                            onChange={(e) => setInputValue(e.target.value)}
+                                            placeholder="Hỏi gì đó..."
+                                            className="flex-1 px-4 py-2 border border-gray-200 rounded-full focus:outline-none focus:border-black focus:ring-1 focus:ring-black text-sm"
+                                            disabled={isLoading}
+                                        />
+                                        <button
+                                            type="submit"
+                                            disabled={!inputValue.trim() || isLoading}
+                                            className="p-2 bg-black text-white rounded-full hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                        >
+                                            <Send size={18} />
+                                        </button>
+                                    </div>
+                                </form>
+                            </>
+                        ) : (
+                            <LiveSupportChat userId={userId} guestEmail={undefined} guestName={undefined} />
+                        )}
                     </motion.div>
                 )}
             </AnimatePresence>

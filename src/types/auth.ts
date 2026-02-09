@@ -13,6 +13,8 @@ export interface User {
   is_verified?: boolean;
   is_admin?: boolean;
   is_banned?: number | string | boolean;
+  accumulatedPoints?: number;
+  membershipTier?: string;
   created_at?: string;
   updated_at?: string;
 }
@@ -29,6 +31,8 @@ export interface UserWithoutPassword {
   isActive?: boolean;
   isVerified?: boolean;
   is_admin?: boolean;
+  accumulatedPoints?: number;
+  membershipTier?: string;
   created_at?: string;
   updated_at?: string;
 }

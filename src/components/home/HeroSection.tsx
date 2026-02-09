@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { Play } from 'lucide-react'
+import { Button } from '@/components/ui/Button'
 
 import { useLanguage } from '@/contexts/LanguageContext';
 
@@ -58,9 +59,9 @@ const HeroSection = () => {
             {t.home.hero_subtitle}
           </p>
           <Link href="/collection/sophia-smith">
-            <button className="shop-button">
+            <Button className="rounded-full px-6 py-6 text-base">
               {t.home.shop_now}
-            </button>
+            </Button>
           </Link>
         </div>
       </div>

@@ -1,5 +1,5 @@
-import React from 'react';
 import Link from 'next/link';
+import { Ruler, Sparkles, ShoppingCart, RotateCcw, CreditCard, HelpCircle } from 'lucide-react';
 
 export default function GuidesPage() {
   const guides = [
@@ -7,37 +7,37 @@ export default function GuidesPage() {
       title: 'Hướng Dẫn Chọn Size Giày',
       description: 'Tìm hiểu cách chọn size giày phù hợp với chân của bạn',
       href: '/help/size-guide',
-      icon: '👟'
+      icon: <Ruler className="w-8 h-8 text-black" />
     },
     {
       title: 'Hướng Dẫn Chăm Sóc Sản Phẩm',
       description: 'Cách giặt và bảo quản sản phẩm Nike của bạn',
       href: '/help/care',
-      icon: '🧼'
+      icon: <Sparkles className="w-8 h-8 text-black" />
     },
     {
       title: 'Hướng Dẫn Đặt Hàng',
       description: 'Các bước đặt hàng và thanh toán trên website',
       href: '/help/ordering',
-      icon: '🛒'
+      icon: <ShoppingCart className="w-8 h-8 text-black" />
     },
     {
       title: 'Hướng Dẫn Trả Hàng',
       description: 'Quy trình trả hàng và hoàn tiền',
       href: '/help/returns',
-      icon: '↩️'
+      icon: <RotateCcw className="w-8 h-8 text-black" />
     },
     {
       title: 'Hướng Dẫn Thanh Toán',
       description: 'Các phương thức thanh toán được chấp nhận',
       href: '/help/payment-options',
-      icon: '💳'
+      icon: <CreditCard className="w-8 h-8 text-black" />
     },
     {
       title: 'Câu Hỏi Thường Gặp',
       description: 'Tìm câu trả lời cho các câu hỏi phổ biến',
       href: '/help',
-      icon: '❓'
+      icon: <HelpCircle className="w-8 h-8 text-black" />
     }
   ];
 

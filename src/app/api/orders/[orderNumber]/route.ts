@@ -83,7 +83,7 @@ export async function PUT(
     }
 
     // Validate trạng thái hợp lệ
-    const validStatuses = ['pending', 'processing', 'shipped', 'delivered', 'cancelled'];
+    const validStatuses = ['pending', 'pending_payment_confirmation', 'payment_received', 'processing', 'shipped', 'delivered', 'cancelled'];
     if (status && !validStatuses.includes(status)) {
       return NextResponse.json(
         { success: false, message: 'Trạng thái không hợp lệ' },

@@ -6,6 +6,8 @@ import Image from 'next/image';
 import { useCart } from '@/contexts/CartContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { Button } from '@/components/ui/Button';
+import { ShoppingCart, Truck, ShieldCheck, PartyPopper, Lightbulb } from 'lucide-react';
 
 export default function CartPage() {
   const { t } = useLanguage();
@@ -72,9 +74,9 @@ export default function CartPage() {
           <h2 className="text-2xl font-bold mb-4">{t.common.login}</h2>
           <p className="text-gray-600 mb-6">{t.auth.sign_in_title}</p>
           <Link href="/sign-in">
-            <button className="shop-button">
+            <Button className="rounded-full px-6 py-6">
               {t.common.login}
-            </button>
+            </Button>
           </Link>
         </div>
       </div>
@@ -119,20 +121,20 @@ export default function CartPage() {
           // Empty Cart
           <div className="text-center py-16">
             <div className="w-24 h-24 mx-auto mb-6 bg-gray-100 rounded-full flex items-center justify-center">
-              <span className="text-4xl">🛒</span>
+              <ShoppingCart className="w-12 h-12 text-gray-400" />
             </div>
             <h2 className="text-2xl font-helvetica-medium mb-4">{t.cart.empty}</h2>
             <p className="text-gray-600 mb-8">{t.cart.empty_desc}</p>
             <div className="space-y-4">
               <Link href="/men">
-                <button className="shop-button mr-4">
+                <Button className="rounded-full px-6 py-6 mr-4">
                   {t.cart.shop_men}
-                </button>
+                </Button>
               </Link>
               <Link href="/women">
-                <button className="shop-button">
+                <Button className="rounded-full px-6 py-6">
                   {t.cart.shop_women}
-                </button>
+                </Button>
               </Link>
             </div>
           </div>
@@ -145,12 +147,14 @@ export default function CartPage() {
                 <div className="p-6 border-b">
                   <div className="flex items-center justify-between">
                     <h2 className="text-xl font-helvetica-medium">{t.cart.bag}</h2>
-                    <button
+                    <Button
+                      variant="ghost"
+                      size="sm"
                       onClick={handleClearCart}
-                      className="text-red-600 hover:text-red-800 text-sm"
+                      className="text-red-600 hover:text-red-800 hover:bg-red-50"
                     >
                       {t.cart.remove}
-                    </button>
+                    </Button>
                   </div>
                 </div>
                 <div className="divide-y">
@@ -185,23 +189,27 @@ export default function CartPage() {
                           <div className="flex items-center justify-between mt-4">
                             {/* Quantity Controls */}
                             <div className="flex items-center border rounded-lg">
-                              <button
+                              <Button
+                                variant="ghost"
+                                size="sm"
                                 onClick={() => handleUpdateQuantity(item.id, item.quantity - 1)}
                                 disabled={item.quantity <= 1 || updating === item.id}
-                                className="p-2 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                                className="h-8 w-8 p-0 rounded-none disabled:opacity-50"
                               >
                                 -
-                              </button>
-                              <span className="px-4 py-2 min-w-[60px] text-center">
+                              </Button>
+                              <span className="px-4 py-2 min-w-[40px] text-center text-sm">
                                 {updating === item.id ? '...' : item.quantity}
                               </span>
-                              <button
+                              <Button
+                                variant="ghost"
+                                size="sm"
                                 onClick={() => handleUpdateQuantity(item.id, item.quantity + 1)}
                                 disabled={item.quantity >= item.stock || updating === item.id}
-                                className="p-2 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                                className="h-8 w-8 p-0 rounded-none disabled:opacity-50"
                               >
                                 +
-                              </button>
+                              </Button>
                             </div>
 
                             {/* Price */}
@@ -218,13 +226,15 @@ export default function CartPage() {
                           </div>
 
                           {/* Remove Button */}
-                          <button
+                          <Button
+                            variant="link"
+                            size="sm"
                             onClick={() => handleRemoveItem(item.id)}
                             disabled={updating === item.id}
-                            className="mt-3 text-red-600 hover:text-red-800 text-sm disabled:opacity-50"
+                            className="mt-2 text-red-600 hover:text-red-800 p-0 h-auto font-normal"
                           >
                             {updating === item.id ? t.common.loading : t.cart.remove}
-                          </button>
+                          </Button>
                         </div>
                       </div>
                     </div>
@@ -261,14 +271,16 @@ export default function CartPage() {
                   </div>
 
                   {shippingFee === 0 && subtotal < 1000000 && (
-                    <div className="text-sm text-green-600 bg-green-50 p-3 rounded">
-                      🎉 {t.cart.free_shipping_msg}
+                    <div className="text-sm text-green-600 bg-green-50 p-3 rounded flex items-center">
+                      <PartyPopper className="w-4 h-4 mr-2" />
+                      {t.cart.free_shipping_msg}
                     </div>
                   )}
 
                   {shippingFee > 0 && (
-                    <div className="text-sm text-blue-600 bg-blue-50 p-3 rounded">
-                      💡 {t.cart.free_shipping_msg} {/* Simplify logic for now, or add specific key if needed */}
+                    <div className="text-sm text-blue-600 bg-blue-50 p-3 rounded flex items-center">
+                      <Lightbulb className="w-4 h-4 mr-2" />
+                      {t.cart.free_shipping_msg} {/* Simplify logic for now, or add specific key if needed */}
                     </div>
                   )}
 
@@ -282,26 +294,26 @@ export default function CartPage() {
 
                 <div className="mt-8 space-y-3">
                   <Link href="/checkout">
-                    <button className="w-full shop-button text-lg py-3">
+                    <Button className="w-full text-lg py-6 rounded-full" size="lg">
                       {t.cart.checkout}
-                    </button>
+                    </Button>
                   </Link>
 
                   <Link href="/">
-                    <button className="w-full border border-gray-300 text-gray-700 py-3 rounded-full hover:bg-gray-50 transition-colors">
+                    <Button variant="outline" className="w-full text-lg py-6 rounded-full border-gray-300 text-gray-700 hover:bg-gray-50" size="lg">
                       {t.orders.shop_now}
-                    </button>
+                    </Button>
                   </Link>
                 </div>
 
                 <div className="mt-6 pt-6 border-t">
                   <div className="grid grid-cols-2 gap-4 text-center text-sm text-gray-600">
                     <div>
-                      <div className="mb-2">🚚</div>
+                      <div className="mb-2 flex justify-center"><Truck className="w-6 h-6" /></div>
                       <p>{t.footer.shipping}</p>
                     </div>
                     <div>
-                      <div className="mb-2">🔒</div>
+                      <div className="mb-2 flex justify-center"><ShieldCheck className="w-6 h-6" /></div>
                       <p>{t.common.security}</p>
                     </div>
                     {/* ... other icons ... */}

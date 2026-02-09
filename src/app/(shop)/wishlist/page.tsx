@@ -6,6 +6,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Heart } from "lucide-react";
 import ProductCard from "@/components/ui/products/ProductCard";
 import { useLanguage } from '@/contexts/LanguageContext';
+import { Button } from "@/components/ui/Button";
 
 export default function WishlistPage() {
   const { wishlist, loading, removeFromWishlist } = useWishlist();
@@ -21,9 +22,9 @@ export default function WishlistPage() {
           <h2 className="text-2xl font-bold mb-2">{t.wishlist.login_required}</h2>
           <p className="text-gray-600 mb-6">{t.wishlist.login_desc}</p>
           <Link href="/sign-in">
-            <button className="shop-button">
+            <Button className="rounded-full">
               {t.common.login}
-            </button>
+            </Button>
           </Link>
         </div>
       </div>
@@ -47,7 +48,11 @@ export default function WishlistPage() {
         <Heart size={48} className="mx-auto mb-4 text-gray-300" />
         <h2 className="text-2xl font-bold mb-2">{t.wishlist.empty_title}</h2>
         <p className="text-gray-500 mb-6">{t.wishlist.empty_desc}</p>
-        <Link href="/" className="inline-block px-6 py-3 bg-black text-white rounded-lg font-medium hover:bg-gray-800 transition">{t.wishlist.return_shop}</Link>
+        <Link href="/">
+          <Button className="rounded-full px-6 py-6">
+            {t.wishlist.return_shop}
+          </Button>
+        </Link>
       </div>
     );
   }

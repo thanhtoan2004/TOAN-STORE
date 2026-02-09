@@ -29,6 +29,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
     { name: 'Vouchers', href: '/admin/vouchers' },
     { name: 'Banners', href: '/admin/banners' },
     { name: 'News', href: '/admin/news' },
+    { name: 'Support', href: '/admin/support' },
     { name: 'Settings', href: '/admin/settings' },
   ];
 
@@ -85,8 +86,8 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
                 key={item.name}
                 href={item.href}
                 className={`block px-6 py-3 text-sm font-medium transition-colors ${isActive
-                    ? 'bg-gray-900 text-white border-l-4 border-white'
-                    : 'text-gray-300 hover:bg-gray-900 hover:text-white'
+                  ? 'bg-gray-900 text-white border-l-4 border-white'
+                  : 'text-gray-300 hover:bg-gray-900 hover:text-white'
                   }`}
               >
                 {item.name}

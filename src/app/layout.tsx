@@ -6,6 +6,8 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import { CartProvider } from "@/contexts/CartContext";
 import { WishlistProvider } from "@/contexts/WishlistContext";
 import { LanguageProvider } from "@/contexts/LanguageContext";
+import QueryProvider from "@/components/providers/QueryProvider";
+import ChatWidget from "@/components/chat/ChatWidget";
 
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'),
@@ -31,7 +33,7 @@ export const metadata: Metadata = {
   },
 };
 
-import ChatWidget from "@/components/chat/ChatWidget";
+
 
 export default function RootLayout({
   children,
@@ -48,16 +50,18 @@ export default function RootLayout({
 
       <body className="overflow-x-hidden" suppressHydrationWarning>
         <AuthProvider>
-          <CartProvider>
-            <WishlistProvider>
-              <LanguageProvider>
-                <RootLayoutWrapper>
-                  {children}
-                </RootLayoutWrapper>
-                <ChatWidget />
-              </LanguageProvider>
-            </WishlistProvider>
-          </CartProvider>
+          <QueryProvider>
+            <CartProvider>
+              <WishlistProvider>
+                <LanguageProvider>
+                  <RootLayoutWrapper>
+                    {children}
+                  </RootLayoutWrapper>
+                  <ChatWidget />
+                </LanguageProvider>
+              </WishlistProvider>
+            </CartProvider>
+          </QueryProvider>
         </AuthProvider>
 
         {/* Script để xử lý lỗi hydration do thuộc tính crossOrigin */}
