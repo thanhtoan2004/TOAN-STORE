@@ -1,25 +1,28 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getOrdersByUserId, createOrder, executeQuery } from '@/lib/db/mysql';
 import { sendOrderConfirmation } from '@/lib/mail';
+import { verifyAuth } from '@/lib/auth';
+import { formatCurrency } from '@/lib/date-utils';
 
 // GET - Lấy danh sách đơn hàng
 export async function GET(request: NextRequest) {
   try {
-    const { searchParams } = new URL(request.url);
-    const userId = searchParams.get('userId');
-    const status = searchParams.get('status');
-    const page = parseInt(searchParams.get('page') || '1');
-    const limit = parseInt(searchParams.get('limit') || '10');
-
-    if (!userId) {
+    const session = await verifyAuth();
+    if (!session) {
       return NextResponse.json(
-        { success: false, message: 'Thiếu userId' },
-        { status: 400 }
+        { success: false, message: 'Unauthorized' },
+        { status: 401 }
       );
     }
 
+    const { searchParams } = new URL(request.url);
+    const status = searchParams.get('status');
+    const page = parseInt(searchParams.get('page') || '1');
+    const limit = parseInt(searchParams.get('limit') || '10');
+    const userId = session.userId;
+
     // Lấy orders từ database
-    let orders = await getOrdersByUserId(parseInt(userId)) as any[];
+    let orders = await getOrdersByUserId(Number(userId)) as any[];
 
     // Filter by status nếu có
     if (status && status !== 'all') {
@@ -75,8 +78,12 @@ export async function GET(request: NextRequest) {
 // POST - Tạo đơn hàng mới
 export async function POST(request: NextRequest) {
   try {
+    const session = await verifyAuth();
+    // Use session ID if logged in
+    const userId = session?.userId || null;
+
     const body = await request.json();
-    const { userId, items, shippingAddress, phone, email, paymentMethod, notes, shippingFee, discount, voucherCode, voucherDiscount, giftcardNumber, giftcardDiscount } = body;
+    const { items, shippingAddress, phone, email, paymentMethod, notes, shippingFee, discount, voucherCode, voucherDiscount, giftcardNumber, giftcardDiscount } = body;
 
     // Validate
     if (!items || items.length === 0) {
@@ -134,7 +141,7 @@ export async function POST(request: NextRequest) {
 
     // Tạo order trong database
     const orderId = await createOrder({
-      userId: userId ? parseInt(userId) : undefined,
+      userId: userId ? Number(userId) : undefined,
       orderNumber,
       totalAmount,
       shippingFee: finalShippingFee,
@@ -158,7 +165,7 @@ export async function POST(request: NextRequest) {
         quantity: item.quantity,
         price: item.price
       })),
-      notes: notes ? `${notes} (Membership Discount: ${membershipDiscount.toLocaleString()} VND)` : `Membership Discount: ${membershipDiscount.toLocaleString()} VND`
+      notes: notes ? `${notes} (Membership Discount: ${formatCurrency(membershipDiscount)})` : `Membership Discount: ${formatCurrency(membershipDiscount)}`
     });
 
     // Gửi email xác nhận đơn hàng

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import AdminLayout from '@/components/admin/AdminLayout';
+import { formatDateTime } from '@/lib/date-utils';
 
 interface WishlistItem {
   id: number;
@@ -199,7 +200,7 @@ export default function AdminWishlistPage() {
                         {w.item_count}
                       </span>
                     </td>
-                    <td className="px-6 py-4 text-sm text-gray-600">{new Date(w.created_at).toLocaleString()}</td>
+                    <td className="px-6 py-4 text-sm text-gray-600">{formatDateTime(w.created_at)}</td>
                   </tr>
                 ))}
               </tbody>

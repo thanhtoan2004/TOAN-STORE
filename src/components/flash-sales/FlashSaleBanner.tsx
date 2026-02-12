@@ -113,7 +113,7 @@ export default function FlashSaleBanner() {
                         return (
                             <Link
                                 key={product.id}
-                                href={`/products/${product.slug}`}
+                                href={`/products/${product.id}`}
                                 className="bg-white rounded-lg overflow-hidden hover:shadow-xl transition-shadow"
                             >
                                 <div className="relative aspect-square">

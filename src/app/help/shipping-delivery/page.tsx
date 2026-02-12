@@ -16,8 +16,8 @@ export default function ShippingDeliveryPage() {
             <section>
               <h2 className="text-2xl font-helvetica-medium mb-4">Phí Vận Chuyển</h2>
               <ul className="space-y-2 text-gray-700">
-                <li>• Miễn phí vận chuyển cho đơn hàng trên <strong>1.000.000₫</strong></li>
-                <li>• Phí vận chuyển <strong>30.000₫</strong> cho đơn hàng dưới 1.000.000₫</li>
+                <li>• Miễn phí vận chuyển cho đơn hàng trên <strong>1.000.000 ₫</strong></li>
+                <li>• Phí vận chuyển <strong>30.000 ₫</strong> cho đơn hàng dưới 1.000.000 ₫</li>
                 <li>• Áp dụng cho tất cả các đơn hàng trong nước</li>
               </ul>
             </section>

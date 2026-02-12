@@ -4,9 +4,15 @@ import { executeQuery } from '@/lib/db/mysql';
 import { writeFile, mkdir } from 'fs/promises';
 import { join } from 'path';
 import { sendPaymentReceivedEmail } from '@/lib/mail';
+import { verifyAuth } from '@/lib/auth';
+import { formatCurrency } from '@/lib/date-utils';
 
 async function confirmPaymentHandler(req: NextRequest): Promise<NextResponse> {
   try {
+    const session = await verifyAuth();
+    if (!session) {
+      return createErrorResponse('Unauthorized', 401);
+    }
     const formData = await req.formData();
 
     const orderNumber = formData.get('orderNumber')?.toString();
@@ -40,6 +46,11 @@ async function confirmPaymentHandler(req: NextRequest): Promise<NextResponse> {
 
     const order = orders[0];
 
+    // Ownership check
+    if (order.user_id !== session.userId) {
+      return createErrorResponse('Bạn không có quyền xác nhận thanh toán cho đơn hàng này', 403);
+    }
+
     if (order.status === 'paid' || order.status === 'confirmed') {
       return createErrorResponse('Đơn hàng đã được thanh toán', 400);
     }
@@ -68,7 +79,7 @@ async function confirmPaymentHandler(req: NextRequest): Promise<NextResponse> {
 
     if (amountDifference > tolerance) {
       return createErrorResponse(
-        `Số tiền không khớp. Đơn hàng yêu cầu: ${expectedAmount.toLocaleString('vi-VN')}₫, bạn đã chuyển: ${paymentAmount.toLocaleString('vi-VN')}₫`,
+        `Số tiền không khớp. Đơn hàng yêu cầu: ${formatCurrency(expectedAmount)}, bạn đã chuyển: ${formatCurrency(paymentAmount)}`,
         400
       );
     }
@@ -107,7 +118,7 @@ async function confirmPaymentHandler(req: NextRequest): Promise<NextResponse> {
        SET status = 'pending_payment_confirmation',
            payment_method = 'Ví MoMo',
            payment_confirmed_at = NOW(),
-           notes = CONCAT(COALESCE(notes, ''), '\n[Xác nhận thanh toán] SĐT: ${phoneNumber}, Số tiền: ${paymentAmount.toLocaleString('vi-VN')}₫${transactionNote ? ', Ghi chú: ' + transactionNote : ''}${proofPath ? ', Ảnh: ' + proofPath : ''}')
+           notes = CONCAT(COALESCE(notes, ''), '\n[Xác nhận thanh toán] SĐT: ${phoneNumber}, Số tiền: ${formatCurrency(paymentAmount)}${transactionNote ? ', Ghi chú: ' + transactionNote : ''}${proofPath ? ', Ảnh: ' + proofPath : ''}')
        WHERE id = ?`,
       [order.id]
     );

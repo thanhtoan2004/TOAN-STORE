@@ -1,22 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCart, addToCart, clearCart } from '@/lib/db/mysql';
 import { findVariantBySize, checkStock } from '@/lib/db/variants';
+import { verifyAuth } from '@/lib/auth';
 
 // GET - Lấy giỏ hàng của user
 export async function GET(request: NextRequest) {
   try {
-    const { searchParams } = new URL(request.url);
-    const userId = searchParams.get('userId');
-
-    if (!userId) {
+    const session = await verifyAuth();
+    if (!session) {
       return NextResponse.json(
-        { success: false, message: 'Thiếu userId' },
-        { status: 400 }
+        { success: false, message: 'Unauthorized' },
+        { status: 401 }
       );
     }
+    const userId = session.userId;
 
     // Lấy giỏ hàng từ database
-    const cartItems = await getCart(parseInt(userId));
+    const cartItems = await getCart(userId);
 
     // Map to expected format
     const formattedItems = (cartItems as any[]).map(item => ({
@@ -98,7 +98,15 @@ export async function POST(request: NextRequest) {
     }
 
     // Xử lý thêm vào giỏ hàng bình thường
-    const { userId, productId, quantity = 1, size } = body;
+    const session = await verifyAuth();
+    if (!session) {
+      return NextResponse.json(
+        { success: false, message: 'Unauthorized' },
+        { status: 401 }
+      );
+    }
+    const userId = session.userId;
+    const { productId, quantity = 1, size } = body;
 
     // Validate dữ liệu đầu vào
     if (!userId || !productId) {
@@ -147,7 +155,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Thêm vào giỏ hàng trong database
-    await addToCart(parseInt(userId), parseInt(productId), size, quantity);
+    await addToCart(userId, parseInt(productId), size, quantity);
 
     return NextResponse.json({
       success: true,
@@ -165,18 +173,17 @@ export async function POST(request: NextRequest) {
 // DELETE - Xóa toàn bộ giỏ hàng của user
 export async function DELETE(request: NextRequest) {
   try {
-    const { searchParams } = new URL(request.url);
-    const userId = searchParams.get('userId');
-
-    if (!userId) {
+    const session = await verifyAuth();
+    if (!session) {
       return NextResponse.json(
-        { success: false, message: 'Thiếu userId' },
-        { status: 400 }
+        { success: false, message: 'Unauthorized' },
+        { status: 401 }
       );
     }
+    const userId = session.userId;
 
     // Xóa giỏ hàng từ database
-    await clearCart(parseInt(userId));
+    await clearCart(userId);
 
     return NextResponse.json({
       success: true,

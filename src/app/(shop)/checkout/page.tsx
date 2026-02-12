@@ -9,6 +9,7 @@ import { useLanguage } from '@/contexts/LanguageContext';
 import { useRouter } from 'next/navigation';
 import PaymentQRCode from '@/components/checkout/PaymentQRCode';
 import { Button } from "@/components/ui/Button";
+import { formatDateTime, formatDate, formatCurrency } from '@/lib/date-utils';
 import { Lock } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -150,7 +151,6 @@ export default function CheckoutPage() {
     }
   };
 
-  const formatPrice = (price: number) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(price);
   const subtotal = cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
   const shippingFee = subtotal > 1000000 ? 0 : 30000;
   const tax = Math.round(subtotal * 0.1);
@@ -165,7 +165,7 @@ export default function CheckoutPage() {
     if (!voucherCode.trim()) return alert('Vui lòng nhập mã voucher');
 
     try {
-      const response = await fetch('/api/coupons/validate', {
+      const response = await fetch('/api/promo-codes/validate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -178,7 +178,7 @@ export default function CheckoutPage() {
 
       if (result.success) {
         setAppliedVoucher(result.data);
-        alert(`Áp dụng mã thành công! Giảm ${result.data.discountAmount.toLocaleString('vi-VN')}₫`);
+        alert(`Áp dụng mã thành công! Giảm ${formatCurrency(result.data.discountAmount)}`);
       } else {
         alert(result.message || 'Mã voucher không hợp lệ');
       }
@@ -193,7 +193,7 @@ export default function CheckoutPage() {
     }
 
     try {
-      const response = await fetch('/api/giftcard', {
+      const response = await fetch('/api/gift-cards/verify', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ cardNumber: giftCardNumber, pin: giftCardPin })
@@ -702,7 +702,7 @@ export default function CheckoutPage() {
                   </div>
                   {appliedVoucher && (
                     <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded text-sm text-green-800">
-                      ✓ {appliedVoucher.description || `Giảm ${formatPrice(appliedVoucher.discountAmount)}`}
+                      ✓ {appliedVoucher.description || `Giảm ${formatCurrency(appliedVoucher.discountAmount)}`}
                     </div>
                   )}
                 </div>
@@ -739,32 +739,32 @@ export default function CheckoutPage() {
                     </div>
                     {appliedGiftCard && (
                       <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded text-sm text-green-800">
-                        ✓ Số dư: {formatPrice(appliedGiftCard.balance)} • Sử dụng: {formatPrice(giftCardDiscount)}
+                        ✓ Số dư: {formatCurrency(appliedGiftCard.balance)} • Sử dụng: {formatCurrency(giftCardDiscount)}
                       </div>
                     )}
                   </div>
                 </div>
 
                 <div className="space-y-3 pt-4 border-t">
-                  <div className="flex justify-between"><span>{t.cart.subtotal}:</span><span>{formatPrice(subtotal)}</span></div>
-                  <div className="flex justify-between"><span>{t.checkout.shipping_fee}:</span><span>{shippingFee === 0 ? <span className="text-green-600">{t.checkout.free}</span> : formatPrice(shippingFee)}</span></div>
-                  <div className="flex justify-between"><span>{t.cart.tax}:</span><span>{formatPrice(tax)}</span></div>
+                  <div className="flex justify-between"><span>{t.cart.subtotal}:</span><span>{formatCurrency(subtotal)}</span></div>
+                  <div className="flex justify-between"><span>{t.checkout.shipping_fee}:</span><span>{shippingFee === 0 ? <span className="text-green-600">{t.checkout.free}</span> : formatCurrency(shippingFee)}</span></div>
+                  <div className="flex justify-between"><span>{t.cart.tax}:</span><span>{formatCurrency(tax)}</span></div>
                   {voucherDiscount > 0 && (
                     <div className="flex justify-between text-green-600">
                       <span>{t.footer.vouchers}:</span>
-                      <span>-{formatPrice(voucherDiscount)}</span>
+                      <span>-{formatCurrency(voucherDiscount)}</span>
                     </div>
                   )}
                   {giftCardDiscount > 0 && (
                     <div className="flex justify-between text-green-600">
                       <span>Thẻ quà tặng:</span>
-                      <span>-{formatPrice(giftCardDiscount)}</span>
+                      <span>-{formatCurrency(giftCardDiscount)}</span>
                     </div>
                   )}
                   <hr />
-                  <div className="flex justify-between font-helvetica-medium text-lg"><span>{t.cart.total}:</span><span>{formatPrice(total)}</span></div>
+                  <div className="flex justify-between font-helvetica-medium text-lg"><span>{t.cart.total}:</span><span>{formatCurrency(total)}</span></div>
                 </div>
-                <Button type="submit" disabled={loading} size="lg" className="w-full mt-6 rounded-full font-medium transition-colors">{loading ? t.checkout.processing : `${t.checkout.place_order} • ${formatPrice(total)}`}</Button>
+                <Button type="submit" disabled={loading} size="lg" className="w-full mt-6 rounded-full font-medium transition-colors">{loading ? t.checkout.processing : `${t.checkout.place_order} • ${formatCurrency(total)}`}</Button>
                 <div className="mt-4 p-3 bg-gray-50 rounded-lg">
                   <div className="flex items-center text-sm text-gray-600">
                     <Lock className="w-4 h-4 mr-2" />

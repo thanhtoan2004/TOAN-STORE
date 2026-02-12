@@ -1,35 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { executeQuery } from '@/lib/db/mysql';
-import bcrypt from 'bcrypt';
-import jwt from 'jsonwebtoken';
-import { cookies } from 'next/headers';
-import { JWTPayload } from '@/types/auth';
-
-// Middleware kiểm tra admin
-async function checkAdminAuth() {
-  try {
-    const cookieStore = await cookies();
-    const token = cookieStore.get('auth_token')?.value;
-
-    if (!token) return null;
-
-    const decoded = jwt.verify(
-      token,
-      process.env.JWT_SECRET || 'fallback_secret'
-    ) as JWTPayload;
-
-    const users = await executeQuery(
-      'SELECT is_admin FROM users WHERE id = ?',
-      [decoded.userId]
-    ) as any[];
-
-    if (users.length === 0 || users[0].is_admin !== 1) return null;
-
-    return { isAdmin: true, userId: decoded.userId };
-  } catch {
-    return null;
-  }
-}
+import { checkAdminAuth } from '@/lib/auth';
 
 // GET - Lấy danh sách sản phẩm (Admin)
 export async function GET(request: NextRequest) {
@@ -148,9 +119,23 @@ export async function POST(request: NextRequest) {
     const finalRetailPrice = retail_price || sale_price;
 
     // Validate required fields
-    if (!name || !finalBasePrice) {
+    if (!name || typeof name !== 'string' || name.trim() === '') {
       return NextResponse.json(
-        { success: false, message: 'Missing required fields: name and base_price' },
+        { success: false, message: 'Invalid product name' },
+        { status: 400 }
+      );
+    }
+
+    if (finalBasePrice === undefined || finalBasePrice === null || Number(finalBasePrice) < 0) {
+      return NextResponse.json(
+        { success: false, message: 'Invalid base price' },
+        { status: 400 }
+      );
+    }
+
+    if (finalRetailPrice !== undefined && finalRetailPrice !== null && Number(finalRetailPrice) < 0) {
+      return NextResponse.json(
+        { success: false, message: 'Invalid retail price' },
         { status: 400 }
       );
     }
@@ -235,6 +220,20 @@ export async function PUT(request: NextRequest) {
     // Separate image_url from product fields
     const { image_url, ...productUpdates } = updates;
     const fields = Object.keys(productUpdates);
+
+    // Validate updates
+    if (productUpdates.base_price !== undefined && Number(productUpdates.base_price) < 0) {
+      return NextResponse.json({ success: false, message: 'Invalid base price' }, { status: 400 });
+    }
+    if (productUpdates.retail_price !== undefined && Number(productUpdates.retail_price) < 0) {
+      return NextResponse.json({ success: false, message: 'Invalid retail price' }, { status: 400 });
+    }
+    if (productUpdates.price !== undefined && Number(productUpdates.price) < 0) {
+      return NextResponse.json({ success: false, message: 'Invalid price' }, { status: 400 });
+    }
+    if (productUpdates.sale_price !== undefined && Number(productUpdates.sale_price) < 0) {
+      return NextResponse.json({ success: false, message: 'Invalid sale price' }, { status: 400 });
+    }
 
     if (fields.length > 0) {
       const setClause = fields.map(f => `${f} = ?`).join(', ');

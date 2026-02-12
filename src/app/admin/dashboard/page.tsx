@@ -3,7 +3,8 @@
 import { useEffect, useState } from 'react';
 import AdminLayout from '@/components/admin/AdminLayout';
 import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { DollarSign, Package, TrendingUp, Gift, Users, RefreshCw, AlertTriangle, XCircle, ArrowUp, ArrowDown } from 'lucide-react';
+import { DollarSign, Package, TrendingUp, Gift, Users, RefreshCw, AlertTriangle, XCircle, ArrowUp, ArrowDown, Heart } from 'lucide-react';
+import { formatDateTime, formatDate, formatCurrency } from '@/lib/date-utils';
 
 interface DashboardStats {
   totalRevenue: number;
@@ -119,7 +120,7 @@ export default function AdminDashboardPage() {
               <div className="ml-4 flex-1">
                 <p className="text-sm font-medium text-gray-500">Total Revenue</p>
                 <p className="text-2xl font-semibold text-gray-900">
-                  {(stats?.totalRevenue || 0).toLocaleString('vi-VN')} ₫
+                  {formatCurrency(stats?.totalRevenue)}
                 </p>
               </div>
             </div>
@@ -147,7 +148,7 @@ export default function AdminDashboardPage() {
               <div className="ml-4 flex-1">
                 <p className="text-sm font-medium text-gray-500">Average Order Value</p>
                 <p className="text-2xl font-semibold text-gray-900">
-                  {(stats?.averageOrderValue || 0).toLocaleString('vi-VN')} ₫
+                  {formatCurrency(stats?.averageOrderValue)}
                 </p>
               </div>
             </div>
@@ -199,12 +200,12 @@ export default function AdminDashboardPage() {
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis
                   dataKey="date"
-                  tickFormatter={(value) => new Date(value).toLocaleDateString('vi-VN', { month: 'short', day: 'numeric' })}
+                  tickFormatter={(value) => formatDate(value)}
                 />
                 <YAxis tickFormatter={(value) => `${(value / 1000).toFixed(0)}k`} />
                 <Tooltip
-                  formatter={(value: number | undefined) => value ? [`${value.toLocaleString('vi-VN')} ₫`, 'Revenue'] : ['0 ₫', 'Revenue']}
-                  labelFormatter={(label) => new Date(label).toLocaleDateString('vi-VN')}
+                  formatter={(value: number | undefined) => value ? [formatCurrency(value), 'Revenue'] : ['0 ₫', 'Revenue']}
+                  labelFormatter={(label) => formatDate(label)}
                 />
                 <Legend />
                 <Line type="monotone" dataKey="revenue" stroke="#10b981" strokeWidth={2} name="Revenue" />
@@ -236,7 +237,7 @@ export default function AdminDashboardPage() {
                       <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                     ))}
                   </Pie>
-                  <Tooltip formatter={(value: number | undefined) => value ? `${value.toLocaleString('vi-VN')} ₫` : '0 ₫'} />
+                  <Tooltip formatter={(value: number | undefined) => value ? formatCurrency(value) : '0 ₫'} />
                   <Legend formatter={(value) => formatStatus(value)} />
                 </PieChart>
               </ResponsiveContainer>
@@ -253,7 +254,7 @@ export default function AdminDashboardPage() {
                 <div>
                   <p className="text-sm text-gray-600">Today's Revenue</p>
                   <p className="text-2xl font-bold text-blue-600">
-                    {(stats?.todayRevenue || 0).toLocaleString('vi-VN')} ₫
+                    {formatCurrency(stats?.todayRevenue)}
                   </p>
                 </div>
                 <TrendingUp className="h-8 w-8 text-blue-600" />
@@ -262,7 +263,7 @@ export default function AdminDashboardPage() {
                 <div>
                   <p className="text-sm text-gray-600">Yesterday's Revenue</p>
                   <p className="text-2xl font-bold text-gray-600">
-                    {(stats?.yesterdayRevenue || 0).toLocaleString('vi-VN')} ₫
+                    {formatCurrency(stats?.yesterdayRevenue)}
                   </p>
                 </div>
                 <Package className="h-8 w-8 text-gray-600" />
@@ -291,25 +292,25 @@ export default function AdminDashboardPage() {
             <div className="p-4 bg-blue-50 rounded-lg">
               <p className="text-sm text-gray-600">Total VAT Collected</p>
               <p className="text-xl font-bold text-blue-600">
-                {(stats?.totalVAT || 0).toLocaleString('vi-VN')} ₫
+                {formatCurrency(stats?.totalVAT)}
               </p>
             </div>
             <div className="p-4 bg-red-50 rounded-lg">
               <p className="text-sm text-gray-600">Total Discounts</p>
               <p className="text-xl font-bold text-red-600">
-                {(stats?.totalDiscounts || 0).toLocaleString('vi-VN')} ₫
+                {formatCurrency(stats?.totalDiscounts)}
               </p>
             </div>
             <div className="p-4 bg-green-50 rounded-lg">
               <p className="text-sm text-gray-600">Shipping Fees</p>
               <p className="text-xl font-bold text-green-600">
-                {(stats?.totalShipping || 0).toLocaleString('vi-VN')} ₫
+                {formatCurrency(stats?.totalShipping)}
               </p>
             </div>
             <div className="p-4 bg-purple-50 rounded-lg">
               <p className="text-sm text-gray-600">Net Revenue</p>
               <p className="text-xl font-bold text-purple-600">
-                {(stats?.netRevenue || 0).toLocaleString('vi-VN')} ₫
+                {formatCurrency(stats?.netRevenue)}
               </p>
             </div>
           </div>
@@ -405,7 +406,7 @@ export default function AdminDashboardPage() {
                       </div>
                     </div>
                     <p className="font-semibold text-green-600">
-                      {customer.totalSpent.toLocaleString('vi-VN')} ₫
+                      {formatCurrency(customer.totalSpent)}
                     </p>
                   </div>
                 ))}
@@ -433,7 +434,7 @@ export default function AdminDashboardPage() {
                         <p className="text-sm text-gray-500 truncate" title={order.customer_name}>{order.customer_name}</p>
                       </div>
                       <div className="text-right flex-shrink-0 max-w-[50%]">
-                        <p className="font-semibold text-gray-900 mb-1">{parseFloat(order.total || 0).toLocaleString('vi-VN')} ₫</p>
+                        <p className="font-semibold text-gray-900 mb-1">{formatCurrency(order.total)}</p>
                         <span className={`inline-block px-2.5 py-1 rounded-full text-xs font-medium text-center ${getStatusColor(order.status)}`}>
                           {formatStatus(order.status)}
                         </span>
@@ -465,7 +466,7 @@ export default function AdminDashboardPage() {
                         />
                         <div className="ml-3">
                           <p className="font-medium text-gray-900">{product.name}</p>
-                          <p className="text-sm text-gray-500">{parseFloat(product.price || 0).toLocaleString('vi-VN')} ₫</p>
+                          <p className="text-sm text-gray-500">{formatCurrency(product.price)}</p>
                         </div>
                       </div>
                       <div className="text-right">
@@ -506,7 +507,7 @@ export default function AdminDashboardPage() {
                       </div>
                       <div className="text-right">
                         <p className="font-semibold text-pink-600 flex items-center gap-1">
-                          <span className="text-lg">❤️</span> {product.wishlist_count}
+                          <Heart className="h-4 w-4 fill-current" /> {product.wishlist_count}
                         </p>
                         <p className="text-xs text-gray-500">{product.unique_users} users</p>
                       </div>

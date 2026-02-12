@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
+import { formatDate } from '@/lib/date-utils';
 
 interface NewsDetail {
     id: number;
@@ -53,13 +54,7 @@ export default function NewsDetailPage() {
         }
     };
 
-    const formatDate = (dateString: string) => {
-        return new Date(dateString).toLocaleDateString('vi-VN', {
-            day: 'numeric',
-            month: 'long',
-            year: 'numeric'
-        });
-    };
+    // formatDate removed, use from @/lib/date-utils
 
     if (loading) {
         return (

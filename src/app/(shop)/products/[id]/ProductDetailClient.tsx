@@ -5,8 +5,9 @@ import Image from "next/image";
 import { useCart } from "@/contexts/CartContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { AddToCartButton } from "@/components/ui";
+import AddToCartButton from "@/components/ui/AddToCartButton";
 import { Heart } from "lucide-react";
+import { formatCurrency } from "@/lib/date-utils";
 import { useWishlist } from "@/contexts/WishlistContext";
 import ReviewMediaUpload from "@/components/reviews/ReviewMediaUpload";
 import ProductRecommendations from "@/components/ui/products/ProductRecommendations";
@@ -235,9 +236,7 @@ export default function ProductDetailClient({ id }: { id: string }) {
         ? Math.round(((displayPrice - salePrice) / displayPrice) * 100)
         : 0;
 
-    const formatPrice = (price: number) => {
-        return price.toLocaleString("vi-VN") + " ₫";
-    };
+    // formatPrice removed, use formatCurrency from @/lib/date-utils
 
     const handleWishlist = async () => {
         if (!user) {
@@ -494,12 +493,12 @@ export default function ProductDetailClient({ id }: { id: string }) {
                         <div className="text-2xl font-bold">
                             {salePrice ? (
                                 <div className="flex items-center space-x-3">
-                                    <span className="text-red-600">{formatPrice(salePrice)}</span>
-                                    <span className="text-gray-500 line-through text-lg">{formatPrice(displayPrice)}</span>
-                                    <span className="bg-red-100 text-red-600 text-sm px-2 py-1 rounded">Tiết kiệm {formatPrice(displayPrice - salePrice)}</span>
+                                    <span className="text-red-600">{formatCurrency(salePrice)}</span>
+                                    <span className="text-gray-500 line-through text-lg">{formatCurrency(displayPrice)}</span>
+                                    <span className="bg-red-100 text-red-600 text-sm px-2 py-1 rounded">Tiết kiệm {formatCurrency(displayPrice - salePrice)}</span>
                                 </div>
                             ) : (
-                                <span className="text-gray-900">{formatPrice(displayPrice)}</span>
+                                <span className="text-gray-900">{formatCurrency(displayPrice)}</span>
                             )}
                         </div>
 
@@ -541,7 +540,7 @@ export default function ProductDetailClient({ id }: { id: string }) {
                             </div>
                         )}
 
-                        <div className="border-t pt-6 space-y-3">
+                        <div className="border-t pt-6 space-y-4">
                             <AddToCartButton productId={typeof activeProduct.id === 'number' ? activeProduct.id : parseInt(activeProduct.id as string)} size={selectedSize || ""} disabled={!selectedSize} className="w-full">
                                 {t.product.add_to_cart}
                             </AddToCartButton>
@@ -549,10 +548,10 @@ export default function ProductDetailClient({ id }: { id: string }) {
                             <button
                                 onClick={handleWishlist}
                                 disabled={wishlistLoading}
-                                className={`w-full py-4 px-6 rounded-full border-2 font-medium flex items-center justify-center gap-2 transition-all ${inWishlist
+                                className={`w-full py-4 px-6 rounded-full border-2 font-medium flex items-center justify-center gap-2 transition-all duration-300 ${inWishlist
                                     ? 'border-black bg-black text-white hover:bg-gray-800'
                                     : 'border-gray-200 hover:border-black text-black'
-                                    }`}
+                                    } hover:scale-[1.02]`}
                             >
                                 <Heart className={`w-5 h-5 ${inWishlist ? 'fill-current' : ''}`} />
                                 {inWishlist ? t.product.in_wishlist : t.product.add_to_wishlist}

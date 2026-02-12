@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import AdminLayout from '@/components/admin/AdminLayout';
+import { formatDate } from '@/lib/date-utils';
 
 interface User {
   id: number;
@@ -240,7 +241,7 @@ export default function AdminUsersPage() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm text-gray-900">
-                          {new Date(user.created_at).toLocaleDateString()}
+                          {formatDate(user.created_at)}
                         </div>
                       </td>
                       <td className="px-6 py-4 text-right">

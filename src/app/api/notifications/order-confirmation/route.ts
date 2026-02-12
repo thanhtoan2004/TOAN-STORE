@@ -1,12 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { sendOrderConfirmationEmail } from '@/lib/email-templates';
+import { checkAdminAuth } from '@/lib/auth';
 
 /**
  * API endpoint to send order confirmation email
- * Called after successful order placement
+ * Called after successful order placement (Admin/System only)
  */
 export async function POST(request: NextRequest) {
     try {
+        const admin = await checkAdminAuth();
+        if (!admin) {
+            return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
+        }
         const body = await request.json();
         const { orderDetails } = body;
 

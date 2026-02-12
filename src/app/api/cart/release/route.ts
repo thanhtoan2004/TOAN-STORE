@@ -1,8 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { releaseStock } from '@/lib/inventory/reservation';
+import { verifyAuth } from '@/lib/auth';
 
 export async function POST(request: NextRequest) {
     try {
+        const session = await verifyAuth();
+        if (!session) {
+            return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
+        }
         const body = await request.json();
         const { sessionId } = body;
 

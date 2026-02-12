@@ -6,12 +6,17 @@ import {
     updateChatStatus,
     markMessagesAsRead
 } from '@/lib/db/supportChat';
+import { checkAdminAuth } from '@/lib/auth';
 
 export async function GET(
     request: NextRequest,
     { params }: { params: Promise<{ chatId: string }> }
 ) {
     try {
+        const admin = await checkAdminAuth();
+        if (!admin) {
+            return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+        }
         const { chatId: chatIdStr } = await params;
         const chatId = parseInt(chatIdStr);
 
@@ -42,6 +47,10 @@ export async function POST(
     { params }: { params: Promise<{ chatId: string }> }
 ) {
     try {
+        const admin = await checkAdminAuth();
+        if (!admin) {
+            return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+        }
         const { chatId: chatIdStr } = await params;
         const chatId = parseInt(chatIdStr);
         const body = await request.json();

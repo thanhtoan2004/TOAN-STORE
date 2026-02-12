@@ -1,24 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { executeQuery } from '@/lib/db/mysql';
-import { cookies } from 'next/headers';
-import jwt from 'jsonwebtoken';
-
-// Helper to check admin auth
-async function checkAdminAuth() {
-    try {
-        const cookieStore = await cookies();
-        const token = cookieStore.get('auth_token')?.value;
-
-        if (!token) return null;
-
-        const decoded: any = jwt.verify(token, process.env.JWT_SECRET || 'fallback_secret');
-        const result = await executeQuery('SELECT is_admin FROM users WHERE id = ?', [decoded.userId]) as any[];
-
-        return result.length > 0 && result[0].is_admin === 1 ? decoded : null;
-    } catch {
-        return null;
-    }
-}
+import { checkAdminAuth } from '@/lib/auth';
 
 // Ensure news table exists
 async function ensureNewsTable() {

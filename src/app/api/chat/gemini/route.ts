@@ -1,190 +1,169 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextRequest, NextResponse } from 'next/server';
 import { GoogleGenerativeAI } from '@google/generative-ai';
-import { searchProductsForChat, getNewArrivalsForChat, getDiscountedProductsForChat, getProductsByCategoryForChat } from '@/lib/db/mysql';
-import { getAllFAQs } from '@/lib/db/faqs';
+import { searchProductsForChat, getNewArrivalsForChat, getDiscountedProductsForChat, getProductsByCategoryForChat, getOrderStatusForChat } from '@/lib/db/mysql';
+import { formatCurrency } from '@/lib/date-utils';
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
 
+// Define tools (Function Calling)
+const tools = [
+    {
+        functionDeclarations: [
+            {
+                name: 'search_products',
+                description: 'Tìm kiếm sản phẩm theo tên hoặc từ khóa.',
+                parameters: {
+                    type: 'OBJECT',
+                    properties: {
+                        keyword: { type: 'STRING', description: 'Từ khóa tìm kiếm (ví dụ: Pegasus, Jordan)' }
+                    },
+                    required: ['keyword']
+                }
+            },
+            {
+                name: 'get_new_arrivals',
+                description: 'Lấy danh sách các sản phẩm mới nhất vừa về cửa hàng.',
+            },
+            {
+                name: 'get_sale_products',
+                description: 'Lấy danh sách các sản phẩm đang được giảm giá hoặc khuyến mãi.',
+            },
+            {
+                name: 'get_products_by_category',
+                description: 'Lấy sản phẩm theo danh mục thể thao hoặc dòng sản phẩm.',
+                parameters: {
+                    type: 'OBJECT',
+                    properties: {
+                        category: { type: 'STRING', description: 'Danh mục (ví dụ: running, football, basketball, lifestyle, jordan)' }
+                    },
+                    required: ['category']
+                }
+            },
+            {
+                name: 'get_order_status',
+                description: 'Tra cứu trạng thái và thông tin chi tiết của một đơn hàng theo mã đơn hàng.',
+                parameters: {
+                    type: 'OBJECT',
+                    properties: {
+                        orderNumber: { type: 'STRING', description: 'Mã đơn hàng (ví dụ: NIKE123456)' }
+                    },
+                    required: ['orderNumber']
+                }
+            }
+        ]
+    }
+];
+
 export async function POST(req: NextRequest) {
     if (!process.env.GEMINI_API_KEY) {
-        return NextResponse.json(
-            { error: 'Gemini API key not configured' },
-            { status: 500 }
-        );
+        return NextResponse.json({ error: 'Gemini API key not configured' }, { status: 500 });
     }
 
     try {
-        const { message, history } = await req.json();
-
-        if (!message) {
-            return NextResponse.json(
-                { error: 'Message is required' },
-                { status: 400 }
-            );
-        }
-
-        const lowerMsg = message.toLowerCase();
-
-        // Helper to clean query
-        const cleanSearchQuery = (text: string) => {
-            let cleaned = text;
-            cleaned = cleaned.replace(/(size|cỡ|kích thước|số)\s*\d+(\.\d+)?/gi, ' ');
-            cleaned = cleaned.replace(/(^|\s)(giá|bao nhiêu|là bao nhiêu|đôi|giày|của|cho tôi hỏi|về|thông tin|bn|shop|ơi|có|không|mẫu|này|tư vấn|mua|sản phẩm|hỏi|chiếc|cái|còn|hàng|tình|trạng|màu|gì|nào|đang|hiện|tại|bao|nhiu|tiền)(?=\s|$)/gi, ' ');
-            return cleaned.replace(/\s+/g, ' ').trim();
-        };
-
-        // --- HYBRID ROUTER LOGIC ---
-        // 1. Check for AI-required Intents (Comparison, Advice, Reviews)
-        const isComplexQuery = /(so sánh|khác nhau|tư vấn|gợi ý|nên mua|review|đánh giá|tại sao)/i.test(lowerMsg);
-
-        if (!isComplexQuery) {
-            // 2. Check for New Arrivals
-            if (/(mới|new|vừa về|sắp về|mới nhất)/i.test(lowerMsg)) {
-                const products = await getNewArrivalsForChat();
-                if (products.length > 0) {
-                    const text = "Dưới đây là các sản phẩm mới nhất:\n" + products.map((p: any) => `\n- Giày ${p.name} hiện có giá ${p.price.toLocaleString('vi-VN')} VNĐ.`).join('');
-                    return NextResponse.json({ text });
-                }
-            }
-
-            // 3. Check for Deals/Sales
-            if (/(giảm giá|sale|khuyến mãi|rẻ)/i.test(lowerMsg)) {
-                const products = await getDiscountedProductsForChat();
-                if (products.length > 0) {
-                    const text = "Các sản phẩm đang giảm giá tốt nhất:\n" + products.map((p: any) => `\n- Giày ${p.name} đang giảm giá còn ${p.price.toLocaleString('vi-VN')} VNĐ (Gốc: ${p.originalPrice?.toLocaleString('vi-VN')} VNĐ), còn size ${p.sizes}.`).join('');
-                    return NextResponse.json({ text });
-                }
-            }
-
-            // 3.5 Check for Categories
-            let categorySlug = '';
-            if (/(bóng đá|đá banh|football|soccer)/i.test(lowerMsg)) categorySlug = 'football';
-            else if (/(chạy bộ|running|đi bộ)/i.test(lowerMsg)) categorySlug = 'running';
-            else if (/(bóng rổ|basketball)/i.test(lowerMsg)) categorySlug = 'basketball';
-            else if (/(jordan)/i.test(lowerMsg)) categorySlug = 'jordan';
-            else if (/(thời trang|lifestyle|đi chơi)/i.test(lowerMsg)) categorySlug = 'lifestyle';
-
-            if (categorySlug) {
-                const products = await getProductsByCategoryForChat(categorySlug);
-                if (products.length > 0) {
-                    const text = `Các mẫu giày ${categorySlug} nổi bật:\n` + products.map((p: any) => `\n- Giày ${p.name} giá ${p.price.toLocaleString('vi-VN')} VNĐ, còn size ${p.sizes}.`).join('');
-                    return NextResponse.json({ text });
-                }
-            }
-
-            // 4. Specific Product Lookup (Direct Template Response)
-            const searchQuery = cleanSearchQuery(message);
-
-            // Detect if user is asking for a specific size
-            const sizeMatch = message.match(/(?:size|cỡ|kích thước|số)\s*(\d+(?:\.\d+)?)/i);
-            const requestedSize = sizeMatch ? sizeMatch[1] : null;
-
-            if (searchQuery.length > 1) {
-                const products = await searchProductsForChat(searchQuery);
-                if (products.length > 0) {
-                    // Return template directly!
-                    const text = products.slice(0, 3).map((p: any) => {
-                        const priceStr = p.price.toLocaleString('vi-VN');
-                        let sizeMsg = `hiện có các size: ${p.sizes}`;
-
-                        // Smart size check
-                        if (requestedSize) {
-                            const availableSizes = p.sizes.split(',').map((s: string) => s.trim());
-                            if (availableSizes.includes(requestedSize)) {
-                                sizeMsg = `đang có sẵn size ${requestedSize}`;
-                            } else {
-                                sizeMsg = `hiện hết hàng size ${requestedSize} (chỉ còn: ${p.sizes})`;
-                            }
-                        }
-
-                        return `Giày ${p.name} có giá ${priceStr} VNĐ, ${sizeMsg}.`;
-                    }).join('\n\n');
-
-                    return NextResponse.json({ text });
-                }
-            }
-        }
-
-        // --- FALLBACK TO GEMINI (Complex queries or No DB match) ---
-
-        // Initialize model
-        const model = genAI.getGenerativeModel({
-            model: "gemini-flash-latest",
-            systemInstruction: "You are a helpful, friendly customer support assistant for a Nike Store clone. Your goal is to assist customers with product inquiries, order status, and general questions.\n\nRULES:\n1. LANGUAGE: Always respond in Vietnamese (Tiếng Việt).\n2. PERSONA: Act as a store employee. NEVER mention you are an AI.\n3. FORMATTING: Use plain text. Use commas for lists.\n4. CONTEXT: Use provided CONTEXT_DATA. STRICTLY use the exact numbers. DO NOT round.\n5. BREVITY: Keep answers concise."
-        });
-
-        // Search again for context (in case it was complex query or direct lookup failed but AI can handle it)
-        let productContext = "";
-        const searchQuery = cleanSearchQuery(message);
-
-        // Fetch FAQs for context
-        const faqs = await getAllFAQs();
-        let faqContext = "";
-        if (faqs.length > 0) {
-            faqContext = `
-FAQ_DATA (General Policies):
-${faqs.map((f: any) => `Q: ${f.question}\nA: ${f.answer}`).join('\n\n')}
-ENDS_FAQ_DATA
-`;
-        }
-
+        let body;
         try {
-            if (searchQuery.length > 1) {
-                const products = await searchProductsForChat(searchQuery);
-                if (products.length > 0) {
-                    const productList = products.map((p: any) => {
-                        const priceInfo = p.originalPrice
-                            ? `Price: ${p.price.toLocaleString('vi-VN')} VND (Discounted from ${p.originalPrice.toLocaleString('vi-VN')} VND)`
-                            : `Price: ${p.price.toLocaleString('vi-VN')} VND`;
-                        return `- ${p.name}: ${priceInfo}. Stock: ${p.sizes}`;
-                    }).join('\n');
+            const textBody = await req.text();
+            if (!textBody) return NextResponse.json({ error: 'Empty request body' }, { status: 400 });
+            body = JSON.parse(textBody);
+        } catch (jsonErr) {
+            console.error('Invalid JSON:', jsonErr);
+            return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
+        }
 
-                    productContext = `
-CONTEXT_DATA (Live Database):
-${productList}
-ENDS_CONTEXT_DATA
-`;
+        const { message, history } = body;
+        if (!message) return NextResponse.json({ error: 'Message is required' }, { status: 400 });
+
+        // Rotational models to avoid regional/quota availability 404s or 429s (Rate limits)
+        const modelNames = ["gemini-2.0-flash", "gemini-2.5-flash", "gemini-flash-latest", "gemini-2.5-pro", "gemini-pro-latest"];
+        let response;
+        let finalModelName = "";
+
+        for (const modelName of modelNames) {
+            try {
+                const model = genAI.getGenerativeModel({
+                    model: modelName,
+                    tools: tools as any,
+                    systemInstruction: "Bạn là trợ lý ảo chuyên nghiệp của Nike Store (Việt Nam). Hãy hỗ trợ khách hàng tìm kiếm sản phẩm, xem hàng mới, hàng giảm giá và tra cứu đơn hàng một cách thân thiện.\n\nQUY TẮC:\n1. NGÔN NGỮ: Luôn trả lời bằng Tiếng Việt.\n2. PHONG CÁCH: Trò chuyện như nhân viên cửa hàng, không nhắc mình là AI.\n3. DỮ LIỆU: Sử dụng các công cụ (tools) được cung cấp để lấy dữ liệu thực tế. KHÔNG tự bịa ra thông tin sản phẩm.\n4. ĐƠN HÀNG: Khi khách hỏi về trạng thái đơn hàng, hãy dùng tool get_order_status."
+                });
+
+                const validHistory = history?.map((msg: any) => ({
+                    role: msg.role === 'user' ? 'user' : 'model',
+                    parts: [{ text: msg.content }]
+                })) || [];
+
+                const chat = model.startChat({ history: validHistory });
+                const result = await chat.sendMessage(message);
+                response = await result.response;
+                finalModelName = modelName;
+                break;
+            } catch (err: any) {
+                console.error(`Gemini model ${modelName} failed:`, err.status, err.message);
+
+                // If this is the last model and it failed, return a friendly error
+                if (modelName === modelNames[modelNames.length - 1]) {
+                    return NextResponse.json({
+                        text: "Xin lỗi, hiện tại dịch vụ AI đang quá tải (vượt quá hạn mức yêu cầu). Vui lòng thử lại sau giây lát hoặc tra cứu trực tiếp trên trang web."
+                    });
                 }
+
+                // Continue to next model for 404 (Not Found) or 429 (Rate Limit/Quota)
+                if (err.status === 404 || err.status === 429 || err.message.includes('404') || err.message.includes('429')) {
+                    continue;
+                }
+                throw err;
             }
-        } catch (dbError) {
-            console.error("DB Search failed:", dbError);
         }
 
-        // Build chat history
-        let validHistory = [];
-        if (history && Array.isArray(history) && history.length > 0) {
-            let startIndex = 0;
-            while (startIndex < history.length && history[startIndex].role === 'model') {
-                startIndex++;
-            }
-            validHistory = history.slice(startIndex);
-        }
+        if (!response) return NextResponse.json({ error: 'No response' }, { status: 500 });
 
-        const chat = model.startChat({
-            history: validHistory.length > 0 ? validHistory.map((msg: any) => ({
+        const calls = response.candidates?.[0]?.content?.parts?.filter(p => p.functionCall);
+
+        if (calls && calls.length > 0) {
+            const model = genAI.getGenerativeModel({
+                model: finalModelName,
+                tools: tools as any,
+                systemInstruction: "Bạn là trợ lý ảo chuyên nghiệp của Nike Store (Việt Nam)."
+            });
+
+            const validHistory = history?.map((msg: any) => ({
                 role: msg.role === 'user' ? 'user' : 'model',
                 parts: [{ text: msg.content }]
-            })) : []
-        });
+            })) || [];
 
-        const messageWithContext = `
-${faqContext}
-${productContext}
+            const chat = model.startChat({ history: validHistory });
+            await chat.sendMessage(message);
 
-User Question: ${message}
-`;
+            const toolResults: any = [];
+            for (const call of calls) {
+                const { name, args }: any = call.functionCall;
+                let data: any = null;
+                try {
+                    if (name === 'search_products') data = await searchProductsForChat(args.keyword);
+                    else if (name === 'get_new_arrivals') data = await getNewArrivalsForChat();
+                    else if (name === 'get_sale_products') data = await getDiscountedProductsForChat();
+                    else if (name === 'get_products_by_category') data = await getProductsByCategoryForChat(args.category);
+                    else if (name === 'get_order_status') data = await getOrderStatusForChat(args.orderNumber);
+                } catch (dbErr) { console.error(`Tool ${name} execution failed:`, dbErr); }
 
-        const result = await chat.sendMessage(messageWithContext);
-        const response = await result.response;
+                toolResults.push({ functionResponse: { name, response: { content: data } } });
+            }
+
+            const toolResultSend = await chat.sendMessage(toolResults);
+            const finalResponse = await toolResultSend.response;
+            const lastCallData = toolResults[0].functionResponse.response.content;
+            const lastCallName = toolResults[0].functionResponse.name;
+
+            return NextResponse.json({
+                text: finalResponse.text(),
+                data: lastCallData,
+                dataType: lastCallName === 'get_order_status' ? 'order' : 'products'
+            });
+        }
 
         return NextResponse.json({ text: response.text() });
-
     } catch (error) {
-        console.error('Gemini API Error:', error);
-        return NextResponse.json(
-            { error: 'Failed to process message' },
-            { status: 500 }
-        );
+        console.error('Critical Gemini Error:', error);
+        return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
     }
 }

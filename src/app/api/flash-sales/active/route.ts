@@ -33,8 +33,8 @@ export async function GET() {
         fsi.*,
         p.name,
         p.slug,
-        p.image_url as imageUrl,
-        p.retail_price as originalPrice
+        (SELECT url FROM product_images WHERE product_id = p.id AND is_main = 1 LIMIT 1) as imageUrl,
+        p.base_price as originalPrice
        FROM flash_sale_items fsi
        JOIN products p ON fsi.product_id = p.id
        WHERE fsi.flash_sale_id = ?

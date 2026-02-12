@@ -1,25 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
-import jwt from 'jsonwebtoken';
-import { cookies } from 'next/headers';
 import { executeQuery } from '@/lib/db/mysql';
-import { JWTPayload } from '@/types/auth';
+import { verifyAuth } from '@/lib/auth';
 
 export async function PUT(request: NextRequest) {
   try {
-    const cookieStore = await cookies();
-    const token = cookieStore.get('auth_token')?.value;
-
-    if (!token) {
+    const session = await verifyAuth();
+    if (!session) {
       return NextResponse.json(
-        { success: false, message: 'Không tìm thấy token' },
+        { success: false, message: 'Unauthorized' },
         { status: 401 }
       );
     }
-
-    const decoded = jwt.verify(
-      token,
-      process.env.JWT_SECRET || 'fallback_secret'
-    ) as JWTPayload;
 
     const body = await request.json();
     const { firstName, lastName, phone, dateOfBirth, gender } = body;
@@ -34,7 +25,7 @@ export async function PUT(request: NextRequest) {
            gender = ?,
            updated_at = CURRENT_TIMESTAMP 
        WHERE id = ?`,
-      [firstName, lastName, phone || null, dateOfBirth || null, gender || null, decoded.userId]
+      [firstName, lastName, phone || null, dateOfBirth || null, gender || null, session.userId]
     );
 
     return NextResponse.json({

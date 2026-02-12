@@ -1,8 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAdminChats } from '@/lib/db/supportChat';
+import { checkAdminAuth } from '@/lib/auth';
 
 export async function GET(request: NextRequest) {
     try {
+        const admin = await checkAdminAuth();
+        if (!admin) {
+            return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
+        }
         const { searchParams } = new URL(request.url);
         const status = searchParams.get('status') || undefined;
         const page = parseInt(searchParams.get('page') || '1');

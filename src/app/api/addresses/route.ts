@@ -1,20 +1,17 @@
 import { NextResponse } from 'next/server';
-import { getAddresses, addAddress } from '@/lib/db/mysql'; // Assume mysql.ts has these functions
+import { getAddresses, addAddress } from '@/lib/db/mysql';
+import { verifyAuth } from '@/lib/auth';
 
 // GET: Fetch user addresses
 export async function GET(request: Request) {
     try {
-        const { searchParams } = new URL(request.url);
-        const userId = searchParams.get('userId');
-
-        if (!userId) {
-            return NextResponse.json(
-                { message: 'User ID is required' },
-                { status: 400 }
-            );
+        const session = await verifyAuth();
+        if (!session) {
+            return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
         }
+        const userId = Number(session.userId);
 
-        const addresses = await getAddresses(parseInt(userId));
+        const addresses = await getAddresses(userId);
         return NextResponse.json(addresses);
     } catch (error) {
         console.error('Error fetching addresses:', error);
@@ -28,15 +25,14 @@ export async function GET(request: Request) {
 // POST: Add new address
 export async function POST(request: Request) {
     try {
-        const body = await request.json();
-        const { userId, ...addressData } = body;
-
-        if (!userId) {
-            return NextResponse.json(
-                { message: 'User ID is required' },
-                { status: 400 }
-            );
+        const session = await verifyAuth();
+        if (!session) {
+            return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
         }
+        const userId = Number(session.userId);
+
+        const body = await request.json();
+        const { userId: bodyUserId, ...addressData } = body;
 
         const newAddressId = await addAddress(userId, addressData);
         return NextResponse.json({
@@ -56,19 +52,24 @@ export async function POST(request: Request) {
 // DELETE: Delete an address
 export async function DELETE(request: Request) {
     try {
+        const session = await verifyAuth();
+        if (!session) {
+            return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
+        }
+        const userId = Number(session.userId);
+
         const { searchParams } = new URL(request.url);
-        const userId = searchParams.get('userId');
         const addressId = searchParams.get('addressId');
 
-        if (!userId || !addressId) {
+        if (!addressId) {
             return NextResponse.json(
-                { message: 'User ID and Address ID are required' },
+                { message: 'Address ID is required' },
                 { status: 400 }
             );
         }
 
         const { deleteAddress } = await import('@/lib/db/mysql');
-        await deleteAddress(parseInt(userId), parseInt(addressId));
+        await deleteAddress(userId, parseInt(addressId));
 
         return NextResponse.json({
             success: true,

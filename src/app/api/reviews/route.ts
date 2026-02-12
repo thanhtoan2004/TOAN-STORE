@@ -1,22 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { executeQuery } from '@/lib/db/mysql';
-
-async function checkAdminAuth(request: NextRequest) {
-  try {
-    const authHeader =
-      request.headers.get('authorization') ||
-      request.headers.get('cookie')?.match(/auth_token=([^;]+)/)?.[1];
-
-    if (!authHeader) return false;
-
-    const token = authHeader.replace('Bearer ', '');
-    const decoded: any = JSON.parse(Buffer.from(token.split('.')[1], 'base64').toString());
-    const result = await executeQuery('SELECT is_admin FROM users WHERE id = ?', [decoded.userId]) as any[];
-    return result.length > 0 && (result[0] as any).is_admin === 1;
-  } catch {
-    return false;
-  }
-}
+import { checkAdminAuth, verifyAuth } from '@/lib/auth';
 
 // GET - Lấy danh sách reviews của sản phẩm
 export async function GET(request: NextRequest) {
@@ -30,6 +14,11 @@ export async function GET(request: NextRequest) {
 
     // Nếu là admin call (có status param), lấy all reviews
     if (statusParam && !productIdStr) {
+      const admin = await checkAdminAuth();
+      if (!admin) {
+        return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
+      }
+
       const status = statusParam || 'pending';
       const reviews = await executeQuery<any[]>(
         `SELECT r.*, u.full_name as user_name, p.name as product_name,
@@ -158,11 +147,17 @@ export async function GET(request: NextRequest) {
 // POST - Tạo review mới
 export async function POST(request: NextRequest) {
   try {
+    const session = await verifyAuth();
+    if (!session) {
+      return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
+    }
+    const userId = Number(session.userId);
+
     const body = await request.json();
-    const { userId, productId, rating, title, comment } = body;
+    const { productId, rating, title, comment } = body;
 
     // Validate
-    if (!userId || !productId || !rating) {
+    if (!productId || !rating) {
       return NextResponse.json(
         { success: false, message: 'Thiếu thông tin bắt buộc' },
         { status: 400 }
@@ -184,7 +179,7 @@ export async function POST(request: NextRequest) {
        WHERE o.user_id = ? 
          AND oi.product_id = ? 
          AND o.status NOT IN ('cancelled', 'failed')`,
-      [parseInt(userId), parseInt(productId)]
+      [userId, parseInt(productId)]
     );
 
     const hasPurchased = purchaseCheck && purchaseCheck.length > 0;
@@ -200,7 +195,7 @@ export async function POST(request: NextRequest) {
     // Check if user already reviewed this product
     const existing = await executeQuery<any[]>(
       'SELECT id FROM product_reviews WHERE user_id = ? AND product_id = ?',
-      [parseInt(userId), parseInt(productId)]
+      [userId, parseInt(productId)]
     );
 
     if (existing && existing.length > 0) {
@@ -214,7 +209,7 @@ export async function POST(request: NextRequest) {
     const result = await executeQuery<any>(
       `INSERT INTO product_reviews (user_id, product_id, rating, title, comment, status, is_verified_purchase)
        VALUES (?, ?, ?, ?, ?, 'pending', ?)`,
-      [parseInt(userId), parseInt(productId), rating, title || '', comment || '', hasPurchased ? 1 : 0]
+      [userId, parseInt(productId), rating, title || '', comment || '', hasPurchased ? 1 : 0]
     );
 
     return NextResponse.json({
@@ -235,11 +230,11 @@ export async function POST(request: NextRequest) {
 export async function PUT(request: NextRequest) {
   try {
     const body = await request.json();
-    const { reviewId, userId, rating, title, comment, id, status } = body;
+    const { reviewId, rating, title, comment, id, status } = body;
 
     // Admin duyệt review từ dashboard
     if (id && status) {
-      const isAdmin = await checkAdminAuth(request);
+      const isAdmin = await checkAdminAuth();
       if (!isAdmin) {
         return NextResponse.json(
           { success: false, message: 'Không có quyền' },
@@ -258,10 +253,17 @@ export async function PUT(request: NextRequest) {
       });
     }
 
+    // User side: Securing with verifyAuth
+    const session = await verifyAuth();
+    if (!session) {
+      return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
+    }
+    const userId = Number(session.userId);
+
     // Validate
-    if (!reviewId || !userId) {
+    if (!reviewId) {
       return NextResponse.json(
-        { success: false, message: 'Thiếu reviewId hoặc userId' },
+        { success: false, message: 'Thiếu reviewId' },
         { status: 400 }
       );
     }
@@ -286,7 +288,7 @@ export async function PUT(request: NextRequest) {
       );
     }
 
-    if (existing[0].user_id !== parseInt(userId)) {
+    if (existing[0].user_id !== userId) {
       return NextResponse.json(
         { success: false, message: 'Bạn không có quyền sửa đánh giá này' },
         { status: 403 }
@@ -319,7 +321,6 @@ export async function DELETE(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const reviewId = searchParams.get('reviewId') || searchParams.get('id');
-    const userId = searchParams.get('userId');
 
     // Validate
     if (!reviewId) {
@@ -329,7 +330,9 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    const isAdmin = await checkAdminAuth(request);
+    const isAdmin = await checkAdminAuth();
+    const session = await verifyAuth();
+    const userId = session ? Number(session.userId) : null;
 
     // Check if review exists and belongs to user
     const existing = await executeQuery<any[]>(
@@ -344,7 +347,7 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    if (!isAdmin && (!userId || existing[0].user_id !== parseInt(userId))) {
+    if (!isAdmin && (!userId || existing[0].user_id !== userId)) {
       return NextResponse.json(
         { success: false, message: 'Bạn không có quyền xóa đánh giá này' },
         { status: 403 }

@@ -8,6 +8,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { Button } from '@/components/ui/Button';
 import { ShoppingCart, Truck, ShieldCheck, PartyPopper, Lightbulb } from 'lucide-react';
+import { formatCurrency } from '@/lib/date-utils';
 
 export default function CartPage() {
   const { t } = useLanguage();
@@ -55,12 +56,7 @@ export default function CartPage() {
     }
   };
 
-  const formatPrice = (price: number) => {
-    return new Intl.NumberFormat('vi-VN', {
-      style: 'currency',
-      currency: 'VND'
-    }).format(price);
-  };
+  // local formatPrice removed, using import from @/lib/date-utils
 
   const subtotal = cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
   const shippingFee = subtotal > 1000000 ? 0 : 30000; // Miễn phí ship cho đơn > 1 triệu
@@ -215,11 +211,11 @@ export default function CartPage() {
                             {/* Price */}
                             <div className="text-right">
                               <p className="font-helvetica-medium text-lg">
-                                {formatPrice(item.price * item.quantity)}
+                                {formatCurrency(item.price * item.quantity)}
                               </p>
                               {item.quantity > 1 && (
                                 <p className="text-sm text-gray-600">
-                                  {formatPrice(item.price)} x {item.quantity}
+                                  {formatCurrency(item.price)} x {item.quantity}
                                 </p>
                               )}
                             </div>
@@ -251,7 +247,7 @@ export default function CartPage() {
                 <div className="space-y-4">
                   <div className="flex justify-between">
                     <span>{t.cart.subtotal} ({cartItems.length} {t.orders.items}):</span>
-                    <span>{formatPrice(subtotal)}</span>
+                    <span>{formatCurrency(subtotal)}</span>
                   </div>
 
                   <div className="flex justify-between">
@@ -260,14 +256,14 @@ export default function CartPage() {
                       {shippingFee === 0 ? (
                         <span className="text-green-600">{t.checkout.free}</span>
                       ) : (
-                        formatPrice(shippingFee)
+                        formatCurrency(shippingFee)
                       )}
                     </span>
                   </div>
 
                   <div className="flex justify-between">
                     <span>{t.cart.estimated_tax} (10%):</span>
-                    <span>{formatPrice(tax)}</span>
+                    <span>{formatCurrency(tax)}</span>
                   </div>
 
                   {shippingFee === 0 && subtotal < 1000000 && (
@@ -288,7 +284,7 @@ export default function CartPage() {
 
                   <div className="flex justify-between font-helvetica-medium text-lg">
                     <span>{t.cart.total}:</span>
-                    <span>{formatPrice(total)}</span>
+                    <span>{formatCurrency(total)}</span>
                   </div>
                 </div>
 

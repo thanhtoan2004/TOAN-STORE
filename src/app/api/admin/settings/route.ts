@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { executeQuery } from '@/lib/db/mysql';
-import jwt from 'jsonwebtoken';
-import { cookies } from 'next/headers';
+import { checkAdminAuth } from '@/lib/auth';
 
 async function ensureSettingsTable() {
   await executeQuery(
@@ -14,29 +13,12 @@ async function ensureSettingsTable() {
   );
 }
 
-async function checkAdminAuth() {
-  try {
-    const cookieStore = await cookies();
-    const token = cookieStore.get('auth_token')?.value;
-
-    if (!token) {
-      return null;
-    }
-
-    const decoded: any = jwt.verify(
-      token,
-      process.env.JWT_SECRET || 'fallback_secret'
-    );
-
-    const result = await executeQuery('SELECT is_admin FROM users WHERE id = ?', [decoded.userId]) as any[];
-    return result.length > 0 && (result[0] as any).is_admin === 1 ? result[0] : null;
-  } catch {
-    return null;
-  }
-}
-
 export async function GET(request: NextRequest) {
   try {
+    const admin = await checkAdminAuth();
+    if (!admin) {
+      return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
+    }
     // Fetch store settings from database or return defaults
     let result: any[] = [];
 

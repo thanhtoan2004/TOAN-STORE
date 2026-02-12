@@ -1,8 +1,13 @@
 import { NextResponse } from 'next/server';
 import { testConnection, initDb } from '@/lib/db/mysql';
+import { checkAdminAuth } from '@/lib/auth';
 
 export async function GET() {
   try {
+    const admin = await checkAdminAuth();
+    if (!admin) {
+      return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
+    }
     // Kiểm tra kết nối database
     const connected = await testConnection();
     if (!connected) {

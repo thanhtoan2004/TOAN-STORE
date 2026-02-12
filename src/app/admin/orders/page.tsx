@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import AdminLayout from '@/components/admin/AdminLayout';
+import { formatDateTime, formatCurrency } from '@/lib/date-utils';
 
 interface Order {
   id: number;
@@ -172,7 +173,7 @@ export default function AdminOrdersPage() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm font-semibold text-gray-900">
-                          ${(Number(order.total) || 0).toFixed(2)}
+                          {formatCurrency(order.total)}
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
@@ -182,7 +183,7 @@ export default function AdminOrdersPage() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm text-gray-900">
-                          {new Date(order.placed_at).toLocaleDateString()}
+                          {formatDateTime(order.placed_at)}
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right">

@@ -5,6 +5,7 @@ import {
     createSupportMessage,
     markMessagesAsRead
 } from '@/lib/db/supportChat';
+import { verifyAuth } from '@/lib/auth';
 
 export async function GET(
     request: NextRequest,
@@ -24,6 +25,14 @@ export async function GET(
                 success: false,
                 error: 'Chat not found'
             }, { status: 404 });
+        }
+
+        // Ownership check for registered users
+        if (chat.user_id) {
+            const session = await verifyAuth();
+            if (!session || Number(session.userId) !== chat.user_id) {
+                return NextResponse.json({ success: false, error: 'Unauthorized access to chat' }, { status: 403 });
+            }
         }
 
         // Get messages
@@ -57,8 +66,10 @@ export async function POST(
     try {
         const { chatId: chatIdStr } = await params;
         const chatId = parseInt(chatIdStr);
+        const session = await verifyAuth();
         const body = await request.json();
-        const { message, userId, imageUrl } = body;
+        const { message, imageUrl } = body;
+        const userId = session?.userId ? Number(session.userId) : null;
 
         if ((!message || !message.trim()) && !imageUrl) {
             return NextResponse.json({
@@ -76,11 +87,18 @@ export async function POST(
             }, { status: 404 });
         }
 
+        // Ownership check
+        if (chat.user_id) {
+            if (!userId || userId !== chat.user_id) {
+                return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 403 });
+            }
+        }
+
         // Create message
         const messageId = await createSupportMessage({
             chatId,
             senderType: 'customer',
-            senderId: userId,
+            senderId: userId || undefined,
             message: message?.trim() || '',
             imageUrl
         });

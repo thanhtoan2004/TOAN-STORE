@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { removeFromCart, updateCartItemQuantity } from '@/lib/db/mysql';
+import { removeFromCart, updateCartItemQuantity, executeQuery } from '@/lib/db/mysql';
+import { verifyAuth } from '@/lib/auth';
 
 // Interface cho Cart Item
 interface CartItem {
@@ -21,6 +22,11 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const session = await verifyAuth();
+    if (!session) {
+      return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
+    }
+
     const { id } = await params;
     const cartItemId = parseInt(id);
 
@@ -29,6 +35,20 @@ export async function PUT(
         { success: false, message: 'ID không hợp lệ' },
         { status: 400 }
       );
+    }
+
+    // Ownership check
+    const items = await executeQuery(
+      'SELECT user_id FROM cart_items WHERE id = ?',
+      [cartItemId]
+    ) as any[];
+
+    if (items.length === 0) {
+      return NextResponse.json({ success: false, message: 'Sản phẩm không tồn tại' }, { status: 404 });
+    }
+
+    if (items[0].user_id !== session.userId) {
+      return NextResponse.json({ success: false, message: 'Forbidden' }, { status: 403 });
     }
 
     const body = await request.json();
@@ -63,6 +83,11 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const session = await verifyAuth();
+    if (!session) {
+      return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
+    }
+
     const { id } = await params;
     const cartItemId = parseInt(id);
 
@@ -71,6 +96,20 @@ export async function DELETE(
         { success: false, message: 'ID không hợp lệ' },
         { status: 400 }
       );
+    }
+
+    // Ownership check
+    const items = await executeQuery(
+      'SELECT user_id FROM cart_items WHERE id = ?',
+      [cartItemId]
+    ) as any[];
+
+    if (items.length === 0) {
+      return NextResponse.json({ success: false, message: 'Sản phẩm không tồn tại' }, { status: 404 });
+    }
+
+    if (items[0].user_id !== session.userId) {
+      return NextResponse.json({ success: false, message: 'Forbidden' }, { status: 403 });
     }
 
     // Xóa item từ database

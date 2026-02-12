@@ -6,6 +6,7 @@ import Image from 'next/image';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { Button } from "@/components/ui/Button";
 import { Package } from 'lucide-react';
+import { formatDateTime, formatCurrency } from '@/lib/date-utils';
 
 interface Order {
   orderNumber: string;
@@ -32,26 +33,26 @@ export default function OrdersPage() {
         setError(null);
 
         // Get user info from API to ensure it's always up-to-date
-        const userResponse = await fetch('/api/auth/me');
-        if (!userResponse.ok) {
+        const authRes = await fetch('/api/auth/user');
+        if (!authRes.ok) {
           setError(t.common.error); // Or a specific login error
           setLoading(false);
           return;
         }
 
-        const userData = await userResponse.json();
-        const response = await fetch(`/api/orders?userId=${userData.user.id}&page=${page}&limit=${limit}`);
+        const userData = await authRes.json();
+        const ordersRes = await fetch(`/api/orders?userId=${userData.user.id}&page=${page}&limit=${limit}`);
 
-        if (!response.ok) {
+        if (!ordersRes.ok) {
           throw new Error('Failed to fetch orders');
         }
 
-        const data = await response.json();
+        const data = await ordersRes.json();
 
         // Transform API data to match Order interface
         const transformedOrders = data.orders?.map((order: any) => ({
           orderNumber: order.order_number,
-          orderDate: new Date(order.placed_at).toLocaleDateString('vi-VN'),
+          orderDate: formatDateTime(order.placed_at),
           status: order.status === 'pending' ? 'pending' :
             order.status === 'processing' ? 'confirmed' :
               order.status === 'shipped' ? 'shipping' :
@@ -97,12 +98,6 @@ export default function OrdersPage() {
     }
   };
 
-  const formatPrice = (price: number) => {
-    return new Intl.NumberFormat('vi-VN', {
-      style: 'currency',
-      currency: 'VND'
-    }).format(price);
-  };
 
   const handlePageChange = (newPage: number) => {
     if (newPage >= 1 && newPage <= totalPages) {
@@ -215,7 +210,7 @@ export default function OrdersPage() {
 
                     {/* Total Amount */}
                     <div className="text-right md:text-left">
-                      <p className="font-helvetica-medium text-lg">{formatPrice(order.totalAmount)}</p>
+                      <p className="font-helvetica-medium text-lg">{formatCurrency(order.totalAmount)}</p>
                     </div>
 
                     {/* Actions */}

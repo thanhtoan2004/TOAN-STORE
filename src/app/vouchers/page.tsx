@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from "@/components/ui/Button";
+import { formatDate, formatDateTime, formatCurrency } from '@/lib/date-utils';
 
 interface Coupon {
   id: number;
@@ -44,7 +45,7 @@ export default function VouchersPage() {
 
   const fetchCoupons = async () => {
     try {
-      const response = await fetch('/api/voucher/list');
+      const response = await fetch('/api/promo-codes/available');
       const data = await response.json();
       if (data.success) {
         setCoupons(data.data);
@@ -61,15 +62,13 @@ export default function VouchersPage() {
     alert(`Đã sao chép mã: ${code}`);
   };
 
-  const formatDate = (date: string) => {
-    return new Date(date).toLocaleDateString('vi-VN');
-  };
+  // local formatDate removed, using import from @/lib/date-utils
 
   const getDiscountText = (coupon: Coupon) => {
     if (coupon.discount_type === 'percent') {
       return `Giảm ${coupon.discount_value}%`;
     }
-    return `Giảm ${coupon.discount_value.toLocaleString('vi-VN')}₫`;
+    return `Giảm ${formatCurrency(coupon.discount_value)}`;
   };
 
   const getUsageText = (coupon: Coupon) => {
@@ -85,7 +84,7 @@ export default function VouchersPage() {
 
     setLoadingHistory(true);
     try {
-      const response = await fetch(`/api/voucher/history?userId=${user.id}`);
+      const response = await fetch(`/api/promo-codes/history?userId=${user.id}`);
       const data = await response.json();
       if (data.success && data.data?.usageHistory) {
         setHistory(data.data.usageHistory);
@@ -268,10 +267,10 @@ export default function VouchersPage() {
                       </div>
                       <div className="text-right">
                         <p className="text-lg font-bold text-green-600">
-                          -{item.discountAmount.toLocaleString('vi-VN')} ₫
+                          -{formatCurrency(item.discountAmount)}
                         </p>
                         <p className="text-sm text-gray-500 mt-1">
-                          {new Date(item.usedAt).toLocaleString('vi-VN')}
+                          {formatDateTime(item.usedAt)}
                         </p>
                       </div>
                     </div>

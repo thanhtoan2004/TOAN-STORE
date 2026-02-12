@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupportChat, updateChatStatus } from '@/lib/db/supportChat';
+import { verifyAuth } from '@/lib/auth';
 
 export async function POST(
     request: NextRequest,
@@ -16,6 +17,14 @@ export async function POST(
                 success: false,
                 error: 'Chat not found'
             }, { status: 404 });
+        }
+
+        // Ownership check
+        if (chat.user_id) {
+            const session = await verifyAuth();
+            if (!session || Number(session.userId) !== chat.user_id) {
+                return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 403 });
+            }
         }
 
         // Update status to closed

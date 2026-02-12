@@ -29,24 +29,24 @@ function AdminLoginContent() {
     setSuccessMessage('');
 
     try {
-      const success = await login(email, password);
+      const response = await fetch('/api/auth/login-admin', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email, password }),
+      });
 
-      if (success) {
-        // Fetch user data to check if admin
-        const userResponse = await fetch('/api/auth/me');
-        const userData = await userResponse.json();
+      const data = await response.json();
 
-        if (userData.is_admin || userData.user?.is_admin) {
-          router.push('/admin/dashboard');
-        } else {
-          setError('Tài khoản này không có quyền truy cập admin');
-        }
+      if (response.ok) {
+        setSuccessMessage('Đăng nhập thành công!');
+        router.push('/admin/dashboard');
       } else {
-        setError('Email hoặc mật khẩu không chính xác');
+        setError(data.error || 'Email hoặc mật khẩu không chính xác');
       }
     } catch (err: unknown) {
-      const errorMessage = err instanceof Error ? err.message : 'Có lỗi xảy ra khi đăng nhập';
-      setError(errorMessage);
+      setError('Có lỗi xảy ra khi đăng nhập');
     } finally {
       setIsLoading(false);
     }

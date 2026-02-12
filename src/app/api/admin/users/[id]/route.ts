@@ -1,19 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { executeQuery } from '@/lib/db/mysql';
 
-// Check if user is admin
-async function checkAdminAuth(request: NextRequest) {
-    try {
-        const authHeader = request.headers.get('authorization') || request.headers.get('cookie')?.match(/auth_token=([^;]+)/)?.[1];
-        if (!authHeader) return null;
-        const token = authHeader.replace('Bearer ', '');
-        const decoded: any = JSON.parse(Buffer.from(token.split('.')[1], 'base64').toString());
-        const result = await executeQuery('SELECT is_admin FROM users WHERE id = ?', [decoded.userId]) as any[];
-        return result.length > 0 && (result[0] as any).is_admin === 1 ? result[0] : null;
-    } catch {
-        return null;
-    }
-}
+import { checkAdminAuth } from '@/lib/auth';
 
 // PATCH /api/admin/users/[id] - Update user (admin role, status, etc.)
 export async function PATCH(
@@ -21,7 +9,7 @@ export async function PATCH(
     { params }: { params: Promise<{ id: string }> }
 ) {
     try {
-        const admin = await checkAdminAuth(request);
+        const admin = await checkAdminAuth();
         if (!admin) {
             return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
         }
@@ -111,7 +99,7 @@ export async function DELETE(
     { params }: { params: Promise<{ id: string }> }
 ) {
     try {
-        const admin = await checkAdminAuth(request);
+        const admin = await checkAdminAuth();
         if (!admin) {
             return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
         }

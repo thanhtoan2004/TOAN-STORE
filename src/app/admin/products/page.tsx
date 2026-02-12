@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import AdminLayout from '@/components/admin/AdminLayout';
+import { formatCurrency } from '@/lib/date-utils';
 import Link from 'next/link';
 import Image from 'next/image';
 
@@ -216,10 +217,10 @@ export default function AdminProductsPage() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm text-gray-900">
-                          {(Number(product.base_price) || 0).toLocaleString('vi-VN')} VNĐ
+                          {formatCurrency(product.base_price)}
                           {product.retail_price && product.retail_price !== product.base_price && (
                             <span className="ml-2 text-xs text-gray-500 line-through">
-                              {(Number(product.retail_price) || 0).toLocaleString('vi-VN')} VNĐ
+                              {formatCurrency(product.retail_price)}
                             </span>
                           )}
                         </div>

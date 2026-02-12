@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { query } from '@/lib/db/mysql';
+import { checkAdminAuth } from '@/lib/auth';
 
 /**
  * Get dashboard analytics
@@ -7,6 +8,10 @@ import { query } from '@/lib/db/mysql';
  */
 export async function GET(request: Request) {
     try {
+        const admin = await checkAdminAuth();
+        if (!admin) {
+            return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
+        }
         const { searchParams } = new URL(request.url);
         const period = searchParams.get('period') || '30'; // days
 
@@ -50,7 +55,7 @@ export async function GET(request: Request) {
             `SELECT 
         p.id,
         p.name,
-        p.image_url,
+        (SELECT url FROM product_images WHERE product_id = p.id AND is_main = 1 LIMIT 1) as image_url,
         SUM(oi.quantity) as total_sold,
         SUM(oi.quantity * oi.price) as revenue
        FROM order_items oi
@@ -58,7 +63,7 @@ export async function GET(request: Request) {
        JOIN orders o ON oi.order_id = o.id
        WHERE o.status IN ('completed', 'delivered')
          AND o.created_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
-       GROUP BY p.id, p.name, p.image_url
+       GROUP BY p.id, p.name
        ORDER BY total_sold DESC
        LIMIT 10`,
             [period]
@@ -77,7 +82,7 @@ export async function GET(request: Request) {
             `SELECT 
         p.id,
         p.name,
-        p.image_url,
+        (SELECT url FROM product_images WHERE product_id = p.id AND is_main = 1 LIMIT 1) as image_url,
         i.quantity,
         i.reserved
        FROM inventory i

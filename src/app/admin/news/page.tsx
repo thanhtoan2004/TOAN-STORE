@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import AdminLayout from '@/components/admin/AdminLayout';
+import { formatDate } from '@/lib/date-utils';
 
 interface News {
     id: number;
@@ -135,10 +136,7 @@ export default function AdminNewsPage() {
         });
     };
 
-    const formatDate = (dateString: string | null) => {
-        if (!dateString) return '-';
-        return new Date(dateString).toLocaleDateString('vi-VN');
-    };
+    // formatDate removed
 
     return (
         <AdminLayout>

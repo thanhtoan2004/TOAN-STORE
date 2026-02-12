@@ -73,7 +73,6 @@ function ResetPasswordContent() {
             <div className="nike-container py-10">
                 <div className="max-w-md mx-auto bg-white p-8 rounded-lg shadow-sm border">
                     <div className="mb-8 text-center">
-                        <div className="text-6xl mb-4">❌</div>
                         <h1 className="text-3xl font-bold uppercase mb-2">Link không hợp lệ</h1>
                         <p className="text-sm text-gray-500">
                             Link đặt lại mật khẩu không hợp lệ hoặc đã hết hạn.
@@ -164,7 +163,7 @@ function ResetPasswordContent() {
                 </form>
 
                 <div className="mt-6 p-4 bg-gray-50 rounded">
-                    <h3 className="font-medium text-sm mb-2">🔒 Lưu ý bảo mật:</h3>
+                    <h3 className="font-medium text-sm mb-2">Lưu ý bảo mật:</h3>
                     <ul className="text-xs text-gray-600 space-y-1">
                         <li>• Sử dụng mật khẩu mạnh (chữ hoa, chữ thường, số)</li>
                         <li>• Không sử dụng lại mật khẩu cũ</li>

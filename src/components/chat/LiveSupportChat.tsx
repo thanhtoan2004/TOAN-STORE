@@ -29,6 +29,7 @@ export default function LiveSupportChat({ userId, guestEmail, guestName }: LiveS
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const initInProgressRef = useRef<boolean>(false);
     const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
     const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -80,7 +81,13 @@ export default function LiveSupportChat({ userId, guestEmail, guestName }: LiveS
         }
 
         const initChat = async () => {
+            if (initInProgressRef.current) return;
+            initInProgressRef.current = true;
             setIsInitializing(true);
+
+            const controller = new AbortController();
+            const signal = controller.signal;
+
             try {
                 // If guest, use local state data or props
                 const currentGuestName = userId ? undefined : (guestName || guestInfo.name);
@@ -93,7 +100,8 @@ export default function LiveSupportChat({ userId, guestEmail, guestName }: LiveS
                         userId,
                         guestEmail: currentGuestEmail,
                         guestName: currentGuestName
-                    })
+                    }),
+                    signal
                 });
 
                 const data = await response.json();
@@ -110,10 +118,12 @@ export default function LiveSupportChat({ userId, guestEmail, guestName }: LiveS
 
                     setShowGuestForm(false);
                 }
-            } catch (error) {
+            } catch (error: any) {
+                if (error.name === 'AbortError') return;
                 console.error('Failed to initialize chat:', error);
             } finally {
                 setIsInitializing(false);
+                initInProgressRef.current = false;
             }
         };
 
@@ -313,9 +323,11 @@ export default function LiveSupportChat({ userId, guestEmail, guestName }: LiveS
     return (
         <div className="flex flex-col h-full">
             {/* Status Bar */}
-            <div className="p-3 border-b border-gray-200 bg-gray-50">
-                {getStatusBadge()}
-            </div>
+            {messages.length > 0 && (
+                <div className="p-3 border-b border-gray-200 bg-gray-50">
+                    {getStatusBadge()}
+                </div>
+            )}
 
             {/* Messages */}
             <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50">
@@ -330,10 +342,10 @@ export default function LiveSupportChat({ userId, guestEmail, guestName }: LiveS
                                 : 'bg-white border border-gray-200 text-gray-800 rounded-tl-sm shadow-sm'
                                 }`}
                         >
-                            {msg.sender_type === 'admin' && msg.sender_first_name && (
-                                <div className="flex items-center gap-1 mb-1 text-xs text-gray-500">
-                                    <User size={12} />
-                                    <span>{msg.sender_first_name} {msg.sender_last_name} • {new Date(msg.created_at).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Ho_Chi_Minh' })}</span>
+                            {msg.sender_type === 'admin' && (
+                                <div className="flex items-center gap-1 mb-1 text-[10px] text-gray-500 font-bold uppercase">
+                                    <User size={10} />
+                                    <span>{msg.sender_first_name || 'NIKE SUPPORT'} {msg.sender_last_name || ''} • {new Date(msg.created_at).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}</span>
                                 </div>
                             )}
                             {msg.image_url && (
@@ -348,7 +360,7 @@ export default function LiveSupportChat({ userId, guestEmail, guestName }: LiveS
                             <div>{msg.message}</div>
                             {msg.sender_type === 'customer' && (
                                 <div className="text-[10px] text-white/70 text-right mt-1">
-                                    {new Date(msg.created_at).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Ho_Chi_Minh' })}
+                                    {new Date(msg.created_at).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
                                 </div>
                             )}
                         </div>

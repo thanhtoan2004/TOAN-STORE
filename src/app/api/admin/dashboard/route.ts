@@ -1,37 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { executeQuery } from '@/lib/db/mysql';
-import jwt from 'jsonwebtoken';
-import { cookies } from 'next/headers';
-import { JWTPayload } from '@/types/auth';
+import { checkAdminAuth } from '@/lib/auth';
 
 // GET - Comprehensive dashboard statistics
 export async function GET(request: NextRequest) {
   try {
     // Auth check
-    const cookieStore = await cookies();
-    const token = cookieStore.get('auth_token')?.value;
-
-    if (!token) {
+    const admin = await checkAdminAuth();
+    if (!admin) {
       return NextResponse.json(
         { success: false, message: 'Unauthorized' },
         { status: 401 }
-      );
-    }
-
-    const decoded = jwt.verify(
-      token,
-      process.env.JWT_SECRET || 'fallback_secret'
-    ) as JWTPayload;
-
-    const users = await executeQuery(
-      'SELECT is_admin FROM users WHERE id = ?',
-      [decoded.userId]
-    ) as any[];
-
-    if (users.length === 0 || users[0].is_admin !== 1) {
-      return NextResponse.json(
-        { success: false, message: 'Forbidden - Admin access required' },
-        { status: 403 }
       );
     }
 
@@ -86,13 +65,13 @@ export async function GET(request: NextRequest) {
     const inventoryStats = await executeQuery<any[]>(`
       SELECT 
         (SELECT COUNT(DISTINCT pv.product_id) 
-         FROM inventory i 
-         JOIN product_variants pv ON i.product_variant_id = pv.id
-         WHERE i.quantity > 0 AND i.quantity < 10) as low_stock_count,
+         FROM product_variants pv
+         JOIN inventory i ON pv.id = i.product_variant_id
+         WHERE (i.quantity - i.reserved) > 0 AND (i.quantity - i.reserved) < 10) as low_stock_count,
         (SELECT COUNT(DISTINCT pv.product_id) 
-         FROM inventory i
-         JOIN product_variants pv ON i.product_variant_id = pv.id 
-         WHERE i.quantity = 0) as out_of_stock_count
+         FROM product_variants pv
+         JOIN inventory i ON pv.id = i.product_variant_id
+         WHERE (i.quantity - i.reserved) = 0) as out_of_stock_count
     `);
 
     // Low stock products
@@ -100,12 +79,12 @@ export async function GET(request: NextRequest) {
       SELECT 
         p.id,
         p.name,
-        SUM(i.quantity) as total_quantity,
+        SUM(i.quantity - i.reserved) as total_quantity,
         (SELECT url FROM product_images WHERE product_id = p.id AND is_main = 1 LIMIT 1) as image_url
       FROM inventory i
       JOIN product_variants pv ON i.product_variant_id = pv.id
       JOIN products p ON pv.product_id = p.id
-      WHERE i.quantity > 0 AND i.quantity < 10
+      WHERE (i.quantity - i.reserved) > 0 AND (i.quantity - i.reserved) < 10
       GROUP BY p.id, p.name
       ORDER BY total_quantity ASC
       LIMIT 5

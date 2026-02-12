@@ -30,7 +30,7 @@ const Header = () => {
     { name: t.nav.new, href: '/categories?sort=newest' },
     { name: t.nav.men, href: '/men' },
     { name: t.nav.women, href: '/women' },
-    { name: t.nav.kids, href: '/categories?gender=kids' },
+    { name: t.nav.kids, href: '/kids' },
     { name: t.nav.jordan, href: '/categories?sport=basketball' },
     { name: t.nav.sports, href: '/categories?sport=running' },
   ];

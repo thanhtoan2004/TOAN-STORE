@@ -6,6 +6,7 @@ import Image from 'next/image';
 import { useParams } from 'next/navigation';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { Button } from "@/components/ui/Button";
+import { formatDateTime, formatCurrency } from '@/lib/date-utils';
 
 interface OrderItem {
   id: string;
@@ -72,7 +73,7 @@ export default function OrderDetailPage() {
         // Transform API data to match OrderData interface
         const transformedData: OrderData = {
           orderNumber: order.order_number,
-          orderDate: new Date(order.placed_at).toLocaleDateString('vi-VN'),
+          orderDate: formatDateTime(order.placed_at),
           status: order.status === 'pending' ? 'pending' :
             order.status === 'processing' ? 'confirmed' :
               order.status === 'shipped' ? 'shipping' :
@@ -145,12 +146,6 @@ export default function OrderDetailPage() {
     }
   };
 
-  const formatPrice = (price: number) => {
-    return new Intl.NumberFormat('vi-VN', {
-      style: 'currency',
-      currency: 'VND'
-    }).format(price);
-  };
 
   const handleCancelOrder = async () => {
     if (!confirm('Bạn có chắc chắn muốn hủy đơn hàng này?')) return;
@@ -274,12 +269,12 @@ export default function OrderDetailPage() {
                         <p>Kích thước: {item.size}</p>
                         <p>Màu sắc: {item.color}</p>
                         <p>Số lượng: {item.quantity}</p>
-                        <p>Đơn giá: {formatPrice(item.unit_price)}</p>
+                        <p>Đơn giá: {formatCurrency(item.unit_price)}</p>
                       </div>
                     </div>
                     <div className="text-right">
-                      <p className="font-helvetica-medium text-lg">{formatPrice(item.total_price)}</p>
-                      <p className="text-sm text-gray-600">({item.quantity} × {formatPrice(item.unit_price)})</p>
+                      <p className="font-helvetica-medium text-lg">{formatCurrency(item.total_price)}</p>
+                      <p className="text-sm text-gray-600">({item.quantity} × {formatCurrency(item.unit_price)})</p>
                     </div>
                   </div>
                 ))}
@@ -305,32 +300,32 @@ export default function OrderDetailPage() {
               <div className="space-y-4">
                 <div className="flex justify-between">
                   <span>Tổng tiền hàng:</span>
-                  <span>{formatPrice(orderData.totalAmount)}</span>
+                  <span>{formatCurrency(orderData.totalAmount)}</span>
                 </div>
                 <div className="flex justify-between">
                   <span>Phí vận chuyển:</span>
-                  <span>{formatPrice(orderData.shippingFee)}</span>
+                  <span>{formatCurrency(orderData.shippingFee)}</span>
                 </div>
                 <div className="flex justify-between">
                   <span>Thuế VAT:</span>
-                  <span>{formatPrice(orderData.tax)}</span>
+                  <span>{formatCurrency(orderData.tax)}</span>
                 </div>
                 {orderData.voucherDiscount > 0 && (
                   <div className="flex justify-between text-green-600">
                     <span>Giảm giá Voucher ({orderData.voucherCode}):</span>
-                    <span>-{formatPrice(orderData.voucherDiscount)}</span>
+                    <span>-{formatCurrency(orderData.voucherDiscount)}</span>
                   </div>
                 )}
                 {orderData.giftcardDiscount > 0 && (
                   <div className="flex justify-between text-green-600">
                     <span>Thẻ quà tặng (****{orderData.giftcardNumber?.slice(-4)}):</span>
-                    <span>-{formatPrice(orderData.giftcardDiscount)}</span>
+                    <span>-{formatCurrency(orderData.giftcardDiscount)}</span>
                   </div>
                 )}
                 <hr />
                 <div className="flex justify-between font-helvetica-medium text-lg">
                   <span>Tổng cộng:</span>
-                  <span>{formatPrice(orderData.finalTotal)}</span>
+                  <span>{formatCurrency(orderData.finalTotal)}</span>
                 </div>
               </div>
             </div>

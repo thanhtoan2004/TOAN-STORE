@@ -1,5 +1,6 @@
 "use client";
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { ProductsGrid } from '@/components/ui/products';
 import ProductFilter from '@/components/ui/products/ProductFilter';
 
@@ -10,10 +11,28 @@ interface FilterParams {
 import { useLanguage } from '@/contexts/LanguageContext';
 
 export default function CategoriesPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center">Đang tải...</div>}>
+      <CategoriesContent />
+    </Suspense>
+  );
+}
+
+function CategoriesContent() {
   const { t } = useLanguage();
+  const searchParams = useSearchParams();
   const [filterParams, setFilterParams] = useState<FilterParams>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Initialize filters from URL on mount
+  useEffect(() => {
+    const params: FilterParams = {};
+    searchParams.forEach((value, key) => {
+      params[key] = value;
+    });
+    setFilterParams(params);
+  }, [searchParams]);
 
   const handleFilterChange = (newFilters: FilterParams) => {
     // Replace completely instead of merging to ensure proper state update

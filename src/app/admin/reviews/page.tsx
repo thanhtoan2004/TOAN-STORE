@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import AdminLayout from '@/components/admin/AdminLayout';
+import { formatDate } from '@/lib/date-utils';
 
 interface Review {
   id: number;
@@ -194,7 +195,7 @@ export default function AdminReviewsPage() {
                             <div>
                               <h3 className="font-medium text-gray-900">{review.product_name}</h3>
                               <p className="text-sm text-gray-500 mt-1">
-                                By {review.user_name} • {new Date(review.created_at).toLocaleDateString()}
+                                By {review.user_name} • {formatDate(review.created_at)}
                               </p>
                             </div>
                             <div className="flex items-center space-x-2">

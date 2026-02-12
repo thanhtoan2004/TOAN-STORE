@@ -220,7 +220,7 @@ export default function WomenPage() {
               <h3 className="text-lg font-semibold">Essentials Nữ</h3>
               <p className="mb-4 text-gray-600">Phong cách cho mọi buổi tập luyện</p>
               <Link
-                href="/collections/womens-essentials"
+                href="/categories?gender=women&category=lifestyle"
                 className="inline-block bg-black text-white px-6 py-2 rounded-full hover:bg-gray-800 transition-colors"
               >
                 {t.home.shop_now}
@@ -241,7 +241,7 @@ export default function WomenPage() {
               <h3 className="text-lg font-semibold">Bộ Sưu Tập Yoga</h3>
               <p className="mb-4 text-gray-600">Thoải mái trong từng động tác</p>
               <Link
-                href="/collections/yoga"
+                href="/categories?gender=women&sport=training"
                 className="inline-block bg-black text-white px-6 py-2 rounded-full hover:bg-gray-800 transition-colors"
               >
                 {t.home.shop_now}

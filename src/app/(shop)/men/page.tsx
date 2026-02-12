@@ -25,32 +25,32 @@ const FEATURED_COLLECTIONS = [
     title: "Professional Essentials",
     subtitle: "Fly Off the Track",
     image: "https://ext.same-assets.com/3155489436/4012202764.jpeg",
-    link: "/categories?sport=track",
-    price: "From $89"
+    link: "/categories?gender=men&sport=running",
+    price: "From 1.500.000 ₫"
   },
   {
     id: 2,
     title: "Training",
     subtitle: "Fly On the Track",
     image: "https://ext.same-assets.com/3155489436/3836325111.jpeg",
-    link: "/categories?sport=training",
-    price: "From $65"
+    link: "/categories?gender=men&sport=training",
+    price: "From 1.200.000 ₫"
   },
   {
     id: 3,
     title: "Basketball",
     subtitle: "Dominate the Court",
     image: "https://ext.same-assets.com/3155489436/1127694100.jpeg",
-    link: "/categories?sport=basketball",
-    price: "From $120"
+    link: "/categories?gender=men&sport=basketball",
+    price: "From 2.500.000 ₫"
   },
   {
     id: 4,
     title: "Lifestyle",
     subtitle: "Everyday Comfort",
     image: "https://ext.same-assets.com/3155489436/3534139910.jpeg",
-    link: "/categories?category=lifestyle",
-    price: "From $75"
+    link: "/categories?gender=men&category=lifestyle",
+    price: "From 1.800.000 ₫"
   }
 ];
 

@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import Image from 'next/image';
+import { formatDateTime, formatCurrency } from '@/lib/date-utils';
 
 interface OrderItem {
     id: number;
@@ -86,7 +87,6 @@ export default function OrderLookupPage() {
         }
     };
 
-    const formatPrice = (price: number) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(price);
 
     return (
         <div className="min-h-screen bg-gray-50 py-12">
@@ -147,7 +147,7 @@ export default function OrderLookupPage() {
                             <div className="p-6 border-b bg-gray-50 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                                 <div>
                                     <h2 className="text-xl font-bold">Đơn hàng #{order.order_number}</h2>
-                                    <p className="text-sm text-gray-500">Đặt ngày: {new Date(order.placed_at).toLocaleDateString('vi-VN')}</p>
+                                    <p className="text-sm text-gray-500">Đặt ngày: {formatDateTime(order.placed_at)}</p>
                                 </div>
                                 <span className={`px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(order.status)}`}>
                                     {getStatusText(order.status)}
@@ -171,7 +171,7 @@ export default function OrderLookupPage() {
                                                 <div className="flex-1">
                                                     <p className="font-medium line-clamp-2">{item.product_name}</p>
                                                     <p className="text-sm text-gray-500">Size: {item.size} | SL: {item.quantity}</p>
-                                                    <p className="text-sm font-medium mt-1">{formatPrice(item.unit_price)}</p>
+                                                    <p className="text-sm font-medium mt-1">{formatCurrency(item.unit_price)}</p>
                                                 </div>
                                             </div>
                                         ))}
@@ -213,15 +213,15 @@ export default function OrderLookupPage() {
                                         <div className="space-y-1 text-sm">
                                             <div className="flex justify-between">
                                                 <span className="text-gray-600">Tạm tính:</span>
-                                                <span>{formatPrice(order.subtotal)}</span>
+                                                <span>{formatCurrency(order.subtotal)}</span>
                                             </div>
                                             <div className="flex justify-between">
                                                 <span className="text-gray-600">Phí vận chuyển:</span>
-                                                <span>{formatPrice(order.shipping_fee)}</span>
+                                                <span>{formatCurrency(order.shipping_fee)}</span>
                                             </div>
                                             <div className="flex justify-between text-lg font-bold pt-2 border-t mt-2">
                                                 <span>Thành tiền:</span>
-                                                <span>{formatPrice(order.total)}</span>
+                                                <span>{formatCurrency(order.total)}</span>
                                             </div>
                                             <div className="mt-2 text-xs text-gray-500 text-right">
                                                 Phương thức: {order.payment_method.toUpperCase()} <br />

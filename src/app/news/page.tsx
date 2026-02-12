@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
+import { formatDate } from '@/lib/date-utils';
 
 interface NewsItem {
   id: number;
@@ -37,13 +38,7 @@ export default function NewsPage() {
     }
   };
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('vi-VN', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric'
-    });
-  };
+  // formatDate removed
 
   return (
     <div className="min-h-screen bg-gray-50">

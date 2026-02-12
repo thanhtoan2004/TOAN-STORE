@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
+import { formatCurrency } from '@/lib/date-utils';
 
 export default function PaymentConfirmationPage() {
   const [formData, setFormData] = useState({
@@ -169,7 +170,7 @@ export default function PaymentConfirmationPage() {
                       onChange={(e) => {
                         const value = e.target.value.replace(/[^\d]/g, '');
                         if (value) {
-                          const formatted = parseInt(value).toLocaleString('vi-VN');
+                          const formatted = formatCurrency(parseInt(value)).replace(' ₫', '').trim();
                           setFormData(prev => ({ ...prev, amount: formatted }));
                         } else {
                           setFormData(prev => ({ ...prev, amount: '' }));
@@ -231,8 +232,8 @@ export default function PaymentConfirmationPage() {
                     type="submit"
                     disabled={loading}
                     className={`w-full py-3 rounded-lg font-medium transition-colors ${loading
-                        ? 'bg-gray-400 cursor-not-allowed text-white'
-                        : 'bg-black text-white hover:bg-gray-800'
+                      ? 'bg-gray-400 cursor-not-allowed text-white'
+                      : 'bg-black text-white hover:bg-gray-800'
                       }`}
                   >
                     {loading ? 'Đang xử lý...' : 'Xác Nhận Thanh Toán'}

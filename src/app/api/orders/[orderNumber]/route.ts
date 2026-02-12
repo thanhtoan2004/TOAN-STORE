@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getOrderByNumber, updateOrderStatus } from '@/lib/db/mysql';
+import { verifyAuth } from '@/lib/auth';
 
 // GET - Lấy chi tiết đơn hàng theo orderNumber
 export async function GET(
@@ -7,6 +8,10 @@ export async function GET(
   { params }: { params: Promise<{ orderNumber: string }> }
 ) {
   try {
+    const session = await verifyAuth();
+    if (!session) {
+      return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
+    }
     const { orderNumber } = await params;
 
     if (!orderNumber) {
@@ -23,6 +28,14 @@ export async function GET(
       return NextResponse.json(
         { success: false, message: 'Không tìm thấy đơn hàng' },
         { status: 404 }
+      );
+    }
+
+    // Check ownership
+    if (order[0].user_id !== session.userId) {
+      return NextResponse.json(
+        { success: false, message: 'Forbidden' },
+        { status: 403 }
       );
     }
 
@@ -65,30 +78,32 @@ export async function GET(
   }
 }
 
-// PUT - Cập nhật trạng thái đơn hàng
+// PUT - Cập nhật trạng thái đơn hàng (CHỈ HỦY)
 export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ orderNumber: string }> }
 ) {
   try {
+    const session = await verifyAuth();
+    if (!session) {
+      return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
+    }
     const { orderNumber } = await params;
     const body = await request.json();
     const { status } = body;
 
-    if (!orderNumber) {
-      return NextResponse.json(
-        { success: false, message: 'Mã đơn hàng không hợp lệ' },
-        { status: 400 }
-      );
+    // Security: Only allow user to cancel their own pending order
+    const order = await getOrderByNumber(orderNumber) as any;
+    if (!order || order.length === 0) {
+      return NextResponse.json({ success: false, message: 'Order not found' }, { status: 404 });
     }
 
-    // Validate trạng thái hợp lệ
-    const validStatuses = ['pending', 'pending_payment_confirmation', 'payment_received', 'processing', 'shipped', 'delivered', 'cancelled'];
-    if (status && !validStatuses.includes(status)) {
-      return NextResponse.json(
-        { success: false, message: 'Trạng thái không hợp lệ' },
-        { status: 400 }
-      );
+    if (order[0].user_id !== session.userId) {
+      return NextResponse.json({ success: false, message: 'Forbidden' }, { status: 403 });
+    }
+
+    if (status !== 'cancelled' || order[0].status !== 'pending') {
+      return NextResponse.json({ success: false, message: 'Invalid action' }, { status: 400 });
     }
 
     // Update order status in database
@@ -113,6 +128,10 @@ export async function DELETE(
   { params }: { params: Promise<{ orderNumber: string }> }
 ) {
   try {
+    const session = await verifyAuth();
+    if (!session) {
+      return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
+    }
     const { orderNumber } = await params;
 
     if (!orderNumber) {
@@ -122,7 +141,7 @@ export async function DELETE(
       );
     }
 
-    // Get order to check status
+    // Get order to check status and ownership
     const order = await getOrderByNumber(orderNumber) as any;
 
     if (!order || order.length === 0) {
@@ -130,6 +149,10 @@ export async function DELETE(
         { success: false, message: 'Không tìm thấy đơn hàng' },
         { status: 404 }
       );
+    }
+
+    if (order[0].user_id !== session.userId) {
+      return NextResponse.json({ success: false, message: 'Forbidden' }, { status: 403 });
     }
 
     // Only allow cancelling pending orders

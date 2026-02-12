@@ -1,26 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
-import jwt from 'jsonwebtoken';
 import bcrypt from 'bcrypt';
-import { cookies } from 'next/headers';
 import { executeQuery } from '@/lib/db/mysql';
-import { JWTPayload } from '@/types/auth';
+import { verifyAuth } from '@/lib/auth';
 
 export async function POST(request: NextRequest) {
   try {
-    const cookieStore = await cookies();
-    const token = cookieStore.get('auth_token')?.value;
-
-    if (!token) {
+    const session = await verifyAuth();
+    if (!session) {
       return NextResponse.json(
-        { success: false, message: 'Không tìm thấy token' },
+        { success: false, message: 'Unauthorized' },
         { status: 401 }
       );
     }
-
-    const decoded = jwt.verify(
-      token,
-      process.env.JWT_SECRET || 'fallback_secret'
-    ) as JWTPayload;
 
     const body = await request.json();
     const { currentPassword, newPassword } = body;
@@ -28,7 +19,7 @@ export async function POST(request: NextRequest) {
     // Get current user
     const users = await executeQuery(
       'SELECT id, password FROM users WHERE id = ?',
-      [decoded.userId]
+      [session.userId]
     ) as any[];
 
     if (users.length === 0) {
@@ -55,7 +46,7 @@ export async function POST(request: NextRequest) {
     // Update password
     await executeQuery(
       'UPDATE users SET password = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
-      [hashedPassword, decoded.userId]
+      [hashedPassword, session.userId]
     );
 
     return NextResponse.json({

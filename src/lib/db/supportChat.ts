@@ -153,11 +153,17 @@ export async function getSupportMessages(
     let sql = `
     SELECT 
       sm.*,
-      u.email as sender_email,
-      u.first_name as sender_first_name,
-      u.last_name as sender_last_name
+      CASE 
+        WHEN sm.sender_type = 'admin' THEN au.full_name
+        ELSE u.first_name 
+      END as sender_first_name,
+      CASE 
+        WHEN sm.sender_type = 'admin' THEN ''
+        ELSE u.last_name 
+      END as sender_last_name
     FROM support_messages sm
-    LEFT JOIN users u ON sm.sender_id = u.id
+    LEFT JOIN users u ON sm.sender_id = u.id AND sm.sender_type = 'customer'
+    LEFT JOIN admin_users au ON sm.sender_id = au.id AND sm.sender_type = 'admin'
     WHERE sm.chat_id = ?
   `;
 
@@ -233,6 +239,9 @@ export async function getAdminChats(filters: {
         whereClauses.push('sc.assigned_admin_id = ?');
         params.push(filters.assignedAdminId);
     }
+
+    // Always exclude chats with no messages to avoid "empty" waiting sessions
+    whereClauses.push('(SELECT COUNT(*) FROM support_messages WHERE chat_id = sc.id) > 0');
 
     const whereSQL = whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : '';
 

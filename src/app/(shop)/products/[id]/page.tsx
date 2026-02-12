@@ -1,3 +1,4 @@
+// Force rebuild
 
 import { Metadata, ResolvingMetadata } from 'next';
 import { executeQuery } from '@/lib/db/mysql';

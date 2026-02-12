@@ -6,6 +6,7 @@ import { useSearchParams } from 'next/navigation';
 import { Order } from '@/types/auth'; // Ensure this type exists or adjust import
 import { Button } from "@/components/ui/Button";
 import { CheckCircle, Facebook, Twitter, CreditCard } from 'lucide-react';
+import { formatCurrency, formatDate } from '@/lib/date-utils';
 
 function OrderSuccessContent() {
   const searchParams = useSearchParams();
@@ -67,12 +68,7 @@ function OrderSuccessContent() {
     }
   }, [orderNumber]);
 
-  const formatPrice = (price: number) => {
-    return new Intl.NumberFormat('vi-VN', {
-      style: 'currency',
-      currency: 'VND'
-    }).format(price);
-  };
+  // local formatPrice removed, using import from @/lib/date-utils
 
   if (loading) {
     return (
@@ -123,7 +119,7 @@ function OrderSuccessContent() {
                 <h3 className="font-helvetica-medium text-lg mb-2">Thông tin đơn hàng</h3>
                 <div className="space-y-2 text-sm">
                   <p><span className="font-medium">Mã đơn hàng:</span> #{orderData.orderNumber}</p>
-                  <p><span className="font-medium">Tổng tiền:</span> {formatPrice(orderData.totalAmount)}</p>
+                  <p><span className="font-medium">Tổng tiền:</span> {formatCurrency(orderData.totalAmount)}</p>
                   <p><span className="font-medium">Dự kiến giao hàng:</span> {orderData.estimatedDelivery}</p>
                 </div>
               </div>
@@ -178,7 +174,7 @@ function OrderSuccessContent() {
 
           {/* Additional Info */}
           <div className="bg-blue-50 rounded-lg p-6">
-            <h3 className="font-helvetica-medium text-lg mb-3">💡 Thông tin hữu ích</h3>
+            <h3 className="font-helvetica-medium text-lg mb-3">Thông tin hữu ích</h3>
             <div className="text-sm text-gray-700 space-y-2">
               <p>• <strong>Chính sách đổi trả:</strong> 30 ngày đổi trả miễn phí</p>
               <p>• <strong>Hỗ trợ khách hàng:</strong> 1800-1234 (8:00 - 22:00, thứ 2 - chủ nhật)</p>

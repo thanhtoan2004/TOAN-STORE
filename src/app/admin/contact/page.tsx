@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import AdminLayout from '@/components/admin/AdminLayout';
+import { formatDate } from '@/lib/date-utils';
 
 interface Contact {
   id: number;
@@ -118,7 +119,7 @@ export default function AdminContactPage() {
                         {contact.name} ({contact.email})
                       </p>
                       <p className="text-xs text-gray-500 mt-1">
-                        {new Date(contact.created_at).toLocaleDateString('vi-VN')}
+                        {formatDate(contact.created_at)}
                       </p>
                     </div>
                     <select

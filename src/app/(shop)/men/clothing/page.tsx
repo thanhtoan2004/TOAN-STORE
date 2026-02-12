@@ -1,26 +1,24 @@
-'use client';
-
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import Link from 'next/link';
-import Image from 'next/image';
-import { useProducts } from '@/hooks/queries/useProducts';
+import { useLanguage } from '@/contexts/LanguageContext';
+import { ProductsGrid } from '@/components/ui/products';
+import ProductFilter from '@/components/ui/products/ProductFilter';
 
 
 
 export default function MenClothingPage() {
-  const { data, isLoading: loading } = useProducts({
+  const { t } = useLanguage();
+  const [filterParams, setFilterParams] = useState<Record<string, string>>({
     gender: 'men',
-    category: 'clothing',
-    limit: 24
+    category: 'clothing'
   });
 
-  const products = data?.products || [];
-
-  const formatPrice = (price: number) => {
-    return new Intl.NumberFormat('vi-VN', {
-      style: 'currency',
-      currency: 'VND'
-    }).format(price);
+  const handleFilterChange = (newFilters: Record<string, string>) => {
+    setFilterParams({
+      ...newFilters,
+      gender: 'men',
+      category: 'clothing'
+    });
   };
 
   return (
@@ -40,49 +38,22 @@ export default function MenClothingPage() {
         </div>
       </div>
 
-      {/* Products Grid */}
       <div className="nike-container py-8">
-        {loading ? (
-          <div className="text-center py-12">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-black mx-auto"></div>
-            <p className="mt-4 text-gray-600">Đang tải sản phẩm...</p>
+        <div className="flex flex-col lg:flex-row gap-8">
+          <aside className="w-full lg:w-64 flex-shrink-0">
+            <ProductFilter
+              filterParams={filterParams}
+              onFilterChange={handleFilterChange}
+            />
+          </aside>
+
+          <div className="flex-1">
+            <ProductsGrid
+              filterParams={filterParams}
+              title="Tất cả sản phẩm quần áo nam"
+            />
           </div>
-        ) : products.length === 0 ? (
-          <div className="text-center py-12">
-            <p className="text-gray-600">Không tìm thấy sản phẩm</p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-            {products.map((product) => (
-              <Link key={product.id} href={`/products/${product.id}`}>
-                <div className="group cursor-pointer">
-                  <div className="relative aspect-square bg-gray-100 rounded-lg overflow-hidden mb-3">
-                    <Image
-                      src={product.image_url || '/placeholder.png'}
-                      alt={product.name}
-                      fill
-                      className="object-cover group-hover:scale-105 transition-transform duration-300"
-                    />
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-600 mb-1">{product.category}</p>
-                    <h3 className="font-medium mb-2 line-clamp-2">{product.name}</h3>
-                    <div className="flex items-center gap-2">
-                      {product.base_price < (product.retail_price ?? product.base_price) ? (
-                        <>
-                          <span className="font-medium">{formatPrice(product.base_price)}</span>
-                          <span className="text-sm text-gray-500 line-through">{formatPrice(product.retail_price || 0)}</span>
-                        </>
-                      ) : (
-                        <span className="font-medium">{formatPrice(product.retail_price || product.base_price)}</span>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </Link>
-            ))}
-          </div>
-        )}
+        </div>
       </div>
     </div>
   );

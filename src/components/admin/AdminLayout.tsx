@@ -23,10 +23,10 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
     { name: 'Reviews', href: '/admin/reviews' },
     { name: 'Gift Cards', href: '/admin/gift-cards' },
     { name: 'Contact', href: '/admin/contact' },
-    { name: 'Coupons', href: '/admin/coupons' },
     { name: 'Wishlist', href: '/admin/wishlist' },
     { name: 'FAQs', href: '/admin/faqs' },
     { name: 'Vouchers', href: '/admin/vouchers' },
+    { name: 'Flash Sales', href: '/admin/flash-sales' },
     { name: 'Banners', href: '/admin/banners' },
     { name: 'News', href: '/admin/news' },
     { name: 'Support', href: '/admin/support' },
@@ -36,12 +36,12 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
   useEffect(() => {
     const check = async () => {
       try {
-        const res = await fetch('/api/auth/me', { cache: 'no-store' });
-        if (!res.ok) {
+        const response = await fetch('/api/auth/admin', { cache: 'no-store' });
+        if (!response.ok) {
           router.replace('/admin/login');
           return;
         }
-        const data = await res.json();
+        const data = await response.json();
         const isAdmin = !!(data?.user?.is_admin === 1 || data?.user?.is_admin === true);
         if (!isAdmin) {
           router.replace('/admin/login');

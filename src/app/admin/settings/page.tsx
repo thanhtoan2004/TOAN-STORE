@@ -44,9 +44,17 @@ export default function SettingsPage() {
     try {
       const response = await fetch('/api/admin/settings');
       const data = await response.json();
-      
+
       if (data.success && data.data) {
-        setSettings(data.data);
+        // Ensure types are correct from database strings
+        const formattedSettings = {
+          ...data.data,
+          maintenance_mode: data.data.maintenance_mode === 'true' || data.data.maintenance_mode === '1' || data.data.maintenance_mode === true,
+          tax_rate: parseFloat(data.data.tax_rate) || 0,
+          shipping_cost_domestic: parseFloat(data.data.shipping_cost_domestic) || 0,
+          shipping_cost_international: parseFloat(data.data.shipping_cost_international) || 0
+        };
+        setSettings(formattedSettings);
       }
     } catch (error) {
       console.error('Error fetching settings:', error);
@@ -57,7 +65,7 @@ export default function SettingsPage() {
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target;
-    
+
     if (type === 'checkbox') {
       setSettings(prev => ({
         ...prev,
@@ -91,12 +99,12 @@ export default function SettingsPage() {
       const data = await response.json();
 
       if (response.ok || data.success) {
-        setMessage('✅ Cài đặt đã được lưu thành công!');
+        setMessage('Cài đặt đã được lưu thành công!');
       } else {
-        setMessage('❌ Lỗi khi lưu cài đặt');
+        setMessage('Lỗi khi lưu cài đặt');
       }
     } catch (error) {
-      setMessage('❌ Có lỗi xảy ra');
+      setMessage('Có lỗi xảy ra');
       console.error(error);
     } finally {
       setSaving(false);

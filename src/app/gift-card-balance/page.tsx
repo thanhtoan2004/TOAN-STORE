@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import { formatDateTime, formatCurrency } from '@/lib/date-utils';
 
 export default function GiftCardBalancePage() {
   const { user } = useAuth();
@@ -31,7 +32,7 @@ export default function GiftCardBalancePage() {
     setBalance(null);
 
     try {
-      const response = await fetch('/api/giftcard', {
+      const response = await fetch('/api/gift-cards/verify', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -65,7 +66,7 @@ export default function GiftCardBalancePage() {
 
     setLoadingHistory(true);
     try {
-      const response = await fetch(`/api/giftcard/history?cardNumber=${encodeURIComponent(cardNumber)}&pin=${encodeURIComponent(pin)}`);
+      const response = await fetch(`/api/gift-cards/history?cardNumber=${encodeURIComponent(cardNumber)}&pin=${encodeURIComponent(pin)}`);
       const data = await response.json();
 
       if (data.success && data.data?.transactions) {
@@ -133,7 +134,7 @@ export default function GiftCardBalancePage() {
                 <div className="bg-green-50 border border-green-200 rounded-lg p-6">
                   <h3 className="text-lg font-helvetica-medium mb-2">Số Dư Thẻ Quà Tặng</h3>
                   <p className="text-3xl font-bold text-green-800 mb-4">
-                    {balance.toLocaleString('vi-VN')} ₫
+                    {formatCurrency(balance)}
                   </p>
                   <button
                     onClick={loadHistory}
@@ -149,35 +150,39 @@ export default function GiftCardBalancePage() {
                 <div className="mt-6 border-t pt-6">
                   <h3 className="text-lg font-helvetica-medium mb-4">Lịch Sử Giao Dịch</h3>
                   <div className="space-y-3 max-h-96 overflow-y-auto">
-                    {history.map((transaction) => (
-                      <div key={transaction.id} className="bg-gray-50 rounded-lg p-4 border">
-                        <div className="flex justify-between items-start mb-2">
-                          <div>
-                            <p className="font-medium">
-                              {transaction.type === 'purchase' ? 'Mua thẻ' :
-                                transaction.type === 'redeem' ? 'Sử dụng thẻ' :
-                                  transaction.type === 'refund' ? 'Hoàn tiền' : 'Giao dịch'}
-                            </p>
-                            <p className="text-sm text-gray-600">{transaction.description || 'Không có mô tả'}</p>
-                            {transaction.orderId && (
-                              <p className="text-xs text-gray-500">Đơn hàng: #{transaction.orderId}</p>
-                            )}
+                    {history.length === 0 ? (
+                      <p className="text-center py-4 text-gray-500 italic">Chưa có giao dịch nào</p>
+                    ) : (
+                      history.map((transaction) => (
+                        <div key={transaction.id} className="bg-gray-50 rounded-lg p-4 border">
+                          <div className="flex justify-between items-start mb-2">
+                            <div>
+                              <p className="font-medium">
+                                {transaction.type === 'purchase' ? 'Mua thẻ' :
+                                  transaction.type === 'redeem' ? 'Sử dụng thẻ' :
+                                    transaction.type === 'refund' ? 'Hoàn tiền' : 'Giao dịch'}
+                              </p>
+                              <p className="text-sm text-gray-600">{transaction.description || 'Không có mô tả'}</p>
+                              {transaction.orderId && (
+                                <p className="text-xs text-gray-500">Đơn hàng: #{transaction.orderId}</p>
+                              )}
+                            </div>
+                            <div className="text-right">
+                              <p className={`font-bold ${transaction.type === 'redeem' ? 'text-red-600' : 'text-green-600'}`}>
+                                {transaction.type === 'redeem' ? '-' : '+'}
+                                {formatCurrency(Math.abs(transaction.amount))}
+                              </p>
+                              <p className="text-xs text-gray-500">
+                                {formatDateTime(transaction.createdAt)}
+                              </p>
+                            </div>
                           </div>
-                          <div className="text-right">
-                            <p className={`font-bold ${transaction.type === 'redeem' ? 'text-red-600' : 'text-green-600'}`}>
-                              {transaction.type === 'redeem' ? '-' : '+'}
-                              {Math.abs(transaction.amount).toLocaleString('vi-VN')} ₫
-                            </p>
-                            <p className="text-xs text-gray-500">
-                              {new Date(transaction.createdAt).toLocaleString('vi-VN')}
-                            </p>
+                          <div className="text-xs text-gray-500 mt-2">
+                            Số dư: {formatCurrency(transaction.balanceBefore)} → {formatCurrency(transaction.balanceAfter)}
                           </div>
                         </div>
-                        <div className="text-xs text-gray-500 mt-2">
-                          Số dư: {transaction.balanceBefore?.toLocaleString('vi-VN')} ₫ → {transaction.balanceAfter?.toLocaleString('vi-VN')} ₫
-                        </div>
-                      </div>
-                    ))}
+                      ))
+                    )}
                   </div>
                 </div>
               )}

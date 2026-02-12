@@ -50,7 +50,7 @@ export default function AddToCartButton({
         </div>
       `;
       document.body.appendChild(notification);
-      
+
       // Tự động xóa thông báo sau 3 giây
       setTimeout(() => {
         if (notification.parentNode) {
@@ -67,11 +67,11 @@ export default function AddToCartButton({
       className={`
         relative overflow-hidden
         bg-black text-white font-medium
-        px-6 py-3 rounded-full
-        transition-all duration-200
-        ${disabled || loading 
-          ? 'opacity-50 cursor-not-allowed bg-gray-400' 
-          : 'hover:bg-gray-800 active:bg-black'
+        px-6 py-4 rounded-full
+        transition-all duration-300
+        ${disabled || loading
+          ? 'opacity-50 cursor-not-allowed bg-gray-400'
+          : 'hover:bg-gray-800 active:bg-black hover:scale-[1.02]'
         }
         ${className}
       `}

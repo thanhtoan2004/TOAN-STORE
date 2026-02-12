@@ -5,6 +5,7 @@ import { cookies } from 'next/headers';
 import { executeQuery } from '@/lib/db/mysql';
 import { createErrorResponse, createSuccessResponse, validateRequiredFields, withErrorHandling } from '@/lib/api-utils';
 import { User, UserWithoutPassword, LoginRequest, AuthResponse } from '@/types/auth';
+import { AUTH_TOKEN } from '@/lib/auth';
 
 async function loginHandler(req: Request): Promise<NextResponse> {
   const body: Partial<LoginRequest> = await req.json();
@@ -70,12 +71,12 @@ async function loginHandler(req: Request): Promise<NextResponse> {
 
   // Set cookie with token
   const cookieStore = await cookies();
-  cookieStore.set('auth_token', token, {
+  cookieStore.set(AUTH_TOKEN, token, {
     httpOnly: true,
     path: '/',
-    secure: false, // Tắt secure trong development
+    secure: process.env.NODE_ENV === 'production',
     maxAge: 60 * 60 * 24 * 7, // 7 days
-    sameSite: 'lax'
+    sameSite: 'strict'
   });
 
   // Return user info without password

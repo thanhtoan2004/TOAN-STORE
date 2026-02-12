@@ -26,20 +26,17 @@
 
 import { NextResponse } from 'next/server';
 import { addToWishlist, getWishlist, removeFromWishlist } from '@/lib/db/mysql';
+import { verifyAuth } from '@/lib/auth';
 
 // Lấy wishlist
 export async function GET(request: Request) {
-  const { searchParams } = new URL(request.url);
-  const userId = Number(searchParams.get('userId'));
-
-  if (!userId) {
-    return NextResponse.json(
-      { error: 'Thiếu userId' },
-      { status: 400 }
-    );
-  }
-
   try {
+    const session = await verifyAuth();
+    if (!session) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    const userId = Number(session.userId);
+
     const wishlist = await getWishlist(userId);
     return NextResponse.json(wishlist);
   } catch (error) {
@@ -53,16 +50,22 @@ export async function GET(request: Request) {
 
 // Thêm vào wishlist
 export async function POST(request: Request) {
-  const { userId, productId } = await request.json();
-
-  if (!userId || !productId) {
-    return NextResponse.json(
-      { error: 'Thiếu userId hoặc productId' },
-      { status: 400 }
-    );
-  }
-
   try {
+    const session = await verifyAuth();
+    if (!session) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    const userId = Number(session.userId);
+
+    const { productId } = await request.json();
+
+    if (!productId) {
+      return NextResponse.json(
+        { error: 'Thiếu productId' },
+        { status: 400 }
+      );
+    }
+
     await addToWishlist(userId, productId);
     return NextResponse.json({ success: true });
   } catch (error) {
@@ -76,18 +79,23 @@ export async function POST(request: Request) {
 
 // Xóa khỏi wishlist
 export async function DELETE(request: Request) {
-  const { searchParams } = new URL(request.url);
-  const userId = Number(searchParams.get('userId'));
-  const productId = Number(searchParams.get('productId'));
-
-  if (!userId || !productId) {
-    return NextResponse.json(
-      { error: 'Thiếu userId hoặc productId' },
-      { status: 400 }
-    );
-  }
-
   try {
+    const session = await verifyAuth();
+    if (!session) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    const userId = Number(session.userId);
+
+    const { searchParams } = new URL(request.url);
+    const productId = Number(searchParams.get('productId'));
+
+    if (!productId) {
+      return NextResponse.json(
+        { error: 'Thiếu productId' },
+        { status: 400 }
+      );
+    }
+
     await removeFromWishlist(userId, productId);
     return NextResponse.json({ success: true });
   } catch (error) {

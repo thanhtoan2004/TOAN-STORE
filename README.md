@@ -1,94 +1,87 @@
 # Nike Clone E-commerce 👟
 
-Một dự án E-commerce mô phỏng website Nike, được xây dựng bằng công nghệ web hiện đại, tập trung vào trải nghiệm người dùng, giao diện đẹp mắt và hiệu suất cao.
+Một dự án E-commerce mô phỏng website Nike, được xây dựng bằng công nghệ web hiện đại nhất, tập trung vào trải nghiệm người dùng, giao diện cao cấp và bảo mật toàn diện.
 
-![Nike Clone Banner](https://raw.githubusercontent.com/shadcn-ui/ui/main/apps/www/public/og.jpg)
+---
 
-## 🚀 Công Nghệ Sử Dụng (Tech Stack)
+## 🚀 Technology Stack
 
-### Frontend
-- **Framework**: [Next.js 14](https://nextjs.org/) (App Directory)
-- **Language**: [TypeScript](https://www.typescriptlang.org/)
-- **UI Library**: [Shadcn UI](https://ui.shadcn.com/)
+### Frontend & Core
+- **Framework**: [Next.js 15+](https://nextjs.org/) (App Router)
+- **Bundler**: [Turbopack](https://nextjs.org/docs/app/api-reference/next-config-js/turbo)
+- **UI Architecture**: [Shadcn UI](https://ui.shadcn.com/) & [Radix UI](https://www.radix-ui.com/)
 - **Styling**: [Tailwind CSS](https://tailwindcss.com/)
-- **Icons**: [Lucide React](https://lucide.dev/)
-- **State Management**: React Hooks & Context
+- **Animations**: [Framer Motion](https://www.framer.com/motion/)
 
-### Backend & Database
-- **API**: Next.js API Routes (Serverless functions)
-- **Database**: MySQL
-- **Driver**: `mysql2`
+### Backend & Security
+- **Database**: [MySQL](https://www.mysql.com/) with `mysql2` driver
+- **Authentication**: JWT (JSON Web Tokens) with cross-session isolation
+- **Security Testing**: Custom Automated Security Regression Suite
 
-## ✨ Tính Năng Nổi Bật
+---
 
-### 🛒 Khách Hàng (Storefront)
-- **Duyệt sản phẩm**: Xem danh sách, chi tiết sản phẩm, lọc theo danh mục, giá, kích cỡ.
-- **Giỏ hàng & Thanh toán**: Thêm vào giỏ, cập nhật số lượng, Checkout với mã giảm giá.
-- **Tài khoản**: Đăng ký, Đăng nhập, Quản lý hồ sơ, Địa chỉ giao hàng.
-- **Hệ thống Hội viên (Membership Tiers)**:
-  - Tích điểm tự động (10,000đ = 1 điểm).
-  - Hạng thành viên: **Bronze** (Mặc định), **Silver** (>1000 điểm), **Gold** (>5000 điểm).
-  - **Quyền lợi**:
-    - 🥈 **Silver**: Giảm **5%** + Tự động Freeship.
-    - 🥇 **Gold**: Giảm **10%** + Tự động Freeship.
-- **Wishlist**: Lưu sản phẩm yêu thích.
+## ✨ Key Features
 
-### 🛠️ Admin Dashboard
-- **Tổng quan (Dashboard)**: Thống kê doanh thu, đơn hàng, khách hàng mới, sản phẩm bán chạy.
-- **Quản lý sản phẩm**: Thêm, sửa, đóng/mở bán sản phẩm.
-- **Quản lý đơn hàng**: Xem chi tiết, cập nhật trạng thái giao hàng.
-- **Khách hàng**: Xem danh sách khách hàng và **Hạng thành viên**.
+### 🛒 Storefront (Khách hàng)
+- **Premium Browsing**: Giao diện sản phẩm hiện đại, lọc thông minh và hiệu ứng mượt mà.
+- **Advanced Cart**: Giỏ hàng lưu trữ phiên làm việc, hỗ trợ mã giảm giá và thẻ quà tặng.
+- **Membership Level**: Hệ thống tích điểm và phân hạng (Bronze, Silver, Gold) tự động áp dụng ưu đãi.
+- **Verified Reviews**: Đánh giá sản phẩm kèm media, xác nhận "Đã mua hàng".
 
-## ⚙️ Cài Đặt & Chạy Dự Án
+### 🛠️ Admin Dashboard (Quản trị)
+- **Real-time Analytics**: Thống kê doanh thu, đơn hàng và biểu đồ hóa dữ liệu.
+- **Inventory Control**: Quản lý sản phẩm, danh mục và tồn kho chuyên sâu.
+- **Customer Support**: Hệ thống Chat trực tuyến hỗ trợ khách hàng.
+- **Security Audit**: Nhật ký hoạt động và bảo vệ API nhiều lớp.
 
-### 1. Yêu cầu tiên quyết
-- Node.js (v18 trở lên)
+---
+
+## 🔒 Security Highlights
+
+Dự án đã được thực hiện Remediation toàn diện:
+- **Session Isolation**: Tách biệt hoàn toàn Session của Admin và User (`nike_admin_session` vs `nike_auth_session`).
+- **Authorization Guard**: Mọi API quản trị đều được bảo vệ bởi lớp kiểm tra quyền hạn nghiêm ngặt.
+- **Hardened Cookies**: Sử dụng `HttpOnly`, `Secure` và `SameSite: Strict` để chống XSS/CSRF.
+- **Automated Regression**: Tích hợp sẵn bộ test bảo mật để đảm bảo độ an toàn lâu dài.
+
+---
+
+## ⚙️ Getting Started
+
+### 1. Prerequisites
+- Node.js (v20+)
 - MySQL Server
 
-### 2. Cài đặt Dependencies
+### 2. Installation
 ```bash
 npm install
 ```
 
-### 3. Cấu hình Môi trường
-Tạo file `.env` tại thư mục gốc và điền thông tin kết nối Database:
-
+### 3. Environment Setup
+Tạo file `.env` dựa trên `.env.example`:
 ```env
 DB_HOST=localhost
 DB_USER=root
 DB_PASSWORD=your_password
 DB_NAME=nike_clone
-DB_PORT=3306
+JWT_SECRET=your_complex_secret
 ```
 
-### 4. Khởi tạo Database
-Khi lầ đầu chạy dự án, hệ thống sẽ tự động kiểm tra và tạo các bảng cần thiết (Migration tự động) thông qua hàm `initDb()` trong `src/lib/db/mysql.ts`.
-
-### 5. Chạy Server
+### 4. Running the Project
 ```bash
-# Môi trường phát triển
+# Development mode
 npm run dev
-```
-Truy cập: `http://localhost:3000`
 
-## 📂 Cấu trúc Dự án
-```bash
-d:\nike-clone
-├── 📁 src
-│   ├── 📁 app          # Next.js App Router (Pages & API)
-│   │   ├── 📁 (shop)   # Giao diện khách hàng
-│   │   ├── 📁 admin    # Giao diện Admin
-│   │   └── 📁 api      # Backend API Endpoints
-│   ├── 📁 components   # Các React Component tái sử dụng
-│   ├── 📁 lib          # Các hàm tiện ích (Database, Utils)
-│   └── 📁 types        # TypeScript definitions
-├── 📄 .env             # Biến môi trường
-└── 📄 package.json     # Dependencies & Scripts
+# Run Security Suite
+npm run security-test
 ```
-
-## 📝 Ghi chú Phát triển
-- **Migration**: Logic thay đổi Database Schema nằm trong `initDb`.
-- **Membership logic**: Xử lý tại `updateOrderStatus` (tích điểm) và `orders/route.ts` (tính giảm giá).
 
 ---
-© 2024 Nike Clone Project.
+
+## 📂 Project Anatomy
+- `src/app/api`: Hệ thống Backend API đa tầng.
+- `src/lib/auth.ts`: Trung tâm xử lý xác thực và phân quyền.
+- `scripts/verify-sessions.js`: Công cụ kiểm thử bảo mật nâng cao.
+
+---
+© 2026 Nike Clone Project. High Performance & High Security.

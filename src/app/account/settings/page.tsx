@@ -1,5 +1,6 @@
 'use client';
 
+import { formatDateTime, formatDate, formatCurrency } from '@/lib/date-utils';
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
@@ -15,9 +16,19 @@ export default function AccountSettings() {
   const [message, setMessage] = useState('');
   const [activeTab, setActiveTab] = useState('personal');
   const [darkMode, setDarkMode] = useState(false);
-  // Removed local language state
+  // Notification states
   const [emailNotifications, setEmailNotifications] = useState(true);
+  const [promoNotifications, setPromoNotifications] = useState(false);
+  const [orderNotifications, setOrderNotifications] = useState(true);
   const [smsNotifications, setSmsNotifications] = useState(false);
+  const [smsOrderNotifications, setSmsOrderNotifications] = useState(false);
+
+  // Privacy states
+  const [dataPersistence, setDataPersistence] = useState(true);
+  const [researchUsage, setResearchUsage] = useState(true);
+  const [publicProfile, setPublicProfile] = useState(true);
+  const [searchableProfile, setSearchableProfile] = useState(false);
+
   const [returnUrl, setReturnUrl] = useState<string | null>(null);
 
   // Address state
@@ -392,7 +403,7 @@ export default function AccountSettings() {
                       </div>
                       <div className="text-right">
                         <p className="text-sm uppercase tracking-wider font-semibold opacity-70">Điểm tích lũy</p>
-                        <p className="text-3xl font-bold mt-1">{currentPoints.toLocaleString()} pts</p>
+                        <p className="text-3xl font-bold mt-1">{currentPoints.toLocaleString('vi-VN')} điểm</p>
                       </div>
                     </div>
 
@@ -403,7 +414,7 @@ export default function AccountSettings() {
                         </div>
                         {currentTier !== 'gold' && (
                           <div className="text-xs font-semibold inline-block">
-                            Còn {Math.max(0, nextCheckpoint - currentPoints).toLocaleString()} điểm để thăng hạng
+                            Còn {Math.max(0, nextCheckpoint - currentPoints).toLocaleString('vi-VN')} điểm để thăng hạng
                           </div>
                         )}
                         {currentTier === 'gold' && (
@@ -825,11 +836,11 @@ export default function AccountSettings() {
                         <span className="text-sm">Nhận email thông báo</span>
                       </label>
                       <label className="flex items-center gap-2 cursor-pointer mb-3">
-                        <input type="checkbox" className="w-4 h-4" />
+                        <input type="checkbox" checked={promoNotifications} onChange={(e) => setPromoNotifications(e.target.checked)} className="w-4 h-4" />
                         <span className="text-sm">Thông báo về khuyến mãi và sản phẩm mới</span>
                       </label>
                       <label className="flex items-center gap-2 cursor-pointer">
-                        <input type="checkbox" className="w-4 h-4" />
+                        <input type="checkbox" checked={orderNotifications} onChange={(e) => setOrderNotifications(e.target.checked)} className="w-4 h-4" />
                         <span className="text-sm">Thông báo về đơn hàng</span>
                       </label>
                     </div>
@@ -840,7 +851,7 @@ export default function AccountSettings() {
                         <span className="text-sm">Nhận tin nhắn SMS</span>
                       </label>
                       <label className="flex items-center gap-2 cursor-pointer">
-                        <input type="checkbox" className="w-4 h-4" />
+                        <input type="checkbox" checked={smsOrderNotifications} onChange={(e) => setSmsOrderNotifications(e.target.checked)} className="w-4 h-4" />
                         <span className="text-sm">Thông báo SMS về đơn hàng</span>
                       </label>
                     </div>
@@ -856,33 +867,53 @@ export default function AccountSettings() {
                       <h3 className="font-medium mb-2">Phương thức thanh toán</h3>
                       <p className="text-sm text-gray-600 mb-4">Quản lý các phương thức thanh toán của bạn</p>
                       <div className="space-y-2">
-                        <div className="p-3 border rounded bg-gray-50 flex items-center gap-3">
-                          <CreditCard className="w-5 h-5 text-gray-600" />
-                          <div>
-                            <p className="text-sm font-medium">Thẻ tín dụng / Ghi nợ</p>
-                            <p className="text-xs text-gray-500">Thêm hoặc quản lý thẻ của bạn</p>
+                        <div
+                          onClick={() => alert('Chức năng thêm thẻ tín dụng đang được phát triển.')}
+                          className="p-3 border rounded bg-gray-50 flex items-center justify-between cursor-pointer hover:bg-gray-100 transition-colors"
+                        >
+                          <div className="flex items-center gap-3">
+                            <CreditCard className="w-5 h-5 text-gray-600" />
+                            <div>
+                              <p className="text-sm font-medium">Thẻ tín dụng / Ghi nợ</p>
+                              <p className="text-xs text-gray-500">Thêm hoặc quản lý thẻ của bạn</p>
+                            </div>
                           </div>
+                          <span className="text-xs font-medium text-blue-600">Sắp ra mắt</span>
                         </div>
-                        <div className="p-3 border rounded bg-gray-50 flex items-center gap-3">
-                          <Building2 className="w-5 h-5 text-gray-600" />
-                          <div>
-                            <p className="text-sm font-medium">Chuyển khoản ngân hàng</p>
-                            <p className="text-xs text-gray-500">Thanh toán trực tiếp từ tài khoản ngân hàng</p>
+                        <div
+                          onClick={() => alert('Chức năng liên kết ngân hàng đang được phát triển.')}
+                          className="p-3 border rounded bg-gray-50 flex items-center justify-between cursor-pointer hover:bg-gray-100 transition-colors"
+                        >
+                          <div className="flex items-center gap-3">
+                            <Building2 className="w-5 h-5 text-gray-600" />
+                            <div>
+                              <p className="text-sm font-medium">Chuyển khoản ngân hàng</p>
+                              <p className="text-xs text-gray-500">Thanh toán trực tiếp từ tài khoản ngân hàng</p>
+                            </div>
                           </div>
+                          <span className="text-xs font-medium text-blue-600">Sắp ra mắt</span>
                         </div>
-                        <div className="p-3 border rounded bg-gray-50 flex items-center gap-3">
-                          <Wallet className="w-5 h-5 text-gray-600" />
-                          <div>
-                            <p className="text-sm font-medium">Ví điện tử</p>
-                            <p className="text-xs text-gray-500">Liên kết ví điện tử của bạn</p>
+                        <div
+                          onClick={() => alert('Chức năng liên kết ví điện tử đang được phát triển.')}
+                          className="p-3 border rounded bg-gray-50 flex items-center justify-between cursor-pointer hover:bg-gray-100 transition-colors"
+                        >
+                          <div className="flex items-center gap-3">
+                            <Wallet className="w-5 h-5 text-gray-600" />
+                            <div>
+                              <p className="text-sm font-medium">Ví điện tử</p>
+                              <p className="text-xs text-gray-500">Liên kết ví điện tử của bạn</p>
+                            </div>
                           </div>
+                          <span className="text-xs font-medium text-blue-600">Sắp ra mắt</span>
                         </div>
                       </div>
                     </div>
                     <div className="p-4 border rounded-lg">
                       <h3 className="font-medium mb-2">Lịch sử giao dịch</h3>
                       <p className="text-sm text-gray-600 mb-3">Xem lịch sử thanh toán và giao dịch của bạn</p>
-                      <button className="px-6 py-2 border-2 border-black rounded-full font-medium hover:bg-black hover:text-white transition-colors">Xem lịch sử</button>
+                      <Link href="/gift-card-balance">
+                        <button className="px-6 py-2 border-2 border-black rounded-full font-medium hover:bg-black hover:text-white transition-colors">Xem lịch sử</button>
+                      </Link>
                     </div>
                   </div>
                 </div>
@@ -896,11 +927,11 @@ export default function AccountSettings() {
                       <h3 className="font-medium mb-2">Dữ liệu cá nhân</h3>
                       <p className="text-sm text-gray-600 mb-3">Quản lý cách chúng tôi sử dụng thông tin của bạn</p>
                       <label className="flex items-center gap-2 cursor-pointer mb-3">
-                        <input type="checkbox" defaultChecked className="w-4 h-4" />
+                        <input type="checkbox" checked={dataPersistence} onChange={(e) => setDataPersistence(e.target.checked)} className="w-4 h-4" />
                         <span className="text-sm">Cho phép sử dụng dữ liệu để cá nhân hóa trải nghiệm</span>
                       </label>
                       <label className="flex items-center gap-2 cursor-pointer">
-                        <input type="checkbox" defaultChecked className="w-4 h-4" />
+                        <input type="checkbox" checked={researchUsage} onChange={(e) => setResearchUsage(e.target.checked)} className="w-4 h-4" />
                         <span className="text-sm">Cho phép sử dụng dữ liệu cho nghiên cứu</span>
                       </label>
                     </div>
@@ -908,18 +939,27 @@ export default function AccountSettings() {
                       <h3 className="font-medium mb-2">Bạn bè và gia đình</h3>
                       <p className="text-sm text-gray-600 mb-3">Kiểm soát quyền riêng tư của tài khoản</p>
                       <label className="flex items-center gap-2 cursor-pointer mb-3">
-                        <input type="checkbox" defaultChecked className="w-4 h-4" />
+                        <input type="checkbox" checked={publicProfile} onChange={(e) => setPublicProfile(e.target.checked)} className="w-4 h-4" />
                         <span className="text-sm">Tài khoản công khai</span>
                       </label>
                       <label className="flex items-center gap-2 cursor-pointer">
-                        <input type="checkbox" className="w-4 h-4" />
+                        <input type="checkbox" checked={searchableProfile} onChange={(e) => setSearchableProfile(e.target.checked)} className="w-4 h-4" />
                         <span className="text-sm">Cho phép mọi người xem hồ sơ của tôi</span>
                       </label>
                     </div>
                     <div className="p-4 border rounded-lg">
                       <h3 className="font-medium mb-2">Xóa tài khoản</h3>
                       <p className="text-sm text-gray-600 mb-3">Xóa vĩnh viễn tài khoản và dữ liệu của bạn</p>
-                      <button className="px-6 py-2 border-2 border-red-600 text-red-600 rounded-full font-medium hover:bg-red-50 transition-colors">Xóa tài khoản</button>
+                      <button
+                        onClick={() => {
+                          if (confirm('BẠN CÓ CHẮC MUỐN XÓA TÀI KHOẢN? Hành động này không thể hoàn tác, tất cả dữ liệu đơn hàng và điểm tích lũy sẽ bị mất vĩnh viễn.')) {
+                            alert('Yêu cầu xóa tài khoản đã được gửi. Chúng tôi sẽ phản hồi qua email trong vòng 30 ngày.');
+                          }
+                        }}
+                        className="px-6 py-2 border-2 border-red-600 text-red-600 rounded-full font-medium hover:bg-red-50 transition-colors"
+                      >
+                        Xóa tài khoản
+                      </button>
                     </div>
                   </div>
                 </div>

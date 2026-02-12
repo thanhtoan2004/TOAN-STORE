@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createErrorResponse, createSuccessResponse, validateRequiredFields, withErrorHandling } from '@/lib/api-utils';
 import { saveContactMessage } from '@/lib/db/mysql';
+import { verifyAuth } from '@/lib/auth';
 
 interface ContactRequest {
   name: string;
@@ -11,6 +12,7 @@ interface ContactRequest {
 }
 
 async function contactHandler(req: NextRequest): Promise<NextResponse> {
+  const session = await verifyAuth();
   const body: Partial<ContactRequest> = await req.json();
 
   const validation = validateRequiredFields(body, ['name', 'email', 'subject', 'message']);
@@ -18,7 +20,15 @@ async function contactHandler(req: NextRequest): Promise<NextResponse> {
     return createErrorResponse(validation.error, 400);
   }
 
-  const { name, email, subject, message, userId } = body as ContactRequest;
+  let { name, email, subject, message, userId } = body as ContactRequest;
+
+  // Security: If user is logged in, use their real ID. 
+  // If not logged in but they sent an ID, ignore the ID (prevent spoofing).
+  if (session) {
+    userId = session.userId;
+  } else {
+    userId = undefined;
+  }
 
   // Validate email format
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;

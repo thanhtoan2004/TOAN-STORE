@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import AdminLayout from '@/components/admin/AdminLayout';
 import Link from 'next/link';
+import { formatCurrency, formatDate } from '@/lib/date-utils';
 
 interface GiftCard {
   id: number;
@@ -122,21 +123,21 @@ export default function AdminGiftCardsPage() {
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{card.card_number}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{card.pin}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      ${(Number(card.initial_balance) || 0).toFixed(2)}
+                      {formatCurrency(card.initial_balance)}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      ${(Number(card.current_balance) || 0).toFixed(2)}
+                      {formatCurrency(card.current_balance)}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm">
                       <span className={`px-2 py-1 rounded-full text-xs font-semibold ${card.status === 'active' ? 'bg-green-100 text-green-800' :
-                          card.status === 'used' ? 'bg-blue-100 text-blue-800' :
-                            'bg-red-100 text-red-800'
+                        card.status === 'used' ? 'bg-blue-100 text-blue-800' :
+                          'bg-red-100 text-red-800'
                         }`}>
                         {card.status}
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {new Date(card.expires_at).toLocaleDateString('vi-VN')}
+                      {formatDate(card.expires_at)}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm space-x-2">
                       <button

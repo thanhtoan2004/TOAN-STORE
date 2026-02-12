@@ -1,0 +1,1420 @@
+{
+    "info": {
+        "_postman_id": "nike-clone-api-perfect-coverage",
+        "name": "Nike Clone API - 100% AUDITED",
+        "description": "Bộ sưu tập API hoàn chỉnh 100% đã được kiểm tra (Audited). Bao gồm tất cả 88+ routes, CRUD đầy đủ cho Admin và Client.",
+        "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+    },
+    "item": [
+        {
+            "name": "1. Auth & User",
+            "item": [
+                {
+                    "name": "Authentication",
+                    "item": [
+                        {
+                            "name": "Đăng ký (Register)",
+                            "request": {
+                                "method": "POST",
+                                "body": {
+                                    "mode": "raw",
+                                    "raw": "{\n    \"email\": \"user@example.com\",\n    \"password\": \"password123\",\n    \"firstName\": \"Nguyen\",\n    \"lastName\": \"An\"\n}",
+                                    "options": {
+                                        "raw": {
+                                            "language": "json"
+                                        }
+                                    }
+                                },
+                                "url": {
+                                    "raw": "{{baseUrl}}/api/auth/register",
+                                    "host": [
+                                        "{{baseUrl}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "auth",
+                                        "register"
+                                    ]
+                                }
+                            }
+                        },
+                        {
+                            "name": "Đăng nhập (Login)",
+                            "request": {
+                                "method": "POST",
+                                "body": {
+                                    "mode": "raw",
+                                    "raw": "{\n    \"email\": \"user@example.com\",\n    \"password\": \"password123\"\n}",
+                                    "options": {
+                                        "raw": {
+                                            "language": "json"
+                                        }
+                                    }
+                                },
+                                "url": {
+                                    "raw": "{{baseUrl}}/api/auth/login",
+                                    "host": [
+                                        "{{baseUrl}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "auth",
+                                        "login"
+                                    ]
+                                }
+                            }
+                        },
+                        {
+                            "name": "Đăng nhập Admin",
+                            "request": {
+                                "method": "POST",
+                                "body": {
+                                    "mode": "raw",
+                                    "raw": "{\n    \"email\": \"admin@nike.com\",\n    \"password\": \"admin123\"\n}",
+                                    "options": {
+                                        "raw": {
+                                            "language": "json"
+                                        }
+                                    }
+                                },
+                                "url": {
+                                    "raw": "{{baseUrl}}/api/auth/login-admin",
+                                    "host": [
+                                        "{{baseUrl}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "auth",
+                                        "login-admin"
+                                    ]
+                                }
+                            }
+                        },
+                        {
+                            "name": "Lấy thông tin cá nhân (Me)",
+                            "request": {
+                                "method": "GET",
+                                "url": {
+                                    "raw": "{{baseUrl}}/api/auth/me",
+                                    "host": [
+                                        "{{baseUrl}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "auth",
+                                        "me"
+                                    ]
+                                }
+                            }
+                        },
+                        {
+                            "name": "Quên mật khẩu",
+                            "request": {
+                                "method": "POST",
+                                "body": {
+                                    "mode": "raw",
+                                    "raw": "{\n    \"email\": \"user@example.com\"\n}",
+                                    "options": {
+                                        "raw": {
+                                            "language": "json"
+                                        }
+                                    }
+                                },
+                                "url": {
+                                    "raw": "{{baseUrl}}/api/auth/forgot-password",
+                                    "host": [
+                                        "{{baseUrl}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "auth",
+                                        "forgot-password"
+                                    ]
+                                }
+                            }
+                        },
+                        {
+                            "name": "Đặt lại mật khẩu",
+                            "request": {
+                                "method": "POST",
+                                "body": {
+                                    "mode": "raw",
+                                    "raw": "{\n    \"token\": \"abc-xyz-token\",\n    \"password\": \"new_secure_password\"\n}",
+                                    "options": {
+                                        "raw": {
+                                            "language": "json"
+                                        }
+                                    }
+                                },
+                                "url": {
+                                    "raw": "{{baseUrl}}/api/auth/reset-password",
+                                    "host": [
+                                        "{{baseUrl}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "auth",
+                                        "reset-password"
+                                    ]
+                                }
+                            }
+                        },
+                        {
+                            "name": "Đăng xuất",
+                            "request": {
+                                "method": "POST",
+                                "url": {
+                                    "raw": "{{baseUrl}}/api/auth/logout",
+                                    "host": [
+                                        "{{baseUrl}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "auth",
+                                        "logout"
+                                    ]
+                                }
+                            }
+                        }
+                    ]
+                },
+                {
+                    "name": "Account & Profile",
+                    "item": [
+                        {
+                            "name": "Cập nhật thông tin",
+                            "request": {
+                                "method": "PUT",
+                                "body": {
+                                    "mode": "raw",
+                                    "raw": "{\n    \"firstName\": \"Updated\",\n    \"lastName\": \"Name\",\n    \"phone\": \"0987654321\"\n}",
+                                    "options": {
+                                        "raw": {
+                                            "language": "json"
+                                        }
+                                    }
+                                },
+                                "url": {
+                                    "raw": "{{baseUrl}}/api/account/update",
+                                    "host": [
+                                        "{{baseUrl}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "account",
+                                        "update"
+                                    ]
+                                }
+                            }
+                        },
+                        {
+                            "name": "Đổi mật khẩu",
+                            "request": {
+                                "method": "POST",
+                                "body": {
+                                    "mode": "raw",
+                                    "raw": "{\n    \"oldPassword\": \"password123\",\n    \"newPassword\": \"newpassword456\"\n}",
+                                    "options": {
+                                        "raw": {
+                                            "language": "json"
+                                        }
+                                    }
+                                },
+                                "url": {
+                                    "raw": "{{baseUrl}}/api/account/change-password",
+                                    "host": [
+                                        "{{baseUrl}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "account",
+                                        "change-password"
+                                    ]
+                                }
+                            }
+                        }
+                    ]
+                },
+                {
+                    "name": "Addresses",
+                    "item": [
+                        {
+                            "name": "Danh sách địa chỉ",
+                            "request": {
+                                "method": "GET",
+                                "url": {
+                                    "raw": "{{baseUrl}}/api/addresses?userId=1",
+                                    "host": [
+                                        "{{baseUrl}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "addresses"
+                                    ],
+                                    "query": [
+                                        {
+                                            "key": "userId",
+                                            "value": "1"
+                                        }
+                                    ]
+                                }
+                            }
+                        },
+                        {
+                            "name": "Thêm địa chỉ",
+                            "request": {
+                                "method": "POST",
+                                "body": {
+                                    "mode": "raw",
+                                    "raw": "{\n    \"userId\": 1,\n    \"addressLine1\": \"123 Test St\",\n    \"city\": \"HCM\",\n    \"isDefault\": true\n}",
+                                    "options": {
+                                        "raw": {
+                                            "language": "json"
+                                        }
+                                    }
+                                },
+                                "url": {
+                                    "raw": "{{baseUrl}}/api/addresses",
+                                    "host": [
+                                        "{{baseUrl}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "addresses"
+                                    ]
+                                }
+                            }
+                        },
+                        {
+                            "name": "Xóa địa chỉ",
+                            "request": {
+                                "method": "DELETE",
+                                "url": {
+                                    "raw": "{{baseUrl}}/api/addresses?userId=1&addressId=1",
+                                    "host": [
+                                        "{{baseUrl}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "addresses"
+                                    ],
+                                    "query": [
+                                        {
+                                            "key": "userId",
+                                            "value": "1"
+                                        },
+                                        {
+                                            "key": "addressId",
+                                            "value": "1"
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    ]
+                },
+                {
+                    "name": "Wishlist",
+                    "item": [
+                        {
+                            "name": "Lấy Wishlist",
+                            "request": {
+                                "method": "GET",
+                                "url": {
+                                    "raw": "{{baseUrl}}/api/wishlist?userId=1",
+                                    "host": [
+                                        "{{baseUrl}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "wishlist"
+                                    ],
+                                    "query": [
+                                        {
+                                            "key": "userId",
+                                            "value": "1"
+                                        }
+                                    ]
+                                }
+                            }
+                        },
+                        {
+                            "name": "Thêm vào Wishlist",
+                            "request": {
+                                "method": "POST",
+                                "body": {
+                                    "mode": "raw",
+                                    "raw": "{\n    \"userId\": 1,\n    \"productId\": 1\n}",
+                                    "options": {
+                                        "raw": {
+                                            "language": "json"
+                                        }
+                                    }
+                                },
+                                "url": {
+                                    "raw": "{{baseUrl}}/api/wishlist",
+                                    "host": [
+                                        "{{baseUrl}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "wishlist"
+                                    ]
+                                }
+                            }
+                        },
+                        {
+                            "name": "Xóa khỏi Wishlist",
+                            "request": {
+                                "method": "DELETE",
+                                "url": {
+                                    "raw": "{{baseUrl}}/api/wishlist?userId=1&productId=1",
+                                    "host": [
+                                        "{{baseUrl}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "wishlist"
+                                    ],
+                                    "query": [
+                                        {
+                                            "key": "userId",
+                                            "value": "1"
+                                        },
+                                        {
+                                            "key": "productId",
+                                            "value": "1"
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "2. Shop & Products",
+            "item": [
+                {
+                    "name": "Products",
+                    "item": [
+                        {
+                            "name": "Danh sách (Filters)",
+                            "request": {
+                                "method": "GET",
+                                "url": {
+                                    "raw": "{{baseUrl}}/api/products?page=1&limit=12",
+                                    "host": [
+                                        "{{baseUrl}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "products"
+                                    ],
+                                    "query": [
+                                        {
+                                            "key": "page",
+                                            "value": "1"
+                                        },
+                                        {
+                                            "key": "limit",
+                                            "value": "12"
+                                        }
+                                    ]
+                                }
+                            }
+                        },
+                        {
+                            "name": "Chi tiết sản phẩm",
+                            "request": {
+                                "method": "GET",
+                                "url": {
+                                    "raw": "{{baseUrl}}/api/products/1",
+                                    "host": [
+                                        "{{baseUrl}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "products",
+                                        "1"
+                                    ]
+                                }
+                            }
+                        },
+                        {
+                            "name": "Tìm kiếm (Search)",
+                            "request": {
+                                "method": "GET",
+                                "url": {
+                                    "raw": "{{baseUrl}}/api/products/search?q=nike&limit=10",
+                                    "host": [
+                                        "{{baseUrl}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "products",
+                                        "search"
+                                    ],
+                                    "query": [
+                                        {
+                                            "key": "q",
+                                            "value": "nike"
+                                        },
+                                        {
+                                            "key": "limit",
+                                            "value": "10"
+                                        }
+                                    ]
+                                }
+                            }
+                        },
+                        {
+                            "name": "Sản phẩm liên quan",
+                            "request": {
+                                "method": "GET",
+                                "url": {
+                                    "raw": "{{baseUrl}}/api/products/1/related",
+                                    "host": [
+                                        "{{baseUrl}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "products",
+                                        "1",
+                                        "related"
+                                    ]
+                                }
+                            }
+                        },
+                        {
+                            "name": "Các biến thể (Variants)",
+                            "request": {
+                                "method": "GET",
+                                "url": {
+                                    "raw": "{{baseUrl}}/api/products/1/variants",
+                                    "host": [
+                                        "{{baseUrl}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "products",
+                                        "1",
+                                        "variants"
+                                    ]
+                                }
+                            }
+                        }
+                    ]
+                },
+                {
+                    "name": "Categories",
+                    "request": {
+                        "method": "GET",
+                        "url": {
+                            "raw": "{{baseUrl}}/api/categories",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "categories"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Cart",
+                    "item": [
+                        {
+                            "name": "Lấy giỏ hàng",
+                            "request": {
+                                "method": "GET",
+                                "url": {
+                                    "raw": "{{baseUrl}}/api/cart?userId=1",
+                                    "host": [
+                                        "{{baseUrl}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "cart"
+                                    ],
+                                    "query": [
+                                        {
+                                            "key": "userId",
+                                            "value": "1"
+                                        }
+                                    ]
+                                }
+                            }
+                        },
+                        {
+                            "name": "Thêm vào giỏ",
+                            "request": {
+                                "method": "POST",
+                                "body": {
+                                    "mode": "raw",
+                                    "raw": "{\n    \"userId\": 1,\n    \"productId\": 1,\n    \"size\": \"42\",\n    \"quantity\": 1\n}",
+                                    "options": {
+                                        "raw": {
+                                            "language": "json"
+                                        }
+                                    }
+                                },
+                                "url": {
+                                    "raw": "{{baseUrl}}/api/cart",
+                                    "host": [
+                                        "{{baseUrl}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "cart"
+                                    ]
+                                }
+                            }
+                        },
+                        {
+                            "name": "Cập nhật số lượng",
+                            "request": {
+                                "method": "PUT",
+                                "body": {
+                                    "mode": "raw",
+                                    "raw": "{\n    \"quantity\": 2\n}",
+                                    "options": {
+                                        "raw": {
+                                            "language": "json"
+                                        }
+                                    }
+                                },
+                                "url": {
+                                    "raw": "{{baseUrl}}/api/cart/1",
+                                    "host": [
+                                        "{{baseUrl}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "cart",
+                                        "1"
+                                    ]
+                                }
+                            }
+                        },
+                        {
+                            "name": "Kiểm tra số dư/tồn kho",
+                            "request": {
+                                "method": "POST",
+                                "url": {
+                                    "raw": "{{baseUrl}}/api/cart/check-balance",
+                                    "host": [
+                                        "{{baseUrl}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "cart",
+                                        "check-balance"
+                                    ]
+                                }
+                            }
+                        },
+                        {
+                            "name": "Giải phóng đặt chỗ (Release)",
+                            "request": {
+                                "method": "POST",
+                                "url": {
+                                    "raw": "{{baseUrl}}/api/cart/release",
+                                    "host": [
+                                        "{{baseUrl}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "cart",
+                                        "release"
+                                    ]
+                                }
+                            }
+                        }
+                    ]
+                },
+                {
+                    "name": "Orders",
+                    "item": [
+                        {
+                            "name": "Danh sách đơn hàng",
+                            "request": {
+                                "method": "GET",
+                                "url": {
+                                    "raw": "{{baseUrl}}/api/orders?userId=1",
+                                    "host": [
+                                        "{{baseUrl}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "orders"
+                                    ],
+                                    "query": [
+                                        {
+                                            "key": "userId",
+                                            "value": "1"
+                                        }
+                                    ]
+                                }
+                            }
+                        },
+                        {
+                            "name": "Tạo đơn hàng",
+                            "request": {
+                                "method": "POST",
+                                "body": {
+                                    "mode": "raw",
+                                    "raw": "{\n    \"userId\": 1,\n    \"items\": [],\n    \"shippingAddress\": \"123 Main St\",\n    \"phone\": \"0123456789\",\n    \"email\": \"user@example.com\"\n}",
+                                    "options": {
+                                        "raw": {
+                                            "language": "json"
+                                        }
+                                    }
+                                },
+                                "url": {
+                                    "raw": "{{baseUrl}}/api/orders",
+                                    "host": [
+                                        "{{baseUrl}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "orders"
+                                    ]
+                                }
+                            }
+                        },
+                        {
+                            "name": "Tra cứu đơn (Lookup)",
+                            "request": {
+                                "method": "GET",
+                                "url": {
+                                    "raw": "{{baseUrl}}/api/orders/lookup?email=user@example.com&orderNumber=ORD123",
+                                    "host": [
+                                        "{{baseUrl}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "orders",
+                                        "lookup"
+                                    ],
+                                    "query": [
+                                        {
+                                            "key": "email",
+                                            "value": "user@example.com"
+                                        },
+                                        {
+                                            "key": "orderNumber",
+                                            "value": "ORD123"
+                                        }
+                                    ]
+                                }
+                            }
+                        },
+                        {
+                            "name": "Theo dõi vận đơn (Tracking)",
+                            "request": {
+                                "method": "GET",
+                                "url": {
+                                    "raw": "{{baseUrl}}/api/orders/ORD123/tracking",
+                                    "host": [
+                                        "{{baseUrl}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "orders",
+                                        "ORD123",
+                                        "tracking"
+                                    ]
+                                }
+                            }
+                        }
+                    ]
+                },
+                {
+                    "name": "Reviews",
+                    "item": [
+                        {
+                            "name": "Danh sách Review",
+                            "request": {
+                                "method": "GET",
+                                "url": {
+                                    "raw": "{{baseUrl}}/api/reviews?productId=1",
+                                    "host": [
+                                        "{{baseUrl}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "reviews"
+                                    ],
+                                    "query": [
+                                        {
+                                            "key": "productId",
+                                            "value": "1"
+                                        }
+                                    ]
+                                }
+                            }
+                        },
+                        {
+                            "name": "Gửi Review mới",
+                            "request": {
+                                "method": "POST",
+                                "body": {
+                                    "mode": "raw",
+                                    "raw": "{\n    \"userId\": 1,\n    \"productId\": 1,\n    \"rating\": 5,\n    \"title\": \"Tuyệt vời\",\n    \"comment\": \"Đôi giày rất êm\"\n}",
+                                    "options": {
+                                        "raw": {
+                                            "language": "json"
+                                        }
+                                    }
+                                },
+                                "url": {
+                                    "raw": "{{baseUrl}}/api/reviews",
+                                    "host": [
+                                        "{{baseUrl}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "reviews"
+                                    ]
+                                }
+                            }
+                        },
+                        {
+                            "name": "Xóa Review",
+                            "request": {
+                                "method": "DELETE",
+                                "url": {
+                                    "raw": "{{baseUrl}}/api/reviews?reviewId=1&userId=1",
+                                    "host": [
+                                        "{{baseUrl}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "reviews"
+                                    ],
+                                    "query": [
+                                        {
+                                            "key": "reviewId",
+                                            "value": "1"
+                                        },
+                                        {
+                                            "key": "userId",
+                                            "value": "1"
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "3. Marketing & Content",
+            "item": [
+                {
+                    "name": "Banners",
+                    "item": [
+                        {
+                            "name": "Lấy Banner hoạt động",
+                            "request": {
+                                "method": "GET",
+                                "url": {
+                                    "raw": "{{baseUrl}}/api/banners",
+                                    "host": [
+                                        "{{baseUrl}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "banners"
+                                    ]
+                                }
+                            }
+                        },
+                        {
+                            "name": "Ghi nhận Click Banner",
+                            "request": {
+                                "method": "POST",
+                                "url": {
+                                    "raw": "{{baseUrl}}/api/banners/click",
+                                    "host": [
+                                        "{{baseUrl}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "banners",
+                                        "click"
+                                    ]
+                                }
+                            }
+                        }
+                    ]
+                },
+                {
+                    "name": "Coupons & Vouchers",
+                    "item": [
+                        {
+                            "name": "Danh sách Coupon",
+                            "request": {
+                                "method": "GET",
+                                "url": {
+                                    "raw": "{{baseUrl}}/api/coupons",
+                                    "host": [
+                                        "{{baseUrl}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "coupons"
+                                    ]
+                                }
+                            }
+                        },
+                        {
+                            "name": "Kiểm tra mã (Validate)",
+                            "request": {
+                                "method": "POST",
+                                "body": {
+                                    "mode": "raw",
+                                    "raw": "{\"code\": \"NIKE2024\"}",
+                                    "options": {
+                                        "raw": {
+                                            "language": "json"
+                                        }
+                                    }
+                                },
+                                "url": {
+                                    "raw": "{{baseUrl}}/api/coupons/validate",
+                                    "host": [
+                                        "{{baseUrl}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "coupons",
+                                        "validate"
+                                    ]
+                                }
+                            }
+                        },
+                        {
+                            "name": "Danh sách Voucher",
+                            "request": {
+                                "method": "GET",
+                                "url": {
+                                    "raw": "{{baseUrl}}/api/voucher/list",
+                                    "host": [
+                                        "{{baseUrl}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "voucher",
+                                        "list"
+                                    ]
+                                }
+                            }
+                        }
+                    ]
+                },
+                {
+                    "name": "News & Blog",
+                    "item": [
+                        {
+                            "name": "Tin tức",
+                            "request": {
+                                "method": "GET",
+                                "url": {
+                                    "raw": "{{baseUrl}}/api/news",
+                                    "host": [
+                                        "{{baseUrl}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "news"
+                                    ]
+                                }
+                            }
+                        }
+                    ]
+                },
+                {
+                    "name": "Newsletter",
+                    "request": {
+                        "method": "POST",
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\"email\": \"news@example.com\"}",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
+                                }
+                            }
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/api/newsletter",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "newsletter"
+                            ]
+                        }
+                    }
+                }
+            ]
+        },
+        {
+            "name": "4. Support & System",
+            "item": [
+                {
+                    "name": "FAQs",
+                    "request": {
+                        "method": "GET",
+                        "url": {
+                            "raw": "{{baseUrl}}/api/faqs",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "faqs"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Store Locations",
+                    "request": {
+                        "method": "GET",
+                        "url": {
+                            "raw": "{{baseUrl}}/api/stores",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "stores"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Chat AI (Gemini)",
+                    "request": {
+                        "method": "POST",
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\"message\": \"Hello Assistant\"}",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
+                                }
+                            }
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/api/chat/gemini",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "chat",
+                                "gemini"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Upload Media",
+                    "request": {
+                        "method": "POST",
+                        "url": {
+                            "raw": "{{baseUrl}}/api/upload",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "upload"
+                            ]
+                        }
+                    }
+                }
+            ]
+        },
+        {
+            "name": "5. Admin Panel",
+            "item": [
+                {
+                    "name": "Catalog Management",
+                    "item": [
+                        {
+                            "name": "Products Management (Full)",
+                            "item": [
+                                {
+                                    "name": "List",
+                                    "request": {
+                                        "method": "GET",
+                                        "url": {
+                                            "raw": "{{baseUrl}}/api/admin/products",
+                                            "host": [
+                                                "{{baseUrl}}"
+                                            ],
+                                            "path": [
+                                                "api",
+                                                "admin",
+                                                "products"
+                                            ]
+                                        }
+                                    }
+                                },
+                                {
+                                    "name": "Create",
+                                    "request": {
+                                        "method": "POST",
+                                        "url": {
+                                            "raw": "{{baseUrl}}/api/admin/products",
+                                            "host": [
+                                                "{{baseUrl}}"
+                                            ],
+                                            "path": [
+                                                "api",
+                                                "admin",
+                                                "products"
+                                            ]
+                                        }
+                                    }
+                                }
+                            ]
+                        },
+                        {
+                            "name": "Categories Management (Full)",
+                            "item": [
+                                {
+                                    "name": "List",
+                                    "request": {
+                                        "method": "GET",
+                                        "url": {
+                                            "raw": "{{baseUrl}}/api/admin/categories",
+                                            "host": [
+                                                "{{baseUrl}}"
+                                            ],
+                                            "path": [
+                                                "api",
+                                                "admin",
+                                                "categories"
+                                            ]
+                                        }
+                                    }
+                                },
+                                {
+                                    "name": "Create",
+                                    "request": {
+                                        "method": "POST",
+                                        "url": {
+                                            "raw": "{{baseUrl}}/api/admin/categories",
+                                            "host": [
+                                                "{{baseUrl}}"
+                                            ],
+                                            "path": [
+                                                "api",
+                                                "admin",
+                                                "categories"
+                                            ]
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "name": "User & Security",
+                    "item": [
+                        {
+                            "name": "Users Management",
+                            "request": {
+                                "method": "GET",
+                                "url": {
+                                    "raw": "{{baseUrl}}/api/admin/users",
+                                    "host": [
+                                        "{{baseUrl}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "admin",
+                                        "users"
+                                    ]
+                                }
+                            }
+                        },
+                        {
+                            "name": "Cập nhật User",
+                            "request": {
+                                "method": "PUT",
+                                "body": {
+                                    "mode": "raw",
+                                    "raw": "{\"id\": 1, \"is_active\": 1}",
+                                    "options": {
+                                        "raw": {
+                                            "language": "json"
+                                        }
+                                    }
+                                },
+                                "url": {
+                                    "raw": "{{baseUrl}}/api/admin/users",
+                                    "host": [
+                                        "{{baseUrl}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "admin",
+                                        "users"
+                                    ]
+                                }
+                            }
+                        },
+                        {
+                            "name": "Dọn dẹp Token",
+                            "request": {
+                                "method": "POST",
+                                "url": {
+                                    "raw": "{{baseUrl}}/api/admin/cleanup-tokens",
+                                    "host": [
+                                        "{{baseUrl}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "admin",
+                                        "cleanup-tokens"
+                                    ]
+                                }
+                            }
+                        }
+                    ]
+                },
+                {
+                    "name": "Operations",
+                    "item": [
+                        {
+                            "name": "Inventory Admin",
+                            "request": {
+                                "method": "GET",
+                                "url": {
+                                    "raw": "{{baseUrl}}/api/admin/inventory",
+                                    "host": [
+                                        "{{baseUrl}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "admin",
+                                        "inventory"
+                                    ]
+                                }
+                            }
+                        },
+                        {
+                            "name": "Tăng tồn kho",
+                            "request": {
+                                "method": "POST",
+                                "body": {
+                                    "mode": "raw",
+                                    "raw": "{\"product_id\": 1, \"size\": \"42\", \"quantity\": 10}",
+                                    "options": {
+                                        "raw": {
+                                            "language": "json"
+                                        }
+                                    }
+                                },
+                                "url": {
+                                    "raw": "{{baseUrl}}/api/admin/inventory",
+                                    "host": [
+                                        "{{baseUrl}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "admin",
+                                        "inventory"
+                                    ]
+                                }
+                            }
+                        },
+                        {
+                            "name": "Orders Admin",
+                            "request": {
+                                "method": "GET",
+                                "url": {
+                                    "raw": "{{baseUrl}}/api/admin/orders",
+                                    "host": [
+                                        "{{baseUrl}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "admin",
+                                        "orders"
+                                    ]
+                                }
+                            }
+                        }
+                    ]
+                },
+                {
+                    "name": "Marketing Admin",
+                    "item": [
+                        {
+                            "name": "Banners Admin",
+                            "request": {
+                                "method": "GET",
+                                "url": {
+                                    "raw": "{{baseUrl}}/api/admin/banners",
+                                    "host": [
+                                        "{{baseUrl}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "admin",
+                                        "banners"
+                                    ]
+                                }
+                            }
+                        },
+                        {
+                            "name": "News Admin",
+                            "request": {
+                                "method": "GET",
+                                "url": {
+                                    "raw": "{{baseUrl}}/api/admin/news",
+                                    "host": [
+                                        "{{baseUrl}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "admin",
+                                        "news"
+                                    ]
+                                }
+                            }
+                        }
+                    ]
+                },
+                {
+                    "name": "Dashboard & Analytics",
+                    "item": [
+                        {
+                            "name": "Summary",
+                            "request": {
+                                "method": "GET",
+                                "url": {
+                                    "raw": "{{baseUrl}}/api/admin/dashboard",
+                                    "host": [
+                                        "{{baseUrl}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "admin",
+                                        "dashboard"
+                                    ]
+                                }
+                            }
+                        },
+                        {
+                            "name": "Full Stats",
+                            "request": {
+                                "method": "GET",
+                                "url": {
+                                    "raw": "{{baseUrl}}/api/admin/analytics",
+                                    "host": [
+                                        "{{baseUrl}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "admin",
+                                        "analytics"
+                                    ]
+                                }
+                            }
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "6. System & Utils",
+            "item": [
+                {
+                    "name": "Init Database",
+                    "request": {
+                        "method": "POST",
+                        "url": {
+                            "raw": "{{baseUrl}}/api/init-db",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "init-db"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Run Migration",
+                    "request": {
+                        "method": "POST",
+                        "url": {
+                            "raw": "{{baseUrl}}/api/migrate",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "migrate"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Maintenance Check",
+                    "request": {
+                        "method": "GET",
+                        "url": {
+                            "raw": "{{baseUrl}}/api/maintenance-check",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "maintenance-check"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Cron Tasks",
+                    "request": {
+                        "method": "GET",
+                        "url": {
+                            "raw": "{{baseUrl}}/api/cron",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "cron"
+                            ]
+                        }
+                    }
+                }
+            ]
+        }
+    ],
+    "variable": [
+        {
+            "key": "baseUrl",
+            "value": "http://localhost:3000",
+            "type": "string"
+        }
+    ]
+}

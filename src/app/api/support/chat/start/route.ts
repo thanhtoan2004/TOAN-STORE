@@ -4,17 +4,20 @@ import {
     getUserActiveChat,
     getGuestActiveChat
 } from '@/lib/db/supportChat';
+import { verifyAuth } from '@/lib/auth';
 
 export async function POST(request: NextRequest) {
     try {
+        const session = await verifyAuth();
         const body = await request.json();
-        const { userId, guestEmail, guestName, initialMessage } = body;
+        const { guestEmail, guestName, initialMessage } = body;
+        const userId = session?.userId ? Number(session.userId) : null;
 
         // Validation
         if (!userId && (!guestEmail || !guestName)) {
             return NextResponse.json({
                 success: false,
-                error: 'User ID or guest information is required'
+                error: 'Login or guest information is required'
             }, { status: 400 });
         }
 
@@ -35,9 +38,8 @@ export async function POST(request: NextRequest) {
             });
         }
 
-        // Create new chat
         const chatId = await createSupportChat({
-            userId,
+            userId: userId || undefined,
             guestEmail,
             guestName,
             initialMessage

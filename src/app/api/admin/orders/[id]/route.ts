@@ -1,34 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { executeQuery } from '@/lib/db/mysql';
-import jwt from 'jsonwebtoken';
-import { cookies } from 'next/headers';
-import { JWTPayload } from '@/types/auth';
-
-// Middleware kiểm tra admin
-async function checkAdminAuth() {
-    try {
-        const cookieStore = await cookies();
-        const token = cookieStore.get('auth_token')?.value;
-
-        if (!token) return null;
-
-        const decoded = jwt.verify(
-            token,
-            process.env.JWT_SECRET || 'fallback_secret'
-        ) as JWTPayload;
-
-        const users = await executeQuery(
-            'SELECT is_admin FROM users WHERE id = ?',
-            [decoded.userId]
-        ) as any[];
-
-        if (users.length === 0 || users[0].is_admin !== 1) return null;
-
-        return { isAdmin: true, userId: decoded.userId };
-    } catch {
-        return null;
-    }
-}
+import { executeQuery, cancelOrder } from '@/lib/db/mysql';
+import { checkAdminAuth } from '@/lib/auth';
 
 // PATCH - Cập nhật trạng thái đơn hàng (Admin)
 export async function PATCH(
@@ -112,10 +84,14 @@ export async function PATCH(
         }
 
         // Update order status
-        await executeQuery(
-            'UPDATE orders SET status = ?, updated_at = NOW() WHERE id = ?',
-            [status, parseInt(id)]
-        );
+        if (status === 'cancelled') {
+            await cancelOrder(orders[0].order_number, true); // true = force (admin)
+        } else {
+            await executeQuery(
+                'UPDATE orders SET status = ?, updated_at = NOW() WHERE id = ?',
+                [status, parseInt(id)]
+            );
+        }
 
         // Deduct gift card balance when order is delivered
         if (status === 'delivered') {
@@ -155,7 +131,7 @@ export async function PATCH(
 
         return NextResponse.json({
             success: true,
-            message: 'Order status updated successfully'
+            message: status === 'cancelled' ? 'Order cancelled and stock restored' : 'Order status updated successfully'
         });
     } catch (error) {
         console.error('Error updating order status:', error);

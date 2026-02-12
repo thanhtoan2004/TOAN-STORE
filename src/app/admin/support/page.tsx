@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { MessageSquare, Clock, CheckCircle2, User, Loader2, ArrowRight } from 'lucide-react';
+import { formatDateTime } from '@/lib/date-utils';
 import Link from 'next/link';
 
 interface SupportChat {
@@ -71,16 +72,7 @@ export default function AdminSupportPage() {
         );
     };
 
-    const formatTime = (dateString: string) => {
-        return new Date(dateString).toLocaleTimeString('vi-VN', {
-            hour: '2-digit',
-            minute: '2-digit',
-            day: '2-digit',
-            month: '2-digit',
-            year: 'numeric',
-            timeZone: 'Asia/Ho_Chi_Minh'
-        });
-    };
+    // local formatTime removed, using import from @/lib/date-utils
 
     return (
         <div className="p-6">
@@ -174,7 +166,7 @@ export default function AdminSupportPage() {
                                         {getStatusBadge(chat.status)}
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                        {formatTime(chat.last_message_at)}
+                                        {formatDateTime(chat.last_message_at)}
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                         {chat.admin_first_name

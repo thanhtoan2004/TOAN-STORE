@@ -1,21 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { executeQuery } from '@/lib/db/mysql';
-
-async function checkAdminAuth(request: NextRequest) {
-  try {
-    const authHeader = request.headers.get('authorization') || request.headers.get('cookie')?.match(/auth_token=([^;]+)/)?.[1];
-    if (!authHeader) return null;
-    const token = authHeader.replace('Bearer ', '');
-    const decoded: any = JSON.parse(Buffer.from(token.split('.')[1], 'base64').toString());
-    const result = await executeQuery('SELECT is_admin FROM users WHERE id = ?', [decoded.userId]) as any[];
-    return result.length > 0 && (result[0] as any).is_admin === 1 ? result[0] : null;
-  } catch {
-    return null;
-  }
-}
+import { checkAdminAuth } from '@/lib/auth';
 
 export async function GET(request: NextRequest) {
   try {
+    const admin = await checkAdminAuth();
+    if (!admin) {
+      return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
+    }
+
     const searchParams = request.nextUrl.searchParams;
     const page = parseInt(searchParams.get('page') || '1');
     const limit = parseInt(searchParams.get('limit') || '20');
@@ -43,12 +36,29 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    await checkAdminAuth(request);
+    const admin = await checkAdminAuth();
+    if (!admin) {
+      return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
+    }
     const { card_number, pin, initial_balance, expires_at } = await request.json();
 
-    await executeQuery(
+    const bcrypt = await import('bcrypt');
+    const saltRounds = 10;
+    const hashedPin = await bcrypt.hash(pin, saltRounds);
+
+    const result = await executeQuery(
       'INSERT INTO gift_cards (card_number, pin, initial_balance, current_balance, status, expires_at) VALUES (?, ?, ?, ?, ?, ?)',
-      [card_number, pin, initial_balance, initial_balance, 'active', expires_at]
+      [card_number, hashedPin, initial_balance, initial_balance, 'active', expires_at]
+    ) as any;
+
+    const giftCardId = result.insertId;
+
+    // Ghi lại giao dịch khởi tạo
+    await executeQuery(
+      `INSERT INTO gift_card_transactions 
+       (gift_card_id, transaction_type, amount, balance_before, balance_after, description)
+       VALUES (?, 'purchase', ?, 0, ?, 'Khởi tạo thẻ quà tặng')`,
+      [giftCardId, initial_balance, initial_balance]
     );
 
     return NextResponse.json({ success: true });

@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import Link from 'next/link';
+import { formatDateTime } from '@/lib/date-utils';
 
 interface Message {
     id: number;
@@ -320,7 +321,7 @@ export default function AdminChatDetailPage() {
                             </span>
                             <span className="flex items-center gap-1">
                                 <Clock size={12} />
-                                {new Date(chat.created_at).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}
+                                {formatDateTime(chat.created_at)}
                             </span>
                         </div>
                     </div>
@@ -369,7 +370,7 @@ export default function AdminChatDetailPage() {
                             <div className="text-xs text-gray-400 mb-1 px-1">
                                 {msg.sender_type === 'admin'
                                     ? 'Bạn'
-                                    : (chat.user_first_name || chat.guest_name || 'Khách')} • {new Date(msg.created_at).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Ho_Chi_Minh' })}
+                                    : (chat.user_first_name || chat.guest_name || 'Khách')} • {formatDateTime(msg.created_at)}
                             </div>
                             <div
                                 className={`px-4 py-3 rounded-2xl text-sm ${msg.sender_type === 'admin'
