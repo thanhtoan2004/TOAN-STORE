@@ -7,6 +7,8 @@ import Link from 'next/link';
 import { Clock, Flame } from 'lucide-react';
 import FlashSaleTimer from './FlashSaleTimer';
 
+export const dynamic = 'force-dynamic';
+
 export const metadata: Metadata = {
     title: 'Flash Sales | Nike Clone',
     description: 'Săn ngay các ưu đãi Flash Sale cực sốc tại Nike Clone. Số lượng có hạn!',
