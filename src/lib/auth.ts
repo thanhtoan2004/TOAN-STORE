@@ -10,11 +10,13 @@ export interface JWTPayload {
     exp: number;
 }
 
-// FIX L1: Throw error in production if JWT_SECRET is missing
-const JWT_SECRET = process.env.JWT_SECRET || (() => {
+// FIX L1: Throw error in production if JWT_SECRET is missing (lazy to avoid build-time crash)
+function getJwtSecret(): string {
+    const secret = process.env.JWT_SECRET;
+    if (secret) return secret;
     if (process.env.NODE_ENV === 'production') throw new Error('JWT_SECRET is required in production!');
     return 'dev_fallback_secret_not_for_production';
-})();
+}
 export const AUTH_TOKEN = 'nike_auth_session';
 export const ADMIN_TOKEN = 'nike_admin_session';
 export const REFRESH_TOKEN = 'nike_refresh_token';
@@ -34,7 +36,7 @@ export async function checkAdminAuth() {
 
         if (!token) return null;
 
-        const decoded = jwt.verify(token, JWT_SECRET) as JWTPayload;
+        const decoded = jwt.verify(token, getJwtSecret()) as JWTPayload;
 
         // DB Verification for status and still being admin
         const admins = await executeQuery(
@@ -62,7 +64,7 @@ export async function verifyAuth() {
 
         if (!token) return null;
 
-        const decoded = jwt.verify(token, JWT_SECRET) as JWTPayload;
+        const decoded = jwt.verify(token, getJwtSecret()) as JWTPayload;
 
         // DB Verification for active status
         const users = await executeQuery(
@@ -84,14 +86,14 @@ export async function verifyAuth() {
  * Generate a short-lived Access Token
  */
 export function generateAccessToken(payload: Partial<JWTPayload>): string {
-    return jwt.sign(payload, JWT_SECRET, { expiresIn: ACCESS_TOKEN_EXP });
+    return jwt.sign(payload, getJwtSecret(), { expiresIn: ACCESS_TOKEN_EXP });
 }
 
 /**
  * Generate a long-lived Refresh Token
  */
 export function generateRefreshToken(payload: Partial<JWTPayload>): string {
-    return jwt.sign(payload, JWT_SECRET, { expiresIn: REFRESH_TOKEN_EXP });
+    return jwt.sign(payload, getJwtSecret(), { expiresIn: REFRESH_TOKEN_EXP });
 }
 
 /**
@@ -99,7 +101,7 @@ export function generateRefreshToken(payload: Partial<JWTPayload>): string {
  */
 export function verifyRefreshToken(token: string): JWTPayload | null {
     try {
-        return jwt.verify(token, JWT_SECRET) as JWTPayload;
+        return jwt.verify(token, getJwtSecret()) as JWTPayload;
     } catch (error) {
         return null;
     }
