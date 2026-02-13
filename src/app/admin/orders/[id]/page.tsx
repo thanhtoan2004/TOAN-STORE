@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, use } from 'react';
+import Link from 'next/link';
 import AdminLayout from '@/components/admin/AdminLayout';
 import { formatDateTime, formatCurrency } from '@/lib/date-utils';
 import { toast } from 'react-hot-toast';
@@ -149,7 +150,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
             <AdminLayout>
                 <div className="p-8 text-center">
                     <h2 className="text-2xl font-bold">Order Not Found</h2>
-                    <a href="/admin/orders" className="text-blue-600 hover:underline mt-4 inline-block">Back to Orders</a>
+                    <Link href="/admin/orders" className="text-blue-600 hover:underline mt-4 inline-block">Back to Orders</Link>
                 </div>
             </AdminLayout>
         );
@@ -173,7 +174,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
                 <div className="flex justify-between items-start">
                     <div>
                         <nav className="text-sm font-medium text-gray-500 mb-2">
-                            <a href="/admin/orders" className="hover:text-gray-700">Orders</a> / #{order.order_number}
+                            <Link href="/admin/orders" className="hover:text-gray-700">Orders</Link> / #{order.order_number}
                         </nav>
                         <h1 className="text-3xl font-bold text-gray-900">Order #{order.order_number}</h1>
                         <div className="mt-2 flex items-center space-x-3">

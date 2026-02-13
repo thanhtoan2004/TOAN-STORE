@@ -139,7 +139,7 @@ async function confirmPaymentHandler(req: NextRequest): Promise<NextResponse> {
     );
   } catch (error) {
     console.error('Payment confirmation error details:', error);
-    // @ts-ignore
+    // @ts-expect-error error.message access
     return createErrorResponse(`Đã xảy ra lỗi khi xác nhận thanh toán: ${error.message}`, 500);
   }
 }

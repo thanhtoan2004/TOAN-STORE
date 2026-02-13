@@ -77,9 +77,6 @@ const OrderStatus = ({ order }: { order: any }) => (
 export default function ChatWidget() {
     const pathname = usePathname();
     const [isOpen, setIsOpen] = useState(false);
-
-    if (pathname?.startsWith('/admin')) return null;
-
     const [chatMode, setChatMode] = useState<ChatMode>('ai');
     const { user } = useAuth();
     const userId = user?.id ? parseInt(user.id.toString()) : undefined;
@@ -101,6 +98,8 @@ export default function ChatWidget() {
     useEffect(() => {
         scrollToBottom();
     }, [messages, isOpen]);
+
+    if (pathname?.startsWith('/admin')) return null;
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
