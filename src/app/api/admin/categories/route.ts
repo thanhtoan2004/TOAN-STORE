@@ -10,7 +10,7 @@ export async function GET(request: NextRequest) {
 
   try {
     const result = await executeQuery(
-      'SELECT id, name, slug, description, image_url, position, is_active FROM categories ORDER BY position ASC'
+      'SELECT id, name, slug, description, image_url, position, is_active FROM categories WHERE deleted_at IS NULL ORDER BY position ASC'
     );
 
     return NextResponse.json({

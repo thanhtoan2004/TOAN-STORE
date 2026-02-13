@@ -26,8 +26,11 @@ const transporter = nodemailer.createTransport({
 export async function sendEmail({ to, subject, html }: EmailOptions) {
   // If credentials are missing, log and skip (for dev environment safety)
   if (!SMTP_USER || !SMTP_PASS) {
-    console.warn('⚠️ SMTP credentials missing. Email not sent.');
-
+    console.warn('⚠️ SMTP credentials missing. Email would have been sent to:', to);
+    console.log('--- EMAIL PREVIEW ---');
+    console.log('Subject:', subject);
+    // console.log('HTML:', html); // Uncomment to see full HTML
+    console.log('--- END PREVIEW ---');
     return false;
   }
 

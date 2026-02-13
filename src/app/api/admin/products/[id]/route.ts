@@ -2,7 +2,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { executeQuery } from '@/lib/db/mysql';
 import { checkAdminAuth } from '@/lib/auth';
+import { sendWishlistSaleEmail } from '@/lib/email-templates';
 
+// ... (GET method unchanged)
 // GET - Lấy chi tiết sản phẩm
 export async function GET(
     request: NextRequest,
@@ -66,6 +68,14 @@ export async function PUT(
         const body = await request.json();
         const { image_url, gallery_images, ...updates } = body;
 
+        // Get current product state BEFORE update for comparison
+        const currentProducts = await executeQuery<any[]>(
+            'SELECT retail_price, base_price, name FROM products WHERE id = ?',
+            [id]
+        );
+
+        const currentProduct = currentProducts[0];
+
         // Remove immutable fields or fields handled separately if any
         delete updates.id;
         delete updates.created_at;
@@ -127,6 +137,40 @@ export async function PUT(
             }
         }
 
+        // CHECK FOR PRICE DROP AND SEND EMAILS
+        if (currentProduct && updates.retail_price) {
+            const oldPrice = parseFloat(currentProduct.retail_price || currentProduct.base_price);
+            const newPrice = parseFloat(updates.retail_price);
+
+            // Detect valid price drop (more than 5% difference to avoid spam?)
+            // For now, just any drop is fine.
+            if (newPrice < oldPrice) {
+                // Fetch users who have this product in wishlist
+                const wishlistUsers = await executeQuery<any[]>(
+                    `SELECT u.email, u.name 
+                      FROM wishlist w
+                      JOIN users u ON w.user_id = u.id
+                      WHERE w.product_id = ?`,
+                    [id]
+                );
+
+                // Send batched emails (simplified)
+                if (wishlistUsers.length > 0) {
+                    console.log(`Sending SALE email to ${wishlistUsers.length} users for product ${id}`);
+                    wishlistUsers.forEach(user => {
+                        sendWishlistSaleEmail(
+                            user.email,
+                            user.name || 'Bạn',
+                            currentProduct.name,
+                            oldPrice,
+                            newPrice,
+                            parseInt(id)
+                        ).catch(console.error);
+                    });
+                }
+            }
+        }
+
         return NextResponse.json({
             success: true,
             message: 'Product updated successfully'
@@ -136,3 +180,37 @@ export async function PUT(
         return NextResponse.json({ success: false, message: 'Internal server error' }, { status: 500 });
     }
 }
+
+// DELETE - Xóa sản phẩm (Soft Delete)
+export async function DELETE(
+    request: NextRequest,
+    { params }: { params: Promise<{ id: string }> }
+) {
+    try {
+        const admin = await checkAdminAuth();
+        if (!admin) {
+            return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
+        }
+
+        const { id } = await params;
+
+        // Thực hiện xóa mềm
+        const result: any = await executeQuery(
+            'UPDATE products SET deleted_at = CURRENT_TIMESTAMP, is_active = 0 WHERE id = ?',
+            [id]
+        );
+
+        if (result.affectedRows === 0) {
+            return NextResponse.json({ success: false, message: 'Product not found' }, { status: 404 });
+        }
+
+        return NextResponse.json({
+            success: true,
+            message: 'Sản phẩm đã được xóa (Soft Deleted)'
+        });
+    } catch (error) {
+        console.error('Error deleting product:', error);
+        return NextResponse.json({ success: false, message: 'Internal server error' }, { status: 500 });
+    }
+}
+

@@ -54,7 +54,7 @@ export default function CheckoutPage() {
     city: z.string().min(1, "Vui lòng chọn Tỉnh/Thành phố"),
     district: z.string().min(1, "Vui lòng nhập Quận/Huyện"),
     ward: z.string().min(1, "Vui lòng nhập Phường/Xã"),
-    paymentMethod: z.enum(["cod", "bank", "momo"]),
+    paymentMethod: z.enum(["cod", "bank", "momo", "vnpay"]),
     note: z.string().optional(),
   });
 
@@ -171,7 +171,11 @@ export default function CheckoutPage() {
         body: JSON.stringify({
           code: voucherCode,
           userId: user?.id || null,
-          orderAmount: subtotal + shippingFee + tax
+          orderAmount: subtotal + shippingFee + tax,
+          items: cartItems.map(item => ({
+            productId: item.productId,
+            categoryId: (item as any).categoryId // Assuming cart items have categoryId
+          }))
         })
       });
       const result = await response.json();
@@ -214,7 +218,7 @@ export default function CheckoutPage() {
     }
   };
 
-  const getPaymentMethodText = (method: string) => method === 'bank' ? 'Chuyển khoản ngân hàng' : method === 'momo' ? 'Ví MoMo' : 'Thanh toán khi nhận hàng';
+  const getPaymentMethodText = (method: string) => method === 'bank' ? 'Chuyển khoản ngân hàng' : method === 'momo' ? 'Ví MoMo' : method === 'vnpay' ? 'VNPay (ATM/QR)' : 'Thanh toán khi nhận hàng';
 
   const onSubmit = async (values: z.infer<typeof checkoutSchema>) => {
     if (!user) return alert('Vui lòng đăng nhập để đặt hàng');
@@ -226,25 +230,15 @@ export default function CheckoutPage() {
       return;
     }
 
-    if (values.paymentMethod === 'momo' && !isPaid) {
-      const confirm = window.confirm('Chuyển hướng đến ví MoMo... (Mock)\n\nNhấn OK để thanh toán thành công, Cancel để hủy.');
-      if (confirm) {
-        setIsPaid(true);
-        // We will call handleSubmit again in next tick or imply continuance
-        // But for simplicity in this flow, we'll set isPaid and then user clicks Submit again? 
-        // Better: Just proceed with API call now with is_paid=true flag
-      } else {
-        return;
-      }
-    }
-
-    // Determine payment status based on method and isPaid flag
-    // For MoMo mock, if confirmed, it's paid.
-    // For Bank, if coming from QR modal "I have paid", it's marked paid or pending verification.
-    const finalPaymentStatus = (values.paymentMethod === 'momo' && !isPaid) ? 'paid' : (isPaid ? 'paid' : 'pending');
-
     try {
       setLoading(true);
+
+      // Determine initial status
+      let initialPaymentStatus = 'pending';
+      if (values.paymentMethod === 'cod') initialPaymentStatus = 'pending';
+      if (values.paymentMethod === 'bank' && isPaid) initialPaymentStatus = 'paid'; // Or pending_verification
+      if (values.paymentMethod === 'vnpay' || values.paymentMethod === 'momo') initialPaymentStatus = 'pending_payment';
+
       const orderData = {
         userId: user.id,
         items: cartItems.map(item => ({
@@ -275,22 +269,63 @@ export default function CheckoutPage() {
         voucherDiscount: voucherDiscount,
         giftcardNumber: appliedGiftCard?.cardNumber || null,
         giftcardDiscount: giftCardDiscount,
-        notes: isPaid ? `${values.note} [Đã thanh toán Online/CK]` : values.note,
-        paymentStatus: finalPaymentStatus
+        notes: values.note,
+        paymentStatus: initialPaymentStatus
       };
 
+      // 1. Create Order
       const response = await fetch('/api/orders', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(orderData) });
       const result = await response.json();
-      if (result.success) {
-        await clearCart();
-        router.push(`/order-success?orderNumber=${result.data.orderNumber}`);
-      } else {
+
+      if (!result.success) {
         alert(result.message || 'Lỗi khi đặt hàng');
+        setLoading(false);
+        return;
       }
+
+      const orderId = result.data.orderId;
+      const orderNumber = result.data.orderNumber;
+
+      // 2. Clear Cart immediately
+      await clearCart();
+
+      // 3. Handle Payment Redirection
+      if (values.paymentMethod === 'vnpay') {
+        const paymentRes = await fetch('/api/payment/vnpay/create_url', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ orderId, amount: total, language: 'vn' })
+        });
+        const paymentData = await paymentRes.json();
+        if (paymentData.paymentUrl) {
+          window.location.href = paymentData.paymentUrl;
+          return;
+        } else {
+          alert('Lỗi tạo link thanh toán VNPay');
+          router.push(`/order-success?orderNumber=${orderNumber}`);
+        }
+      } else if (values.paymentMethod === 'momo') {
+        const paymentRes = await fetch('/api/payment/momo/create', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ orderId, amount: total })
+        });
+        const paymentData = await paymentRes.json();
+        if (paymentData.payUrl) {
+          window.location.href = paymentData.payUrl;
+          return;
+        } else {
+          alert('Lỗi tạo link thanh toán Momo');
+          router.push(`/order-success?orderNumber=${orderNumber}`);
+        }
+      } else {
+        // COD or Bank Transfer (Manual)
+        router.push(`/order-success?orderNumber=${orderNumber}`);
+      }
+
     } catch (error) {
       console.error('Lỗi khi đặt hàng:', error);
       alert('Lỗi khi đặt hàng. Vui lòng thử lại.');
-    } finally {
       setLoading(false);
     }
   };
@@ -625,27 +660,38 @@ export default function CheckoutPage() {
                     <FormItem className="space-y-3">
                       <FormControl>
                         <div className="space-y-3">
-                          <label className="flex items-center p-3 border rounded-lg cursor-pointer hover:bg-gray-50">
-                            <input type="radio" {...field} value="cod" checked={field.value === 'cod'} className="mr-3" />
-                            <div>
-                              <div className="font-medium">{t.checkout.cod}</div>
-                              <div className="text-sm text-gray-600">Thanh toán bằng tiền mặt khi nhận được hàng</div>
-                            </div>
-                          </label>
-                          <label className="flex items-center p-3 border rounded-lg cursor-pointer hover:bg-gray-50">
-                            <input type="radio" {...field} value="bank" checked={field.value === 'bank'} className="mr-3" />
-                            <div>
-                              <div className="font-medium">{t.checkout.bank_transfer}</div>
-                              <div className="text-sm text-gray-600">Chuyển khoản qua QR Code (VietQR)</div>
-                            </div>
-                          </label>
-                          <label className="flex items-center p-3 border rounded-lg cursor-pointer hover:bg-gray-50">
-                            <input type="radio" {...field} value="momo" checked={field.value === 'momo'} className="mr-3" />
-                            <div>
-                              <div className="font-medium">{t.checkout.momo}</div>
-                              <div className="text-sm text-gray-600">Thanh toán qua ví điện tử MoMo</div>
-                            </div>
-                          </label>
+                          <div className="space-y-3">
+                            <label className="flex items-center p-3 border rounded-lg cursor-pointer hover:bg-gray-50">
+                              <input type="radio" {...field} value="cod" checked={field.value === 'cod'} className="mr-3" />
+                              <div>
+                                <div className="font-medium">{t.checkout.cod}</div>
+                                <div className="text-sm text-gray-600">Thanh toán bằng tiền mặt khi nhận được hàng</div>
+                              </div>
+                            </label>
+                            <label className="flex items-center p-3 border rounded-lg cursor-pointer hover:bg-gray-50">
+                              <input type="radio" {...field} value="bank" checked={field.value === 'bank'} className="mr-3" />
+                              <div>
+                                <div className="font-medium">{t.checkout.bank_transfer}</div>
+                                <div className="text-sm text-gray-600">Chuyển khoản qua QR Code (VietQR)</div>
+                              </div>
+                            </label>
+                            <label className="flex items-center p-3 border rounded-lg cursor-pointer hover:bg-gray-50">
+                              <input type="radio" {...field} value="momo" checked={field.value === 'momo'} className="mr-3" />
+                              <div>
+                                <div className="font-medium">{t.checkout.momo}</div>
+                                <div className="text-sm text-gray-600">Thanh toán qua ví điện tử MoMo</div>
+                              </div>
+                            </label>
+                          </div>
+                          <div className="space-y-3 mt-3">
+                            <label className="flex items-center p-3 border rounded-lg cursor-pointer hover:bg-gray-50">
+                              <input type="radio" {...field} value="vnpay" checked={field.value === 'vnpay'} className="mr-3" />
+                              <div>
+                                <div className="font-medium">VNPay / ATM / QR</div>
+                                <div className="text-sm text-gray-600">Thanh toán qua thẻ ATM, Visa, VNPay QR</div>
+                              </div>
+                            </label>
+                          </div>
                         </div>
                       </FormControl>
                       <FormMessage />

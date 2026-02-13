@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { executeQuery } from '@/lib/db/mysql';
 import { checkAdminAuth } from '@/lib/auth';
+import DOMPurify from 'isomorphic-dompurify';
 
 export async function GET(request: NextRequest) {
   try {
@@ -55,7 +56,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { question, answer, category_id, position } = await request.json();
+    const body = await request.json();
+    const { question, category_id, position } = body;
+    const answer = DOMPurify.sanitize(body.answer || '');
 
     if (!question || !answer) {
       return NextResponse.json(
@@ -94,7 +97,9 @@ export async function PUT(request: NextRequest) {
       );
     }
 
-    const { id, question, answer, category_id, position, is_active } = await request.json();
+    const body = await request.json();
+    const { id, question, category_id, position, is_active } = body;
+    const answer = DOMPurify.sanitize(body.answer || '');
 
     if (!id) {
       return NextResponse.json(

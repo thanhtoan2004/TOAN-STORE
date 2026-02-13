@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { executeQuery } from '@/lib/db/mysql';
 import { checkAdminAuth } from '@/lib/auth';
+import DOMPurify from 'isomorphic-dompurify';
 
 // PUT - Update news
 export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -12,7 +13,8 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     try {
         const { id } = await params;
         const body = await request.json();
-        const { title, excerpt, content, image_url, category, is_published } = body;
+        const { title, excerpt, image_url, category, is_published } = body;
+        const content = DOMPurify.sanitize(body.content || '');
 
         if (!title || !content) {
             return NextResponse.json({ success: false, message: 'Title and content are required' }, { status: 400 });

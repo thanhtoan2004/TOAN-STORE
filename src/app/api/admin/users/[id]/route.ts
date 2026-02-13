@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { executeQuery } from '@/lib/db/mysql';
 
 import { checkAdminAuth } from '@/lib/auth';
+import { encrypt, decrypt } from '@/lib/encryption';
 
 // PATCH /api/admin/users/[id] - Update user (admin role, status, etc.)
 export async function PATCH(
@@ -47,7 +48,7 @@ export async function PATCH(
 
         if (body.phone !== undefined) {
             updates.push('phone = ?');
-            values.push(body.phone);
+            values.push(encrypt(body.phone));
         }
 
         if (body.is_banned !== undefined) {
@@ -68,20 +69,21 @@ export async function PATCH(
             values
         );
 
-        // Fetch updated user
-        const updatedUser = await executeQuery(
+        const [user]: any = await executeQuery(
             'SELECT id, email, first_name, last_name, phone, is_admin, is_active, is_banned, created_at FROM users WHERE id = ?',
             [userId]
         ) as any[];
 
-        if (updatedUser.length === 0) {
+        if (!user) {
             return NextResponse.json({ success: false, message: 'User not found' }, { status: 404 });
         }
+
+        user.phone = decrypt(user.phone);
 
         return NextResponse.json({
             success: true,
             message: 'User updated successfully',
-            data: updatedUser[0]
+            data: user
         });
 
     } catch (error) {
@@ -110,9 +112,9 @@ export async function DELETE(
             return NextResponse.json({ success: false, message: 'Invalid user ID' }, { status: 400 });
         }
 
-        // Soft delete by setting is_active to 0
+        // Soft delete
         await executeQuery(
-            'UPDATE users SET is_active = 0, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+            'UPDATE users SET deleted_at = CURRENT_TIMESTAMP, is_active = 0, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
             [userId]
         );
 

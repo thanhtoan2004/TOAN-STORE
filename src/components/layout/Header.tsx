@@ -5,7 +5,7 @@ import { useEffect } from 'react';
 import Link from 'next/link'
 import Image from 'next/image'
 import { Heart, Menu, ChevronDown } from 'lucide-react'
-import { CartIcon } from '@/components/ui/cart'
+import CartIcon from '@/components/ui/CartIcon'
 import SearchBar from '@/components/ui/SearchBar'
 import { useWishlist } from "@/contexts/WishlistContext";
 import {

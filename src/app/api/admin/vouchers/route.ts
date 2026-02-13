@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { executeQuery } from '@/lib/db/mysql';
 import { checkAdminAuth } from '@/lib/auth';
+import { logAdminAction } from '@/lib/audit';
 
 export async function GET(request: NextRequest) {
   try {
@@ -22,11 +23,12 @@ export async function GET(request: NextRequest) {
               recipient_user_id, redeemed_by_user_id, 
               valid_from, valid_until, redeemed_at, created_at, updated_at
        FROM vouchers 
+       WHERE deleted_at IS NULL
        ORDER BY created_at DESC LIMIT ? OFFSET ?`,
       [limit, offset]
     ) as any[];
 
-    const [countRow] = await executeQuery(`SELECT COUNT(*) as total FROM vouchers`) as any[];
+    const [countRow] = await executeQuery(`SELECT COUNT(*) as total FROM vouchers WHERE deleted_at IS NULL`) as any[];
     const total = countRow?.total || 0;
     const totalPages = Math.ceil(total / limit);
 
@@ -68,8 +70,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check if code already exists
-    const existing = await executeQuery(`SELECT id FROM vouchers WHERE code = ?`, [code]) as any[];
+    // Check if code already exists (not deleted)
+    const existing = await executeQuery(`SELECT id FROM vouchers WHERE code = ? AND deleted_at IS NULL`, [code]) as any[];
     if (existing.length > 0) {
       return NextResponse.json(
         { success: false, message: 'Voucher code already exists' },
@@ -83,11 +85,16 @@ export async function POST(request: NextRequest) {
       [code, parseFloat(value.toString()), description || null, recipient_user_id || null, valid_until || null]
     ) as any;
 
-    return NextResponse.json({
+    const responseData = {
       success: true,
       message: 'Voucher created successfully',
       data: { id: result.insertId, code, value, description }
-    });
+    };
+
+    // Log audit
+    await logAdminAction(adminAuth.userId, 'create_voucher', 'vouchers', result.insertId, { code, value }, request);
+
+    return NextResponse.json(responseData);
   } catch (error) {
     console.error('Error creating voucher:', error);
     return NextResponse.json(
@@ -119,7 +126,7 @@ export async function PUT(request: NextRequest) {
     // Check if new code already exists (different voucher)
     if (code) {
       const existing = await executeQuery(
-        `SELECT id FROM vouchers WHERE code = ? AND id != ?`,
+        `SELECT id FROM vouchers WHERE code = ? AND id != ? AND deleted_at IS NULL`,
         [code, id]
       ) as any[];
       if (existing.length > 0) {
@@ -138,6 +145,9 @@ export async function PUT(request: NextRequest) {
       [code || null, value ? parseFloat(value.toString()) : null, description || null,
       recipient_user_id || null, valid_until || null, status || null, id]
     );
+
+    // Log audit
+    await logAdminAction(adminAuth.userId, 'update_voucher', 'vouchers', id, { code, status }, request);
 
     return NextResponse.json({
       success: true,
@@ -172,7 +182,10 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    await executeQuery(`DELETE FROM vouchers WHERE id = ?`, [id]);
+    await executeQuery(`UPDATE vouchers SET deleted_at = NOW() WHERE id = ?`, [id]);
+
+    // Log audit
+    await logAdminAction(adminAuth.userId, 'soft_delete_voucher', 'vouchers', id, null, request);
 
     return NextResponse.json({
       success: true,

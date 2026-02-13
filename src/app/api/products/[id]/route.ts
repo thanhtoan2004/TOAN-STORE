@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getProductById, getProductSizes, executeQuery } from '@/lib/db/mysql';
+import { getCache, setCache } from '@/lib/cache';
 
 export async function GET(
   request: NextRequest,
@@ -14,6 +15,14 @@ export async function GET(
         { success: false, error: 'Invalid product ID' },
         { status: 400 }
       );
+    }
+
+    // Attempt to get from cache
+    const cacheKey = `product:detail:${productId}`;
+    const cachedData = await getCache<any>(cacheKey);
+    if (cachedData) {
+      console.log(`Cache HIT for product details: ${productId}`);
+      return NextResponse.json(cachedData);
     }
 
     // Get product details from database
@@ -50,6 +59,9 @@ export async function GET(
         inStock: availableSizes.length > 0
       }
     };
+
+    // Save to cache for 1 hour
+    await setCache(cacheKey, response, 3600);
 
     return NextResponse.json(response);
   } catch (error) {

@@ -1,44 +1,44 @@
 import { sendEmail } from './mail';
 
 interface OrderItem {
-    name: string;
-    quantity: number;
-    price: number;
-    size?: string;
-    color?: string;
+  name: string;
+  quantity: number;
+  price: number;
+  size?: string;
+  color?: string;
 }
 
 interface OrderDetails {
-    orderNumber: string;
-    customerName: string;
-    customerEmail: string;
-    items: OrderItem[];
-    subtotal: number;
-    shipping: number;
-    tax: number;
-    total: number;
-    shippingAddress: {
-        fullName: string;
-        phone: string;
-        address: string;
-        city: string;
-        district: string;
-        ward: string;
-    };
-    estimatedDelivery?: string;
+  orderNumber: string;
+  customerName: string;
+  customerEmail: string;
+  items: OrderItem[];
+  subtotal: number;
+  shipping: number;
+  tax: number;
+  total: number;
+  shippingAddress: {
+    fullName: string;
+    phone: string;
+    address: string;
+    city: string;
+    district: string;
+    ward: string;
+  };
+  estimatedDelivery?: string;
 }
 
 /**
  * Send order confirmation email with full order details
  */
 export async function sendOrderConfirmationEmail(details: OrderDetails) {
-    const { orderNumber, customerEmail, customerName, items, subtotal, shipping, tax, total, shippingAddress, estimatedDelivery } = details;
+  const { orderNumber, customerEmail, customerName, items, subtotal, shipping, tax, total, shippingAddress, estimatedDelivery } = details;
 
-    const formatPrice = (price: number) => {
-        return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(price);
-    };
+  const formatPrice = (price: number) => {
+    return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(price);
+  };
 
-    const itemsHtml = items.map(item => `
+  const itemsHtml = items.map(item => `
     <tr>
       <td style="padding: 12px; border-bottom: 1px solid #eee;">
         <div style="font-weight: 500;">${item.name}</div>
@@ -50,7 +50,7 @@ export async function sendOrderConfirmationEmail(details: OrderDetails) {
     </tr>
   `).join('');
 
-    const html = `
+  const html = `
     <!DOCTYPE html>
     <html>
     <head>
@@ -159,24 +159,24 @@ export async function sendOrderConfirmationEmail(details: OrderDetails) {
     </html>
   `;
 
-    return sendEmail({
-        to: customerEmail,
-        subject: `Xác nhận đơn hàng #${orderNumber} - Nike Clone`,
-        html
-    });
+  return sendEmail({
+    to: customerEmail,
+    subject: `Xác nhận đơn hàng #${orderNumber} - Nike Clone`,
+    html
+  });
 }
 
 /**
  * Send shipping notification email
  */
 export async function sendShippingNotificationEmail(
-    customerEmail: string,
-    customerName: string,
-    orderNumber: string,
-    trackingNumber: string,
-    carrier: string
+  customerEmail: string,
+  customerName: string,
+  orderNumber: string,
+  trackingNumber: string,
+  carrier: string
 ) {
-    const html = `
+  const html = `
     <!DOCTYPE html>
     <html>
     <head>
@@ -215,22 +215,22 @@ export async function sendShippingNotificationEmail(
     </html>
   `;
 
-    return sendEmail({
-        to: customerEmail,
-        subject: `Đơn hàng #${orderNumber} đang được giao - Nike Clone`,
-        html
-    });
+  return sendEmail({
+    to: customerEmail,
+    subject: `Đơn hàng #${orderNumber} đang được giao - Nike Clone`,
+    html
+  });
 }
 
 /**
  * Send order delivered notification
  */
 export async function sendDeliveryConfirmationEmail(
-    customerEmail: string,
-    customerName: string,
-    orderNumber: string
+  customerEmail: string,
+  customerName: string,
+  orderNumber: string
 ) {
-    const html = `
+  const html = `
     <!DOCTYPE html>
     <html>
     <head>
@@ -268,9 +268,180 @@ export async function sendDeliveryConfirmationEmail(
     </html>
   `;
 
-    return sendEmail({
-        to: customerEmail,
-        subject: `Đơn hàng #${orderNumber} đã giao thành công - Nike Clone`,
-        html
-    });
+  return sendEmail({
+    to: customerEmail,
+    subject: `Đơn hàng #${orderNumber} đã giao thành công - Nike Clone`,
+    html
+  });
+}
+/**
+ * Send order cancelled notification
+ */
+export async function sendOrderCancelledEmail(
+  customerEmail: string,
+  customerName: string,
+  orderNumber: string
+) {
+  const html = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+    </head>
+    <body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f5f5f5;">
+      <div style="max-width: 600px; margin: 0 auto; background-color: white;">
+        <div style="background-color: #d32f2f; color: white; padding: 30px 20px; text-align: center;">
+          <h1 style="margin: 0;">Đơn hàng đã hủy</h1>
+        </div>
+        
+        <div style="padding: 40px 20px;">
+          <p style="color: #666; line-height: 1.6;">
+            Xin chào ${customerName},<br>
+            Đơn hàng <strong>#${orderNumber}</strong> của bạn đã được hủy thành công theo yêu cầu.
+          </p>
+
+          <p style="color: #666; line-height: 1.6;">
+            Nếu bạn đã thanh toán online, số tiền sẽ được hoàn về tài khoản của bạn trong vòng 3-5 ngày làm việc.
+          </p>
+
+          <div style="text-align: center; margin: 30px 0;">
+            <a href="${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/products" 
+               style="display: inline-block; background-color: #111; color: white; padding: 14px 40px; text-decoration: none; border-radius: 4px; font-weight: 600;">
+              Tiếp tục mua sắm
+            </a>
+          </div>
+        </div>
+
+        <div style="background-color: #f5f5f5; padding: 20px; text-align: center; color: #666; font-size: 12px;">
+          <p style="margin: 5px 0;">© 2025 Nike Clone. All rights reserved.</p>
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+
+  return sendEmail({
+    to: customerEmail,
+    subject: `Xác nhận hủy đơn hàng #${orderNumber} - Nike Clone`,
+    html
+  });
+}
+
+/**
+ * Send wishlist sale notification
+ */
+export async function sendWishlistSaleEmail(
+  customerEmail: string,
+  customerName: string,
+  productName: string,
+  oldPrice: number,
+  newPrice: number,
+  productId: number
+) {
+  const formatPrice = (price: number) => {
+    return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(price);
+  };
+
+  const html = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+    </head>
+    <body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f5f5f5;">
+      <div style="max-width: 600px; margin: 0 auto; background-color: white;">
+        <div style="background-color: #f04e40; color: white; padding: 30px 20px; text-align: center;">
+          <h1 style="margin: 0;">GIẢM GIÁ SỐC! 🔥</h1>
+        </div>
+        
+        <div style="padding: 40px 20px;">
+          <p style="color: #666; line-height: 1.6;">
+            Xin chào ${customerName},<br>
+            Sản phẩm trong danh sách yêu thích của bạn đang giảm giá!
+          </p>
+
+          <div style="background-color: #fff8f8; padding: 20px; border: 1px dashed #f04e40; border-radius: 8px; text-align: center; margin: 20px 0;">
+            <h3 style="margin: 0 0 10px 0; color: #111;">${productName}</h3>
+            <p style="margin: 0; font-size: 18px;">
+              <span style="text-decoration: line-through; color: #999;">${formatPrice(oldPrice)}</span>
+              <span style="color: #f04e40; font-weight: bold; margin-left: 10px;">${formatPrice(newPrice)}</span>
+            </p>
+          </div>
+
+          <div style="text-align: center; margin: 30px 0;">
+            <a href="${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/products/${productId}" 
+               style="display: inline-block; background-color: #111; color: white; padding: 14px 40px; text-decoration: none; border-radius: 4px; font-weight: 600;">
+              Mua ngay kẻo lỡ
+            </a>
+          </div>
+        </div>
+
+        <div style="background-color: #f5f5f5; padding: 20px; text-align: center; color: #666; font-size: 12px;">
+          <p style="margin: 5px 0;">© 2025 Nike Clone. All rights reserved.</p>
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+
+  return sendEmail({
+    to: customerEmail,
+    subject: `🔥 Giảm giá: ${productName} đã giảm giá!`,
+    html
+  });
+}
+
+/**
+ * Send wishlist restock notification
+ */
+export async function sendWishlistRestockEmail(
+  customerEmail: string,
+  customerName: string,
+  productName: string,
+  productId: number
+) {
+  const html = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+    </head>
+    <body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f5f5f5;">
+      <div style="max-width: 600px; margin: 0 auto; background-color: white;">
+        <div style="background-color: #111; color: white; padding: 30px 20px; text-align: center;">
+          <h1 style="margin: 0;">Hàng đã về! 📦</h1>
+        </div>
+        
+        <div style="padding: 40px 20px;">
+          <p style="color: #666; line-height: 1.6;">
+            Xin chào ${customerName},<br>
+            Tin vui! Sản phẩm bạn quan tâm đã có hàng trở lại.
+          </p>
+
+          <div style="background-color: #f9f9f9; padding: 20px; border-radius: 8px; text-align: center; margin: 20px 0;">
+            <h3 style="margin: 0; color: #111;">${productName}</h3>
+            <p style="margin: 10px 0 0 0; color: #28a745; font-weight: 600;">Đã có hàng (Restocked)</p>
+          </div>
+
+          <div style="text-align: center; margin: 30px 0;">
+            <a href="${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/products/${productId}" 
+               style="display: inline-block; background-color: #111; color: white; padding: 14px 40px; text-decoration: none; border-radius: 4px; font-weight: 600;">
+              Xem sản phẩm
+            </a>
+          </div>
+        </div>
+
+        <div style="background-color: #f5f5f5; padding: 20px; text-align: center; color: #666; font-size: 12px;">
+          <p style="margin: 5px 0;">© 2025 Nike Clone. All rights reserved.</p>
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+
+  return sendEmail({
+    to: customerEmail,
+    subject: `📦 Hàng về: ${productName} đã có hàng trở lại!`,
+    html
+  });
 }

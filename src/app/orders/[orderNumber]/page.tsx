@@ -7,6 +7,7 @@ import { useParams } from 'next/navigation';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { Button } from "@/components/ui/Button";
 import { formatDateTime, formatCurrency } from '@/lib/date-utils';
+import { OrderTimeline } from '@/components/orders/OrderTimeline';
 
 interface OrderItem {
   id: string;
@@ -22,6 +23,13 @@ interface OrderItem {
 interface OrderData {
   orderNumber: string;
   orderDate: string;
+  orderDateRaw: string; // Added for Timeline
+  dates: { // Added for Timeline
+    confirmed_at?: string;
+    shipped_at?: string;
+    delivered_at?: string;
+    cancelled_at?: string;
+  };
   status: string;
   totalAmount: number;
   shippingFee: number;
@@ -48,6 +56,8 @@ interface OrderData {
 
 
 
+import RefundModal from '@/components/refunds/RefundModal';
+
 export default function OrderDetailPage() {
   const { t } = useLanguage();
   const params = useParams();
@@ -55,6 +65,8 @@ export default function OrderDetailPage() {
   const [orderData, setOrderData] = useState<OrderData | null>(null);
   const [loading, setLoading] = useState(true);
   const [cancelling, setCancelling] = useState(false);
+  const [showRefundModal, setShowRefundModal] = useState(false);
+  const [refundStatus, setRefundStatus] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchOrderData = async () => {
@@ -64,16 +76,49 @@ export default function OrderDetailPage() {
         const response = await fetch(`/api/orders/${orderNumber}`);
 
         if (!response.ok) {
-          throw new Error('Order not found');
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(errorData.message || 'Order not found');
         }
 
         const data = await response.json();
         const order = data.order;
 
+        // Fetch refund status if delivered
+        let refundState = null;
+        if (order.status === 'delivered') {
+          try {
+            // We need to fetch by order ID, but here we might only have orderNumber.
+            // Ideally API returns refund info or we fetch user refunds list.
+            // Let's use the GET /api/refunds endpoint which returns all user refunds
+            // and filter client side, OR better, check API response.
+            // For now assuming we can check via a separate call or if the order API included it.
+            // Let's fetch all refunds for user to find this one.
+            const refundRes = await fetch('/api/refunds');
+            if (refundRes.ok) {
+              const refundData = await refundRes.json();
+              const currentRefund = refundData.refunds.find((r: any) => r.order_id === order.id);
+              if (currentRefund) {
+                refundState = currentRefund.status;
+              }
+            }
+          } catch (e) {
+            console.error("Error fetching refund status", e);
+          }
+        }
+        setRefundStatus(refundState);
+
+
         // Transform API data to match OrderData interface
         const transformedData: OrderData = {
           orderNumber: order.order_number,
           orderDate: formatDateTime(order.placed_at),
+          orderDateRaw: order.placed_at,
+          dates: {
+            confirmed_at: order.confirmed_at,
+            shipped_at: order.shipped_at,
+            delivered_at: order.delivered_at,
+            cancelled_at: order.cancelled_at
+          },
           status: order.status === 'pending' ? 'pending' :
             order.status === 'processing' ? 'confirmed' :
               order.status === 'shipped' ? 'shipping' :
@@ -92,12 +137,12 @@ export default function OrderDetailPage() {
           trackingNumber: order.tracking_number || 'Chưa có',
           paymentMethod: order.payment_method || 'Thanh toán khi nhận hàng',
           shippingAddress: {
-            name: order.delivery_name || order.shipping_name || '',
-            phone: order.delivery_phone || order.shipping_phone || '',
-            address: order.delivery_address || order.shipping_address || '',
-            city: order.delivery_city || order.shipping_city || '',
-            district: order.delivery_district || order.shipping_district || '',
-            ward: '' // Ward might not be in the joined data depending on DB schema, keeping empty for now or map if available
+            name: order.delivery_name || '',
+            phone: order.delivery_phone || '',
+            address: order.delivery_address || '',
+            city: order.delivery_city || '',
+            district: order.delivery_district || '',
+            ward: order.delivery_ward || ''
           },
           items: order.items?.map((item: any) => ({
             id: item.id.toString(),
@@ -110,6 +155,9 @@ export default function OrderDetailPage() {
             quantity: item.quantity
           })) || []
         };
+
+        // Inject original ID for RefundModal
+        (transformedData as any).id = order.id;
 
         setOrderData(transformedData);
         setLoading(false);
@@ -225,30 +273,17 @@ export default function OrderDetailPage() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           <div className="lg:col-span-2 space-y-8">
             <div className="bg-white rounded-lg shadow-sm border p-6">
-              <h2 className="text-xl font-helvetica-medium mb-6">Trạng thái đơn hàng</h2>
-              <div className="space-y-4">
-                <div className="flex items-center">
-                  <div className={`w-4 h-4 rounded-full mr-4 ${['confirmed', 'shipping', 'delivered'].includes(orderData.status) ? 'bg-green-500' : 'bg-gray-300'}`}></div>
-                  <div>
-                    <p className="font-medium">Đơn hàng đã được xác nhận</p>
-                    <p className="text-sm text-gray-600">{orderData.orderDate}</p>
-                  </div>
-                </div>
-                <div className="flex items-center">
-                  <div className={`w-4 h-4 rounded-full mr-4 ${['shipping', 'delivered'].includes(orderData.status) ? 'bg-blue-500' : 'bg-gray-300'}`}></div>
-                  <div>
-                    <p className="font-medium">Đang vận chuyển</p>
-                    <p className="text-sm text-gray-600">Mã vận đơn: {orderData.trackingNumber}</p>
-                  </div>
-                </div>
-                <div className="flex items-center">
-                  <div className={`w-4 h-4 rounded-full mr-4 ${orderData.status === 'delivered' ? 'bg-green-500' : 'bg-gray-300'}`}></div>
-                  <div>
-                    <p className="font-medium text-gray-500">Dự kiến giao hàng</p>
-                    <p className="text-sm text-gray-600">{orderData.estimatedDelivery}</p>
-                  </div>
-                </div>
-              </div>
+              <h2 className="text-xl font-helvetica-medium mb-6">Theo dõi đơn hàng</h2>
+              <OrderTimeline
+                status={orderData.status}
+                dates={{
+                  placed_at: orderData.orderDateRaw, // We need raw date for timeline formatting
+                  confirmed_at: orderData.dates?.confirmed_at,
+                  shipped_at: orderData.dates?.shipped_at,
+                  delivered_at: orderData.dates?.delivered_at,
+                  cancelled_at: orderData.dates?.cancelled_at
+                }}
+              />
             </div>
 
             <div className="bg-white rounded-lg shadow-sm border p-6">
@@ -364,14 +399,55 @@ export default function OrderDetailPage() {
             <div className="bg-white rounded-lg shadow-sm border p-6">
               <h2 className="text-xl font-helvetica-medium mb-4">Mua lại</h2>
               <Link href="/cart">
-                <Button className="w-full rounded-full">
+                <Button className="w-full rounded-full mb-3">
                   Đặt lại đơn hàng này
                 </Button>
               </Link>
+
+              {/* Refund Button Logic */}
+              {orderData.status === 'delivered' && (
+                <>
+                  {refundStatus ? (
+                    <div className={`text-center p-3 rounded-lg border ${refundStatus === 'approved' ? 'bg-green-50 border-green-200 text-green-700' :
+                      refundStatus === 'rejected' ? 'bg-red-50 border-red-200 text-red-700' :
+                        'bg-yellow-50 border-yellow-200 text-yellow-700'
+                      }`}>
+                      <p className="font-medium">Trạng thái hoàn tiền:
+                        {refundStatus === 'pending' ? ' Đang chờ xử lý' :
+                          refundStatus === 'approved' ? ' Đã chấp nhận' :
+                            refundStatus === 'rejected' ? ' Đã từ chối' : refundStatus}
+                      </p>
+                    </div>
+                  ) : (
+                    <Button
+                      variant="outline"
+                      className="w-full rounded-full border-gray-3000 text-gray-700 hover:bg-gray-100"
+                      onClick={() => setShowRefundModal(true)}
+                    >
+                      Yêu cầu hoàn tiền / Trả hàng
+                    </Button>
+                  )}
+                </>
+              )}
             </div>
           </div>
         </div>
       </div>
+
+      {/* Refund Modal */}
+      {orderData && (
+        <RefundModal
+          isOpen={showRefundModal}
+          onClose={() => setShowRefundModal(false)}
+          orderId={(orderData as any).id}
+          orderNumber={orderData.orderNumber}
+          items={orderData.items}
+          onSuccess={() => {
+            setRefundStatus('pending');
+            // Could re-fetch data here if needed
+          }}
+        />
+      )}
     </div>
   );
 }

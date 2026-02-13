@@ -1,8 +1,8 @@
 {
     "info": {
         "_postman_id": "nike-clone-api-perfect-coverage",
-        "name": "Nike Clone API - 100% AUDITED",
-        "description": "Bộ sưu tập API hoàn chỉnh 100% đã được kiểm tra (Audited). Bao gồm tất cả 88+ routes, CRUD đầy đủ cho Admin và Client.",
+        "name": "Nike Clone API - Full Audited (105+ Routes)",
+        "description": "Bộ sưu tập API hoàn chỉnh đã trải qua Full Security & Business Logic Audit (14 fixes applied).\n\n105+ API routes bao gồm:\n- Auth & User (JWT, OAuth, Refresh Token)\n- Shop & Products (CRUD, Search, Variants)\n- Cart & Orders (State Machine, Stock Management)\n- Payment (VNPay/MoMo IPN with Idempotency)\n- Admin (Full CRUD for all entities)\n- Support & CRON Jobs\n\nSecurity: Input Validation, XSS Sanitization, JWT Verification, Rate Limiting, AES-256-GCM Encryption.",
         "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
     },
     "item": [
@@ -16,6 +16,7 @@
                             "name": "Đăng ký (Register)",
                             "request": {
                                 "method": "POST",
+                                "description": "Đăng ký tài khoản mới.\n\n**Validation Rules (Server-side):**\n- Email: bắt buộc, phải đúng format (regex)\n- Password: bắt buộc, tối thiểu 6 ký tự\n- firstName/lastName: tự động sanitize (strip HTML tags) chống XSS\n- Rate Limit: 5 requests/phút",
                                 "body": {
                                     "mode": "raw",
                                     "raw": "{\n    \"email\": \"user@example.com\",\n    \"password\": \"password123\",\n    \"firstName\": \"Nguyen\",\n    \"lastName\": \"An\"\n}",

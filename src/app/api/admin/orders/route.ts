@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { executeQuery } from '@/lib/db/mysql';
 import { checkAdminAuth } from '@/lib/auth';
+import { decrypt } from '@/lib/encryption';
 
 // GET - Lấy danh sách đơn hàng (Admin)
 export async function GET(request: NextRequest) {
@@ -43,7 +44,15 @@ export async function GET(request: NextRequest) {
     query += ' GROUP BY o.id ORDER BY o.placed_at DESC LIMIT ? OFFSET ?';
     params.push(limit, offset);
 
-    const orders = await executeQuery(query, params);
+    const ordersResult = await executeQuery(query, params) as any[];
+
+    // Decrypt PII data
+    const orders = ordersResult.map(order => ({
+      ...order,
+      phone: decrypt(order.phone),
+      email: decrypt(order.email),
+      shipping_address: decrypt(order.shipping_address)
+    }));
 
     // Get total count
     // Get total count

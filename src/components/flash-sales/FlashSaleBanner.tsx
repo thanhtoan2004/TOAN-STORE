@@ -118,7 +118,7 @@ export default function FlashSaleBanner() {
                             >
                                 <div className="relative aspect-square">
                                     <Image
-                                        src={product.imageUrl}
+                                        src={product.imageUrl || '/images/placeholder.png'}
                                         alt={product.name}
                                         fill
                                         className="object-cover"

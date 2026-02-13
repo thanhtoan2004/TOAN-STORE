@@ -10,11 +10,11 @@ export async function POST(req: Request) {
   try {
     const { email, password }: LoginRequest = await req.json();
 
-    // Tìm người dùng theo email trong bảng users và phải là admin
+    // Tìm người dùng theo email trong bảng admin_users
     const users = await executeQuery(
-      'SELECT * FROM users WHERE email = ? AND is_admin = 1',
+      'SELECT * FROM admin_users WHERE email = ? AND is_active = 1',
       [email]
-    ) as User[];
+    ) as any[];
 
     if (users.length === 0) {
       return NextResponse.json(
@@ -37,14 +37,13 @@ export async function POST(req: Request) {
 
     // Tạo token JWT
     const token = jwt.sign(
-      { userId: user.id, email: user.email, is_admin: user.is_admin ?? 1 },
+      { userId: user.id, email: user.email, is_admin: 1 },
       process.env.JWT_SECRET || 'fallback_secret',
       { expiresIn: '7d' }
     );
 
     // Lưu token vào cookie
-    // Lưu token vào cookie (ĐÚNG)
-    const cookieStore = await cookies(); // Thêm await
+    const cookieStore = await cookies();
     cookieStore.set(ADMIN_TOKEN, token, {
       httpOnly: true,
       path: '/',
@@ -61,10 +60,10 @@ export async function POST(req: Request) {
       success: true,
       user: {
         ...userWithoutPassword,
-        is_admin: user.is_admin ?? 1,
-        firstName: (user as any).first_name,
-        lastName: (user as any).last_name
-      } as UserWithoutPassword
+        is_admin: 1,
+        firstName: user.full_name?.split(' ')[0] || '',
+        lastName: user.full_name?.split(' ').slice(1).join(' ') || ''
+      } as any
     };
     return NextResponse.json(response);
   } catch (error) {

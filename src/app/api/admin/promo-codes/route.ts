@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { executeQuery } from '@/lib/db/mysql';
+import { invalidateCache } from '@/lib/cache';
 import { checkAdminAuth } from '@/lib/auth';
 
 // GET - Lấy danh sách coupons (cho admin)
@@ -21,6 +22,7 @@ export async function GET(request: NextRequest) {
         COUNT(cu.id) as times_used
       FROM coupons c
       LEFT JOIN coupon_usage cu ON c.id = cu.coupon_id
+      WHERE c.deleted_at IS NULL
     `;
     const params: any[] = [];
 
@@ -30,10 +32,10 @@ export async function GET(request: NextRequest) {
     if (isActive !== null) {
       const now = new Date().toISOString();
       if (isActive === 'true') {
-        whereClause = ' WHERE (c.starts_at IS NULL OR c.starts_at <= ?) AND (c.ends_at IS NULL OR c.ends_at >= ?)';
+        whereClause = ' AND (c.starts_at IS NULL OR c.starts_at <= ?) AND (c.ends_at IS NULL OR c.ends_at >= ?)';
         params.push(now, now);
       } else if (isActive === 'false') {
-        whereClause = ' WHERE (c.starts_at > ? OR c.ends_at < ?)';
+        whereClause = ' AND (c.starts_at > ? OR c.ends_at < ?)';
         params.push(now, now);
       }
     }
@@ -45,16 +47,16 @@ export async function GET(request: NextRequest) {
     const coupons = await executeQuery<any[]>(query, params);
 
     // Get total count
-    let countQuery = 'SELECT COUNT(*) as total FROM coupons';
+    let countQuery = 'SELECT COUNT(*) as total FROM coupons WHERE deleted_at IS NULL';
     const countParams: any[] = [];
 
     if (isActive !== null) {
       const now = new Date().toISOString();
       if (isActive === 'true') {
-        countQuery += ' WHERE (starts_at IS NULL OR starts_at <= ?) AND (ends_at IS NULL OR ends_at >= ?)';
+        countQuery += ' AND (starts_at IS NULL OR starts_at <= ?) AND (ends_at IS NULL OR ends_at >= ?)';
         countParams.push(now, now);
       } else if (isActive === 'false') {
-        countQuery += ' WHERE (starts_at > ? OR ends_at < ?)';
+        countQuery += ' AND (starts_at > ? OR ends_at < ?)';
         countParams.push(now, now);
       }
     }
@@ -130,7 +132,7 @@ export async function POST(request: NextRequest) {
 
     // Check if code already exists
     const [existing] = await executeQuery<any[]>(
-      'SELECT id FROM coupons WHERE code = ?',
+      'SELECT id FROM coupons WHERE code = ? AND deleted_at IS NULL',
       [code]
     );
 
@@ -159,6 +161,9 @@ export async function POST(request: NextRequest) {
         usage_limit_per_user || null
       ]
     );
+
+    // Invalidate cache
+    await invalidateCache('promo-codes:available');
 
     return NextResponse.json({
       success: true,
@@ -227,6 +232,9 @@ export async function PUT(request: NextRequest) {
       updateValues
     );
 
+    // Invalidate cache
+    await invalidateCache('promo-codes:available');
+
     return NextResponse.json({
       success: true,
       message: 'Cập nhật mã giảm giá thành công'
@@ -257,7 +265,11 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    await executeQuery('DELETE FROM coupons WHERE id = ?', [id]);
+    // Soft delete
+    await executeQuery('UPDATE coupons SET deleted_at = CURRENT_TIMESTAMP WHERE id = ?', [id]);
+
+    // Invalidate cache
+    await invalidateCache('promo-codes:available');
 
     return NextResponse.json({
       success: true,

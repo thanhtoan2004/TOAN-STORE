@@ -13,30 +13,29 @@ export async function GET() {
             );
         }
 
-        // Lấy thông tin người dùng từ CSDL
-        const users = await executeQuery(
-            'SELECT id, email, first_name, last_name, phone, is_active, is_admin FROM users WHERE id = ?',
+        // Lấy thông tin người dùng từ CSDL admin_users
+        const admins = await executeQuery(
+            'SELECT id, email, full_name, is_active, role FROM admin_users WHERE id = ?',
             [session.userId]
         ) as any[];
 
-        if (users.length === 0) {
+        if (admins.length === 0) {
             return NextResponse.json(
-                { error: 'Không tìm thấy người dùng' },
+                { error: 'Không tìm thấy tài khoản admin' },
                 { status: 404 }
             );
         }
 
-        const user = users[0];
+        const admin = admins[0];
 
         return NextResponse.json({
             user: {
-                id: user.id,
-                email: user.email,
-                firstName: user.first_name,
-                lastName: user.last_name,
-                phone: user.phone,
-                isActive: user.is_active,
-                is_admin: user.is_admin
+                id: admin.id,
+                email: admin.email,
+                fullName: admin.full_name,
+                isActive: admin.is_active,
+                is_admin: 1, // Explicitly set for frontend check
+                role: admin.role
             }
         });
     } catch (error) {

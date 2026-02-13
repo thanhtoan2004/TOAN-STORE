@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { executeQuery } from '@/lib/db/mysql';
+import { invalidateCache } from '@/lib/cache';
 import { checkAdminAuth } from '@/lib/auth';
 import { formatDateForMySQL } from '@/lib/date-utils';
+import { logAdminAction } from '@/lib/audit';
 
 /**
  * GET - List all flash sales for admin
@@ -14,7 +16,7 @@ export async function GET(request: NextRequest) {
         }
 
         const flashSales = await executeQuery<any[]>(
-            `SELECT * FROM flash_sales ORDER BY created_at DESC`
+            `SELECT * FROM flash_sales WHERE deleted_at IS NULL ORDER BY created_at DESC`
         );
 
         return NextResponse.json({
@@ -59,6 +61,12 @@ export async function POST(request: NextRequest) {
                 isActive !== undefined ? isActive : 1
             ]
         );
+
+        // Log audit
+        await logAdminAction(admin.userId, 'create_flash_sale', 'flash_sales', result.insertId, { name }, request as any);
+
+        // Invalidate active flash sale cache
+        await invalidateCache('flash-sale:active');
 
         return NextResponse.json({
             success: true,

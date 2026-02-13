@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { writeFile, mkdir } from 'fs/promises';
+import crypto from 'crypto';
 import path from 'path';
 import { verifyAuth } from '@/lib/auth';
 
@@ -21,24 +22,38 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ success: false, error: 'No file uploaded' }, { status: 400 });
         }
 
-        // 2. Size Validation
+        // 2. Strict Type & Size Validation
+        const ALLOWED_MIME_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+
+        if (!ALLOWED_MIME_TYPES.includes(file.type)) {
+            return NextResponse.json({ success: false, error: 'File type not allowed (Images only)' }, { status: 400 });
+        }
+
         if (file.size > MAX_FILE_SIZE) {
             return NextResponse.json({ success: false, error: 'File too large (max 5MB)' }, { status: 400 });
         }
 
-        // 3. Extension Validation
         const ext = path.extname(file.name).toLowerCase();
         if (!ALLOWED_EXTENSIONS.includes(ext)) {
-            return NextResponse.json({ success: false, error: 'Invalid file type (JPG, PNG, WEBP only)' }, { status: 400 });
+            return NextResponse.json({ success: false, error: 'Invalid extension' }, { status: 400 });
+        }
+
+        // Double extension check
+        if (file.name.split('.').length > 2) {
+            return NextResponse.json({ success: false, error: 'Security alert: Multiple extensions detected' }, { status: 400 });
+        }
+
+        // SVG check
+        if (ext === '.svg' || file.type.includes('svg')) {
+            return NextResponse.json({ success: false, error: 'SVG files are not allowed' }, { status: 400 });
         }
 
         const bytes = await file.arrayBuffer();
         const buffer = Buffer.from(bytes);
 
-        // 4. Safe Unique Filename
-        // Replace non-alphanumeric chars to prevent directory traversal or injection
-        const safeName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
-        const filename = `${Date.now()}-${session.userId}-${safeName}`;
+        // 4. Safe Unique Filename (Use UUID)
+        const randomString = crypto.randomUUID();
+        const filename = `${Date.now()}-${randomString}${ext}`;
         const uploadDir = path.join(process.cwd(), 'public/uploads/chat');
 
         try {

@@ -3,9 +3,12 @@ import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import { cookies } from 'next/headers';
 import { executeQuery } from '@/lib/db/mysql';
-import { createErrorResponse, createSuccessResponse, validateRequiredFields, withErrorHandling } from '@/lib/api-utils';
-import { User, UserWithoutPassword, LoginRequest, AuthResponse } from '@/types/auth';
-import { AUTH_TOKEN } from '@/lib/auth';
+import { createErrorResponse, validateRequiredFields, withErrorHandling } from '@/lib/api-utils';
+import { User, LoginRequest, AuthResponse } from '@/types/auth';
+import { AUTH_TOKEN, REFRESH_TOKEN, generateAccessToken, generateRefreshToken } from '@/lib/auth';
+import { withRateLimit } from '@/lib/with-rate-limit';
+import { logSecurityEvent } from '@/lib/audit';
+import { getRedisConnection } from '@/lib/redis';
 
 async function loginHandler(req: Request): Promise<NextResponse> {
   const body: Partial<LoginRequest> = await req.json();
@@ -31,21 +34,24 @@ async function loginHandler(req: Request): Promise<NextResponse> {
 
   // Find user by email
   const users = await executeQuery(
-    'SELECT * FROM users WHERE email = ?',
+    'SELECT * FROM users WHERE email = ? AND deleted_at IS NULL',
     [email]
   ) as User[];
 
   if (users.length === 0) {
+    const ip = req.headers.get('x-forwarded-for') || '127.0.0.1';
+    await logSecurityEvent('login_failed', ip, null, { email, reason: 'User not found' });
     return createErrorResponse('Email hoặc mật khẩu không chính xác', 401, 'INVALID_CREDENTIALS');
   }
 
   const user = users[0];
 
-  // Check if user is banned (handle different types: 1, "1", true)
+  // Check if user is banned
   const isBanned = user.is_banned === 1 || user.is_banned === '1' || user.is_banned === true;
 
-
   if (isBanned) {
+    const ip = req.headers.get('x-forwarded-for') || '127.0.0.1';
+    await logSecurityEvent('login_failed', ip, user.id, { email, reason: 'Account banned' });
     return createErrorResponse(
       'Tài khoản của bạn đã bị khóa. Vui lòng liên hệ admin để được hỗ trợ.',
       403,
@@ -57,30 +63,48 @@ async function loginHandler(req: Request): Promise<NextResponse> {
   const isPasswordValid = await bcrypt.compare(password, user.password);
 
   if (!isPasswordValid) {
+    const ip = req.headers.get('x-forwarded-for') || '127.0.0.1';
+    await logSecurityEvent('login_failed', ip, user.id, { email, reason: 'Invalid password' });
     return createErrorResponse('Email hoặc mật khẩu không chính xác', 401, 'INVALID_CREDENTIALS');
   }
 
-  // Generate JWT token
-  const jwtSecret = process.env.JWT_SECRET || 'fallback_secret';
+  // Generate Tokens
+  const payload = { userId: user.id, email: user.email, is_admin: user.is_admin };
+  const accessToken = generateAccessToken(payload);
+  const refreshToken = generateRefreshToken(payload);
 
-  const token = jwt.sign(
-    { userId: user.id, email: user.email, is_admin: user.is_admin },
-    jwtSecret,
-    { expiresIn: '7d' }
-  );
+  // Store Refresh Token in Redis (for revocation and blacklist)
+  try {
+    const redis = getRedisConnection();
+    // Key: refresh_token:user_id, Value: token
+    // Expires in 7 days (matching JWT expiration)
+    await redis.set(`refresh_token:${user.id}`, refreshToken, 'EX', 7 * 24 * 60 * 60);
+  } catch (error) {
+    console.error('Error storing refresh token in Redis:', error);
+    // Continue even if Redis fails (fallback to stateless JWT)
+  }
 
-  // Set cookie with token
+  // Set cookies
   const cookieStore = await cookies();
-  cookieStore.set(AUTH_TOKEN, token, {
+  const isProd = process.env.NODE_ENV === 'production';
+
+  // Access Token Cookie
+  cookieStore.set(AUTH_TOKEN, accessToken, {
     httpOnly: true,
     path: '/',
-    secure: process.env.NODE_ENV === 'production',
-    maxAge: 60 * 60 * 24 * 7, // 7 days
+    secure: isProd,
+    maxAge: 15 * 60, // 15 minutes
     sameSite: 'strict'
   });
 
-  // Return user info without password
-  const { password: _, ...userWithoutPassword } = user;
+  // Refresh Token Cookie
+  cookieStore.set(REFRESH_TOKEN, refreshToken, {
+    httpOnly: true,
+    path: '/',
+    secure: isProd,
+    maxAge: 7 * 24 * 60 * 60, // 7 days
+    sameSite: 'strict'
+  });
 
   // Map snake_case to camelCase for frontend
   const response: AuthResponse = {
@@ -99,7 +123,16 @@ async function loginHandler(req: Request): Promise<NextResponse> {
     } as any
   };
 
+  // Success
+  const ip = req.headers.get('x-forwarded-for') || '127.0.0.1';
+  await logSecurityEvent('login_success', ip, user.id, { email });
+
   return NextResponse.json(response);
 }
 
-export const POST = withErrorHandling(loginHandler); 
+// Apply Rate Limit and Error Handling
+export const POST = withRateLimit(withErrorHandling(loginHandler), {
+  tag: 'auth',
+  limit: 10,
+  windowMs: 60 * 1000,
+});

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { executeQuery } from '@/lib/db/mysql';
 import { checkAdminAuth } from '@/lib/auth';
+import { invalidateCache, invalidateCachePattern } from '@/lib/cache';
 
 // GET - Lấy danh sách sản phẩm (Admin)
 export async function GET(request: NextRequest) {
@@ -28,7 +29,7 @@ export async function GET(request: NextRequest) {
       FROM products p
       LEFT JOIN product_images pi ON p.id = pi.product_id AND pi.is_main = 1
       LEFT JOIN categories c ON p.category_id = c.id
-      WHERE 1=1
+      WHERE p.deleted_at IS NULL
     `;
     const params: any[] = [];
 
@@ -48,7 +49,7 @@ export async function GET(request: NextRequest) {
     const products = await executeQuery(query, params);
 
     // Get total count
-    let countQuery = 'SELECT COUNT(*) as total FROM products WHERE 1=1';
+    let countQuery = 'SELECT COUNT(*) as total FROM products WHERE deleted_at IS NULL';
     const countParams: any[] = [];
 
     if (search) {
@@ -181,6 +182,9 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Invalidate product list cache
+    await invalidateCachePattern('products:list:*');
+
     return NextResponse.json({
       success: true,
       message: 'Product created successfully',
@@ -266,6 +270,12 @@ export async function PUT(request: NextRequest) {
       }
     }
 
+    // Invalidate product caches
+    await Promise.all([
+      invalidateCache(`product:detail:${id}`),
+      invalidateCachePattern('products:list:*')
+    ]);
+
     return NextResponse.json({
       success: true,
       message: 'Product updated successfully'
@@ -300,11 +310,17 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    // Soft delete - chỉ set is_active = 0
+    // Soft delete - set deleted_at và is_active = 0
     await executeQuery(
-      'UPDATE products SET is_active = 0, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+      'UPDATE products SET is_active = 0, deleted_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
       [id]
     );
+
+    // Invalidate product caches
+    await Promise.all([
+      invalidateCache(`product:detail:${id}`),
+      invalidateCachePattern('products:list:*')
+    ]);
 
     return NextResponse.json({
       success: true,

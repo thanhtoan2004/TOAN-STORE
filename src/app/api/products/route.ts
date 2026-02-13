@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getProducts } from '@/lib/db/mysql';
+import { getCache, setCache } from '@/lib/cache';
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -19,6 +20,14 @@ export async function GET(request: Request) {
     const isNewArrival = searchParams.get('isNewArrival') === 'true';
 
     const offset = (page - 1) * limit;
+
+    // Cache key based on search params
+    const cacheKey = `products:list:${searchParams.toString() || 'default'}`;
+    const cachedData = await getCache<any>(cacheKey);
+    if (cachedData) {
+      console.log(`Cache HIT for product list: ${cacheKey}`);
+      return NextResponse.json(cachedData);
+    }
 
     // Build filters for database query
     const filters: any = {
@@ -111,7 +120,7 @@ export async function GET(request: Request) {
     const total = products.length;
     const totalPages = Math.ceil(total / limit);
 
-    return NextResponse.json({
+    const responseData = {
       success: true,
       products: products,
       pagination: {
@@ -120,7 +129,12 @@ export async function GET(request: Request) {
         total,
         totalPages
       }
-    });
+    };
+
+    // Save to cache for 30 minutes
+    await setCache(cacheKey, responseData, 1800);
+
+    return NextResponse.json(responseData);
   } catch (error) {
     console.error('Error fetching products:', error);
     return NextResponse.json(

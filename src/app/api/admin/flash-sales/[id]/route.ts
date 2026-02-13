@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { executeQuery } from '@/lib/db/mysql';
 import { checkAdminAuth } from '@/lib/auth';
 import { formatDateForMySQL } from '@/lib/date-utils';
+import { logAdminAction } from '@/lib/audit';
+import { invalidateCache } from '@/lib/cache';
 
 /**
  * GET - Get individual flash sale detail for admin
@@ -19,7 +21,7 @@ export async function GET(
         const id = (await params).id;
 
         const [flashSale] = await executeQuery<any[]>(
-            `SELECT * FROM flash_sales WHERE id = ?`,
+            `SELECT * FROM flash_sales WHERE id = ? AND deleted_at IS NULL`,
             [id]
         );
 
@@ -85,6 +87,12 @@ export async function PATCH(
             values
         );
 
+        // Log audit
+        await logAdminAction(admin.userId, 'update_flash_sale', 'flash_sales', id, { name, isActive }, request as any);
+
+        // Invalidate active flash sale cache
+        await invalidateCache('flash-sale:active');
+
         return NextResponse.json({ success: true, message: 'Flash sale updated' });
     } catch (error) {
         console.error('Update flash sale error:', error);
@@ -108,9 +116,15 @@ export async function DELETE(
         const id = (await params).id;
 
         await executeQuery(
-            `DELETE FROM flash_sales WHERE id = ?`,
+            `UPDATE flash_sales SET deleted_at = NOW() WHERE id = ?`,
             [id]
         );
+
+        // Log audit
+        await logAdminAction(admin.userId, 'soft_delete_flash_sale', 'flash_sales', id, null, request as any);
+
+        // Invalidate active flash sale cache
+        await invalidateCache('flash-sale:active');
 
         return NextResponse.json({ success: true, message: 'Flash sale deleted' });
     } catch (error) {

@@ -31,6 +31,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
     { name: 'News', href: '/admin/news' },
     { name: 'Support', href: '/admin/support' },
     { name: 'Settings', href: '/admin/settings' },
+    { name: 'Refunds', href: '/admin/refunds' },
   ];
 
   useEffect(() => {
@@ -38,19 +39,25 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
       try {
         const response = await fetch('/api/auth/admin', { cache: 'no-store' });
         if (!response.ok) {
+          // Clear cookie on client side if unauthorized
+          document.cookie = 'nike_admin_session=; Max-Age=0; path=/;';
           router.replace('/admin/login');
           return;
         }
         const data = await response.json();
         const isAdmin = !!(data?.user?.is_admin === 1 || data?.user?.is_admin === true);
         if (!isAdmin) {
+          document.cookie = 'nike_admin_session=; Max-Age=0; path=/;';
           router.replace('/admin/login');
           return;
         }
-      } catch {
+      } catch (err) {
+        console.error('Admin auth check failed:', err);
         router.replace('/admin/login');
         return;
       } finally {
+        // Only set checking off if we are not redirecting
+        // But in Next.js router.replace is async, so we might still render once
         setCheckingAuth(false);
       }
     };

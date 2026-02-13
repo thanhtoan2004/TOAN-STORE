@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { executeQuery } from '@/lib/db/mysql';
 import { verifyAuth } from '@/lib/auth';
+import { encrypt } from '@/lib/encryption';
 
 export async function PUT(request: NextRequest) {
   try {
@@ -25,7 +26,7 @@ export async function PUT(request: NextRequest) {
            gender = ?,
            updated_at = CURRENT_TIMESTAMP 
        WHERE id = ?`,
-      [firstName, lastName, phone || null, dateOfBirth || null, gender || null, session.userId]
+      [firstName, lastName, encrypt(phone || null), dateOfBirth || null, gender || null, session.userId]
     );
 
     return NextResponse.json({

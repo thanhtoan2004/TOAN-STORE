@@ -124,6 +124,23 @@ function validateFile(file: File): { valid: boolean; error?: string } {
         };
     }
 
+    // Double extension check (e.g., image.png.php)
+    const nameParts = file.name.split('.');
+    if (nameParts.length > 2) {
+        return {
+            valid: false,
+            error: 'Security alert: Multiple extensions detected'
+        };
+    }
+
+    // Explicitly block SVG just in case (as it can contain XML/Script)
+    if (file.name.toLowerCase().endsWith('.svg') || file.type.includes('svg')) {
+        return {
+            valid: false,
+            error: 'SVG files are not allowed for security reasons'
+        };
+    }
+
     if (isImage && file.size > maxImageSize) {
         return {
             valid: false,

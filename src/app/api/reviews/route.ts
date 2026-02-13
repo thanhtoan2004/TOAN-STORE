@@ -8,9 +8,25 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const productIdStr = searchParams.get('productId');
     const statusParam = searchParams.get('status');
+    const sortParam = searchParams.get('sort') || 'newest';
     const page = parseInt(searchParams.get('page') || '1');
     const limit = parseInt(searchParams.get('limit') || '10');
     const offset = (page - 1) * limit;
+
+    // Determine sort order
+    let orderBy = 'r.created_at DESC';
+    switch (sortParam) {
+      case 'highest':
+        orderBy = 'r.rating DESC, r.created_at DESC';
+        break;
+      case 'lowest':
+        orderBy = 'r.rating ASC, r.created_at DESC';
+        break;
+      case 'newest':
+      default:
+        orderBy = 'r.created_at DESC';
+        break;
+    }
 
     // Nếu là admin call (có status param), lấy all reviews
     if (statusParam && !productIdStr) {
@@ -70,7 +86,7 @@ export async function GET(request: NextRequest) {
        FROM product_reviews r
        LEFT JOIN users u ON r.user_id = u.id
        WHERE r.product_id = ? AND r.status = 'approved'
-       ORDER BY r.created_at DESC
+       ORDER BY ${orderBy}
        LIMIT ? OFFSET ?`,
       [productId, limit, offset]
     );
@@ -154,7 +170,7 @@ export async function POST(request: NextRequest) {
     const userId = Number(session.userId);
 
     const body = await request.json();
-    const { productId, rating, title, comment } = body;
+    const { productId, rating, title, comment, media } = body;
 
     // Validate
     if (!productId || !rating) {
@@ -212,10 +228,26 @@ export async function POST(request: NextRequest) {
       [userId, parseInt(productId), rating, title || '', comment || '', hasPurchased ? 1 : 0]
     );
 
+    const reviewId = result.insertId;
+
+    // Insert media if present
+    if (media && Array.isArray(media) && media.length > 0) {
+      for (let i = 0; i < media.length; i++) {
+        const item = media[i];
+        if (item.url && item.type) {
+          await executeQuery(
+            `INSERT INTO review_media (review_id, media_url, media_type, position, file_size)
+                     VALUES (?, ?, ?, ?, ?)`,
+            [reviewId, item.url, item.type, i, item.size || 0]
+          );
+        }
+      }
+    }
+
     return NextResponse.json({
       success: true,
       message: 'Đánh giá của bạn đang chờ duyệt',
-      data: { reviewId: result.insertId }
+      data: { reviewId }
     });
   } catch (error) {
     console.error('Lỗi khi tạo review:', error);
@@ -239,6 +271,15 @@ export async function PUT(request: NextRequest) {
         return NextResponse.json(
           { success: false, message: 'Không có quyền' },
           { status: 401 }
+        );
+      }
+
+      // FIX H3: Validate status whitelist
+      const validStatuses = ['approved', 'rejected', 'pending'];
+      if (!validStatuses.includes(status)) {
+        return NextResponse.json(
+          { success: false, message: 'Trạng thái không hợp lệ' },
+          { status: 400 }
         );
       }
 

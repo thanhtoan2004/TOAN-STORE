@@ -62,7 +62,7 @@ const ProductCard = ({
         {/* Hình ảnh sản phẩm */}
         <div className="relative mb-3 overflow-hidden aspect-square rounded-lg">
           <Image
-            src={image_url}
+            src={image_url || '/images/placeholder.png'}
             alt={name}
             fill
             className="object-cover transition-transform duration-300 group-hover:scale-105"

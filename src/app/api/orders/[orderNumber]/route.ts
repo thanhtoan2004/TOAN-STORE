@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getOrderByNumber, updateOrderStatus } from '@/lib/db/mysql';
 import { verifyAuth } from '@/lib/auth';
+import { sendOrderCancelledEmail } from '@/lib/email-templates';
 
+// ... (GET method unchanged)
 // GET - Lấy chi tiết đơn hàng theo orderNumber
 export async function GET(
   request: NextRequest,
@@ -32,9 +34,9 @@ export async function GET(
     }
 
     // Check ownership
-    if (order[0].user_id !== session.userId) {
+    if (String(order[0].user_id) !== String(session.userId)) {
       return NextResponse.json(
-        { success: false, message: 'Forbidden' },
+        { success: false, message: 'Bạn không có quyền xem đơn hàng này' },
         { status: 403 }
       );
     }
@@ -107,7 +109,21 @@ export async function PUT(
     }
 
     // Update order status in database
-    await updateOrderStatus(orderNumber, status);
+    // Use cancelOrder to ensure stock is restored
+    if (status === 'cancelled') {
+      const { cancelOrder } = await import('@/lib/db/repositories/order');
+      await cancelOrder(orderNumber);
+    } else {
+      await updateOrderStatus(orderNumber, status);
+    }
+
+    // Send Cancelled Email
+    const userSession = session as any;
+    if (userSession.email) {
+      sendOrderCancelledEmail(userSession.email, userSession.name || 'Bạn', orderNumber).catch(console.error);
+    }
+
+
 
     return NextResponse.json({
       success: true,
@@ -163,8 +179,17 @@ export async function DELETE(
       );
     }
 
-    // Cancel order in database
-    await updateOrderStatus(orderNumber, 'cancelled');
+    // Cancel order in database (use cancelOrder to properly release stock)
+    const { cancelOrder: cancelOrderFn } = await import('@/lib/db/repositories/order');
+    await cancelOrderFn(orderNumber);
+
+    // Send Cancelled Email
+    const userSession = session as any;
+    if (userSession.email) {
+      sendOrderCancelledEmail(userSession.email, userSession.name || 'Bạn', orderNumber).catch(console.error);
+    }
+
+
 
     return NextResponse.json({
       success: true,

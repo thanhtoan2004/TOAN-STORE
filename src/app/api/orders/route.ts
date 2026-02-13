@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getOrdersByUserId, createOrder, executeQuery } from '@/lib/db/mysql';
-import { sendOrderConfirmation } from '@/lib/mail';
 import { verifyAuth } from '@/lib/auth';
 import { formatCurrency } from '@/lib/date-utils';
+import { withRateLimit } from '@/lib/with-rate-limit';
 
 // GET - Lấy danh sách đơn hàng
 export async function GET(request: NextRequest) {
@@ -33,7 +33,7 @@ export async function GET(request: NextRequest) {
     const enrichedOrders = await Promise.all(orders.map(async (order: any) => {
       // Get order items to count and get preview image
       const { pool } = await import('@/lib/db/mysql');
-      const [items] = await pool.execute(
+      const [items]: any = await pool.execute(
         `SELECT 
           oi.*,
           (SELECT url FROM product_images WHERE product_id = oi.product_id AND is_main = 1 LIMIT 1) as image_url
@@ -41,7 +41,7 @@ export async function GET(request: NextRequest) {
          WHERE oi.order_id = ?
          LIMIT 1`,
         [order.id]
-      ) as any[];
+      );
 
       return {
         ...order,
@@ -75,8 +75,8 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// POST - Tạo đơn hàng mới
-export async function POST(request: NextRequest) {
+// POST Handler logic
+async function createOrderHandler(request: NextRequest) {
   try {
     const session = await verifyAuth();
     // Use session ID if logged in
@@ -100,8 +100,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Generate order number
-    const orderNumber = `NK${Date.now()}`;
+    // Generate secure order number (Prefix + Timestamp + Random suffix)
+    const randomSuffix = Math.random().toString(36).substring(2, 6).toUpperCase();
+    const orderNumber = `NK${Date.now()}_${randomSuffix}`;
 
     // Tính tổng tiền
     const subtotal = items.reduce((sum: number, item: any) => {
@@ -168,8 +169,7 @@ export async function POST(request: NextRequest) {
       notes: notes ? `${notes} (Membership Discount: ${formatCurrency(membershipDiscount)})` : `Membership Discount: ${formatCurrency(membershipDiscount)}`
     });
 
-    // Gửi email xác nhận đơn hàng
-    sendOrderConfirmation(email, orderNumber, totalAmount).catch(console.error);
+    // Email sending is now handled by Event Worker listening to 'order.created'
 
     return NextResponse.json({
       success: true,
@@ -189,3 +189,10 @@ export async function POST(request: NextRequest) {
     );
   }
 }
+
+// Export wrapped POST handler
+export const POST = withRateLimit(createOrderHandler, {
+  tag: 'order',
+  limit: 5,
+  windowMs: 60 * 60 * 1000, // 5 orders per hour
+});

@@ -4,6 +4,7 @@ import { Metadata, ResolvingMetadata } from 'next';
 import { executeQuery } from '@/lib/db/mysql';
 import ProductDetailClient from './ProductDetailClient';
 import { notFound } from 'next/navigation';
+import { ProductReviews } from '@/components/reviews/ProductReviews';
 
 interface Props {
   params: Promise<{ id: string }>;
@@ -57,5 +58,35 @@ export default async function Page({ params }: Props) {
     return notFound();
   }
 
-  return <ProductDetailClient id={id} />
+  const product = products[0];
+
+  // Schema.org Structured Data
+  const jsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'Product',
+    name: product.name,
+    image: product.image_url || `${process.env.NEXT_PUBLIC_APP_URL}/og-image.jpg`,
+    description: product.description,
+    sku: product.id,
+    offers: {
+      '@type': 'Offer',
+      priceCurrency: 'VND',
+      price: product.base_price,
+      availability: 'https://schema.org/InStock', // Simplified for now
+      url: `${process.env.NEXT_PUBLIC_APP_URL}/products/${product.id}`,
+    },
+  };
+
+  return (
+    <div className="pb-20">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
+      <ProductDetailClient id={id} />
+
+      {/* Product Reviews Section */}
+      <ProductReviews productId={parseInt(id)} />
+    </div>
+  );
 }

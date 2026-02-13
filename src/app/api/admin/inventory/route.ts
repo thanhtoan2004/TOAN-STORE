@@ -12,6 +12,7 @@ export async function GET(request: NextRequest) {
     const page = parseInt(searchParams.get('page') || '1');
     const limit = parseInt(searchParams.get('limit') || '20');
     const search = searchParams.get('search') || '';
+    const warehouseId = searchParams.get('warehouseId');
 
     const offset = (page - 1) * limit;
 
@@ -25,14 +26,17 @@ export async function GET(request: NextRequest) {
         pv.size as variant_size,
         pv.color as variant_color,
         i.quantity,
-        i.reserved
+        i.reserved,
+        w.name as warehouse_name,
+        i.warehouse_id
       FROM inventory i
       JOIN product_variants pv ON i.product_variant_id = pv.id
       JOIN products p ON pv.product_id = p.id
+      LEFT JOIN warehouses w ON i.warehouse_id = w.id
       WHERE 1=1
     `;
 
-    let countQuery = 'SELECT COUNT(*) as total FROM inventory i JOIN product_variants pv ON i.product_variant_id = pv.id JOIN products p ON pv.product_id = p.id WHERE 1=1';
+    let countQuery = 'SELECT COUNT(*) as total FROM inventory i JOIN product_variants pv ON i.product_variant_id = pv.id JOIN products p ON pv.product_id = p.id LEFT JOIN warehouses w ON i.warehouse_id = w.id WHERE 1=1';
 
     if (search) {
       const searchTerm = `%${search}%`;
@@ -40,13 +44,30 @@ export async function GET(request: NextRequest) {
       countQuery += ` AND (p.name LIKE ? OR p.sku LIKE ? OR pv.size LIKE ?)`;
     }
 
+    if (warehouseId) {
+      query += ` AND i.warehouse_id = ?`;
+      countQuery += ` AND i.warehouse_id = ?`;
+    }
+
     query += ` ORDER BY p.name ASC LIMIT ? OFFSET ?`;
 
-    const countParams = search ? [search, search, search] : [];
+    const params: any[] = [];
+    const countParams: any[] = [];
+
+    if (search) {
+      params.push(search, search, search);
+      countParams.push(search, search, search);
+    }
+
+    if (warehouseId) {
+      params.push(warehouseId);
+      countParams.push(warehouseId);
+    }
+
     const countResult = await executeQuery(countQuery, countParams) as any[];
     const total = (countResult[0] as any)?.total || 0;
 
-    const params = search ? [search, search, search, limit, offset] : [limit, offset];
+    params.push(limit, offset);
     const data = await executeQuery(query, params);
 
     return NextResponse.json({
@@ -60,7 +81,8 @@ export async function GET(request: NextRequest) {
       }
     });
   } catch (error) {
-    console.error('Error fetching inventory:', error);
+    const { logSystemError } = await import('@/lib/audit');
+    await logSystemError('API Error: Fetch Inventory', error, { query: request.url });
     return NextResponse.json({ success: false, message: 'Error fetching inventory' }, { status: 500 });
   }
 }
@@ -71,7 +93,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
     }
 
-    const { product_id, size, color, quantity } = await request.json();
+    const { product_id, size, color, quantity, warehouse_id } = await request.json();
+
+    // Default to Warehouse 1 (Main) if not specified
+    const targetWarehouseId = warehouse_id || 1;
 
     if (!product_id || !size) {
       return NextResponse.json({ success: false, message: 'Product ID and Size are required' }, { status: 400 });
@@ -99,23 +124,67 @@ export async function POST(request: NextRequest) {
       variantId = result.insertId;
     }
 
-    // 2. Check if inventory record exists for this variant
+    // 2. Check if inventory record exists for this variant AND warehouse
     const existingInventory = await executeQuery<any[]>(
-      'SELECT id FROM inventory WHERE product_variant_id = ?',
-      [variantId]
+      'SELECT id, quantity FROM inventory WHERE product_variant_id = ? AND warehouse_id = ?',
+      [variantId, targetWarehouseId]
     );
 
     if (existingInventory.length > 0) {
       // Update existing inventory
+      // Update existing inventory
+      const oldQuantity = Number(existingInventory[0].quantity || 0);
+      const newQuantity = oldQuantity + (quantity || 0);
+
       await executeQuery(
-        'UPDATE inventory SET quantity = quantity + ? WHERE id = ?',
-        [quantity || 0, existingInventory[0].id]
+        'UPDATE inventory SET quantity = ? WHERE id = ?',
+        [newQuantity, existingInventory[0].id]
       );
+
+      // CHECK FOR RESTOCK (0 -> >0)
+      if (oldQuantity <= 0 && newQuantity > 0) {
+        try {
+          // Get product info
+          const products = await executeQuery<any[]>(
+            'SELECT p.id, p.name FROM products p JOIN product_variants pv ON p.id = pv.product_id WHERE pv.id = ?',
+            [variantId]
+          );
+
+          if (products.length > 0) {
+            const product = products[0];
+
+            // Get wishlist users
+            const wishlistUsers = await executeQuery<any[]>(
+              `SELECT u.email, u.name 
+                   FROM wishlist w
+                   JOIN users u ON w.user_id = u.id
+                   WHERE w.product_id = ?`,
+              [product.id]
+            );
+
+            if (wishlistUsers.length > 0) {
+              const { sendWishlistRestockEmail } = await import('@/lib/email-templates');
+              console.log(`Sending RESTOCK email to ${wishlistUsers.length} users for product ${product.id}`);
+              wishlistUsers.forEach(user => {
+                sendWishlistRestockEmail(
+                  user.email,
+                  user.name || 'Bạn',
+                  product.name,
+                  Number(product.id)
+                ).catch(console.error);
+              });
+            }
+          }
+        } catch (emailError) {
+          console.error('Error sending restock emails:', emailError);
+          // Don't block response
+        }
+      }
     } else {
       // Create new inventory record
       await executeQuery(
-        'INSERT INTO inventory (product_variant_id, quantity) VALUES (?, ?)',
-        [variantId, quantity || 0]
+        'INSERT INTO inventory (product_variant_id, quantity, warehouse_id) VALUES (?, ?, ?)',
+        [variantId, quantity || 0, targetWarehouseId]
       );
     }
 
@@ -124,7 +193,8 @@ export async function POST(request: NextRequest) {
       message: 'Inventory updated successfully'
     });
   } catch (error) {
-    console.error('Error updating inventory:', error);
+    const { logSystemError } = await import('@/lib/audit');
+    await logSystemError('API Error: Update Inventory', error, { body: await request.clone().json().catch(() => ({})) });
     return NextResponse.json({ success: false, message: 'Internal server error' }, { status: 500 });
   }
 }

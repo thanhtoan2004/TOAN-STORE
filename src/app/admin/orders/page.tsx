@@ -186,7 +186,13 @@ export default function AdminOrdersPage() {
                           {formatDateTime(order.placed_at)}
                         </div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-right">
+                      <td className="px-6 py-4 whitespace-nowrap text-right space-x-2">
+                        <a
+                          href={`/admin/orders/${order.id}`}
+                          className="text-indigo-600 hover:text-indigo-900 text-sm font-medium mr-2"
+                        >
+                          View Details
+                        </a>
                         <select
                           value={order.status}
                           onChange={(e) => updateOrderStatus(order.id, e.target.value)}

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { executeQuery } from '@/lib/db/mysql';
 import { verifyAuth } from '@/lib/auth';
+import { decrypt } from '@/lib/encryption';
 
 export async function GET() {
   try {
@@ -15,7 +16,7 @@ export async function GET() {
 
     // Lấy thông tin người dùng từ CSDL
     const users = await executeQuery(
-      'SELECT id, email, first_name, last_name, phone, date_of_birth, gender, is_active, is_verified, is_admin, accumulated_points, membership_tier FROM users WHERE id = ?',
+      'SELECT id, email, first_name, last_name, phone, date_of_birth, gender, is_active, is_verified, is_admin, accumulated_points, membership_tier FROM users WHERE id = ? AND deleted_at IS NULL',
       [session.userId]
     ) as any[];
 
@@ -34,7 +35,7 @@ export async function GET() {
         email: user.email,
         firstName: user.first_name,
         lastName: user.last_name,
-        phone: user.phone,
+        phone: decrypt(user.phone),
         dateOfBirth: user.date_of_birth,
         gender: user.gender,
         isActive: user.is_active,

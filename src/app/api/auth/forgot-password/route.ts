@@ -1,10 +1,10 @@
-
 import { NextResponse } from 'next/server';
 import { executeQuery } from '@/lib/db/mysql';
 import { sendPasswordResetEmail } from '@/lib/mail';
 import crypto from 'crypto';
+import { withRateLimit } from '@/lib/with-rate-limit';
 
-export async function POST(req: Request) {
+async function forgotPasswordHandler(req: Request) {
     try {
         const { email } = await req.json();
 
@@ -40,7 +40,6 @@ export async function POST(req: Request) {
         );
 
         // Send email
-        // Don't await to avoid blocking response
         sendPasswordResetEmail(email, token).catch(console.error);
 
         return NextResponse.json({
@@ -56,3 +55,9 @@ export async function POST(req: Request) {
         );
     }
 }
+
+export const POST = withRateLimit(forgotPasswordHandler, {
+    tag: 'auth',
+    limit: 3,
+    windowMs: 60 * 1000,
+});

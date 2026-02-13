@@ -4,7 +4,7 @@ import { executeQuery } from '@/lib/db/mysql';
 
 async function validateCouponHandler(req: NextRequest): Promise<NextResponse> {
   const body: any = await req.json();
-  const { code, orderAmount } = body;
+  const { code, orderAmount, items } = body; // items is optional but recommended for category checks
 
   if (!code) {
     return createErrorResponse('Thiếu mã voucher', 400);
@@ -14,6 +14,21 @@ async function validateCouponHandler(req: NextRequest): Promise<NextResponse> {
     return createErrorResponse('Số tiền đơn hàng không hợp lệ', 400);
   }
 
+  // Helper to validate categories
+  const isCategoryValid = (applicableCategories: string | null, cartItems: any[]) => {
+    if (!applicableCategories) return true;
+    try {
+      const allowedIds = JSON.parse(applicableCategories);
+      if (!Array.isArray(allowedIds) || allowedIds.length === 0) return true;
+
+      if (!cartItems || !Array.isArray(cartItems)) return false; // Allowed categories set but no items provided
+
+      return cartItems.some(item => allowedIds.includes(Number(item.categoryId)));
+    } catch (e) {
+      return true; // JSON parse error, fail-safe
+    }
+  };
+
   // Get coupon from database
   const coupons = await executeQuery<any[]>(
     `SELECT * FROM coupons WHERE code = ? AND (ends_at IS NULL OR ends_at > NOW()) AND (starts_at IS NULL OR starts_at <= NOW())`,
@@ -21,10 +36,54 @@ async function validateCouponHandler(req: NextRequest): Promise<NextResponse> {
   );
 
   if (!coupons || coupons.length === 0) {
-    return createErrorResponse('Mã voucher không tồn tại hoặc đã hết hạn', 404);
+    // Try to find in vouchers table (personal/gift vouchers)
+    const vouchers = await executeQuery<any[]>(
+      `SELECT * FROM vouchers WHERE code = ? AND status = 'active' AND (valid_until IS NULL OR valid_until > NOW())`,
+      [code.toUpperCase()]
+    );
+
+    if (!vouchers || vouchers.length === 0) {
+      return createErrorResponse('Mã giảm giá không tồn tại hoặc đã hết hạn', 404);
+    }
+
+    const voucher = vouchers[0];
+
+    // Check minimum order amount for voucher
+    if (voucher.min_order_value && orderAmount < voucher.min_order_value) {
+      return createErrorResponse(`Mã này yêu cầu đơn hàng tối thiểu ${new Intl.NumberFormat('vi-VN').format(voucher.min_order_value)}đ`, 400);
+    }
+
+    // Check category restriction
+    if (!isCategoryValid(voucher.applicable_categories, items)) {
+      return createErrorResponse('Mã này không áp dụng cho các sản phẩm trong giỏ hàng của bạn', 400);
+    }
+
+    return createSuccessResponse(
+      {
+        voucherId: voucher.id,
+        code: voucher.code,
+        description: voucher.description || 'Mã giảm giá cá nhân',
+        discountType: voucher.discount_type,
+        discountValue: voucher.value,
+        discountAmount: voucher.discount_type === 'percent'
+          ? Math.min(Math.round((orderAmount * voucher.value) / 100), orderAmount)
+          : Math.min(voucher.value, orderAmount)
+      },
+      'Áp dụng mã giảm giá thành công'
+    );
   }
 
   const coupon = coupons[0];
+
+  // Check minimum order amount
+  if (coupon.min_order_amount && orderAmount < coupon.min_order_amount) {
+    return createErrorResponse(`Đơn hàng tối thiểu ${new Intl.NumberFormat('vi-VN').format(coupon.min_order_amount)}đ để áp dụng mã này`, 400);
+  }
+
+  // Check category restriction
+  if (!isCategoryValid(coupon.applicable_categories, items)) {
+    return createErrorResponse('Mã này không áp dụng cho các sản phẩm trong giỏ hàng của bạn', 400);
+  }
 
   // Check if coupon has started
   if (coupon.starts_at && new Date(coupon.starts_at) > new Date()) {

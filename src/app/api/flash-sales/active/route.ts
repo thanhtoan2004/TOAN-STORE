@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { query } from '@/lib/db/mysql';
+import { getCache, setCache } from '@/lib/cache';
 
 /**
  * Get active flash sale
@@ -7,6 +8,17 @@ import { query } from '@/lib/db/mysql';
  */
 export async function GET() {
     try {
+        const CACHE_KEY = 'flash-sale:active';
+
+        // Try to get from cache
+        const cachedData = await getCache<any>(CACHE_KEY);
+        if (cachedData) {
+            return NextResponse.json({
+                success: true,
+                data: cachedData
+            });
+        }
+
         const now = new Date();
 
         // Get active flash sale
@@ -43,26 +55,31 @@ export async function GET() {
             [flashSale.id]
         );
 
+        const responseData = {
+            id: flashSale.id,
+            name: flashSale.name,
+            description: flashSale.description,
+            startTime: flashSale.start_time,
+            endTime: flashSale.end_time,
+            products: products.map((item: any) => ({
+                id: item.product_id,
+                name: item.name,
+                slug: item.slug,
+                imageUrl: item.imageUrl,
+                originalPrice: parseFloat(item.originalPrice),
+                flashPrice: parseFloat(item.flash_price),
+                discountPercentage: parseFloat(item.discount_percentage),
+                quantityLimit: item.quantity_limit,
+                quantitySold: item.quantity_sold
+            }))
+        };
+
+        // Cache for 5 minutes
+        await setCache(CACHE_KEY, responseData, 300);
+
         return NextResponse.json({
             success: true,
-            data: {
-                id: flashSale.id,
-                name: flashSale.name,
-                description: flashSale.description,
-                startTime: flashSale.start_time,
-                endTime: flashSale.end_time,
-                products: products.map((item: any) => ({
-                    id: item.product_id,
-                    name: item.name,
-                    slug: item.slug,
-                    imageUrl: item.imageUrl,
-                    originalPrice: parseFloat(item.originalPrice),
-                    flashPrice: parseFloat(item.flash_price),
-                    discountPercentage: parseFloat(item.discount_percentage),
-                    quantityLimit: item.quantity_limit,
-                    quantitySold: item.quantity_sold
-                }))
-            }
+            data: responseData
         });
 
     } catch (error) {

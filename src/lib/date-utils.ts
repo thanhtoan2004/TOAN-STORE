@@ -54,7 +54,10 @@ export function formatCurrency(amount: number | string | null | undefined): stri
     const value = typeof amount === 'string' ? parseFloat(amount) : amount;
     if (value === null || value === undefined || isNaN(value)) return '0 ₫';
 
-    return value.toLocaleString('vi-VN') + ' ₫';
+    return value.toLocaleString('vi-VN', {
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0
+    }) + ' ₫';
 }
 
 /**

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { executeQuery } from '@/lib/db/mysql';
 import { checkAdminAuth } from '@/lib/auth';
+import { decrypt, encrypt } from '@/lib/encryption';
 
 // GET - Lấy danh sách users (Admin)
 export async function GET(request: NextRequest) {
@@ -23,7 +24,7 @@ export async function GET(request: NextRequest) {
       SELECT id, email, first_name, last_name, phone,
              is_active, is_verified, is_admin, is_banned, created_at, updated_at
       FROM users
-      WHERE 1=1`;
+      WHERE deleted_at IS NULL`;
 
     const params: any[] = [];
 
@@ -36,10 +37,16 @@ export async function GET(request: NextRequest) {
     query += ' ORDER BY created_at DESC LIMIT ? OFFSET ?';
     params.push(limit, offset);
 
-    const users = await executeQuery(query, params);
+    const usersResult = await executeQuery<any[]>(query, params);
+
+    // Decrypt PII data
+    const users = usersResult.map(user => ({
+      ...user,
+      phone: decrypt(user.phone)
+    }));
 
     // Get total count
-    let countQuery = 'SELECT COUNT(*) as total FROM users WHERE 1=1';
+    let countQuery = 'SELECT COUNT(*) as total FROM users WHERE deleted_at IS NULL';
     const countParams: any[] = [];
 
     if (search) {
@@ -124,3 +131,37 @@ export async function PUT(request: NextRequest) {
     );
   }
 }
+
+// DELETE - Xóa người dùng (Soft Delete)
+export async function DELETE(request: NextRequest) {
+  try {
+    const admin = await checkAdminAuth();
+    if (!admin) {
+      return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
+    }
+
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get('id');
+
+    if (!id) {
+      return NextResponse.json({ success: false, message: 'User ID required' }, { status: 400 });
+    }
+
+    await executeQuery(
+      'UPDATE users SET deleted_at = CURRENT_TIMESTAMP, is_active = 0 WHERE id = ?',
+      [id]
+    );
+
+    return NextResponse.json({
+      success: true,
+      message: 'Người dùng đã được xóa tạm thời (Soft Deleted)'
+    });
+  } catch (error) {
+    console.error('Error deleting user:', error);
+    return NextResponse.json(
+      { success: false, message: 'Internal server error' },
+      { status: 500 }
+    );
+  }
+}
+
