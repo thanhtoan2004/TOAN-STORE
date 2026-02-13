@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { executeQuery } from '@/lib/db/mysql';
 import { checkAdminAuth } from '@/lib/auth';
-import DOMPurify from 'isomorphic-dompurify';
+import { sanitizeRichContent } from '@/lib/sanitize';
 
 // Ensure news table exists
 async function ensureNewsTable() {
@@ -112,7 +112,7 @@ export async function POST(request: NextRequest) {
 
         const body = await request.json();
         const { title, excerpt, image_url, category, is_published } = body;
-        const content = DOMPurify.sanitize(body.content || '');
+        const content = sanitizeRichContent(body.content || '');
 
         if (!title || !content) {
             return NextResponse.json({ success: false, message: 'Title and content are required' }, { status: 400 });

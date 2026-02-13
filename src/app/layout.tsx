@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import { Suspense } from 'react';
 import RootLayoutWrapper from "@/components/RootLayoutWrapper";
 import { AuthProvider } from "@/contexts/AuthContext";
 
@@ -59,7 +60,9 @@ export default function RootLayout({
                     {children}
                   </RootLayoutWrapper>
                   <ChatWidget />
-                  <Pixel />
+                  <Suspense fallback={null}>
+                    <Pixel />
+                  </Suspense>
                 </LanguageProvider>
               </WishlistProvider>
             </CartProvider>
