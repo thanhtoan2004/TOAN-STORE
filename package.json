@@ -13,7 +13,9 @@
     "deploy": "node scripts/deploy.js",
     "format": "prettier --write .",
     "prepare": "husky install",
-    "security-test": "node scripts/verify-sessions.js"
+    "security-test": "node scripts/verify-sessions.js",
+    "infra:up": "docker-compose up -d",
+    "infra:down": "docker-compose down"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",

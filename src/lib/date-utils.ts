@@ -1,5 +1,5 @@
 /**
- * Common date utilities for Nike Clone
+ * Common date utilities for TOAN
  * Enforces Vietnam timezone (UTC+7) and consistent formatting
  */
 

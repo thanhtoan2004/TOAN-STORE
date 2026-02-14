@@ -62,6 +62,12 @@ export async function GET(request: NextRequest) {
     }
 
     const productId = parseInt(productIdStr);
+    if (isNaN(productId)) {
+      return NextResponse.json(
+        { success: false, message: 'Invalid productId' },
+        { status: 400 }
+      );
+    }
 
     // Get reviews from database
     // Secure dynamic ordering using whitelist mapping

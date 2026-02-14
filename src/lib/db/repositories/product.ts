@@ -171,8 +171,8 @@ export async function formatProductsForChat(products: any[]) {
         );
 
         const availableSizes = sizes.map(s => s.size).join(', ');
-        const price = p.base_price;
-        const originalPrice = p.retail_price;
+        const price = p.retail_price || p.base_price;
+        const originalPrice = p.retail_price ? p.base_price : null;
 
         return {
             id: p.id,

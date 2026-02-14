@@ -3,6 +3,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { searchProductsForChat, getNewArrivalsForChat, getDiscountedProductsForChat, getProductsByCategoryForChat, getOrderStatusForChat } from '@/lib/db/mysql';
 import { withRateLimit } from '@/lib/with-rate-limit';
+import { redis } from '@/lib/redis';
+import crypto from 'crypto';
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
 
@@ -75,9 +77,71 @@ async function chatHandler(req: NextRequest) {
         const { message, history } = body;
         if (!message) return NextResponse.json({ error: 'Message is required' }, { status: 400 });
 
-        const modelNames = ["gemini-2.0-flash", "gemini-2.5-flash", "gemini-flash-latest", "gemini-2.5-pro", "gemini-pro-latest"];
-        let response;
-        let finalModelName = "";
+        // CACHE: Generate cache key from message content
+        const messageHash = crypto.createHash('sha256').update(message.trim().toLowerCase()).digest('hex');
+        const cacheKey = `chat:response:${messageHash}`;
+
+        try {
+            const cachedData = await redis.get(cacheKey);
+            if (cachedData) {
+                return NextResponse.json(JSON.parse(cachedData));
+            }
+        } catch (cacheErr) {
+            console.warn('[Chatbot] Redis Cache Error:', cacheErr);
+        }
+
+        // --- FAST PATH: Rule-based Intent Detection (Bypass AI for speed) ---
+        const lowerMsg = message.trim().toLowerCase();
+
+        // 1. Fast Path: Product Search (e.g., "tìm giày jordan", "giá áo nike")
+        // Regex: (tìm|kiếm|giá|cho xem) + [keyword]
+        const searchMatch = lowerMsg.match(/^(tìm|kiếm|giá|cho xem|mua)\s+(.*)/i);
+        if (searchMatch && searchMatch[2].length > 2) {
+            const keyword = searchMatch[2].trim();
+            console.log(`[Chatbot] Fast Path: Search for '${keyword}'`);
+            try {
+                const products = await searchProductsForChat(keyword);
+                const response = {
+                    text: products.length > 0
+                        ? `Mình tìm thấy một vài sản phẩm "${keyword}" cho bạn đây:`
+                        : `Tiếc quá, mình không tìm thấy sản phẩm "${keyword}" nào. Bạn thử từ khóa khác nhé!`,
+                    data: products,
+                    dataType: 'products'
+                };
+                // Cache Fast Path result
+                await redis.set(cacheKey, JSON.stringify(response), 'EX', 3600);
+                return NextResponse.json(response);
+            } catch (e) { console.error('Fast Path Search Error', e); }
+        }
+
+        // 2. Fast Path: Order Status (e.g., "đơn hàng NK123 sđt 0987...")
+        // Regex requires both Order ID (NK...) and Phone (0...)
+        const orderMatch = lowerMsg.match(/(nk|nike)\d+_\w+/i) || lowerMsg.match(/(nk|nike)\d+/i); // Rough match for ID
+        const phoneMatch = lowerMsg.match(/(0\d{9,10})/);
+
+        if (orderMatch && phoneMatch) {
+            const orderId = orderMatch[0].toUpperCase();
+            const phone = phoneMatch[0];
+            console.log(`[Chatbot] Fast Path: Checking Order ${orderId}, Phone ${phone}`);
+            try {
+                const order = await getOrderStatusForChat(orderId, phone);
+                const response = {
+                    text: order
+                        ? `Thông tin đơn hàng ${orderId} của bạn:`
+                        : `Mình không tìm thấy đơn hàng ${orderId} với số điện thoại ${phone}. Bạn kiểm tra lại nhé!`,
+                    data: order,
+                    dataType: 'order'
+                };
+                await redis.set(cacheKey, JSON.stringify(response), 'EX', 3600);
+                return NextResponse.json(response);
+            } catch (e) { console.error('Fast Path Order Error', e); }
+        }
+        // -------------------------------------------------------------------
+
+        const modelNames = ["gemini-2.0-flash", "gemini-1.5-flash", "gemini-pro-latest"];
+        let finalResponseText = "";
+        let toolData = null;
+        let toolDataType = 'products';
 
         // AI Security: Sanitize message to prevent advanced prompt injection
         const injectionPatterns = [
@@ -120,6 +184,7 @@ QUY TẮC BẢO MẬT & VẬN HÀNH:
 5. CỨU TRỢ ĐƠN HÀNG: Luôn yêu cầu mã đơn hàng và dùng tool get_order_status.
 6. DATA PRIVACY: Không bao giờ yêu cầu hoặc hiển thị Mật khẩu của người dùng.`;
 
+        // 1. Duyệt qua các model (Fallback mechanism)
         for (const modelName of modelNames) {
             try {
                 const model = genAI.getGenerativeModel({
@@ -130,78 +195,82 @@ QUY TẮC BẢO MẬT & VẬN HÀNH:
                     safetySettings: safetySettings as any
                 });
 
-                // AI Security: Limit history to last 10 messages to prevent token flooding/context injection
                 const limitedHistory = (history || []).slice(-10).map((msg: any) => ({
                     role: msg.role === 'user' ? 'user' : 'model',
-                    parts: [{ text: msg.content.substring(0, 500) }] // Limit part length
+                    parts: [{ text: msg.content.substring(0, 500) }]
                 }));
 
                 const chat = model.startChat({ history: limitedHistory });
                 const result = await chat.sendMessage(sanitizedMessage);
-                response = await result.response;
-                finalModelName = modelName;
+                const response = await result.response;
+
+                const parts = response.candidates?.[0]?.content?.parts || [];
+                const calls = parts.filter((p: any) => p.functionCall);
+
+                // 2. Nếu AI yêu cầu gọi Tool
+                if (calls.length > 0) {
+                    const toolPromises = calls.map(async (call: any) => {
+                        const { name, args }: any = call.functionCall;
+                        let data = null;
+                        try {
+                            if (name === 'search_products') data = await searchProductsForChat(args.keyword);
+                            else if (name === 'get_new_arrivals') data = await getNewArrivalsForChat();
+                            else if (name === 'get_sale_products') data = await getDiscountedProductsForChat();
+                            else if (name === 'get_products_by_category') data = await getProductsByCategoryForChat(args.category);
+                            else if (name === 'get_order_status') {
+                                data = await getOrderStatusForChat(args.orderNumber, args.phone);
+                                toolDataType = 'order';
+                            }
+                        } catch (e) { console.error(`Tool ${name} fail:`, e); }
+
+                        return {
+                            functionResponse: { name, response: { content: data } },
+                            rawData: data
+                        };
+                    });
+
+                    // Chạy song song tất cả các tool
+                    const results = await Promise.all(toolPromises);
+
+                    // Gửi kết quả ngược lại cho AI để nó tổng hợp câu trả lời
+                    const toolResultSend = await chat.sendMessage(results.map(r => r.functionResponse) as any);
+                    finalResponseText = (await toolResultSend.response).text();
+                    toolData = results[0].rawData; // Lấy data của tool đầu tiên để hiển thị UI
+                } else {
+                    finalResponseText = response.text();
+                }
+
+                // Nếu chạy đến đây thành công thì break khỏi vòng lặp model
                 break;
+
             } catch (err: any) {
-                console.error(`Gemini model ${modelName} failed:`, err.status, err.message);
-                if (modelName === modelNames[modelNames.length - 1]) {
+                console.error(`Model ${modelName} error:`, err.status);
+                // Nếu là model cuối cùng mà vẫn lỗi 429
+                if (modelName === modelNames[modelNames.length - 1] && (err.status === 429 || (err.message && err.message.includes('429')))) {
                     return NextResponse.json({
-                        text: "Xin lỗi, hiện tại dịch vụ AI đang quá tải. Vui lòng thử lại sau giây lát."
+                        text: "Hệ thống AI của Nike Store đang bận xử lý hàng ngàn đơn hàng. Bạn đợi mình khoảng 10 giây rồi hỏi lại nhé! 👟"
                     });
                 }
-                if (err.status === 404 || err.status === 429 || err.message.includes('404') || err.message.includes('429')) {
-                    continue;
-                }
-                throw err;
+                continue; // Thử model tiếp theo
             }
         }
 
-        if (!response) return NextResponse.json({ error: 'No response' }, { status: 500 });
-        const calls = response.candidates?.[0]?.content?.parts?.filter(p => p.functionCall);
+        const responseData = {
+            text: finalResponseText,
+            data: toolData,
+            dataType: toolDataType
+        };
 
-        if (calls && calls.length > 0) {
-            const model = genAI.getGenerativeModel({
-                model: finalModelName,
-                tools: tools as any,
-                systemInstruction: systemInstruction,
-                generationConfig
-            });
-
-            const limitedHistory = (history || []).slice(-10).map((msg: any) => ({
-                role: msg.role === 'user' ? 'user' : 'model',
-                parts: [{ text: msg.content.substring(0, 500) }]
-            }));
-
-            const chat = model.startChat({ history: limitedHistory });
-            await chat.sendMessage(sanitizedMessage);
-
-            const toolResults: any = [];
-            for (const call of calls) {
-                const { name, args }: any = call.functionCall;
-                let data: any = null;
-                try {
-                    if (name === 'search_products') data = await searchProductsForChat(args.keyword);
-                    else if (name === 'get_new_arrivals') data = await getNewArrivalsForChat();
-                    else if (name === 'get_sale_products') data = await getDiscountedProductsForChat();
-                    else if (name === 'get_products_by_category') data = await getProductsByCategoryForChat(args.category);
-                    else if (name === 'get_order_status') data = await getOrderStatusForChat(args.orderNumber, args.phone);
-                } catch (dbErr) { console.error(`Tool ${name} execution failed:`, dbErr); }
-
-                toolResults.push({ functionResponse: { name, response: { content: data } } });
+        // Cache successful responses for 1 hour (3600s)
+        try {
+            if (!toolData || toolDataType !== 'order') {
+                await redis.set(cacheKey, JSON.stringify(responseData), 'EX', 3600);
             }
-
-            const toolResultSend = await chat.sendMessage(toolResults);
-            const finalResponse = await toolResultSend.response;
-            const lastCallData = toolResults[0].functionResponse.response.content;
-            const lastCallName = toolResults[0].functionResponse.name;
-
-            return NextResponse.json({
-                text: finalResponse.text(),
-                data: lastCallData,
-                dataType: lastCallName === 'get_order_status' ? 'order' : 'products'
-            });
+        } catch (setErr) {
+            console.warn('[Chatbot] Redis Set Error:', setErr);
         }
 
-        return NextResponse.json({ text: response.text() });
+        return NextResponse.json(responseData);
     } catch (error) {
         console.error('Critical Gemini Error:', error);
         return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });

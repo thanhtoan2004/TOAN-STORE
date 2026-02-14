@@ -1,5 +1,5 @@
 /**
- * Image Service abstraction for Nike Clone
+ * Image Service abstraction for TOAN
  * Handles image delivery, optimization hints, and provider switching (CDN/S3/Local)
  */
 

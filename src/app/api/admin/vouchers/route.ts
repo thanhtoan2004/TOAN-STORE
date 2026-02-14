@@ -111,6 +111,12 @@ export async function POST(request: NextRequest) {
     // Log audit
     await logAdminAction(adminAuth.userId, 'create_voucher', 'vouchers', result.insertId, { code, value }, request);
 
+    // Send email if recipient_email was provided
+    if (recipient_email) {
+      const { sendVoucherReceivedEmail } = await import('@/lib/mail');
+      sendVoucherReceivedEmail(recipient_email, code, numValue, discount_type || 'fixed', numMinOrder).catch(console.error);
+    }
+
     return NextResponse.json(responseData);
   } catch (error) {
     console.error('Error creating voucher:', error);
@@ -192,6 +198,32 @@ export async function PUT(request: NextRequest) {
 
     // Log audit
     await logAdminAction(adminAuth.userId, 'update_voucher', 'vouchers', id, { code, status }, request);
+
+    // Send email if recipient_email was provided/updated and it's valid
+    if (recipient_email && targetUserId) {
+      // Need to fetch current values if some are not provided in update (for the email content)
+      // But for simplicity, we only send if all info is available or we accept partial info might be confusing?
+      // Better strategy: Only send if we have enough info to make the email useful.
+      // We have code, value/numValue, discount_type, min_order_value/numMinOrder from the request.
+      // If they are missing from request (undefined), we might need to fetch them.
+
+      // Let's fetch the full voucher to be sure what we are sending
+      const [updatedVoucher]: any = await executeQuery(
+        'SELECT code, value, discount_type, min_order_value FROM vouchers WHERE id = ?',
+        [id]
+      );
+
+      if (updatedVoucher.length > 0) {
+        const { sendVoucherReceivedEmail } = await import('@/lib/mail');
+        sendVoucherReceivedEmail(
+          recipient_email,
+          updatedVoucher[0].code,
+          updatedVoucher[0].value,
+          updatedVoucher[0].discount_type,
+          updatedVoucher[0].min_order_value
+        ).catch(console.error);
+      }
+    }
 
     return NextResponse.json({
       success: true,

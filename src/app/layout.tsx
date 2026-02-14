@@ -14,15 +14,15 @@ import Pixel from "@/components/analytics/Pixel";
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'),
   title: {
-    template: '%s | Nike Clone Store',
-    default: 'Nike Clone Store - Just Do It',
+    template: '%s | TOAN Store',
+    default: 'TOAN Store - Just Do It',
   },
   description: "Nike delivers innovative products, experiences and services to inspire athletes.",
   openGraph: {
-    title: 'Nike Clone Store',
+    title: 'TOAN Store',
     description: 'The best place to buy Nike products.',
     url: process.env.NEXT_PUBLIC_APP_URL,
-    siteName: 'Nike Clone Store',
+    siteName: 'TOAN Store',
     images: [
       {
         url: '/og-image.jpg', // Make sure this exists or use a default
@@ -33,6 +33,7 @@ export const metadata: Metadata = {
     locale: 'vi_VN',
     type: 'website',
   },
+  keywords: ['nike', 'giày nike', 'giày chạy bộ', 'thời trang thể thao', 'toan store', 'nike vietnam'],
 };
 
 

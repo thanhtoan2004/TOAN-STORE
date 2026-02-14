@@ -300,7 +300,7 @@ export default function ChatWidget() {
                                             <Send size={16} />
                                         </button>
                                     </form>
-                                    <p className="text-center text-[8px] text-gray-400 mt-1.5 font-medium uppercase tracking-tighter">Powered by Gemini 2.5 Flash</p>
+                                    <p className="text-center text-[8px] text-gray-400 mt-1.5 font-medium uppercase tracking-tighter">Powered TOAN AI</p>
                                 </div>
                             </>
                         ) : (

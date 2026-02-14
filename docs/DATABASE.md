@@ -1,6 +1,6 @@
 # Database Schema
 
-Nike Clone sử dụng **MySQL 8.0** với 30+ bảng. Schema tự khởi tạo qua `src/lib/db/init.ts`.
+TOAN sử dụng **MySQL 8.0** với 30+ bảng. Schema tự khởi tạo qua `src/lib/db/init.ts`.
 
 ---
 

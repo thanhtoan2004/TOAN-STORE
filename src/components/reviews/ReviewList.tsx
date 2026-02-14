@@ -40,6 +40,7 @@ export function ReviewList({ productId, refreshTrigger }: ReviewListProps) {
     }, [productId, page, sortBy, refreshTrigger]);
 
     const fetchReviews = async () => {
+        if (!productId || isNaN(productId)) return; // Don't fetch if invalid ID
         try {
             setLoading(true);
             const res = await fetch(`/api/reviews?productId=${productId}&page=${page}&limit=5&sort=${sortBy}`);

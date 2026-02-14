@@ -17,7 +17,7 @@ export interface StoreSettings {
 }
 
 const DEFAULT_SETTINGS: StoreSettings = {
-    store_name: 'Nike Clone',
+    store_name: 'TOAN',
     store_email: 'admin@nike-clone.com',
     store_phone: '0123456789',
     store_address: '123 Main Street',

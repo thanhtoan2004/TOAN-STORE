@@ -13,7 +13,7 @@ interface PaymentQRCodeProps {
 export default function PaymentQRCode({
     amount,
     description,
-    accountName = 'NIKE CLONE STORE',
+    accountName = 'TOAN STORE',
     accountNumber = '113366668888', // Mock account number (MB Bank example)
     bankId = 'MB' // MB Bank
 }: PaymentQRCodeProps) {

@@ -2,11 +2,11 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-    title: "Ưu đãi sinh nhật - Nike Clone",
-    description: "Nhận quà tặng đặc biệt nhân dịp sinh nhật của bạn từ Nike Clone. Giảm giá lên đến 20% và nhiều phần quà hấp dẫn khác.",
+    title: "Ưu đãi sinh nhật - TOAN",
+    description: "Nhận quà tặng đặc biệt nhân dịp sinh nhật của bạn từ TOAN. Giảm giá lên đến 20% và nhiều phần quà hấp dẫn khác.",
     openGraph: {
-        title: "Ưu đãi sinh nhật - Nike Clone",
-        description: "Nhận quà tặng đặc biệt nhân dịp sinh nhật của bạn từ Nike Clone.",
+        title: "Ưu đãi sinh nhật - TOAN",
+        description: "Nhận quà tặng đặc biệt nhân dịp sinh nhật của bạn từ TOAN.",
         images: ['/images/promo-birthday.jpg'], // Hãy đảm bảo có ảnh này hoặc dùng ảnh mặc định
     },
 };

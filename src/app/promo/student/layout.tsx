@@ -2,10 +2,10 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-    title: "Ưu đãi cho Học sinh - Sinh viên | Nike Clone",
+    title: "Ưu đãi cho Học sinh - Sinh viên | TOAN",
     description: "Trương chình ưu đãi đặc biệt dành cho học sinh, sinh viên. Giảm giá 10% cho tất cả đơn hàng.",
     openGraph: {
-        title: "Ưu đãi cho Học sinh - Sinh viên | Nike Clone",
+        title: "Ưu đãi cho Học sinh - Sinh viên | TOAN",
         description: "Trương chình ưu đãi đặc biệt dành cho học sinh, sinh viên.",
     },
 };

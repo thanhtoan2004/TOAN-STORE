@@ -1,6 +1,6 @@
 # Deployment Guide
 
-Hướng dẫn triển khai Nike Clone E-commerce trên các môi trường khác nhau.
+Hướng dẫn triển khai TOAN E-commerce trên các môi trường khác nhau.
 
 ---
 
@@ -26,7 +26,8 @@ npm install
 
 ### 2. Start Infrastructure
 ```bash
-docker-compose up -d
+npm run infra:up
+# Hoặc thủ công: docker-compose up -d
 ```
 Khởi động:
 - **MySQL** — `localhost:3307` (user: root, pass: root, db: nike_clone)
@@ -105,6 +106,7 @@ VNPAY_TMN_CODE=your_vnpay_code
 VNPAY_HASH_SECRET=your_vnpay_secret
 VNPAY_URL=https://sandbox.vnpayment.vn/paymentv2/vpcpay.html
 VNPAY_RETURN_URL=https://your-domain.com/api/payment/vnpay/return
+VNPAY_IPN_URL=https://your-domain.com/api/payment/vnpay/ipn
 
 MOMO_PARTNER_CODE=your_momo_code
 MOMO_ACCESS_KEY=your_momo_access_key
@@ -173,12 +175,18 @@ volumes:
 
 ## ☁️ Cloud Deployment
 
-### Vercel (Recommended cho Next.js)
+### Vercel (Recommended cho Next.js App)
 1. Connect GitHub repo to Vercel
 2. Add environment variables trong Vercel Dashboard
 3. Deploy
 
-> **Lưu ý**: Vercel Serverless Functions có timeout 10s (Free) / 60s (Pro). Các long-running tasks (BullMQ workers) cần chạy trên server riêng.
+**Database Options (Free Tier Available):**
+- **MySQL**: [Aiven](https://aiven.io/mysql) hoặc [Railway](https://railway.app/)
+- **Redis**: [Upstash](https://upstash.com/) (Serverless Redis, rất tốt cho Vercel)
+- **Postgres (Alternative)**: [Supabase](https://supabase.com/) (Cần đổi driver mysql2 -> pg nếu muốn switch DB)
+
+> **Lưu ý**: Vercel Serverless Functions có timeout 10s (Free) / 60s (Pro). Các long-running tasks (BullMQ workers) cần chạy trên server riêng hoặc dùng Upstash QStash.
+
 
 ### VPS (DigitalOcean, AWS EC2, etc.)
 ```bash

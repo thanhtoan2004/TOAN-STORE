@@ -751,6 +751,18 @@ export async function updateOrderStatus(orderNumber: string, status: string) {
         }
 
         await connection.commit();
+
+        // EMIT EVENT: Order Updated
+        if (oldStatus !== status) {
+            console.log(`📡 Publishing order.updated: ${orderNumber} ${oldStatus} -> ${status}`);
+            await eventBus.publish('order.updated', {
+                orderId: currentOrder[0].id,
+                orderNumber,
+                oldStatus,
+                newStatus: status,
+                timestamp: new Date()
+            });
+        }
     } catch (error) {
         await connection.rollback();
         throw error;
@@ -925,19 +937,33 @@ export async function searchOrderForChat(orderNumber: string) {
 
 export async function getOrderStatusForChat(orderNumber: string, phone: string) {
     try {
-        const encryptedPhone = encrypt(phone);
+        // FIX: Encrypt generates random IV, so we cannot query by exact match.
+        // Strategy: Fetch by Order Number first, then decrypt and compare phone.
         const query = `
-        SELECT o.order_number, o.status, o.total, o.payment_status, o.placed_at,
-               (SELECT JSON_ARRAYAGG(JSON_OBJECT('name', product_name, 'quantity', quantity, 'price', price)) 
+        SELECT o.order_number, o.status, o.total, o.payment_status, o.placed_at, o.phone,
+               (SELECT JSON_ARRAYAGG(JSON_OBJECT('name', product_name, 'quantity', quantity, 'price', unit_price)) 
                 FROM order_items WHERE order_id = o.id) as items
         FROM orders o
-        WHERE o.order_number = ? AND o.phone = ?
+        WHERE o.order_number = ?
         LIMIT 1`;
 
-        const orders: any[] = await executeQuery<any[]>(query, [orderNumber, encryptedPhone]);
+        const orders: any[] = await executeQuery<any[]>(query, [orderNumber]);
 
         if (!orders || orders.length === 0) return null;
-        return orders[0];
+
+        const order = orders[0];
+        const decryptedPhone = decrypt(order.phone);
+
+        // Normalize phones for comparison (remove spaces, etc if needed, but strict for now)
+        if (decryptedPhone !== phone) {
+            console.log(`[Chatbot] Phone mismatch for order ${orderNumber}. Input: ${phone}, Stored: ${decryptedPhone}`);
+            return null;
+        }
+
+        // Remove sensitive phone before returning
+        delete order.phone;
+
+        return order;
     } catch (error) {
         console.error('Chatbot Order Status Error:', error);
         return null;

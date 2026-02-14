@@ -441,7 +441,7 @@ export default function ProductDetailClient({ id }: { id: string }) {
                             />
 
                             {/* Badges */}
-                            {activeProduct.is_new_arrival && (
+                            {!!activeProduct.is_new_arrival && (
                                 <div className="absolute top-4 left-4 bg-black text-white px-3 py-1 text-sm font-medium rounded z-10">{t.product.new || 'Mới'}</div>
                             )}
                             {discountPercent > 0 && (

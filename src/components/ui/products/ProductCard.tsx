@@ -60,12 +60,12 @@ const ProductCard = ({
     <Link href={`/products/${id}`} className="block w-full group">
       <div className="relative cursor-pointer">
         {/* Hình ảnh sản phẩm */}
-        <div className="relative mb-3 overflow-hidden aspect-square rounded-lg">
+        <div className="relative mb-3 overflow-hidden aspect-square rounded-lg bg-gray-100">
           <Image
             src={image_url || '/images/placeholder.png'}
             alt={name}
             fill
-            className="object-cover transition-transform duration-300 group-hover:scale-105"
+            className="object-cover transition-transform duration-300 group-hover:scale-105 mix-blend-multiply"
             loading="lazy"
           />
           {/* Wishlist icon */}

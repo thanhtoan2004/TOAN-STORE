@@ -61,7 +61,7 @@ export async function sendOrderConfirmationEmail(details: OrderDetails) {
       <div style="max-width: 600px; margin: 0 auto; background-color: white;">
         <!-- Header -->
         <div style="background-color: #111; color: white; padding: 30px 20px; text-align: center;">
-          <h1 style="margin: 0; font-size: 28px;">Nike Clone</h1>
+          <h1 style="margin: 0; font-size: 28px;">TOAN</h1>
         </div>
 
         <!-- Content -->
@@ -151,7 +151,7 @@ export async function sendOrderConfirmationEmail(details: OrderDetails) {
 
         <!-- Footer -->
         <div style="background-color: #f5f5f5; padding: 20px; text-align: center; color: #666; font-size: 12px;">
-          <p style="margin: 5px 0;">© 2025 Nike Clone. All rights reserved.</p>
+          <p style="margin: 5px 0;">© 2025 TOAN. All rights reserved.</p>
           <p style="margin: 5px 0;">Email này được gửi tự động, vui lòng không trả lời.</p>
         </div>
       </div>
@@ -161,7 +161,7 @@ export async function sendOrderConfirmationEmail(details: OrderDetails) {
 
   return sendEmail({
     to: customerEmail,
-    subject: `Xác nhận đơn hàng #${orderNumber} - Nike Clone`,
+    subject: `Xác nhận đơn hàng #${orderNumber} - TOAN`,
     html
   });
 }
@@ -208,7 +208,7 @@ export async function sendShippingNotificationEmail(
         </div>
 
         <div style="background-color: #f5f5f5; padding: 20px; text-align: center; color: #666; font-size: 12px;">
-          <p style="margin: 5px 0;">© 2025 Nike Clone. All rights reserved.</p>
+          <p style="margin: 5px 0;">© 2025 TOAN. All rights reserved.</p>
         </div>
       </div>
     </body>
@@ -217,7 +217,7 @@ export async function sendShippingNotificationEmail(
 
   return sendEmail({
     to: customerEmail,
-    subject: `Đơn hàng #${orderNumber} đang được giao - Nike Clone`,
+    subject: `Đơn hàng #${orderNumber} đang được giao - TOAN`,
     html
   });
 }
@@ -249,7 +249,7 @@ export async function sendDeliveryConfirmationEmail(
           </p>
 
           <p style="color: #666; line-height: 1.6;">
-            Cảm ơn bạn đã mua sắm tại Nike Clone. Chúng tôi hy vọng bạn hài lòng với sản phẩm.
+            Cảm ơn bạn đã mua sắm tại TOAN. Chúng tôi hy vọng bạn hài lòng với sản phẩm.
           </p>
 
           <div style="text-align: center; margin: 30px 0;">
@@ -261,7 +261,7 @@ export async function sendDeliveryConfirmationEmail(
         </div>
 
         <div style="background-color: #f5f5f5; padding: 20px; text-align: center; color: #666; font-size: 12px;">
-          <p style="margin: 5px 0;">© 2025 Nike Clone. All rights reserved.</p>
+          <p style="margin: 5px 0;">© 2025 TOAN. All rights reserved.</p>
         </div>
       </div>
     </body>
@@ -270,7 +270,7 @@ export async function sendDeliveryConfirmationEmail(
 
   return sendEmail({
     to: customerEmail,
-    subject: `Đơn hàng #${orderNumber} đã giao thành công - Nike Clone`,
+    subject: `Đơn hàng #${orderNumber} đã giao thành công - TOAN`,
     html
   });
 }
@@ -313,7 +313,7 @@ export async function sendOrderCancelledEmail(
         </div>
 
         <div style="background-color: #f5f5f5; padding: 20px; text-align: center; color: #666; font-size: 12px;">
-          <p style="margin: 5px 0;">© 2025 Nike Clone. All rights reserved.</p>
+          <p style="margin: 5px 0;">© 2025 TOAN. All rights reserved.</p>
         </div>
       </div>
     </body>
@@ -322,7 +322,7 @@ export async function sendOrderCancelledEmail(
 
   return sendEmail({
     to: customerEmail,
-    subject: `Xác nhận hủy đơn hàng #${orderNumber} - Nike Clone`,
+    subject: `Xác nhận hủy đơn hàng #${orderNumber} - TOAN`,
     html
   });
 }
@@ -377,7 +377,7 @@ export async function sendWishlistSaleEmail(
         </div>
 
         <div style="background-color: #f5f5f5; padding: 20px; text-align: center; color: #666; font-size: 12px;">
-          <p style="margin: 5px 0;">© 2025 Nike Clone. All rights reserved.</p>
+          <p style="margin: 5px 0;">© 2025 TOAN. All rights reserved.</p>
         </div>
       </div>
     </body>
@@ -432,7 +432,7 @@ export async function sendWishlistRestockEmail(
         </div>
 
         <div style="background-color: #f5f5f5; padding: 20px; text-align: center; color: #666; font-size: 12px;">
-          <p style="margin: 5px 0;">© 2025 Nike Clone. All rights reserved.</p>
+          <p style="margin: 5px 0;">© 2025 TOAN. All rights reserved.</p>
         </div>
       </div>
     </body>

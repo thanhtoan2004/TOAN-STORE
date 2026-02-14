@@ -51,7 +51,7 @@ export default function NotFound() {
 
                 <div className="pt-12">
                     <p className="text-sm text-gray-400 font-medium uppercase tracking-[0.2em]">
-                        Nike Clone / Toan Inc.
+                        TOAN / Toan Inc.
                     </p>
                 </div>
             </div>

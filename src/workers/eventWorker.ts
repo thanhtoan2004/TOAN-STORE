@@ -17,6 +17,9 @@ export const eventWorker = new Worker<AppEvent>(
             case 'order.created':
                 await handleOrderCreated(payload);
                 break;
+            case 'order.updated':
+                await handleOrderUpdated(payload);
+                break;
             // Add other event handlers here
             default:
                 console.warn(`Unknown event type: ${type}`);
@@ -62,6 +65,25 @@ async function handleOrderCreated(order: any) {
     console.log(`✅ [OrderCreated] Email job queued for Order #${orderNumber}`);
 
     // 2. (Optional) Update Inventory Stats, Analytics, etc.
+}
+
+async function handleOrderUpdated(payload: any) {
+    const { orderId, orderNumber, newStatus } = payload;
+    console.log(`🔄 Processing Order Update: ${orderNumber} -> ${newStatus}`);
+
+    if (newStatus === 'shipped') {
+        // Fetch order to get email
+        const { getOrderById } = await import('@/lib/db/repositories/order');
+        const order = await getOrderById(orderId);
+
+        if (order && order.email) {
+            const { sendOrderShippedEmail } = await import('@/lib/mail');
+            await sendOrderShippedEmail(order.email, orderNumber);
+            console.log(`✅ [OrderShipped] Email sent to ${order.email} for order ${orderNumber}`);
+        } else {
+            console.warn(`⚠️ Could not find order or email for order ${orderId}`);
+        }
+    }
 }
 
 eventWorker.on('completed', (job) => {

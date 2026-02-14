@@ -30,11 +30,11 @@ export async function generateMetadata(
   const product = products[0];
 
   return {
-    title: `${product.name} | Nike Clone`,
-    description: product.description ? product.description.substring(0, 160) : `Mua ${product.name} tại Nike Clone Store`,
+    title: `${product.name} | TOAN`,
+    description: product.description ? product.description.substring(0, 160) : `Mua ${product.name} tại TOAN Store`,
     openGraph: {
       title: product.name,
-      description: product.description ? product.description.substring(0, 160) : `Mua ${product.name} tại Nike Clone Store`,
+      description: product.description ? product.description.substring(0, 160) : `Mua ${product.name} tại TOAN Store`,
       images: [{
         url: product.image_url || '/og-image.jpg',
         width: 1200,
@@ -48,9 +48,21 @@ export async function generateMetadata(
 export default async function Page({ params }: Props) {
   const { id } = await params;
 
-  // Verify product existence on server for correct 404 status/rendering
+  // fetch data
   const products = await executeQuery(
-    'SELECT id FROM products WHERE id = ?',
+    `SELECT 
+      p.name, 
+      p.description, 
+      p.category_id, 
+      p.retail_price, 
+      p.base_price, 
+      p.id,
+      (SELECT url FROM product_images WHERE product_id = p.id AND is_main = 1 LIMIT 1) as image_url,
+      c.name as category_name,
+      c.slug as category_slug
+    FROM products p
+    LEFT JOIN categories c ON p.category_id = c.id
+    WHERE p.id = ?`,
     [id]
   ) as any[];
 
@@ -63,18 +75,45 @@ export default async function Page({ params }: Props) {
   // Schema.org Structured Data
   const jsonLd = {
     '@context': 'https://schema.org',
-    '@type': 'Product',
-    name: product.name,
-    image: product.image_url || `${process.env.NEXT_PUBLIC_APP_URL}/og-image.jpg`,
-    description: product.description,
-    sku: product.id,
-    offers: {
-      '@type': 'Offer',
-      priceCurrency: 'VND',
-      price: product.base_price,
-      availability: 'https://schema.org/InStock', // Simplified for now
-      url: `${process.env.NEXT_PUBLIC_APP_URL}/products/${product.id}`,
-    },
+    '@graph': [
+      {
+        '@type': 'Product',
+        name: product.name,
+        image: product.image_url || `${process.env.NEXT_PUBLIC_APP_URL}/og-image.jpg`,
+        description: product.description,
+        sku: product.id,
+        offers: {
+          '@type': 'Offer',
+          priceCurrency: 'VND',
+          price: product.base_price,
+          availability: 'https://schema.org/InStock',
+          url: `${process.env.NEXT_PUBLIC_APP_URL}/products/${product.id}`,
+        },
+      },
+      {
+        '@type': 'BreadcrumbList',
+        itemListElement: [
+          {
+            '@type': 'ListItem',
+            position: 1,
+            name: 'Home',
+            item: process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000',
+          },
+          {
+            '@type': 'ListItem',
+            position: 2,
+            name: product.category_name || 'Category',
+            item: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/category/${product.category_slug}`,
+          },
+          {
+            '@type': 'ListItem',
+            position: 3,
+            name: product.name,
+            item: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/products/${product.id}`,
+          },
+        ],
+      }
+    ]
   };
 
   return (

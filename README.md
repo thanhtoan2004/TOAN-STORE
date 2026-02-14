@@ -1,4 +1,4 @@
-# Nike Clone E-commerce 👟
+# TOAN E-commerce 👟
 
 Dự án E-commerce Full-Stack chuyên nghiệp mô phỏng hệ thống Nike, được xây dựng với kiến trúc **enterprise-grade**, hiệu năng tối ưu và bảo mật đa tầng. Dự án không chỉ dừng lại ở giao diện mà còn tập trung sâu vào **logic kinh doanh phức tạp** như Flash Sales, quản lý kho đa kho (Multi-Warehouse Inventory), hệ thống Loyalty, thanh toán trực tuyến (VNPay/MoMo), và trí tuệ nhân tạo (AI Chatbot).
 
@@ -181,7 +181,7 @@ CRON_SECRET=your_cron_secret
 ### 4. Running the Project
 ```bash
 # Chạy hạ tầng (MySQL, Redis, MailHog)
-docker-compose up -d
+npm run infra:up
 
 # Chạy ứng dụng ở chế độ phát triển
 npm run dev
@@ -252,4 +252,4 @@ Mỗi transition kích hoạt các side-effects tự động:
 
 ---
 
-© 2026 Nike Clone Development Team. Built for **Performance**, **Scalability**, and **Security**.
+© 2026 TOAN Development Team. Built for **Performance**, **Scalability**, and **Security**.

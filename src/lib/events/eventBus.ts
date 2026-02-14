@@ -4,6 +4,7 @@ import redisConfiguration from '@/lib/redis'; // Import default config
 // Define Event Types
 export type EventType =
     | 'order.created'
+    | 'order.updated'
     | 'order.cancelled'
     | 'order.paid'
     | 'inventory.adjusted'

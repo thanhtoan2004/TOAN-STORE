@@ -1,6 +1,6 @@
 # Security Documentation
 
-Tài liệu bảo mật cho Nike Clone E-commerce. Dự án đã đạt chứng chỉ **Enterprise Grade (Level 3/3)** với điểm kiểm duyệt **10/10**.
+Tài liệu bảo mật cho TOAN E-commerce. Dự án đã đạt chứng chỉ **Enterprise Grade (Level 3/3)** với điểm kiểm duyệt **10/10**.
 
 ---
 
