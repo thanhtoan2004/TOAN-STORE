@@ -101,7 +101,7 @@ export default function AdminGiftCardsPage() {
           />
         </div>
 
-        <div className="bg-white rounded-lg shadow overflow-hidden">
+        <div className="bg-white rounded-lg shadow overflow-x-auto">
           {loading ? (
             <div className="flex justify-center p-8">Đang tải...</div>
           ) : (
@@ -121,7 +121,9 @@ export default function AdminGiftCardsPage() {
                 {giftCards.map((card) => (
                   <tr key={card.id} className="hover:bg-gray-50">
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{card.card_number}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{card.pin}</td>
+                    <td className="px-6 py-4 text-sm text-gray-500 max-w-[200px] truncate" title={card.pin}>
+                      {card.pin}
+                    </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                       {formatCurrency(card.initial_balance)}
                     </td>

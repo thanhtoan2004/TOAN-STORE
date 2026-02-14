@@ -4,6 +4,7 @@ import { checkAdminAuth } from '@/lib/auth';
 import { sendDeliveryConfirmationEmail, sendOrderCancelledEmail, sendShippingNotificationEmail } from '@/lib/email-templates';
 import { getShipmentsByOrderId } from '@/lib/db/repositories/shipment';
 import { decrypt } from '@/lib/encryption';
+import { createAuditLog } from '@/lib/db/repositories/audit';
 
 // GET - Lấy chi tiết đơn hàng (Admin)
 export async function GET(
@@ -184,6 +185,16 @@ export async function PATCH(
                     ).catch(console.error);
                 }
             }
+
+            // Log Admin Action
+            await createAuditLog({
+                adminId: admin.userId,
+                action: 'UPDATE_ORDER_STATUS',
+                targetType: 'order',
+                targetId: id,
+                details: { oldStatus: currentStatus, newStatus: status, orderNumber: order.order_number },
+                ipAddress: request.headers.get('x-forwarded-for') || 'unknown'
+            });
         }
 
         // FIX C3: Gift Card deduction is now handled by updateOrderStatus (when status = 'delivered')

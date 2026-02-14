@@ -6,7 +6,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { User, Lock, MapPin, Package, Heart, Bell, CreditCard, Shield, Palette, Star, Award, Building2, Wallet } from 'lucide-react';
+import { User, Lock, MapPin, Package, Heart, Bell, CreditCard, Shield, Palette, Star, Award, Building2, Wallet, Ticket } from 'lucide-react';
 
 export default function AccountSettings() {
   const { t, language: currentLang, setLanguage } = useLanguage();
@@ -291,6 +291,7 @@ export default function AccountSettings() {
     { id: 'wishlist', label: t.common.wishlist, icon: 'heart' },
     { id: 'notifications', label: t.common.notifications, icon: 'bell' },
     { id: 'payment', label: t.common.payment, icon: 'credit-card' },
+    { id: 'vouchers', label: 'Vouchers của tôi', icon: 'ticket' },
     { id: 'privacy', label: t.common.privacy, icon: 'shield' },
     { id: 'appearance', label: t.common.appearance, icon: 'palette' }
   ];
@@ -359,13 +360,20 @@ export default function AccountSettings() {
                     'bell': Bell,
                     'credit-card': CreditCard,
                     'shield': Shield,
-                    'palette': Palette
+                    'palette': Palette,
+                    'ticket': Ticket
                   }[item.icon];
 
                   return (
                     <button
                       key={item.id}
-                      onClick={() => setActiveTab(item.id)}
+                      onClick={() => {
+                        if (item.id === 'vouchers') {
+                          router.push('/account/vouchers');
+                        } else {
+                          setActiveTab(item.id);
+                        }
+                      }}
                       className={`w-full text-left px-4 py-3 rounded-lg flex items-center gap-3 transition-colors ${activeTab === item.id ? 'bg-black text-white' : 'hover:bg-gray-100'
                         }`}
                     >

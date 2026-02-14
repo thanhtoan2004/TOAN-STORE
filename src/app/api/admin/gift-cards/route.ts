@@ -14,11 +14,15 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get('limit') || '20');
     const offset = (page - 1) * limit;
 
-    const data = await executeQuery(
+    const { decrypt } = await import('@/lib/encryption');
+    const data = (await executeQuery(
       `SELECT id, card_number, pin, initial_balance, current_balance, status, expires_at, created_at 
        FROM gift_cards ORDER BY created_at DESC LIMIT ? OFFSET ?`,
       [limit, offset]
-    ) as any[];
+    ) as any[]).map(card => ({
+      ...card,
+      pin: decrypt(card.pin) // Decrypt for Admin view
+    }));
 
     const countResult = await executeQuery('SELECT COUNT(*) as total FROM gift_cards') as any[];
     const total = countResult[0]?.total || 0;
@@ -42,9 +46,8 @@ export async function POST(request: NextRequest) {
     }
     const { card_number, pin, initial_balance, expires_at } = await request.json();
 
-    const bcrypt = await import('bcrypt');
-    const saltRounds = 10;
-    const hashedPin = await bcrypt.hash(pin, saltRounds);
+    const { encrypt } = await import('@/lib/encryption');
+    const hashedPin = encrypt(pin);
 
     const result = await executeQuery(
       'INSERT INTO gift_cards (card_number, pin, initial_balance, current_balance, status, expires_at) VALUES (?, ?, ?, ?, ?, ?)',

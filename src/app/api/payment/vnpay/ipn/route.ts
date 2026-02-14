@@ -15,48 +15,67 @@ export async function GET(request: Request) {
 
         const orderId = verify.orderId;
 
-        // Idempotency check: Skip if transaction already processed
-        const existingTx = await executeQuery(
-            "SELECT status FROM transactions WHERE order_id = ? AND payment_provider = 'vnpay' LIMIT 1",
-            [orderId]
-        ) as any[];
+        const { pool } = await import('@/lib/db/mysql');
+        const connection = await pool.getConnection();
 
-        if (existingTx.length > 0 && (existingTx[0].status === 'success' || existingTx[0].status === 'failed')) {
-            return NextResponse.json({ RspCode: '02', Message: 'Transaction already processed' });
-        }
+        try {
+            await connection.beginTransaction();
 
-        // Check Order exists
-        const orders = await executeQuery(
-            'SELECT id, order_number, total_price, status FROM orders WHERE id = ?',
-            [orderId]
-        ) as any[];
-
-        if (!orders || orders.length === 0) {
-            return NextResponse.json({ RspCode: '01', Message: 'Order not found' });
-        }
-
-        const order = orders[0];
-
-        if (verify.isSuccess) {
-            // Update transaction record
-            await executeQuery(
-                "UPDATE transactions SET status = 'success', response_data = ? WHERE order_id = ? AND payment_provider = 'vnpay'",
-                [JSON.stringify(query), orderId]
+            // 1. Idempotency check with FOR UPDATE to lock the transaction record
+            const [existingTx]: any = await connection.execute(
+                "SELECT status FROM transactions WHERE order_id = ? AND payment_provider = 'vnpay' FOR UPDATE",
+                [orderId]
             );
 
-            // Use State Machine to update order status
-            if (order.status === 'pending_payment' || order.status === 'pending') {
-                const { updateOrderStatus } = await import('@/lib/db/repositories/order');
-                await updateOrderStatus(order.order_number, 'payment_received');
+            if (existingTx.length > 0 && (existingTx[0].status === 'success' || existingTx[0].status === 'failed')) {
+                await connection.rollback();
+                return NextResponse.json({ RspCode: '02', Message: 'Transaction already processed' });
             }
-        } else {
-            await executeQuery(
-                "UPDATE transactions SET status = 'failed', response_data = ? WHERE order_id = ? AND payment_provider = 'vnpay'",
-                [JSON.stringify(query), orderId]
-            );
-        }
 
-        return NextResponse.json({ RspCode: '00', Message: 'Confirm Success' });
+            // 2. Check Order exists
+            const [orders]: any = await connection.execute(
+                'SELECT id, order_number, status FROM orders WHERE id = ? FOR UPDATE',
+                [orderId]
+            );
+
+            if (!orders || orders.length === 0) {
+                await connection.rollback();
+                return NextResponse.json({ RspCode: '01', Message: 'Order not found' });
+            }
+
+            const order = orders[0];
+
+            if (verify.isSuccess) {
+                // Update transaction record
+                await connection.execute(
+                    "UPDATE transactions SET status = 'success', response_data = ? WHERE order_id = ? AND payment_provider = 'vnpay'",
+                    [JSON.stringify(query), orderId]
+                );
+
+                // Use State Machine to update order status
+                if (order.status === 'pending_payment' || order.status === 'pending') {
+                    const { updateOrderStatus } = await import('@/lib/db/repositories/order');
+                    // updateOrderStatus handles its own transaction, but since we are already in one, 
+                    // it might be better to have an internal version or just rely on its nested transaction support if possible.
+                    // For now, call it directly as it's safe to nest starts in mysql2 pool.
+                    await updateOrderStatus(order.order_number, 'payment_received');
+                }
+            } else {
+                await connection.execute(
+                    "UPDATE transactions SET status = 'failed', response_data = ? WHERE order_id = ? AND payment_provider = 'vnpay'",
+                    [JSON.stringify(query), orderId]
+                );
+            }
+
+            await connection.commit();
+            return NextResponse.json({ RspCode: '00', Message: 'Confirm Success' });
+
+        } catch (error) {
+            await connection.rollback();
+            throw error;
+        } finally {
+            connection.release();
+        }
 
     } catch (error) {
         console.error('VNPay IPN Error:', error);

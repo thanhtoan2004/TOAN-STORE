@@ -260,8 +260,19 @@ Form liên hệ từ khách hàng.
 ### `support_chats` / `support_messages`
 Hệ thống chat support real-time.
 
-### `admin_activity_logs`
-Audit log cho mọi hành động admin.
+### `admin_audit_logs`
+Audit log cho mọi hành động admin nhạy cảm.
+
+| Column | Type | Description |
+|--------|------|-------------|
+| id | INT PK | — |
+| admin_id | INT FK | ID của admin thực hiện |
+| action | VARCHAR(255) | Hành động (e.g., UPDATE_ORDER_STATUS) |
+| target_type | VARCHAR(50) | Loại đối tượng (e.g., order, product) |
+| target_id | VARCHAR(100) | ID của đối tượng bị tác động |
+| details | JSON | Thông tin chi tiết thay đổi (old/new) |
+| ip_address | VARCHAR(45) | IP thực hiện hành động |
+| created_at | TIMESTAMP | — |
 
 ### `settings`
 Key-value store cho cài đặt hệ thống.

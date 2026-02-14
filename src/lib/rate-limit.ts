@@ -47,7 +47,19 @@ export class RateLimiter {
             };
         } catch (error) {
             console.error('RateLimit Redis Error:', error);
-            // Fallback: Allow request if Redis fails (Fail Open)
+
+            // Enterprise Hardening: Fail-Closed for critical security paths
+            const criticalTags = ['auth', 'admin', 'payment'];
+            if (criticalTags.includes(this.tag)) {
+                return {
+                    success: false, // Block request if we can't verify rate limit
+                    limit,
+                    remaining: 0,
+                    reset: Date.now() + 60000 // Retry in 1 minute
+                };
+            }
+
+            // Fallback: Allow request if Redis fails for non-critical paths (Fail Open)
             return {
                 success: true,
                 limit,

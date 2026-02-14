@@ -19,12 +19,14 @@ export async function GET(request: NextRequest) {
     const offset = (page - 1) * limit;
 
     const vouchers = await executeQuery(
-      `SELECT id, code, value, discount_type, description, status,
-              recipient_user_id, redeemed_by_user_id, min_order_value, applicable_categories,
-              valid_from, valid_until, redeemed_at, created_at, updated_at
-       FROM vouchers 
-       WHERE deleted_at IS NULL
-       ORDER BY created_at DESC LIMIT ? OFFSET ?`,
+      `SELECT v.id, v.code, v.value, v.discount_type, v.description, v.status,
+              v.recipient_user_id, u.email as recipient_email, v.redeemed_by_user_id, 
+              v.min_order_value, v.applicable_categories,
+              v.valid_from, v.valid_until, v.redeemed_at, v.created_at, v.updated_at
+       FROM vouchers v
+       LEFT JOIN users u ON v.recipient_user_id = u.id
+       WHERE v.deleted_at IS NULL
+       ORDER BY v.created_at DESC LIMIT ? OFFSET ?`,
       [limit, offset]
     ) as any[];
 
@@ -61,7 +63,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { code, value, description, recipient_user_id, valid_until, discount_type, min_order_value, applicable_categories } = await request.json();
+    const { code, value, description, recipient_email, valid_until, discount_type, min_order_value, applicable_categories } = await request.json();
 
     if (!code || !value) {
       return NextResponse.json(
@@ -79,12 +81,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Validate recipient_user_id if provided
-    if (recipient_user_id) {
-      const userExists = await executeQuery('SELECT id FROM users WHERE id = ?', [recipient_user_id]) as any[];
-      if (userExists.length === 0) {
-        return NextResponse.json({ success: false, message: 'Recipient User ID not found' }, { status: 400 });
+    // Validate and lookup recipient_email if provided
+    let targetUserId = null;
+    if (recipient_email) {
+      const userResult = await executeQuery('SELECT id FROM users WHERE email = ?', [recipient_email]) as any[];
+      if (userResult.length === 0) {
+        return NextResponse.json({ success: false, message: 'Email người nhận không tồn tại' }, { status: 400 });
       }
+      targetUserId = userResult[0].id;
     }
 
     // Parse values
@@ -95,7 +99,7 @@ export async function POST(request: NextRequest) {
     const result = await executeQuery(
       `INSERT INTO vouchers (code, value, description, recipient_user_id, valid_until, discount_type, min_order_value, applicable_categories, status, created_at, updated_at) 
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'active', NOW(), NOW())`,
-      [code, numValue, description || null, recipient_user_id || null, valid_until || null, discount_type || 'fixed', numMinOrder, cats]
+      [code, numValue, description || null, targetUserId, valid_until || null, discount_type || 'fixed', numMinOrder, cats]
     ) as any;
 
     const responseData = {
@@ -127,7 +131,7 @@ export async function PUT(request: NextRequest) {
       );
     }
 
-    const { id, code, value, description, recipient_user_id, valid_until, status, discount_type, min_order_value, applicable_categories } = await request.json();
+    const { id, code, value, description, recipient_email, valid_until, status, discount_type, min_order_value, applicable_categories } = await request.json();
 
     if (!id) {
       return NextResponse.json(
@@ -150,11 +154,17 @@ export async function PUT(request: NextRequest) {
       }
     }
 
-    // Validate recipient_user_id if provided
-    if (recipient_user_id) {
-      const userExists = await executeQuery('SELECT id FROM users WHERE id = ?', [recipient_user_id]) as any[];
-      if (userExists.length === 0) {
-        return NextResponse.json({ success: false, message: 'Recipient User ID not found' }, { status: 400 });
+    // Validate and lookup recipient_email if provided
+    let targetUserId = undefined; // Use undefined to check if it was even passed
+    if (recipient_email !== undefined) {
+      if (recipient_email) {
+        const userResult = await executeQuery('SELECT id FROM users WHERE email = ?', [recipient_email]) as any[];
+        if (userResult.length === 0) {
+          return NextResponse.json({ success: false, message: 'Email người nhận không tồn tại' }, { status: 400 });
+        }
+        targetUserId = userResult[0].id;
+      } else {
+        targetUserId = null;
       }
     }
 
@@ -168,7 +178,7 @@ export async function PUT(request: NextRequest) {
 
     await executeQuery(
       `UPDATE vouchers SET code = COALESCE(?, code), value = COALESCE(?, value),
-                         description = ?, recipient_user_id = ?, valid_until = ?, 
+                         description = ?, recipient_user_id = COALESCE(?, recipient_user_id), valid_until = ?, 
                          status = COALESCE(?, status), 
                          discount_type = COALESCE(?, discount_type),
                          min_order_value = COALESCE(?, min_order_value),
@@ -176,7 +186,7 @@ export async function PUT(request: NextRequest) {
                          updated_at = NOW() 
        WHERE id = ?`,
       [code || null, numValue, description || null,
-      recipient_user_id || null, valid_until || null, status || null,
+        targetUserId, valid_until || null, status || null,
       discount_type || null, numMinOrder, cats, id]
     );
 

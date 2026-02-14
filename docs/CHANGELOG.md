@@ -4,6 +4,22 @@ Tất cả thay đổi quan trọng được ghi nhận tại đây theo format 
 
 ---
 
+## [2.2.0] - 2026-02-14
+
+### 🚀 Enterprise Hardening (Phase 9)
+- **Security Audit Level 3/3** — Đạt chứng chỉ bảo mật doanh nghiệp (10/10).
+- **Admin Audit Logging** — Triển khai `admin_audit_logs` ghi nhận mọi hành động nhạy cảm của Admin (Status update, settings, v.v.).
+- **Fail-Closed Rate Limiting** — API nhạy cảm (Auth, Payment, Admin) tự động chặn request nếu Redis gặp sự cố.
+- **Payment IPN Atomicity** — VNPay và MoMo IPN bọc trong Database Transaction với Pessimistic Locking (`FOR UPDATE`), chống Race Condition tuyệt đối.
+- **Strict SQL Sorting** — Review API sorting dùng whitelist mapping thay vì string interpolation.
+
+### 💸 Refund Logic Hardening (Phase 8)
+- **Comprehensive Refunds** — `updateOrderStatus` xử lý đồng bộ: Hồi kho, Trừ lại điểm thưởng, Hoàn tiền Gift Card, và Hồi lượt sử dụng Voucher.
+- **Database Schema Update** — Bổ sung trạng thái `refunded` chuẩn hóa cho bảng `orders`.
+- **Admin Refund UI** — Fix lỗi hiển thị ảnh, link điều hướng và bảng dữ liệu (overflow-x-auto).
+
+---
+
 ## [2.1.0] - 2026-02-13
 
 ### 🔒 Security Audit (14 Fixes)

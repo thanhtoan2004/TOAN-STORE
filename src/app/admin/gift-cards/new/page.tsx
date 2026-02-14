@@ -20,7 +20,7 @@ export default function NewGiftCardPage() {
     const { name, value } = e.target;
     setFormData(prev => ({
       ...prev,
-      [name]: name === 'initial_balance' ? parseFloat(value) : value
+      [name]: name === 'initial_balance' ? (value === '' ? '' : parseFloat(value)) : value
     }));
   };
 

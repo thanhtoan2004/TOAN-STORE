@@ -13,20 +13,6 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get('limit') || '10');
     const offset = (page - 1) * limit;
 
-    // Determine sort order
-    let orderBy = 'r.created_at DESC';
-    switch (sortParam) {
-      case 'highest':
-        orderBy = 'r.rating DESC, r.created_at DESC';
-        break;
-      case 'lowest':
-        orderBy = 'r.rating ASC, r.created_at DESC';
-        break;
-      case 'newest':
-      default:
-        orderBy = 'r.created_at DESC';
-        break;
-    }
 
     // Nếu là admin call (có status param), lấy all reviews
     if (statusParam && !productIdStr) {
@@ -78,6 +64,14 @@ export async function GET(request: NextRequest) {
     const productId = parseInt(productIdStr);
 
     // Get reviews from database
+    // Secure dynamic ordering using whitelist mapping
+    const ordersMap: { [key: string]: string } = {
+      'highest': 'r.rating DESC, r.created_at DESC',
+      'lowest': 'r.rating ASC, r.created_at DESC',
+      'newest': 'r.created_at DESC'
+    };
+    const finalOrderBy = ordersMap[sortParam] || 'r.created_at DESC';
+
     const reviews = await executeQuery<any[]>(
       `SELECT 
          r.id, r.product_id, r.user_id, r.rating, r.title, r.comment, 
@@ -86,7 +80,7 @@ export async function GET(request: NextRequest) {
        FROM product_reviews r
        LEFT JOIN users u ON r.user_id = u.id
        WHERE r.product_id = ? AND r.status = 'approved'
-       ORDER BY ${orderBy}
+       ORDER BY ${finalOrderBy}
        LIMIT ? OFFSET ?`,
       [productId, limit, offset]
     );

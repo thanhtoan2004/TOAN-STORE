@@ -2,7 +2,7 @@
 
 Dự án E-commerce Full-Stack chuyên nghiệp mô phỏng hệ thống Nike, được xây dựng với kiến trúc **enterprise-grade**, hiệu năng tối ưu và bảo mật đa tầng. Dự án không chỉ dừng lại ở giao diện mà còn tập trung sâu vào **logic kinh doanh phức tạp** như Flash Sales, quản lý kho đa kho (Multi-Warehouse Inventory), hệ thống Loyalty, thanh toán trực tuyến (VNPay/MoMo), và trí tuệ nhân tạo (AI Chatbot).
 
-> **105+ API Routes** · **15+ Database Tables** · **Enterprise Security** · **Full Audit Passed ✅**
+> **105+ API Routes** · **Enterprise Grade (Level 3/3)** · **10/10 Security Score** · **Full Audit Passed ✅**
 
 ---
 

@@ -2,9 +2,15 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createErrorResponse, createSuccessResponse, withErrorHandling } from '@/lib/api-utils';
 import { executeQuery } from '@/lib/db/mysql';
 
+import { verifyAuth } from '@/lib/auth';
+
 async function validateCouponHandler(req: NextRequest): Promise<NextResponse> {
   const body: any = await req.json();
   const { code, orderAmount, items } = body; // items is optional but recommended for category checks
+
+  // Get trusted user session
+  const auth = await verifyAuth();
+  const userId = auth?.userId;
 
   if (!code) {
     return createErrorResponse('Thiếu mã voucher', 400);
@@ -47,6 +53,13 @@ async function validateCouponHandler(req: NextRequest): Promise<NextResponse> {
     }
 
     const voucher = vouchers[0];
+
+    // Check ownership if it's a personal voucher
+    if (voucher.recipient_user_id) {
+      if (!userId || Number(userId) !== Number(voucher.recipient_user_id)) {
+        return createErrorResponse('Mã này không dành cho bạn hoặc bạn chưa đăng nhập', 403);
+      }
+    }
 
     // Check minimum order amount for voucher
     if (voucher.min_order_value && orderAmount < voucher.min_order_value) {

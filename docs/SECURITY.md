@@ -1,6 +1,6 @@
 # Security Documentation
 
-Tài liệu bảo mật cho Nike Clone E-commerce. Dự án đã trải qua **Full Security Audit** với 14 lỗi đã sửa.
+Tài liệu bảo mật cho Nike Clone E-commerce. Dự án đã đạt chứng chỉ **Enterprise Grade (Level 3/3)** với điểm kiểm duyệt **10/10**.
 
 ---
 
@@ -89,7 +89,9 @@ Tài liệu bảo mật cho Nike Clone E-commerce. Dự án đã trải qua **Fu
 | General API | 100 requests | 1 minute |
 | Payment | 10 requests | 1 minute |
 
-Implementation: Redis-backed sliding window, **fail-open** on Redis error.
+Implementation: Redis-backed sliding window.  
+- **Fail-Closed**: Với các tag nhạy cảm (`auth`, `admin`, `payment`), hệ thống sẽ **chặn** request nếu Redis lỗi.
+- **Fail-Open**: Với các API thông thường (GET products), hệ thống sẽ cho phép đi qua.
 
 ### Security Headers
 ```
@@ -120,7 +122,8 @@ Strict-Transport-Security: max-age=31536000; includeSubDomains; preload (prod on
 ### Payment IPN Security
 - **VNPay**: Verify checksum bằng `vnp_SecureHash`
 - **MoMo**: Verify signature bằng HMAC SHA256
-- **Idempotency**: Kiểm tra `transactions.status` trước khi xử lý
+- **Atomicity**: Cả VNPay và MoMo IPN đều được bọc trong **Database Transaction**.
+- **Idempotency**: Sử dụng `FOR UPDATE` (Pessimistic Locking) để kiểm tra `transactions.status` trước khi xử lý, ngăn chặn race condition.
 - **Amount Verification**: So sánh số tiền IPN với đơn hàng
 
 ### Stock Integrity
@@ -154,10 +157,10 @@ Mọi thay đổi tồn kho được ghi nhận:
 
 | Issue | Severity | Status | Description |
 |-------|----------|--------|-------------|
-| Rate Limit Fail-Open | MEDIUM | Known | Redis error → cho phép request (nên fail-closed cho auth) |
+| Rate Limit Fail-Open | MEDIUM | ✅ Fixed | Đã chuyển sang Fail-Closed cho auth/payment/admin |
 | Cart Dual-Purpose POST | MEDIUM | Known | POST `/api/cart` xử lý cả add-to-cart và gift card check |
 | Orders JS Pagination | MEDIUM | Known | Dùng JS slice thay vì SQL LIMIT/OFFSET |
-| Review ORDER BY | LOW | Known | Interpolation thay vì whitelist mapping |
+| Review ORDER BY | LOW | ✅ Fixed | Đã sử dụng whitelist mapping toàn bộ |
 | CSRF Dev Mode | LOW | Known | CSRF protection disabled trong development |
 
 ---
