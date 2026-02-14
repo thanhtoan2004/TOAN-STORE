@@ -20,6 +20,7 @@ export interface ProductVariant {
   height?: number;
   width_measurement?: number;
   depth?: number;
+  product_name?: string;
 }
 
 export interface InventoryData {
@@ -103,12 +104,14 @@ export async function findVariantBySize(productId: number, size: string): Promis
   const sql = `
     SELECT 
       pv.*,
+      p.name as product_name,
       i.id as inventory_id,
       i.warehouse_id,
       COALESCE(i.quantity, 0) as quantity,
       COALESCE(i.reserved, 0) as reserved,
       COALESCE(i.quantity, 0) - COALESCE(i.reserved, 0) as available
     FROM product_variants pv
+    JOIN products p ON pv.product_id = p.id
     LEFT JOIN inventory i ON i.product_variant_id = pv.id
     WHERE pv.product_id = ?
     AND pv.size = ?

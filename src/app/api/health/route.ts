@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { executeQuery } from '@/lib/db/mysql';
-import { getRedisConnection } from '@/lib/cache';
+import { getRedisConnection } from '@/lib/redis';
 
 export async function GET() {
     const status = {

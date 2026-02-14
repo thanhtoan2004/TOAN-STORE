@@ -112,6 +112,49 @@ export async function createOrder(orderData: {
 
         const orderId = orderResult.insertId;
 
+        // SECURE: Process Gift Card Deduction IMMEDIATELY (Prevent Double Spending)
+        if (orderData.giftcardNumber && orderData.giftcardDiscount && orderData.giftcardDiscount > 0) {
+            const [cards]: any = await connection.execute(
+                'SELECT id, current_balance, status, expires_at FROM gift_cards WHERE card_number = ? FOR UPDATE',
+                [orderData.giftcardNumber]
+            );
+
+            if (cards.length === 0) {
+                throw new Error('Mã thẻ quà tặng không hợp lệ');
+            }
+
+            const card = cards[0];
+            if (card.status !== 'active') { // Assuming 'active' is the valid status
+                if (card.current_balance < orderData.giftcardDiscount && card.status !== 'used') { // Allow if used but has dust? No.
+                    throw new Error('Thẻ quà tặng không khả dụng');
+                }
+            }
+
+            // Check Expiry
+            if (card.expires_at && new Date(card.expires_at) < new Date()) {
+                throw new Error('Thẻ quà tặng đã hết hạn');
+            }
+
+            if (Number(card.current_balance) < Number(orderData.giftcardDiscount)) {
+                throw new Error('Số dư thẻ quà tặng không đủ');
+            }
+
+            const newBalance = Number(card.current_balance) - Number(orderData.giftcardDiscount);
+            const newStatus = newBalance === 0 ? 'used' : 'active';
+
+            await connection.execute(
+                'UPDATE gift_cards SET current_balance = ?, status = ? WHERE id = ?',
+                [newBalance, newStatus, card.id]
+            );
+
+            await connection.execute(
+                `INSERT INTO gift_card_transactions 
+                 (gift_card_id, transaction_type, amount, balance_before, balance_after, description, order_id)
+                 VALUES (?, 'redeem', ?, ?, ?, ?, ?)`,
+                [card.id, orderData.giftcardDiscount, card.current_balance, newBalance, `Thanh toán đơn hàng ${orderData.orderNumber}`, orderId]
+            );
+        }
+
         // Tạo order items
         let verifiedSubtotal = 0;
         for (const item of orderData.items) {
@@ -436,7 +479,7 @@ export async function updateOrderStatus(orderNumber: string, status: string) {
 
         // 0. Fetch current order to validate transition and get items
         const [currentOrder]: any = await connection.execute(
-            'SELECT id, status FROM orders WHERE order_number = ? FOR UPDATE',
+            'SELECT id, status, payment_method, payment_confirmed_at FROM orders WHERE order_number = ? FOR UPDATE',
             [orderNumber]
         );
 
@@ -445,6 +488,7 @@ export async function updateOrderStatus(orderNumber: string, status: string) {
         }
 
         const oldStatus = currentOrder[0].status;
+        const paymentMethod = currentOrder[0].payment_method;
 
         // Idempotency check: If status is already the same, return early
         if (oldStatus === status) {
@@ -458,11 +502,31 @@ export async function updateOrderStatus(orderNumber: string, status: string) {
             throw new Error(`Invalid status transition from ${oldStatus} to ${status}`);
         }
 
-        // 2. Cập nhật trạng thái đơn hàng
-        await connection.execute(
-            'UPDATE orders SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE order_number = ?',
-            [status, orderNumber]
-        );
+        // 2. Cập nhật trạng thái đơn hàng và timestamp tương ứng
+        let updateQuery = 'UPDATE orders SET status = ?, updated_at = CURRENT_TIMESTAMP';
+        const params: any[] = [status];
+
+        // Add timestamps based on status
+        if (status === 'confirmed' || status === 'processing') {
+            // Chỉ cập nhật nếu chưa có (để tránh ghi đè khi chuyển qua lại giữa confirmed/processing)
+            // Fix: Không set payment_confirmed_at cho COD khi mới Processing (thanh toán khi nhận hàng)
+            if (!currentOrder[0].payment_confirmed_at && paymentMethod !== 'cod') {
+                updateQuery += ', payment_confirmed_at = COALESCE(payment_confirmed_at, CURRENT_TIMESTAMP)';
+            }
+        } else if (status === 'shipped') {
+            updateQuery += ', shipped_at = CURRENT_TIMESTAMP';
+        } else if (status === 'delivered') {
+            updateQuery += ', delivered_at = CURRENT_TIMESTAMP';
+            // Fix: For COD, Delivered means Paid
+            if (paymentMethod === 'cod') {
+                updateQuery += ", payment_status = 'paid', payment_confirmed_at = CURRENT_TIMESTAMP";
+            }
+        }
+
+        updateQuery += ' WHERE order_number = ?';
+        params.push(orderNumber);
+
+        await connection.execute(updateQuery, params);
 
         // 3. Handle Stock Action based on State Machine
         const action = getStockAction(oldStatus, status);
@@ -504,7 +568,112 @@ export async function updateOrderStatus(orderNumber: string, status: string) {
             }
         }
 
-        // 4. Point Reversal & Tier Downgrade (If moving from delivered -> refunded/cancelled)
+        // 4. Handle Refund/Cancellation Side Effects (Gift Card & Coupon)
+        if (status === 'refunded' || status === 'cancelled') {
+            // A. Refund Gift Card if used
+            if (currentOrder[0].payment_method === 'gift_card' || (currentOrder[0].payment_method === 'cod' && currentOrder[0].total === 0)) {
+                // Check if gift card was used (hybrid payment or full) - Need to fetch order details
+                const [orderInfo]: any = await connection.execute(
+                    'SELECT id, giftcard_number, giftcard_discount, voucher_code, user_id FROM orders WHERE order_number = ?',
+                    [orderNumber]
+                );
+
+                if (orderInfo.length > 0) {
+                    const orderId = orderInfo[0].id;
+
+                    // Refund Gift Card
+                    if (orderInfo[0].giftcard_number && Number(orderInfo[0].giftcard_discount) > 0) {
+                        const cardNumber = orderInfo[0].giftcard_number;
+                        const amount = Number(orderInfo[0].giftcard_discount);
+
+                        const [cards]: any = await connection.execute(
+                            'SELECT id, current_balance FROM gift_cards WHERE card_number = ? FOR UPDATE',
+                            [cardNumber]
+                        );
+
+                        if (cards.length > 0) {
+                            const card = cards[0];
+                            const newBalance = Number(card.current_balance) + amount;
+
+                            await connection.execute(
+                                'UPDATE gift_cards SET current_balance = ?, status = ? WHERE id = ?',
+                                [newBalance, 'active', card.id]
+                            );
+
+                            await connection.execute(
+                                `INSERT INTO gift_card_transactions 
+                                 (gift_card_id, transaction_type, amount, balance_before, balance_after, description, order_id)
+                                 VALUES (?, 'refund', ?, ?, ?, ?, ?)`,
+                                [card.id, amount, card.current_balance, newBalance, `Hoàn tiền đơn hàng ${orderNumber}`, orderId]
+                            );
+                            console.log(`[GiftCard] Refunded ${amount} to Card ${cardNumber} for order ${orderNumber}`);
+                        }
+                    }
+
+                    // Reverse Coupon Usage
+                    if (orderInfo[0].voucher_code) {
+                        // Delete usage record to allow reuse (Subject to business rule, assuming yes for now)
+                        await connection.execute(
+                            'DELETE FROM coupon_usage WHERE order_id = ?',
+                            [orderId]
+                        );
+                        console.log(`[Coupon] Reversed usage of ${orderInfo[0].voucher_code} for order ${orderNumber}`);
+                    }
+                }
+            } else {
+                // Even if not gift_card payment method, check if any discount applied (mixed payment)
+                // Re-using logic:
+                const [orderInfo]: any = await connection.execute(
+                    'SELECT id, giftcard_number, giftcard_discount, voucher_code, user_id FROM orders WHERE order_number = ?',
+                    [orderNumber]
+                );
+
+                if (orderInfo.length > 0) {
+                    const orderId = orderInfo[0].id;
+
+                    // Refund Gift Card (Duplicate logic, should have been unified but keeping safe)
+                    if (orderInfo[0].giftcard_number && Number(orderInfo[0].giftcard_discount) > 0) {
+                        const cardNumber = orderInfo[0].giftcard_number;
+                        const amount = Number(orderInfo[0].giftcard_discount);
+
+                        // Only perform refund if NOT already refunded in this transaction (idempotency hard to check here without select, but state change is the guard)
+                        // Optimistic approach: We are in a transaction and changing status to refunded.
+
+                        const [cards]: any = await connection.execute(
+                            'SELECT id, current_balance FROM gift_cards WHERE card_number = ? FOR UPDATE',
+                            [cardNumber]
+                        );
+
+                        if (cards.length > 0) {
+                            const card = cards[0];
+                            const newBalance = Number(card.current_balance) + amount;
+
+                            await connection.execute(
+                                'UPDATE gift_cards SET current_balance = ?, status = ? WHERE id = ?',
+                                [newBalance, 'active', card.id]
+                            );
+
+                            await connection.execute(
+                                `INSERT INTO gift_card_transactions 
+                                 (gift_card_id, transaction_type, amount, balance_before, balance_after, description, order_id)
+                                 VALUES (?, 'refund', ?, ?, ?, ?, ?)`,
+                                [card.id, amount, card.current_balance, newBalance, `Hoàn tiền đơn hàng ${orderNumber}`, orderId]
+                            );
+                        }
+                    }
+
+                    // Reverse Coupon Usage
+                    if (orderInfo[0].voucher_code) {
+                        await connection.execute(
+                            'DELETE FROM coupon_usage WHERE order_id = ?',
+                            [orderId]
+                        );
+                    }
+                }
+            }
+        }
+
+        // 5. Point Reversal & Tier Downgrade (If moving from delivered -> refunded/cancelled)
         if (oldStatus === 'delivered' && (status === 'refunded' || status === 'cancelled')) {
             const [orders]: any = await connection.execute(
                 'SELECT user_id, total FROM orders WHERE order_number = ?',
@@ -575,40 +744,9 @@ export async function updateOrderStatus(orderNumber: string, status: string) {
                     }
                 }
 
-                // B. Xử lý trừ tiền thẻ quà tặng nếu có dùng
-                if (order.giftcard_number && Number(order.giftcard_discount) > 0) {
-                    const [giftCards]: any = await connection.execute(
-                        'SELECT id, current_balance FROM gift_cards WHERE card_number = ? FOR UPDATE',
-                        [order.giftcard_number]
-                    );
+                // B. (Removed) Gift Card processing is now handled in createOrder to prevent double-spending.
+                // The order record already contains the applied discount.
 
-                    if (giftCards.length > 0) {
-                        const card = giftCards[0];
-                        const deductAmount = Number(order.giftcard_discount);
-                        const newBalance = Math.max(0, Number(card.current_balance) - deductAmount);
-
-                        // Cập nhật số dư thẻ
-                        await connection.execute(
-                            'UPDATE gift_cards SET current_balance = ?, status = ? WHERE id = ?',
-                            [newBalance, newBalance <= 0 ? 'used' : 'active', card.id]
-                        );
-
-                        // Ghi lại lịch sử giao dịch
-                        await connection.execute(
-                            `INSERT INTO gift_card_transactions 
-                             (gift_card_id, transaction_type, amount, balance_before, balance_after, description, order_id)
-                             VALUES (?, 'redeem', ?, ?, ?, ?, ?)`,
-                            [
-                                card.id,
-                                deductAmount,
-                                card.current_balance,
-                                newBalance,
-                                `Thanh toán cho đơn hàng ${orderNumber}`,
-                                orderId
-                            ]
-                        );
-                    }
-                }
             }
         }
 
@@ -648,6 +786,39 @@ export async function cancelOrder(orderNumber: string | { orderNumber: string },
             'SELECT inventory_id, product_id, size, quantity, flash_sale_item_id FROM order_items WHERE order_id = ?',
             [order[0].id]
         );
+
+        // REFUND Gift Card if used
+        const [orderInfo]: any = await connection.execute(
+            'SELECT giftcard_number, giftcard_discount FROM orders WHERE id = ?',
+            [order[0].id]
+        );
+
+        if (orderInfo.length > 0 && orderInfo[0].giftcard_number && Number(orderInfo[0].giftcard_discount) > 0) {
+            const cardNumber = orderInfo[0].giftcard_number;
+            const amount = Number(orderInfo[0].giftcard_discount);
+
+            const [cards]: any = await connection.execute(
+                'SELECT id, current_balance FROM gift_cards WHERE card_number = ? FOR UPDATE',
+                [cardNumber]
+            );
+
+            if (cards.length > 0) {
+                const card = cards[0];
+                const newBalance = Number(card.current_balance) + amount;
+
+                await connection.execute(
+                    'UPDATE gift_cards SET current_balance = ?, status = ? WHERE id = ?',
+                    [newBalance, 'active', card.id]
+                );
+
+                await connection.execute(
+                    `INSERT INTO gift_card_transactions 
+                     (gift_card_id, transaction_type, amount, balance_before, balance_after, description, order_id)
+                     VALUES (?, 'refund', ?, ?, ?, ?, ?)`,
+                    [card.id, amount, card.current_balance, newBalance, `Hoàn tiền đơn hàng ${actualOrderNumber}`, order[0].id]
+                );
+            }
+        }
 
         // Hoàn lại stock sử dụng hệ thống inventory mới
         for (const item of items as any[]) {

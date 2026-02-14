@@ -1,6 +1,8 @@
 import crypto from 'crypto';
 
-const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY || 'default-32-character-secret-key-123'; // Must be 32 chars
+const RAW_KEY = process.env.ENCRYPTION_KEY || 'default-secret-key-must-be-changed-in-production';
+// FIX: Ensure key is exactly 32 bytes (256 bits) for AES-256-GCM using SHA-256
+const ENCRYPTION_KEY = crypto.createHash('sha256').update(RAW_KEY).digest();
 const ALGORITHM = 'aes-256-gcm';
 
 /**

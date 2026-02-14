@@ -125,6 +125,15 @@ export default function AdminCouponsPage() {
 
   const editCoupon = (coupon: Coupon) => {
     setEditingCoupon(coupon);
+
+    // Helper to format date for datetime-local input (YYYY-MM-DDThh:mm)
+    const formatForInput = (dateStr?: string) => {
+      if (!dateStr) return '';
+      const d = new Date(dateStr);
+      // Adjust to local time string
+      return new Date(d.getTime() - (d.getTimezoneOffset() * 60000)).toISOString().slice(0, 16);
+    };
+
     setFormData({
       code: coupon.code,
       description: coupon.description || '',
@@ -134,8 +143,8 @@ export default function AdminCouponsPage() {
       max_discount_amount: (coupon.max_discount_amount || '').toString(),
       usage_limit: (coupon.usage_limit || '').toString(),
       usage_limit_per_user: (coupon.usage_limit_per_user || '').toString(),
-      starts_at: coupon.starts_at ? coupon.starts_at.split('T')[0] : '',
-      ends_at: coupon.ends_at ? coupon.ends_at.split('T')[0] : '',
+      starts_at: formatForInput(coupon.starts_at),
+      ends_at: formatForInput(coupon.ends_at),
     });
     setShowForm(true);
   };

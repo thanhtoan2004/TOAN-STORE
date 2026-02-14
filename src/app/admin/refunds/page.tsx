@@ -104,7 +104,7 @@ export default function AdminRefundsPage() {
                     </div>
                 </div>
 
-                <div className="bg-white rounded-lg shadow overflow-hidden">
+                <div className="bg-white rounded-lg shadow overflow-x-auto">
                     <table className="min-w-full divide-y divide-gray-200">
                         <thead className="bg-gray-50">
                             <tr>
@@ -134,7 +134,7 @@ export default function AdminRefundsPage() {
                                             <div className="text-sm text-gray-500">{refund.user_email}</div>
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm text-blue-600">
-                                            <Link href={`/orders/${refund.order_number}`} target="_blank">
+                                            <Link href={`/admin/orders/${refund.order_id}`} target="_blank">
                                                 #{refund.order_number}
                                             </Link>
                                         </td>
@@ -143,7 +143,11 @@ export default function AdminRefundsPage() {
                                             <div className="flex gap-1 mt-1">
                                                 {(() => {
                                                     try {
-                                                        const images = JSON.parse(refund.images || '[]');
+                                                        const rawImages = refund.images;
+                                                        const images = Array.isArray(rawImages)
+                                                            ? rawImages
+                                                            : JSON.parse(rawImages || '[]');
+
                                                         return images.map((img: string, idx: number) => (
                                                             <a key={idx} href={img} target="_blank" rel="noopener noreferrer">
                                                                 <div className="relative w-8 h-8 rounded border overflow-hidden">
@@ -164,6 +168,11 @@ export default function AdminRefundsPage() {
                                         <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                             {refund.status === 'pending' && (
                                                 <div className="flex justify-end gap-2">
+                                                    <Link href={`/admin/refunds/${refund.id}`}>
+                                                        <Button size="sm" variant="outline" className="text-blue-600 border-blue-200 hover:bg-blue-50">
+                                                            Xem chi tiết
+                                                        </Button>
+                                                    </Link>
                                                     <Button
                                                         size="sm"
                                                         className="bg-green-600 hover:bg-green-700 text-white"
@@ -182,6 +191,13 @@ export default function AdminRefundsPage() {
                                                         Từ chối
                                                     </Button>
                                                 </div>
+                                            )}
+                                            {refund.status !== 'pending' && (
+                                                <Link href={`/admin/refunds/${refund.id}`}>
+                                                    <Button size="sm" variant="outline" className="text-gray-600 border-gray-200 hover:bg-gray-50">
+                                                        Xem chi tiết
+                                                    </Button>
+                                                </Link>
                                             )}
                                         </td>
                                     </tr>

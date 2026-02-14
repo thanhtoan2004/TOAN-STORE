@@ -1,5 +1,4 @@
-import type { NextRequest } from 'next/server';
-import { NextResponse } from 'next/server';
+import { NextResponse, NextRequest } from 'next/server';
 
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
@@ -61,12 +60,16 @@ export async function middleware(req: NextRequest) {
     let isAdmin = false;
     if (token) {
       try {
-        const jwt = await import('jsonwebtoken');
+        console.log('[Middleware] Checking Admin Token...');
+        const { jwtVerify } = await import('jose');
         const JWT_SECRET = process.env.JWT_SECRET || 'dev_fallback_secret_not_for_production';
-        jwt.default.verify(token, JWT_SECRET);
+        const secret = new TextEncoder().encode(JWT_SECRET);
+
+        await jwtVerify(token, secret);
+        console.log('[Middleware] Admin Token Verified ✅');
         isAdmin = true;
-      } catch {
-        // Invalid/expired token - treat as unauthenticated
+      } catch (e) {
+        console.error('[Middleware] JWT Verify Error:', e);
         isAdmin = false;
       }
     }

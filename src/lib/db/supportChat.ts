@@ -1,4 +1,5 @@
 import { pool } from './mysql';
+import { randomUUID } from 'crypto';
 
 // ==================== SUPPORT CHAT FUNCTIONS ====================
 
@@ -10,17 +11,19 @@ export async function createSupportChat(data: {
     guestEmail?: string;
     guestName?: string;
     initialMessage?: string;
-}): Promise<number> {
+}): Promise<{ chatId: number; accessToken: string }> {
     const connection = await pool.getConnection();
 
     try {
         await connection.beginTransaction();
 
+        const accessToken = randomUUID();
+
         // Create chat session
         const [result]: any = await connection.execute(
-            `INSERT INTO support_chats (user_id, guest_email, guest_name, status, last_message_at)
-       VALUES (?, ?, ?, 'waiting', NOW())`,
-            [data.userId || null, data.guestEmail || null, data.guestName || null]
+            `INSERT INTO support_chats (user_id, guest_email, guest_name, status, access_token, last_message_at)
+       VALUES (?, ?, ?, 'waiting', ?, NOW())`,
+            [data.userId || null, data.guestEmail || null, data.guestName || null, accessToken]
         );
 
         const chatId = result.insertId;
@@ -35,7 +38,7 @@ export async function createSupportChat(data: {
         }
 
         await connection.commit();
-        return chatId;
+        return { chatId, accessToken };
     } catch (error) {
         await connection.rollback();
         throw error;

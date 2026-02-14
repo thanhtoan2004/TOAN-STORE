@@ -25,6 +25,12 @@ export async function POST(
             if (!session || Number(session.userId) !== chat.user_id) {
                 return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 403 });
             }
+        } else {
+            // Guest check via Token
+            const token = request.headers.get('x-chat-token');
+            if (!token || token !== chat.access_token) {
+                return NextResponse.json({ success: false, error: 'Unauthorized access (missing or invalid token)' }, { status: 403 });
+            }
         }
 
         // Update status to closed

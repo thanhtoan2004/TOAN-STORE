@@ -1,0 +1,8 @@
+{
+  "Field": "status",
+  "Type": "enum('pending','pending_payment_confirmation','payment_received','confirmed','processing','shipped','delivered','cancelled','refunded')",
+  "Null": "YES",
+  "Key": "",
+  "Default": "pending",
+  "Extra": ""
+}

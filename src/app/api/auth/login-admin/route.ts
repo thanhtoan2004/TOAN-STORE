@@ -4,7 +4,7 @@ import jwt from 'jsonwebtoken';
 import { executeQuery } from '@/lib/db/mysql';
 import { cookies } from 'next/headers';
 import { User, UserWithoutPassword, LoginRequest, AuthResponse } from '@/types/auth';
-import { ADMIN_TOKEN } from '@/lib/auth';
+import { ADMIN_TOKEN, getJwtSecret } from '@/lib/auth';
 
 export async function POST(req: Request) {
   try {
@@ -38,7 +38,7 @@ export async function POST(req: Request) {
     // Tạo token JWT
     const token = jwt.sign(
       { userId: user.id, email: user.email, is_admin: 1 },
-      process.env.JWT_SECRET || 'fallback_secret',
+      getJwtSecret(),
       { expiresIn: '7d' }
     );
 

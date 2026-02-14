@@ -20,7 +20,7 @@ export async function GET(request: NextRequest) {
 
     const vouchers = await executeQuery(
       `SELECT id, code, value, discount_type, description, status,
-              recipient_user_id, redeemed_by_user_id, 
+              recipient_user_id, redeemed_by_user_id, min_order_value, applicable_categories,
               valid_from, valid_until, redeemed_at, created_at, updated_at
        FROM vouchers 
        WHERE deleted_at IS NULL
@@ -61,7 +61,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { code, value, description, recipient_user_id, valid_until } = await request.json();
+    const { code, value, description, recipient_user_id, valid_until, discount_type, min_order_value, applicable_categories } = await request.json();
 
     if (!code || !value) {
       return NextResponse.json(
@@ -79,10 +79,23 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Validate recipient_user_id if provided
+    if (recipient_user_id) {
+      const userExists = await executeQuery('SELECT id FROM users WHERE id = ?', [recipient_user_id]) as any[];
+      if (userExists.length === 0) {
+        return NextResponse.json({ success: false, message: 'Recipient User ID not found' }, { status: 400 });
+      }
+    }
+
+    // Parse values
+    const numValue = parseFloat(value.toString());
+    const numMinOrder = min_order_value ? parseFloat(min_order_value.toString()) : 0;
+    const cats = applicable_categories ? JSON.stringify(applicable_categories) : null;
+
     const result = await executeQuery(
-      `INSERT INTO vouchers (code, value, description, recipient_user_id, valid_until, status, created_at, updated_at) 
-       VALUES (?, ?, ?, ?, ?, 'active', NOW(), NOW())`,
-      [code, parseFloat(value.toString()), description || null, recipient_user_id || null, valid_until || null]
+      `INSERT INTO vouchers (code, value, description, recipient_user_id, valid_until, discount_type, min_order_value, applicable_categories, status, created_at, updated_at) 
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'active', NOW(), NOW())`,
+      [code, numValue, description || null, recipient_user_id || null, valid_until || null, discount_type || 'fixed', numMinOrder, cats]
     ) as any;
 
     const responseData = {
@@ -114,7 +127,7 @@ export async function PUT(request: NextRequest) {
       );
     }
 
-    const { id, code, value, description, recipient_user_id, valid_until, status } = await request.json();
+    const { id, code, value, description, recipient_user_id, valid_until, status, discount_type, min_order_value, applicable_categories } = await request.json();
 
     if (!id) {
       return NextResponse.json(
@@ -137,13 +150,34 @@ export async function PUT(request: NextRequest) {
       }
     }
 
+    // Validate recipient_user_id if provided
+    if (recipient_user_id) {
+      const userExists = await executeQuery('SELECT id FROM users WHERE id = ?', [recipient_user_id]) as any[];
+      if (userExists.length === 0) {
+        return NextResponse.json({ success: false, message: 'Recipient User ID not found' }, { status: 400 });
+      }
+    }
+
+    // Parse values
+    const numValue = value ? parseFloat(value.toString()) : null;
+    const numMinOrder = min_order_value !== undefined ? parseFloat(min_order_value.toString()) : null;
+    const cats = applicable_categories !== undefined ? (applicable_categories ? JSON.stringify(applicable_categories) : null) : undefined;
+
+    // Construct dynamic update query to handle undefined vs null
+    // Actually, simple COALESCE pattern works if we pass everything. But for complex fields:
+
     await executeQuery(
       `UPDATE vouchers SET code = COALESCE(?, code), value = COALESCE(?, value),
                          description = ?, recipient_user_id = ?, valid_until = ?, 
-                         status = COALESCE(?, status), updated_at = NOW() 
+                         status = COALESCE(?, status), 
+                         discount_type = COALESCE(?, discount_type),
+                         min_order_value = COALESCE(?, min_order_value),
+                         applicable_categories = COALESCE(?, applicable_categories),
+                         updated_at = NOW() 
        WHERE id = ?`,
-      [code || null, value ? parseFloat(value.toString()) : null, description || null,
-      recipient_user_id || null, valid_until || null, status || null, id]
+      [code || null, numValue, description || null,
+      recipient_user_id || null, valid_until || null, status || null,
+      discount_type || null, numMinOrder, cats, id]
     );
 
     // Log audit

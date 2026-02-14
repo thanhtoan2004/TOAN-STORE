@@ -1,17 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { executeQuery } from '@/lib/db/mysql';
 import { checkAdminAuth } from '@/lib/auth';
-
-async function ensureSettingsTable() {
-  await executeQuery(
-    `CREATE TABLE IF NOT EXISTS settings (
-      id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-      \`key\` VARCHAR(255) NOT NULL UNIQUE,
-      value TEXT,
-      updated_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`
-  );
-}
+import { getSettings, updateSetting } from '@/lib/db/settings';
 
 export async function GET(request: NextRequest) {
   try {
@@ -19,46 +8,8 @@ export async function GET(request: NextRequest) {
     if (!admin) {
       return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
     }
-    // Fetch store settings from database or return defaults
-    let result: any[] = [];
 
-    try {
-      result = await executeQuery(
-        `SELECT 
-          COALESCE(value, '') as value, 
-          \`key\` as setting_key 
-        FROM settings`
-      );
-    } catch (dbError: any) {
-      // If settings table doesn't exist, return defaults
-      if (dbError.code === 'ER_NO_SUCH_TABLE') {
-        await ensureSettingsTable();
-
-        result = [];
-      } else {
-        throw dbError;
-      }
-    }
-
-    const settings: any = {
-      store_name: 'Nike Clone',
-      store_email: 'admin@nike-clone.com',
-      store_phone: '0123456789',
-      store_address: '123 Main Street',
-      store_city: 'Hanoi',
-      store_country: 'Vietnam',
-      store_currency: 'VND',
-      tax_rate: 0.1,
-      shipping_cost_domestic: 30000,
-      shipping_cost_international: 100000,
-      maintenance_mode: false
-    };
-
-    // Merge database values
-    result.forEach((row: any) => {
-      settings[row.setting_key] = row.value;
-    });
-
+    const settings = await getSettings();
     return NextResponse.json({ success: true, data: settings });
   } catch (error) {
     console.error('Error fetching settings:', error);
@@ -75,12 +26,9 @@ export async function PUT(request: NextRequest) {
   try {
     const settings = await request.json();
 
-    await ensureSettingsTable();
-
     // Update each setting in database
     for (const [key, value] of Object.entries(settings)) {
-      const query = "INSERT INTO settings (`key`, value) VALUES (?, ?) ON DUPLICATE KEY UPDATE value = VALUES(value)";
-      await executeQuery(query, [key, String(value)]);
+      await updateSetting(key, value);
     }
 
     return NextResponse.json({ success: true, message: 'Settings saved' });

@@ -38,7 +38,7 @@ export async function POST(request: NextRequest) {
             });
         }
 
-        const chatId = await createSupportChat({
+        const { chatId, accessToken } = await createSupportChat({
             userId: userId || undefined,
             guestEmail,
             guestName,
@@ -48,6 +48,7 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({
             success: true,
             chatId,
+            accessToken,
             status: 'waiting',
             message: 'Chat session created'
         });

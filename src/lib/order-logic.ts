@@ -15,7 +15,7 @@ export type OrderStatus =
     | 'refunded';
 
 export const VALID_TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
-    pending: ['pending_payment_confirmation', 'payment_received', 'confirmed', 'cancelled'],
+    pending: ['pending_payment_confirmation', 'payment_received', 'confirmed', 'processing', 'cancelled'],
     pending_payment_confirmation: ['payment_received', 'confirmed', 'cancelled'],
     payment_received: ['confirmed', 'processing', 'cancelled'],
     confirmed: ['processing', 'shipped', 'cancelled'],

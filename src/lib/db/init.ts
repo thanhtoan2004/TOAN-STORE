@@ -433,6 +433,12 @@ export async function initDb() {
       if (!columnNames.includes('payment_confirmed_at')) {
         await connection.query('ALTER TABLE orders ADD COLUMN payment_confirmed_at TIMESTAMP NULL AFTER delivered_at');
       }
+      if (!columnNames.includes('phone')) {
+        await connection.query('ALTER TABLE orders ADD COLUMN phone VARCHAR(255) AFTER payment_status');
+      }
+      if (!columnNames.includes('email')) {
+        await connection.query('ALTER TABLE orders ADD COLUMN email VARCHAR(255) AFTER phone');
+      }
 
       // Migration cho status ENUM nếu thiếu các giá trị mới
       const statusCol = columns.find((c: any) => c.Field === 'status');
@@ -483,6 +489,20 @@ export async function initDb() {
         INDEX idx_status (status)
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
     `);
+
+    // Migration: Fix Gift Card PIN length (VARCHAR(4) -> VARCHAR(255) for hash)
+    try {
+      const [columns]: any = await connection.query("SHOW COLUMNS FROM gift_cards LIKE 'pin'");
+      if (columns.length > 0) {
+        const pinType = columns[0].Type;
+        if (pinType.includes('varchar(4)')) {
+          await connection.query('ALTER TABLE gift_cards MODIFY COLUMN pin VARCHAR(255) NOT NULL');
+          console.log('Migrated gift_cards.pin to VARCHAR(255)');
+        }
+      }
+    } catch (e) {
+      console.error('Error migrating gift_cards pin:', e);
+    }
 
     // Tạo bảng user_addresses
     await connection.query(`
@@ -1106,6 +1126,53 @@ export async function initDb() {
       }
     } catch (e) {
       console.log('Error migrating vouchers/coupons tables:', e);
+    }
+
+    // Tạo bảng support_chats
+    await connection.query(`
+      CREATE TABLE IF NOT EXISTS support_chats (
+        id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+        user_id BIGINT UNSIGNED NULL,
+        guest_email VARCHAR(255),
+        guest_name VARCHAR(255),
+        status ENUM('waiting', 'active', 'resolved', 'closed') DEFAULT 'waiting',
+        access_token VARCHAR(255) NULL,
+        assigned_admin_id BIGINT UNSIGNED NULL,
+        last_message_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL,
+        FOREIGN KEY (assigned_admin_id) REFERENCES users(id) ON DELETE SET NULL,
+        INDEX idx_access_token (access_token)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    `);
+
+    // Tạo bảng support_messages
+    await connection.query(`
+      CREATE TABLE IF NOT EXISTS support_messages (
+        id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+        chat_id BIGINT UNSIGNED NOT NULL,
+        sender_type ENUM('customer', 'admin') NOT NULL,
+        sender_id BIGINT UNSIGNED NULL,
+        message TEXT,
+        image_url VARCHAR(500),
+        is_read BOOLEAN DEFAULT FALSE,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (chat_id) REFERENCES support_chats(id) ON DELETE CASCADE
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    `);
+
+    // Migration: Thêm access_token cho support_chats nếu chưa có
+    try {
+      const [columns]: any = await connection.query('SHOW COLUMNS FROM support_chats');
+      const columnNames = columns.map((col: any) => col.Field);
+      if (!columnNames.includes('access_token')) {
+        console.log('Adding access_token column to support_chats table...');
+        await connection.query('ALTER TABLE support_chats ADD COLUMN access_token VARCHAR(255) NULL AFTER status');
+        await connection.query('ALTER TABLE support_chats ADD INDEX idx_access_token (access_token)');
+      }
+    } catch (e) {
+      console.log('Error migrating support_chats table:', e);
     }
 
     console.log('Khởi tạo cơ sở dữ liệu thành công');

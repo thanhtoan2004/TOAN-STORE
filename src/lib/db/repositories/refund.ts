@@ -36,6 +36,18 @@ export async function getRefundByOrder(orderId: number): Promise<RefundRequest |
     return rows.length > 0 ? rows[0] : null;
 }
 
+export async function getRefundById(id: number): Promise<RefundRequest | null> {
+    const rows = await executeQuery<any[]>(
+        `SELECT r.*, u.full_name as user_name, u.email as user_email, o.order_number 
+         FROM refund_requests r
+         JOIN users u ON r.user_id = u.id
+         JOIN orders o ON r.order_id = o.id
+         WHERE r.id = ?`,
+        [id]
+    );
+    return rows.length > 0 ? rows[0] : null;
+}
+
 export async function getUserRefunds(userId: number): Promise<RefundRequest[]> {
     const rows = await executeQuery<any[]>(
         `SELECT r.*, o.order_number 
@@ -96,5 +108,29 @@ export async function updateRefundStatus(
         `UPDATE refund_requests SET status = ?, admin_response = ? WHERE id = ?`,
         [status, response, id]
     );
+
+    // FIX: If Approved -> Trigger Order Refund Logic (Stock Release, Point Deduction)
+    if (result.affectedRows > 0 && status === 'approved') {
+        try {
+            const rows = await executeQuery<any[]>(
+                `SELECT o.order_number 
+                 FROM refund_requests r
+                 JOIN orders o ON r.order_id = o.id
+                 WHERE r.id = ?`,
+                [id]
+            );
+
+            if (rows.length > 0) {
+                const { order_number } = rows[0];
+                const { updateOrderStatus } = await import('./order');
+                await updateOrderStatus(order_number, 'refunded');
+                console.log(`[Refund] Auto-refunded Order #${order_number}`);
+            }
+        } catch (error) {
+            console.error('[Refund] Error auto-updating order status:', error);
+            // Note: We don't rollback the refund approval itself, but log the error.
+        }
+    }
+
     return result.affectedRows > 0;
 }

@@ -20,7 +20,7 @@ export async function GET(request: NextRequest) {
         (SELECT COUNT(*) FROM users) as total_users,
         (SELECT COUNT(*) FROM orders) as total_orders,
         (SELECT COUNT(*) FROM products WHERE is_active = 1) as total_products,
-        (SELECT COALESCE(SUM(total), 0) FROM orders WHERE status != 'cancelled') as total_revenue,
+        (SELECT COALESCE(SUM(total), 0) FROM orders WHERE status != 'cancelled' AND status != 'refunded') as total_revenue,
         (SELECT COALESCE(AVG(total), 0) FROM orders WHERE status = 'delivered') as average_order_value,
         (SELECT COUNT(*) FROM gift_cards WHERE status = 'active' AND current_balance > 0) as active_gift_cards
     `);
