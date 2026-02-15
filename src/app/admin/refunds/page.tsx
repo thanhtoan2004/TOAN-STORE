@@ -7,6 +7,7 @@ import { formatDateTime, formatCurrency } from '@/lib/date-utils';
 import { Button } from '@/components/ui/Button';
 import toast from 'react-hot-toast';
 import AdminLayout from '@/components/admin/AdminLayout';
+import { Video } from 'lucide-react';
 
 interface RefundRequest {
     id: number;
@@ -148,13 +149,21 @@ export default function AdminRefundsPage() {
                                                             ? rawImages
                                                             : JSON.parse(rawImages || '[]');
 
-                                                        return images.map((img: string, idx: number) => (
-                                                            <a key={idx} href={img} target="_blank" rel="noopener noreferrer">
-                                                                <div className="relative w-8 h-8 rounded border overflow-hidden">
-                                                                    <Image src={img} alt="Evidence" fill className="object-cover" />
-                                                                </div>
-                                                            </a>
-                                                        ));
+                                                        return images.map((img: any, idx: number) => {
+                                                            const url = typeof img === 'string' ? img : img.url;
+                                                            const type = typeof img === 'string' ? 'image' : img.type;
+                                                            return (
+                                                                <a key={idx} href={url} target="_blank" rel="noopener noreferrer">
+                                                                    <div className="relative w-8 h-8 rounded border overflow-hidden bg-gray-100 flex items-center justify-center">
+                                                                        {type === 'video' ? (
+                                                                            <Video className="w-4 h-4 text-gray-500" />
+                                                                        ) : (
+                                                                            <Image src={url} alt="Evidence" fill className="object-cover" />
+                                                                        )}
+                                                                    </div>
+                                                                </a>
+                                                            );
+                                                        });
                                                     } catch { return null; }
                                                 })()}
                                             </div>

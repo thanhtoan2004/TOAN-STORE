@@ -32,7 +32,8 @@ export async function GET(request: Request) {
     // Build filters for database query
     const filters: any = {
       limit,
-      offset
+      offset,
+      search: search || undefined
     };
 
     if (category && category !== 'all') {
@@ -78,7 +79,7 @@ export async function GET(request: Request) {
       filters.isNewArrival = true;
     }
 
-    // Get products from database
+    // Get products from database (Now handles search via FTS)
     let products = await getProducts(filters) as any[];
 
     // Convert string prices to numbers
@@ -88,15 +89,7 @@ export async function GET(request: Request) {
       retail_price: p.retail_price ? parseFloat(p.retail_price) : 0
     }));
 
-    // Apply search filter if provided
-    if (search) {
-      const searchLower = search.toLowerCase();
-      products = products.filter(p =>
-        p.name.toLowerCase().includes(searchLower) ||
-        (p.description && p.description.toLowerCase().includes(searchLower)) ||
-        p.category.toLowerCase().includes(searchLower)
-      );
-    }
+    // Apply sorting (Now skip manual search filter as it's handled in DB)
 
     // Apply sorting
     products.sort((a, b) => {

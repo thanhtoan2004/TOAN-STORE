@@ -4,6 +4,20 @@ Tất cả thay đổi quan trọng được ghi nhận tại đây theo format 
 
 ---
 
+## [2.3.0] - 2026-02-15
+
+### 🛡️ RBAC & Observability (Phase 36)
+- **Granular RBAC System** — Chuyển đổi admin authorization sang hệ thống Role-Based Access Control dựa trên database.
+- **withPermission Utility** — Triển khai Higher-Order Function bảo vệ API routes với type-safe generic support.
+- **Sentry Standardization** — Chuẩn hóa cấu hình Sentry qua `instrumentation.ts`, bổ sung `onRequestError` và navigation hooks.
+- **Daily Metrics Aggregation** — Tự động tổng hợp doanh thu, đơn hàng và người dùng hoạt động hàng ngày vào bảng `daily_metrics`.
+- **Infrastructure Logging** — Bổ sung tiền tố `[SERVICE_INITIALIZATION]` cho logs để theo dõi trạng thái khởi tạo hạ tầng (MySQL, Redis, Sentry).
+
+### 🧹 Cleanup & Maintenance
+- **Workspace Cleanup** — Loại bỏ toàn bộ log files, diagnostic txt và test suites không cần thiết.
+- **Vitest Mocking Fixes** — Sửa lỗi mock database schema cho bộ test Admin API.
+- **TypeScript Alignment** — Khắc phục lỗi type mismatch giữa `NextRequest` và `Request` trong middleware và routes.
+
 ## [2.2.0] - 2026-02-14
 
 ### 🚀 Enterprise Hardening (Phase 9)

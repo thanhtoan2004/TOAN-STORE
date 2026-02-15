@@ -1,0 +1,23 @@
+import * as Sentry from '@sentry/nextjs';
+
+export async function register() {
+    if (process.env.NEXT_RUNTIME === 'nodejs') {
+        Sentry.init({
+            dsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
+            tracesSampleRate: 1.0,
+            debug: false,
+        });
+        console.log('[SERVICE_INITIALIZATION] Sentry initialized for Node.js runtime');
+    }
+
+    if (process.env.NEXT_RUNTIME === 'edge') {
+        Sentry.init({
+            dsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
+            tracesSampleRate: 1.0,
+            debug: false,
+        });
+        console.log('[SERVICE_INITIALIZATION] Sentry initialized for Edge runtime');
+    }
+}
+
+export const onRequestError = Sentry.captureRequestError;

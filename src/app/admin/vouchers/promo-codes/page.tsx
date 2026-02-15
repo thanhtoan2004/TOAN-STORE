@@ -17,6 +17,7 @@ interface Coupon {
   usage_limit?: number;
   usage_limit_per_user?: number;
   times_used?: number;
+  applicable_tier: string;
   created_at: string;
 }
 
@@ -37,6 +38,7 @@ export default function AdminCouponsPage() {
     usage_limit_per_user: '',
     starts_at: '',
     ends_at: '',
+    applicable_tier: 'bronze',
   });
 
   useEffect(() => {
@@ -82,6 +84,7 @@ export default function AdminCouponsPage() {
         usage_limit_per_user: formData.usage_limit_per_user ? parseInt(formData.usage_limit_per_user) : null,
         starts_at: formData.starts_at || null,
         ends_at: formData.ends_at || null,
+        applicable_tier: formData.applicable_tier
       };
 
       const url = editingCoupon ? `/api/admin/promo-codes/${editingCoupon.id}` : '/api/admin/promo-codes';
@@ -145,6 +148,7 @@ export default function AdminCouponsPage() {
       usage_limit_per_user: (coupon.usage_limit_per_user || '').toString(),
       starts_at: formatForInput(coupon.starts_at),
       ends_at: formatForInput(coupon.ends_at),
+      applicable_tier: coupon.applicable_tier || 'bronze',
     });
     setShowForm(true);
   };
@@ -164,6 +168,7 @@ export default function AdminCouponsPage() {
       usage_limit_per_user: '',
       starts_at: '',
       ends_at: '',
+      applicable_tier: 'bronze',
     });
   };
 
@@ -340,6 +345,23 @@ export default function AdminCouponsPage() {
                 />
               </div>
 
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Hạng thành viên áp dụng
+                </label>
+                <select
+                  name="applicable_tier"
+                  value={formData.applicable_tier}
+                  onChange={handleChange}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-black focus:border-transparent"
+                >
+                  <option value="bronze">Bronze (Tất cả)</option>
+                  <option value="silver">Silver trở lên</option>
+                  <option value="gold">Gold trở lên</option>
+                  <option value="platinum">Platinum</option>
+                </select>
+              </div>
+
               <div className="md:col-span-2">
                 <button
                   type="submit"
@@ -401,6 +423,15 @@ export default function AdminCouponsPage() {
                       {coupon.description && (
                         <div className="text-xs text-gray-500">{coupon.description}</div>
                       )}
+                      <div className="mt-1">
+                        <span className={`px-2 py-0.5 text-[10px] font-bold uppercase rounded ${coupon.applicable_tier === 'platinum' ? 'bg-purple-100 text-purple-700' :
+                          coupon.applicable_tier === 'gold' ? 'bg-yellow-100 text-yellow-700' :
+                            coupon.applicable_tier === 'silver' ? 'bg-blue-100 text-blue-700' :
+                              'bg-gray-100 text-gray-700'
+                          }`}>
+                          {coupon.applicable_tier || 'bronze'}
+                        </span>
+                      </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm text-gray-900">

@@ -27,6 +27,7 @@ let redisInstance: Redis | null = null;
 
 export const getRedisConnection = () => {
     if (!redisInstance) {
+        console.log(`[SERVICE_INITIALIZATION] Creating singleton Redis connection to ${REDIS_HOST}:${REDIS_PORT}...`);
         redisInstance = new Redis(redisConfiguration);
 
         redisInstance.on('error', (err) => {
@@ -44,7 +45,12 @@ export const getRedisConnection = () => {
     return redisInstance;
 };
 
-// Export singleton instance for direct usage
+// Export a function to get the instance (standard approach)
+export const getRedis = () => getRedisConnection();
+
+// For backward compatibility, but we should be careful with this
+// In some environments, top-level execution here still happens if imported
+// A better way is to use a proxy or just rely on getRedis()
 export const redis = getRedisConnection();
 
 export default redisConfiguration;

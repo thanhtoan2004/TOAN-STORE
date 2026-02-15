@@ -5,6 +5,7 @@ import { executeQuery } from './db/mysql';
 export interface JWTPayload {
     userId: number;
     email: string;
+    roleId?: number;
     role: string;
     is_admin: boolean | number;
     exp: number;
@@ -25,6 +26,10 @@ export const REFRESH_TOKEN = 'nike_refresh_token';
 export const ACCESS_TOKEN_EXP = '15m'; // 15 minutes
 export const REFRESH_TOKEN_EXP = '7d';  // 7 days
 
+import { db } from './db/drizzle';
+import { adminUsers } from './db/schema';
+import { eq } from 'drizzle-orm';
+
 /**
  * Verify and return admin authentication status
  * Used in Server Components and Route Handlers
@@ -39,14 +44,21 @@ export async function checkAdminAuth() {
         const decoded = jwt.verify(token, getJwtSecret()) as JWTPayload;
 
         // DB Verification for status and still being admin
-        const admins = await executeQuery(
-            'SELECT id, is_active FROM admin_users WHERE id = ?',
-            [decoded.userId]
-        ) as any[];
+        const admins = await db.select({
+            id: adminUsers.id,
+            isActive: adminUsers.isActive,
+            roleId: adminUsers.roleId
+        })
+            .from(adminUsers)
+            .where(eq(adminUsers.id, decoded.userId))
+            .limit(1);
 
-        if (admins.length === 0 || !admins[0].is_active) {
+        if (admins.length === 0 || !admins[0].isActive) {
             return null;
         }
+
+        // Attach updated roleId from DB
+        decoded.roleId = admins[0].roleId ?? undefined;
 
         return decoded;
     } catch (error) {

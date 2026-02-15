@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import AdminLayout from '@/components/admin/AdminLayout';
 import Link from 'next/link';
+import AdminMediaUpload from '@/components/admin/AdminMediaUpload';
 
 interface ProductFormData {
   name: string;
@@ -16,13 +17,14 @@ interface ProductFormData {
   is_new_arrival: boolean;
   is_active: boolean;
   image_url: string;
-  gallery_images: string[];
+  main_media_type?: 'image' | 'video';
+  gallery_images: ({ url: string; type: 'image' | 'video' } | string)[];
 }
 
 export default function EditProductPage() {
   const router = useRouter();
   const params = useParams();
-  const productId = params.id;
+  const productId = params?.id;
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -38,6 +40,7 @@ export default function EditProductPage() {
     is_new_arrival: false,
     is_active: true,
     image_url: '',
+    main_media_type: 'image',
     gallery_images: [],
   });
 
@@ -55,17 +58,27 @@ export default function EditProductPage() {
 
           // Extract image URL from various sources
           let imageUrl = '';
-          const galleryUrls: string[] = [];
+          let mainMediaType: 'image' | 'video' = 'image';
+          const galleryData: { url: string; type: 'image' | 'video' }[] = [];
 
           if (product.images && product.images.length > 0) {
             // Find main image or use first image
             const mainImage = product.images.find((img: any) => img.is_main === 1);
-            imageUrl = mainImage ? mainImage.url : product.images[0].url;
+            if (mainImage) {
+              imageUrl = mainImage.url;
+              mainMediaType = mainImage.media_type || 'image';
+            } else {
+              imageUrl = product.images[0].url;
+              mainMediaType = product.images[0].media_type || 'image';
+            }
 
             // Get gallery images
             product.images.forEach((img: any) => {
               if (img.is_main === 0) {
-                galleryUrls.push(img.url);
+                galleryData.push({
+                  url: img.url,
+                  type: img.media_type || 'image'
+                });
               }
             });
           } else if (product.image_url) {
@@ -85,7 +98,8 @@ export default function EditProductPage() {
             is_new_arrival: product.is_new_arrival === 1 || product.is_new_arrival === true,
             is_active: product.is_active === 1 || product.is_active === true,
             image_url: imageUrl,
-            gallery_images: galleryUrls,
+            main_media_type: mainMediaType,
+            gallery_images: galleryData,
           });
         }
       } catch (err) {
@@ -120,16 +134,16 @@ export default function EditProductPage() {
     }
   };
 
-  const handleGalleryChange = (index: number, value: string) => {
+  const handleGalleryUpdate = (index: number, url: string, type: 'image' | 'video') => {
     const newGallery = [...formData.gallery_images];
-    newGallery[index] = value;
+    newGallery[index] = { url, type };
     setFormData(prev => ({ ...prev, gallery_images: newGallery }));
   };
 
   const addGalleryImage = () => {
     setFormData(prev => ({
       ...prev,
-      gallery_images: [...prev.gallery_images, '']
+      gallery_images: [...prev.gallery_images, { url: '', type: 'image' }]
     }));
   };
 
@@ -331,32 +345,13 @@ export default function EditProductPage() {
               <h3 className="text-lg font-semibold mb-4">Hình ảnh sản phẩm</h3>
 
               <div className="mb-6">
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  URL ảnh chính *
-                </label>
-                <div className="flex gap-4">
-                  <input
-                    type="url"
-                    name="image_url"
-                    value={formData.image_url}
-                    onChange={handleChange}
-                    required
-                    className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent"
-                    placeholder="https://..."
-                  />
-                </div>
-                {formData.image_url && (
-                  <div className="mt-2">
-                    <img
-                      src={formData.image_url}
-                      alt="Preview"
-                      className="w-24 h-24 object-cover rounded border border-gray-300"
-                      onError={(e) => {
-                        (e.target as HTMLImageElement).src = '/placeholder.png';
-                      }}
-                    />
-                  </div>
-                )}
+                <AdminMediaUpload
+                  label="Ảnh/Video chính *"
+                  initialUrl={formData.image_url}
+                  initialType={formData.main_media_type || 'image'}
+                  onUploadComplete={(url, type) => setFormData(prev => ({ ...prev, image_url: url, main_media_type: type }))}
+                  onRemove={() => setFormData(prev => ({ ...prev, image_url: '', main_media_type: 'image' }))}
+                />
               </div>
 
               {/* Gallery */}
@@ -375,34 +370,15 @@ export default function EditProductPage() {
                 </div>
 
                 <div className="space-y-4">
-                  {formData.gallery_images.map((url, index) => (
+                  {formData.gallery_images.map((item, index) => (
                     <div key={index} className="flex flex-col gap-2 p-3 bg-white rounded border border-gray-200">
-                      <div className="flex gap-2">
-                        <input
-                          type="url"
-                          value={url}
-                          onChange={(e) => handleGalleryChange(index, e.target.value)}
-                          className="flex-1 px-3 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-black focus:border-transparent"
-                          placeholder="Link ảnh phụ..."
-                        />
-                        <button
-                          type="button"
-                          onClick={() => removeGalleryImage(index)}
-                          className="px-2 py-1 text-red-600 hover:bg-red-50 rounded"
-                        >
-                          Xóa
-                        </button>
-                      </div>
-                      {url && (
-                        <img
-                          src={url}
-                          alt={`Gallery ${index}`}
-                          className="w-16 h-16 object-cover rounded border border-gray-200"
-                          onError={(e) => {
-                            (e.target as HTMLImageElement).src = '/placeholder.png';
-                          }}
-                        />
-                      )}
+                      <AdminMediaUpload
+                        label={`Ảnh phụ ${index + 1}`}
+                        initialUrl={typeof item === 'string' ? item : item.url}
+                        initialType={typeof item === 'string' ? 'image' : item.type}
+                        onUploadComplete={(url, type) => handleGalleryUpdate(index, url, type)}
+                        onRemove={() => removeGalleryImage(index)}
+                      />
                     </div>
                   ))}
                   {formData.gallery_images.length === 0 && (

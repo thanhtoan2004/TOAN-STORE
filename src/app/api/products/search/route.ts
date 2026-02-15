@@ -1,16 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import mysql from 'mysql2/promise';
-
-// Create a simple connection for this endpoint
-const pool = mysql.createPool({
-  host: process.env.DB_HOST || 'localhost',
-  user: process.env.DB_USER || 'root',
-  password: process.env.DB_PASSWORD || '',
-  database: process.env.DB_NAME || 'nike_clone',
-  waitForConnections: true,
-  connectionLimit: 10,
-  queueLimit: 0
-});
+import { meiliClient, PRODUCT_INDEX } from '@/lib/meilisearch';
 
 export async function GET(request: NextRequest) {
   try {
@@ -27,116 +16,44 @@ export async function GET(request: NextRequest) {
       }, { status: 400 });
     }
 
-    const searchTerm = `%${q}%`;
+    const index = meiliClient.index(PRODUCT_INDEX);
 
-    // Simple query without GROUP BY
-    let sql = `
-      SELECT DISTINCT
-        p.id,
-        p.name,
-        p.slug,
-        p.description,
-        p.base_price,
-        p.retail_price,
-        p.is_new_arrival,
-        p.created_at,
-        c.name as category,
-        c.slug as category_slug,
-        b.name as brand
-      FROM products p
-      LEFT JOIN categories c ON p.category_id = c.id
-      LEFT JOIN brands b ON p.brand_id = b.id
-      WHERE p.is_active = 1
-        AND (
-          p.name LIKE ?
-          OR p.description LIKE ?
-          OR c.name LIKE ?
-          OR b.name LIKE ?
-          OR p.slug LIKE ?
-        )
-    `;
-
-    const params: any[] = [searchTerm, searchTerm, searchTerm, searchTerm, searchTerm];
-
+    // Filter construction
+    const filters: string[] = ['is_active = true'];
     if (category) {
-      sql += ` AND c.slug = ?`;
-      params.push(category);
+      filters.push(`category_name = "${category}"`);
     }
 
-    sql += ` ORDER BY p.created_at DESC LIMIT ? OFFSET ?`;
-    params.push(limit, offset);
-
-    // Use query instead of execute
-    const [products] = await pool.query(sql, params);
-
-    // Add images and keep original price field names
-    const productsWithImages = await Promise.all(
-      (Array.isArray(products) ? products : []).map(async (product: any) => {
-        const [images] = await pool.query(
-          'SELECT url FROM product_images WHERE product_id = ? AND is_main = 1 LIMIT 1',
-          [product.id]
-        );
-        const imageRows = images as any[];
-        return {
-          id: product.id,
-          name: product.name,
-          slug: product.slug,
-          description: product.description,
-          base_price: parseFloat(product.base_price) || 0,
-          retail_price: product.retail_price ? parseFloat(product.retail_price) : null,
-          image_url: Array.isArray(imageRows) && imageRows.length > 0 ? imageRows[0].url : null,
-          is_new_arrival: product.is_new_arrival,
-          created_at: product.created_at,
-          category: product.category,
-          category_slug: product.category_slug,
-          brand: product.brand
-        };
-      })
-    );
-
-    // Get count
-    let countSql = `
-      SELECT COUNT(DISTINCT p.id) as total
-      FROM products p
-      LEFT JOIN categories c ON p.category_id = c.id
-      LEFT JOIN brands b ON p.brand_id = b.id
-      WHERE p.is_active = 1
-        AND (
-          p.name LIKE ?
-          OR p.description LIKE ?
-          OR c.name LIKE ?
-          OR b.name LIKE ?
-          OR p.slug LIKE ?
-        )
-    `;
-
-    const countParams = [searchTerm, searchTerm, searchTerm, searchTerm, searchTerm];
-
-    if (category) {
-      countSql += ` AND c.slug = ?`;
-      countParams.push(category);
-    }
-
-    const [countResult] = await pool.query(countSql, countParams);
-    const countRows = countResult as any[];
-    const total = Array.isArray(countRows) && countRows.length > 0 ? countRows[0].total : 0;
+    // Perform search
+    const searchResults = await index.search(q, {
+      limit,
+      offset,
+      filter: filters.length > 0 ? filters.join(' AND ') : undefined,
+      attributesToHighlight: ['name', 'category_name', 'brand_name'],
+      highlightPreTag: '<mark>',
+      highlightPostTag: '</mark>',
+    });
 
     return NextResponse.json({
       success: true,
       data: {
-        products: productsWithImages,
+        products: searchResults.hits,
         pagination: {
-          total,
-          limit,
-          offset,
-          hasMore: offset + limit < total
+          total: searchResults.estimatedTotalHits || 0,
+          limit: searchResults.limit,
+          offset: searchResults.offset,
+          hasMore: (searchResults.offset || 0) + (searchResults.limit || 0) < (searchResults.estimatedTotalHits || 0)
         },
-        query: q
+        query: q,
+        processingTimeMs: searchResults.processingTimeMs
       }
     });
 
-  } catch (error) {
-    console.error('Search error:', error);
+  } catch (error: any) {
+    console.error('Search error details:', error);
+    if (error.response) {
+      console.error('Meilisearch response error:', error.response);
+    }
     return NextResponse.json({
       success: false,
       message: 'Lỗi khi tìm kiếm sản phẩm'

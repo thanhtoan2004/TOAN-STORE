@@ -1,18 +1,17 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { executeQuery } from '@/lib/db/mysql';
+import { NextRequest } from 'next/server';
 import { checkAdminAuth } from '@/lib/auth';
-import { decrypt, encrypt } from '@/lib/encryption';
+import { decrypt } from '@/lib/encryption';
+import { db } from '@/lib/db/drizzle';
+import { users as usersSchema } from '@/lib/db/schema';
+import { eq, and, sql, desc, count } from 'drizzle-orm';
+import { ResponseWrapper } from '@/lib/api-response';
+import { logger } from '@/lib/logger';
 
 // GET - Lấy danh sách users (Admin)
 export async function GET(request: NextRequest) {
   try {
     const admin = await checkAdminAuth();
-    if (!admin) {
-      return NextResponse.json(
-        { success: false, message: 'Unauthorized' },
-        { status: 401 }
-      );
-    }
+    if (!admin) return ResponseWrapper.unauthorized();
 
     const { searchParams } = new URL(request.url);
     const page = parseInt(searchParams.get('page') || '1');
@@ -20,62 +19,54 @@ export async function GET(request: NextRequest) {
     const search = searchParams.get('search');
     const offset = (page - 1) * limit;
 
-    let query = `
-      SELECT id, email, first_name, last_name, phone,
-             is_active, is_verified, is_admin, is_banned, created_at, updated_at
-      FROM users
-      WHERE deleted_at IS NULL`;
-
-    const params: any[] = [];
+    const filters = [sql`${usersSchema.deletedAt} IS NULL`];
 
     if (search) {
-      // Use CONCAT to search full name since column likely doesn't exist
-      query += " AND (email LIKE ? OR CONCAT(first_name, ' ', last_name) LIKE ? OR phone LIKE ?)";
-      params.push(`%${search}%`, `%${search}%`, `%${search}%`);
+      filters.push(
+        sql`(${usersSchema.email} LIKE ${`%%${search}%%`} OR CONCAT(${usersSchema.firstName}, ' ', ${usersSchema.lastName}) LIKE ${`%%${search}%%`} OR ${usersSchema.phone} LIKE ${`%%${search}%%`})`
+      );
     }
 
-    query += ' ORDER BY created_at DESC LIMIT ? OFFSET ?';
-    params.push(limit, offset);
-
-    const usersResult = await executeQuery<any[]>(query, params);
+    const data = await db.select({
+      id: usersSchema.id,
+      email: usersSchema.email,
+      firstName: usersSchema.firstName,
+      lastName: usersSchema.lastName,
+      phone: usersSchema.phone,
+      isActive: usersSchema.isActive,
+      isVerified: usersSchema.isVerified,
+      isBanned: usersSchema.isBanned,
+      createdAt: usersSchema.createdAt,
+      updatedAt: usersSchema.updatedAt,
+    })
+      .from(usersSchema)
+      .where(and(...filters))
+      .orderBy(desc(usersSchema.createdAt))
+      .limit(limit)
+      .offset(offset);
 
     // Decrypt PII data
-    const users = usersResult.map(user => ({
+    const decryptedUsers = data.map(user => ({
       ...user,
-      phone: decrypt(user.phone)
+      phone: user.phone ? decrypt(user.phone) : null
     }));
 
     // Get total count
-    let countQuery = 'SELECT COUNT(*) as total FROM users WHERE deleted_at IS NULL';
-    const countParams: any[] = [];
+    const [countResult] = await db.select({ total: count() })
+      .from(usersSchema)
+      .where(and(...filters));
 
-    if (search) {
-      countQuery += " AND (email LIKE ? OR CONCAT(first_name, ' ', last_name) LIKE ? OR phone LIKE ?)";
-      countParams.push(`%${search}%`, `%${search}%`, `%${search}%`);
-    }
+    const total = countResult?.total || 0;
 
-    const [countRow] = await executeQuery<any[]>(countQuery, countParams);
-    const total = countRow?.total || 0;
-
-    // Debug log to check pagination values
-    console.log('Admin Users Pagination:', { total, limit, totalPages: Math.ceil(total / limit) });
-
-    return NextResponse.json({
-      success: true,
-      data: users,
-      pagination: {
-        page,
-        limit,
-        total,
-        totalPages: Math.ceil(total / limit)
-      }
+    return ResponseWrapper.success(decryptedUsers, undefined, 200, {
+      page,
+      limit,
+      total,
+      totalPages: Math.ceil(total / limit)
     });
   } catch (error) {
-    console.error('Error fetching users:', error);
-    return NextResponse.json(
-      { success: false, message: 'Internal server error' },
-      { status: 500 }
-    );
+    logger.error(error, 'Error fetching users:');
+    return ResponseWrapper.serverError('Internal server error', error);
   }
 }
 
@@ -83,52 +74,37 @@ export async function GET(request: NextRequest) {
 export async function PUT(request: NextRequest) {
   try {
     const admin = await checkAdminAuth();
-    if (!admin) {
-      return NextResponse.json(
-        { success: false, message: 'Unauthorized' },
-        { status: 401 }
-      );
-    }
+    if (!admin) return ResponseWrapper.unauthorized();
 
     const body = await request.json();
     const { id, ...updates } = body;
 
-    if (!id) {
-      return NextResponse.json(
-        { success: false, message: 'User ID required' },
-        { status: 400 }
-      );
-    }
+    if (!id) return ResponseWrapper.error('User ID required', 400);
 
-    // Build update query dynamically
-    const allowedFields = ['full_name', 'phone', 'is_active', 'is_verified'];
-    const fields = Object.keys(updates).filter(f => allowedFields.includes(f));
-
-    if (fields.length === 0) {
-      return NextResponse.json(
-        { success: false, message: 'No valid fields to update' },
-        { status: 400 }
-      );
-    }
-
-    const setClause = fields.map(f => `${f} = ?`).join(', ');
-    const values = [...fields.map(f => updates[f]), id];
-
-    await executeQuery(
-      `UPDATE users SET ${setClause}, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
-      values
-    );
-
-    return NextResponse.json({
-      success: true,
-      message: 'User updated successfully'
+    // Filter updates
+    const allowedFields = ['firstName', 'lastName', 'phone', 'isActive', 'isVerified', 'membershipTier'];
+    const filteredUpdates: any = {};
+    Object.keys(updates).forEach(key => {
+      if (allowedFields.includes(key)) {
+        filteredUpdates[key] = updates[key];
+      }
     });
+
+    if (Object.keys(filteredUpdates).length === 0) {
+      return ResponseWrapper.error('No valid fields to update', 400);
+    }
+
+    await db.update(usersSchema)
+      .set({
+        ...filteredUpdates,
+        updatedAt: sql`CURRENT_TIMESTAMP`
+      })
+      .where(eq(usersSchema.id, id));
+
+    return ResponseWrapper.success(null, 'User updated successfully');
   } catch (error) {
-    console.error('Error updating user:', error);
-    return NextResponse.json(
-      { success: false, message: 'Internal server error' },
-      { status: 500 }
-    );
+    logger.error(error, 'Error updating user:');
+    return ResponseWrapper.serverError('Internal server error', error);
   }
 }
 
@@ -136,32 +112,23 @@ export async function PUT(request: NextRequest) {
 export async function DELETE(request: NextRequest) {
   try {
     const admin = await checkAdminAuth();
-    if (!admin) {
-      return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
-    }
+    if (!admin) return ResponseWrapper.unauthorized();
 
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
+    if (!id) return ResponseWrapper.error('User ID required', 400);
 
-    if (!id) {
-      return NextResponse.json({ success: false, message: 'User ID required' }, { status: 400 });
-    }
+    await db.update(usersSchema)
+      .set({
+        deletedAt: sql`CURRENT_TIMESTAMP`,
+        isActive: 0
+      })
+      .where(eq(usersSchema.id, Number(id)));
 
-    await executeQuery(
-      'UPDATE users SET deleted_at = CURRENT_TIMESTAMP, is_active = 0 WHERE id = ?',
-      [id]
-    );
-
-    return NextResponse.json({
-      success: true,
-      message: 'Người dùng đã được xóa tạm thời (Soft Deleted)'
-    });
+    return ResponseWrapper.success(null, 'Người dùng đã được xóa tạm thời (Soft Deleted)');
   } catch (error) {
-    console.error('Error deleting user:', error);
-    return NextResponse.json(
-      { success: false, message: 'Internal server error' },
-      { status: 500 }
-    );
+    logger.error(error, 'Error deleting user:');
+    return ResponseWrapper.serverError('Internal server error', error);
   }
 }
 

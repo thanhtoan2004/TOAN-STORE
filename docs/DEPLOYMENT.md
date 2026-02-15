@@ -127,6 +127,22 @@ npm run build
 npm start
 ```
 
+### 5. Post-Deployment Steps (REQUIRED)
+Sau khi build và khởi động lần đầu, bạn cần chạy các script thiết lập hạ tầng:
+
+```bash
+# Seeding RBAC (Roles & Permissions)
+npx ts-node scripts/seed-rbac.ts
+```
+
+### 6. Scheduled Tasks (Metrics)
+Thiết lập CRON job hoặc trigger thủ công để tổng hợp dữ liệu hàng ngày:
+
+```bash
+# Chạy aggregation metrics
+npx ts-node scripts/aggregate-metrics.ts
+```
+
 ---
 
 ## 🐳 Docker Deployment (Full Stack)

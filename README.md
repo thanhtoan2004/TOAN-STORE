@@ -16,15 +16,23 @@ Dự án E-commerce Full-Stack chuyên nghiệp mô phỏng hệ thống Nike, �
 | [Shadcn UI](https://ui.shadcn.com/) / [Radix UI](https://www.radix-ui.com/) | Accessible UI components |
 | React Context API | State Management (Cart, Auth, Language) |
 
-### Backend & AI
+### Backend & Auth
 | Technology | Purpose |
 |-----------|---------|
 | [Node.js](https://nodejs.org/) | Runtime |
-| [MySQL 8.0](https://www.mysql.com/) | Primary Database (Docker port 3307) |
+| [MySQL 8.0](https://www.mysql.com/) | Primary Database (Drizzle ORM) |
 | [Redis](https://redis.io/) | Caching, Rate Limiting, Session Management |
+| [RBAC (Granular)](docs/SECURITY.md) | Role-Based Access Control (Super Admin, Manager, Staff) |
 | [BullMQ](https://optimalbits.github.io/bull/) | Background Jobs (Email Queue) |
-| [MailHog](https://github.com/mailhog/MailHog) | Email Testing Server |
-| [Google Gemini AI](https://deepmind.google/technologies/gemini/) | AI Chatbot with Function Calling & Model Rotation |
+| [MailHog](https://github.com/mailhog/MailHog) | Email Testing Server (Local) |
+| [Google Gemini AI](https://deepmind.google/technologies/gemini/) | AI Chatbot with Function Calling |
+
+### Monitoring & DevOps
+| Technology | Purpose |
+|-----------|---------|
+| [Sentry](https://sentry.io/) | Error Tracking & Performance Monitoring (Standard Hooks) |
+| [Pino](https://getpino.io/) | Structured JSON Logging with Sentry Integration |
+| [GitHub Actions](.github/workflows/ci.yml) | CI/CD Pipeline (Lint, Test, Build) |
 
 ### Payments
 | Provider | Method |

@@ -27,13 +27,15 @@ export async function GET(
 
     // Get product details from database
     // Execute queries in parallel
-    const [product, sizes, images] = await Promise.all([
+    const { getProductAttributes } = await import('@/lib/db/repositories/attribute');
+    const [product, sizes, images, attributes] = await Promise.all([
       getProductById(productId),
       getProductSizes(productId),
       executeQuery<any[]>(
-        'SELECT id, url, alt_text, position, is_main FROM product_images WHERE product_id = ? ORDER BY position',
+        'SELECT id, url, alt_text, position, is_main, media_type FROM product_images WHERE product_id = ? ORDER BY position',
         [productId]
-      )
+      ),
+      getProductAttributes(productId)
     ]);
 
     if (!product) {
@@ -54,6 +56,7 @@ export async function GET(
         retail_price: product.retail_price ? parseFloat(product.retail_price) : 0,
         sizes: sizes,
         images: images,
+        attributes: attributes,
         image_url: images.find((img: any) => img.is_main)?.url || images[0]?.url || '/placeholder.png',
         availableSizes: availableSizes.map((s: any) => s.size),
         inStock: availableSizes.length > 0

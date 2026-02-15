@@ -5,12 +5,12 @@ import AdminLayout from '@/components/admin/AdminLayout';
 
 interface InventoryItem {
   id: number;
-  product_id: number;
-  product_name: string;
-  product_sku: string;
-  variant_id: number;
-  variant_size?: string;
-  variant_color?: string;
+  productId: number;
+  productName: string;
+  productSku: string;
+  variantId: number;
+  variantSize?: string;
+  variantColor?: string;
   quantity: number;
   reserved: number;
 }
@@ -194,15 +194,15 @@ export default function InventoryPage() {
                 {inventory.map((item) => (
                   <tr key={item.id} className="hover:bg-gray-50">
                     <td className="px-6 py-4 text-sm font-medium text-gray-900 min-w-[200px]">
-                      {item.product_name}
+                      {item.productName}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {item.product_sku}
+                      {item.productSku}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {item.variant_size && `Size: ${item.variant_size}`}
-                      {item.variant_color && ` | Color: ${item.variant_color}`}
-                      {!item.variant_size && !item.variant_color && '-'}
+                      {item.variantSize && `Size: ${item.variantSize}`}
+                      {item.variantColor && ` | Color: ${item.variantColor}`}
+                      {!item.variantSize && !item.variantColor && '-'}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       {editingId === item.id ? (

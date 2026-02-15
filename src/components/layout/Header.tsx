@@ -7,7 +7,9 @@ import Image from 'next/image'
 import { Heart, Menu, ChevronDown } from 'lucide-react'
 import CartIcon from '@/components/ui/CartIcon'
 import SearchBar from '@/components/ui/SearchBar'
+import SearchOverlay from '@/components/search/SearchOverlay'
 import { useWishlist } from "@/contexts/WishlistContext";
+import { useState } from 'react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -25,6 +27,7 @@ const Header = () => {
   const { t } = useLanguage();
   const { user, isAuthenticated, logout } = useAuth();
   const { wishlist } = useWishlist();
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
 
   const mainNavigationLinks = [
     { name: t.nav.new, href: '/categories?sort=newest' },
@@ -119,9 +122,12 @@ const Header = () => {
 
           {/* Search & Icons */}
           <div className="flex items-center space-x-4">
-            <div className="hidden md:block w-64">
-              <SearchBar />
+            <div className="hidden md:block w-64" onClick={() => setIsSearchOpen(true)}>
+              <div className="pointer-events-none">
+                <SearchBar />
+              </div>
             </div>
+            <SearchOverlay isOpen={isSearchOpen} onClose={() => setIsSearchOpen(false)} />
             <Link
               href="/wishlist"
               className="relative p-2 hover:bg-gray-100 rounded-lg transition-colors group text-black"

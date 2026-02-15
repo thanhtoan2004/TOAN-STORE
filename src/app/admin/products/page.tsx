@@ -10,12 +10,12 @@ interface Product {
   id: number;
   name: string;
   sku: string;
-  base_price: number;
-  retail_price?: number;
-  is_active: number;
-  primary_image?: string;
-  category_name?: string;
-  created_at: string;
+  basePrice: string | number;
+  retailPrice?: string | number;
+  isActive: number;
+  primaryImage?: string;
+  categoryName?: string;
+  createdAt: string;
 }
 
 export default function AdminProductsPage() {
@@ -192,9 +192,9 @@ export default function AdminProductsPage() {
                       <td className="px-6 py-4 min-w-[200px]">
                         <div className="flex items-center">
                           <div className="w-12 h-12 relative flex-shrink-0">
-                            {product.primary_image ? (
+                            {product.primaryImage ? (
                               <Image
-                                src={product.primary_image}
+                                src={product.primaryImage}
                                 alt={product.name}
                                 fill
                                 className="object-cover rounded"
@@ -208,7 +208,7 @@ export default function AdminProductsPage() {
                           </div>
                           <div className="ml-4">
                             <div className="text-sm font-medium text-gray-900">{product.name}</div>
-                            <div className="text-sm text-gray-500">{product.category_name}</div>
+                            <div className="text-sm text-gray-500">{product.categoryName}</div>
                           </div>
                         </div>
                       </td>
@@ -217,10 +217,10 @@ export default function AdminProductsPage() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm text-gray-900">
-                          {formatCurrency(product.base_price)}
-                          {product.retail_price && product.retail_price !== product.base_price && (
+                          {formatCurrency(Number(product.basePrice))}
+                          {product.retailPrice && Number(product.retailPrice) !== Number(product.basePrice) && (
                             <span className="ml-2 text-xs text-gray-500 line-through">
-                              {formatCurrency(product.retail_price)}
+                              {formatCurrency(Number(product.retailPrice))}
                             </span>
                           )}
                         </div>
@@ -230,12 +230,12 @@ export default function AdminProductsPage() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span
-                          className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${product.is_active === 1
+                          className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${product.isActive === 1
                             ? 'bg-green-100 text-green-800'
                             : 'bg-red-100 text-red-800'
                             }`}
                         >
-                          {product.is_active === 1 ? 'Active' : 'Inactive'}
+                          {product.isActive === 1 ? 'Active' : 'Inactive'}
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">

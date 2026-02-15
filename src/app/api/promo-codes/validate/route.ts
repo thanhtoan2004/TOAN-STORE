@@ -35,6 +35,33 @@ async function validateCouponHandler(req: NextRequest): Promise<NextResponse> {
     }
   };
 
+  // Tier ranking for comparison
+  const TIER_RANK: Record<string, number> = {
+    'bronze': 0,
+    'silver': 1,
+    'gold': 2,
+    'platinum': 3
+  };
+
+  const isTierValid = (userTier: string | undefined, applicableTier: string | null) => {
+    if (!applicableTier) return true;
+    const userRank = TIER_RANK[userTier || 'bronze'] || 0;
+    const requiredRank = TIER_RANK[applicableTier] || 0;
+    return userRank >= requiredRank;
+  };
+
+  // Get user tier if logged in
+  let userTier = 'bronze';
+  if (userId) {
+    const userResult = await executeQuery<any[]>(
+      'SELECT membership_tier FROM users WHERE id = ?',
+      [userId]
+    );
+    if (userResult.length > 0) {
+      userTier = userResult[0].membership_tier;
+    }
+  }
+
   // Get coupon from database
   const coupons = await executeQuery<any[]>(
     `SELECT * FROM coupons WHERE code = ? AND (ends_at IS NULL OR ends_at > NOW()) AND (starts_at IS NULL OR starts_at <= NOW())`,
@@ -59,6 +86,11 @@ async function validateCouponHandler(req: NextRequest): Promise<NextResponse> {
       if (!userId || Number(userId) !== Number(voucher.recipient_user_id)) {
         return createErrorResponse('Mã này không dành cho bạn hoặc bạn chưa đăng nhập', 403);
       }
+    }
+
+    // NEW: Check membership tier
+    if (!isTierValid(userTier, voucher.applicable_tier)) {
+      return createErrorResponse(`Mã này yêu cầu hạng thành viên từ ${voucher.applicable_tier.toUpperCase()} trở lên`, 400);
     }
 
     // Check minimum order amount for voucher
@@ -87,6 +119,11 @@ async function validateCouponHandler(req: NextRequest): Promise<NextResponse> {
   }
 
   const coupon = coupons[0];
+
+  // NEW: Check membership tier
+  if (!isTierValid(userTier, coupon.applicable_tier)) {
+    return createErrorResponse(`Mã này yêu cầu hạng thành viên từ ${coupon.applicable_tier.toUpperCase()} trở lên`, 400);
+  }
 
   // Check minimum order amount
   if (coupon.min_order_amount && orderAmount < coupon.min_order_amount) {

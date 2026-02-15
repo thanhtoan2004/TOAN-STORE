@@ -70,30 +70,6 @@ export async function initDb() {
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
     `);
 
-    // Tạo bảng category_attributes
-    await connection.query(`
-      CREATE TABLE IF NOT EXISTS category_attributes (
-        id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-        category_id BIGINT UNSIGNED NOT NULL,
-        name VARCHAR(200) NOT NULL,
-        input_type VARCHAR(50) DEFAULT 'text',
-        is_filterable TINYINT(1) DEFAULT 0,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE CASCADE
-      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-    `);
-
-    // Tạo bảng attribute_values
-    await connection.query(`
-      CREATE TABLE IF NOT EXISTS attribute_values (
-        id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-        attribute_id BIGINT UNSIGNED NOT NULL,
-        value VARCHAR(255) NOT NULL,
-        position INT DEFAULT 0,
-        FOREIGN KEY (attribute_id) REFERENCES category_attributes(id) ON DELETE CASCADE
-      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-    `);
-
     // Tạo bảng product_colors
     await connection.query(`
       CREATE TABLE IF NOT EXISTS product_colors (
@@ -123,6 +99,32 @@ export async function initDb() {
         INDEX idx_deleted_at (deleted_at)
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
     `);
+
+    // Tạo bảng category_attributes
+    await connection.query(`
+      CREATE TABLE IF NOT EXISTS category_attributes (
+        id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+        category_id BIGINT UNSIGNED NOT NULL,
+        name VARCHAR(200) NOT NULL,
+        input_type VARCHAR(50) DEFAULT 'text',
+        is_filterable TINYINT(1) DEFAULT 0,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE CASCADE
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    `);
+
+    // Tạo bảng attribute_values
+    await connection.query(`
+      CREATE TABLE IF NOT EXISTS attribute_values (
+        id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+        attribute_id BIGINT UNSIGNED NOT NULL,
+        value VARCHAR(255) NOT NULL,
+        position INT DEFAULT 0,
+        FOREIGN KEY (attribute_id) REFERENCES category_attributes(id) ON DELETE CASCADE
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    `);
+
+
 
     // Tạo bảng brands
     await connection.query(`
@@ -181,7 +183,6 @@ export async function initDb() {
         view_count INT DEFAULT 0,
         sale_count INT DEFAULT 0,
         meta_title VARCHAR(255),
-        meta_description TEXT,
         meta_description TEXT,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -542,6 +543,28 @@ export async function initDb() {
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
     `);
 
+    // Tạo bảng product_reviews
+    await connection.query(`
+      CREATE TABLE IF NOT EXISTS product_reviews (
+        id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+        user_id BIGINT UNSIGNED NOT NULL,
+        product_id BIGINT UNSIGNED NOT NULL,
+        rating INT NOT NULL CHECK (rating BETWEEN 1 AND 5),
+        title VARCHAR(255),
+        comment TEXT,
+        status ENUM('pending', 'approved', 'rejected') DEFAULT 'pending',
+        is_verified_purchase TINYINT(1) DEFAULT 0,
+        helpful_count INT DEFAULT 0,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+        FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE,
+        INDEX idx_product_id (product_id),
+        INDEX idx_status (status),
+        INDEX idx_rating (rating)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    `);
+
     // Tạo bảng review_media
     await connection.query(`
       CREATE TABLE IF NOT EXISTS review_media (
@@ -579,28 +602,6 @@ export async function initDb() {
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
         INDEX idx_username (username),
         INDEX idx_email (email)
-      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-    `);
-
-    // Tạo bảng product_reviews
-    await connection.query(`
-      CREATE TABLE IF NOT EXISTS product_reviews (
-        id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-        user_id BIGINT UNSIGNED NOT NULL,
-        product_id BIGINT UNSIGNED NOT NULL,
-        rating INT NOT NULL CHECK (rating BETWEEN 1 AND 5),
-        title VARCHAR(255),
-        comment TEXT,
-        status ENUM('pending', 'approved', 'rejected') DEFAULT 'pending',
-        is_verified_purchase TINYINT(1) DEFAULT 0,
-        helpful_count INT DEFAULT 0,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-        FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE,
-        INDEX idx_product_id (product_id),
-        INDEX idx_status (status),
-        INDEX idx_rating (rating)
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
     `);
 
@@ -938,6 +939,16 @@ export async function initDb() {
       if (!columnNames.includes('meta_description')) {
         await connection.query('ALTER TABLE products ADD COLUMN meta_description TEXT AFTER meta_title');
       }
+      // Migration: Add cost_price for BI/Profit tracking
+      if (!columnNames.includes('cost_price')) {
+        await connection.query('ALTER TABLE products ADD COLUMN cost_price DECIMAL(12, 2) DEFAULT 0 AFTER retail_price');
+      }
+      // Migration: Add Full-Text Search Index
+      try {
+        await connection.query('ALTER TABLE products ADD FULLTEXT INDEX idx_fts_product (name, sku, description)');
+      } catch (ftsErr) {
+        console.log('FTS Index already exists or not supported by Engine');
+      }
     } catch (e) {
       console.log('Error migrating products table:', e);
     }
@@ -1008,6 +1019,10 @@ export async function initDb() {
       }
       if (!columnNames.includes('flash_sale_item_id')) {
         await connection.query('ALTER TABLE order_items ADD COLUMN flash_sale_item_id BIGINT UNSIGNED NULL AFTER total_price');
+      }
+      // Migration: Add cost_price to order_items for profit snapshot
+      if (!columnNames.includes('cost_price')) {
+        await connection.query('ALTER TABLE order_items ADD COLUMN cost_price DECIMAL(12, 2) DEFAULT 0 AFTER unit_price');
       }
     } catch (e) {
       console.log('Error migrating order_items table:', e);
@@ -1174,6 +1189,63 @@ export async function initDb() {
     } catch (e) {
       console.log('Error migrating support_chats table:', e);
     }
+
+    // --- NEW: Phase 19 Tables ---
+
+    // 1. SEO Metadata Table
+    await connection.query(`
+      CREATE TABLE IF NOT EXISTS seo_metadata (
+        id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+        entity_type ENUM('product', 'category', 'collection', 'page') NOT NULL,
+        entity_id BIGINT UNSIGNED NOT NULL,
+        title VARCHAR(255),
+        description TEXT,
+        keywords VARCHAR(500),
+        og_image_url VARCHAR(1000),
+        canonical_url VARCHAR(500),
+        structured_data JSON,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        UNIQUE KEY uk_entity (entity_type, entity_id)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    `);
+
+    // 2. Dynamic Attributes (EAV)
+    await connection.query(`
+      CREATE TABLE IF NOT EXISTS attributes (
+        id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+        name VARCHAR(100) NOT NULL,
+        slug VARCHAR(100) NOT NULL UNIQUE,
+        type ENUM('text', 'number', 'select', 'color', 'boolean') DEFAULT 'text',
+        is_filterable TINYINT(1) DEFAULT 1,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    `);
+
+    await connection.query(`
+      CREATE TABLE IF NOT EXISTS attribute_options (
+        id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+        attribute_id BIGINT UNSIGNED NOT NULL,
+        value VARCHAR(255) NOT NULL,
+        label VARCHAR(255) NOT NULL,
+        FOREIGN KEY (attribute_id) REFERENCES attributes(id) ON DELETE CASCADE
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    `);
+
+    await connection.query(`
+      CREATE TABLE IF NOT EXISTS product_attribute_values (
+        id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+        product_id BIGINT UNSIGNED NOT NULL,
+        attribute_id BIGINT UNSIGNED NOT NULL,
+        value_text TEXT,
+        option_id BIGINT UNSIGNED NULL,
+        FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE,
+        FOREIGN KEY (attribute_id) REFERENCES attributes(id) ON DELETE CASCADE,
+        FOREIGN KEY (option_id) REFERENCES attribute_options(id) ON DELETE SET NULL,
+        INDEX idx_product (product_id),
+        INDEX idx_attribute (attribute_id)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    `);
 
     console.log('Khởi tạo cơ sở dữ liệu thành công');
     connection.release();

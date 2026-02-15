@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import AdminLayout from '@/components/admin/AdminLayout';
 import Link from 'next/link';
+import AdminMediaUpload from '@/components/admin/AdminMediaUpload';
 
 interface ProductFormData {
   name: string;
@@ -16,7 +17,8 @@ interface ProductFormData {
   is_new_arrival: boolean;
   is_active: boolean;
   image_url: string;
-  gallery_images: string[];
+  main_media_type?: 'image' | 'video';
+  gallery_images: ({ url: string; type: 'image' | 'video' } | string)[];
 }
 
 export default function NewProductPage() {
@@ -34,6 +36,7 @@ export default function NewProductPage() {
     is_new_arrival: false,
     is_active: true,
     image_url: '',
+    main_media_type: 'image',
     gallery_images: [],
   });
 
@@ -58,16 +61,16 @@ export default function NewProductPage() {
     }
   };
 
-  const handleGalleryChange = (index: number, value: string) => {
+  const handleGalleryUpdate = (index: number, url: string, type: 'image' | 'video') => {
     const newGallery = [...formData.gallery_images];
-    newGallery[index] = value;
+    newGallery[index] = { url, type };
     setFormData(prev => ({ ...prev, gallery_images: newGallery }));
   };
 
   const addGalleryImage = () => {
     setFormData(prev => ({
       ...prev,
-      gallery_images: [...prev.gallery_images, '']
+      gallery_images: [...prev.gallery_images, { url: '', type: 'image' }]
     }));
   };
 
@@ -260,32 +263,13 @@ export default function NewProductPage() {
               <h3 className="text-lg font-semibold mb-4">Hình ảnh sản phẩm</h3>
 
               <div className="mb-6">
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  URL ảnh chính *
-                </label>
-                <div className="flex gap-4">
-                  <input
-                    type="url"
-                    name="image_url"
-                    value={formData.image_url}
-                    onChange={handleChange}
-                    required
-                    className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent"
-                    placeholder="https://..."
-                  />
-                </div>
-                {formData.image_url && (
-                  <div className="mt-2">
-                    <img
-                      src={formData.image_url}
-                      alt="Preview"
-                      className="w-24 h-24 object-cover rounded border border-gray-300"
-                      onError={(e) => {
-                        (e.target as HTMLImageElement).src = '/placeholder.png';
-                      }}
-                    />
-                  </div>
-                )}
+                <AdminMediaUpload
+                  label="Ảnh/Video chính *"
+                  initialUrl={formData.image_url}
+                  initialType={formData.main_media_type || 'image'}
+                  onUploadComplete={(url, type) => setFormData(prev => ({ ...prev, image_url: url, main_media_type: type }))}
+                  onRemove={() => setFormData(prev => ({ ...prev, image_url: '', main_media_type: 'image' }))}
+                />
               </div>
 
               {/* Gallery */}
@@ -304,34 +288,15 @@ export default function NewProductPage() {
                 </div>
 
                 <div className="space-y-4">
-                  {formData.gallery_images.map((url, index) => (
+                  {formData.gallery_images.map((item, index) => (
                     <div key={index} className="flex flex-col gap-2 p-3 bg-white rounded border border-gray-200">
-                      <div className="flex gap-2">
-                        <input
-                          type="url"
-                          value={url}
-                          onChange={(e) => handleGalleryChange(index, e.target.value)}
-                          className="flex-1 px-3 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-black focus:border-transparent"
-                          placeholder="Link ảnh phụ..."
-                        />
-                        <button
-                          type="button"
-                          onClick={() => removeGalleryImage(index)}
-                          className="px-2 py-1 text-red-600 hover:bg-red-50 rounded"
-                        >
-                          Xóa
-                        </button>
-                      </div>
-                      {url && (
-                        <img
-                          src={url}
-                          alt={`Gallery ${index}`}
-                          className="w-16 h-16 object-cover rounded border border-gray-200"
-                          onError={(e) => {
-                            (e.target as HTMLImageElement).src = '/placeholder.png';
-                          }}
-                        />
-                      )}
+                      <AdminMediaUpload
+                        label={`Ảnh phụ ${index + 1}`}
+                        initialUrl={typeof item === 'string' ? item : item.url}
+                        initialType={typeof item === 'string' ? 'image' : item.type}
+                        onUploadComplete={(url, type) => handleGalleryUpdate(index, url, type)}
+                        onRemove={() => removeGalleryImage(index)}
+                      />
                     </div>
                   ))}
                   {formData.gallery_images.length === 0 && (

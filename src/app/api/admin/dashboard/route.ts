@@ -41,12 +41,19 @@ export async function GET(request: NextRequest) {
 
     const revenueTrend = await executeQuery<any[]>(`
       SELECT 
-        DATE(placed_at) as date,
-        COALESCE(SUM(total), 0) as revenue,
-        COUNT(*) as order_count
-      FROM orders
-      WHERE placed_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
-      GROUP BY DATE(placed_at)
+        DATE(o.placed_at) as date,
+        COALESCE(SUM(o.total), 0) as revenue,
+        COALESCE(SUM(o.subtotal - (o.discount + o.voucher_discount + o.giftcard_discount) - (
+          SELECT COALESCE(SUM(oi.cost_price * oi.quantity), 0) 
+          FROM order_items oi 
+          WHERE oi.order_id = o.id
+        )), 0) as profit,
+        COUNT(o.id) as order_count
+      FROM orders o
+      WHERE o.placed_at >= DATE_SUB(NOW(), INTERVAL ? DAY) 
+        AND o.status != 'cancelled' 
+        AND o.status != 'refunded'
+      GROUP BY DATE(o.placed_at)
       ORDER BY date ASC
     `, [days]);
 
@@ -56,7 +63,11 @@ export async function GET(request: NextRequest) {
         COALESCE(SUM(tax), 0) as total_vat,
         COALESCE(SUM(discount + voucher_discount + giftcard_discount), 0) as total_discounts,
         COALESCE(SUM(shipping_fee), 0) as total_shipping,
-        COALESCE(SUM(subtotal) - SUM(discount + voucher_discount + giftcard_discount), 0) as net_revenue
+        COALESCE(SUM(subtotal) - SUM(discount + voucher_discount + giftcard_discount), 0) as net_revenue,
+        (SELECT COALESCE(SUM(oi.cost_price * oi.quantity), 0) 
+         FROM order_items oi 
+         JOIN orders o ON oi.order_id = o.id 
+         WHERE o.status = 'delivered') as total_cost
       FROM orders
       WHERE status = 'delivered'
     `);
@@ -175,6 +186,7 @@ export async function GET(request: NextRequest) {
       revenueTrend: revenueTrend.map(r => ({
         date: r.date,
         revenue: parseFloat(r.revenue) || 0,
+        profit: parseFloat(r.profit) || 0,
         orderCount: parseInt(r.order_count)
       })),
 
@@ -183,6 +195,11 @@ export async function GET(request: NextRequest) {
       totalDiscounts: parseFloat(financialStats[0]?.total_discounts) || 0,
       totalShipping: parseFloat(financialStats[0]?.total_shipping) || 0,
       netRevenue: parseFloat(financialStats[0]?.net_revenue) || 0,
+      totalCost: parseFloat(financialStats[0]?.total_cost) || 0,
+      totalProfit: (parseFloat(financialStats[0]?.net_revenue) || 0) - (parseFloat(financialStats[0]?.total_cost) || 0),
+      profitMargin: (parseFloat(financialStats[0]?.net_revenue) || 0) > 0
+        ? (((parseFloat(financialStats[0]?.net_revenue) || 0) - (parseFloat(financialStats[0]?.total_cost) || 0)) / parseFloat(financialStats[0]?.net_revenue) * 100)
+        : 0,
 
       // Inventory
       lowStockCount: parseInt(inventoryStats[0]?.low_stock_count) || 0,

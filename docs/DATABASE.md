@@ -62,9 +62,11 @@ erDiagram
 | email | VARCHAR(255) UNIQUE | — |
 | password | VARCHAR(255) | Bcrypt |
 | full_name | VARCHAR(200) | — |
-| role | ENUM('admin','super_admin') | — |
+| role_id | INT FK→roles | Relational RBAC Role ID |
 | is_active | TINYINT(1) DEFAULT 1 | — |
 | last_login | TIMESTAMP NULL | — |
+| created_at | TIMESTAMP | — |
+| updated_at | TIMESTAMP | — |
 
 ---
 
@@ -277,8 +279,41 @@ Audit log cho mọi hành động admin nhạy cảm.
 ### `settings`
 Key-value store cho cài đặt hệ thống.
 
-### `store_locations` / `store_hours`
-Thông tin cửa hàng vật lý và giờ mở cửa.
+### `daily_metrics`
+Thống kê hiệu năng và kinh doanh hàng ngày.
+
+| Column | Type | Description |
+|--------|------|-------------|
+| id | INT PK | — |
+| date | DATE UNIQUE | Ngày thống kê |
+| total_orders | INT | Tổng đơn hàng trong ngày |
+| total_revenue | DECIMAL(15,2) | Tổng doanh thu |
+| active_users | INT | Số người dùng hoạt động |
+| created_at | TIMESTAMP | — |
+
+---
+
+## RBAC Tables (Auth)
+
+### `roles`
+| Column | Type | Description |
+|--------|------|-------------|
+| id | INT PK | — |
+| name | VARCHAR(50) UNIQUE | e.g., 'super_admin', 'staff' |
+| description | TEXT | — |
+
+### `permissions`
+| Column | Type | Description |
+|--------|------|-------------|
+| id | INT PK | — |
+| name | VARCHAR(100) UNIQUE | e.g., 'manage:inventory' |
+| description | TEXT | — |
+
+### `role_permissions`
+| Column | Type | Description |
+|--------|------|-------------|
+| role_id | INT FK→roles | — |
+| permission_id | INT FK→permissions | — |
 
 ---
 

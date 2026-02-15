@@ -9,7 +9,8 @@ export async function logAdminAction(
     action: string,
     module: string,
     referenceId: string | number | null = null,
-    details: any = null,
+    oldValues: any = null,
+    newValues: any = null,
     req?: NextRequest
 ) {
     try {
@@ -17,14 +18,15 @@ export async function logAdminAction(
         const userAgent = req ? req.headers.get('user-agent') : null;
 
         await executeQuery(
-            `INSERT INTO admin_activity_logs (admin_user_id, action, entity_type, entity_id, new_values, ip_address, user_agent) 
-             VALUES (?, ?, ?, ?, ?, ?, ?)`,
+            `INSERT INTO admin_activity_logs (admin_user_id, action, entity_type, entity_id, old_values, new_values, ip_address, user_agent) 
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
             [
                 adminId,
                 action,
                 module,
                 referenceId ? String(referenceId) : null,
-                details ? JSON.stringify(details) : null,
+                oldValues ? JSON.stringify(oldValues) : null,
+                newValues ? JSON.stringify(newValues) : null,
                 ipAddress,
                 userAgent
             ]

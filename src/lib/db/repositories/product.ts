@@ -26,6 +26,7 @@ export async function getProducts(filters: {
     gender?: string;
     minPrice?: number;
     maxPrice?: number;
+    search?: string;
     isNewArrival?: boolean;
     limit?: number;
     offset?: number;
@@ -34,11 +35,18 @@ export async function getProducts(filters: {
     SELECT 
       p.*,
       (SELECT url FROM product_images WHERE product_id = p.id AND is_main = 1 LIMIT 1) as image_url,
+      (SELECT media_type FROM product_images WHERE product_id = p.id AND is_main = 1 LIMIT 1) as main_media_type,
       (SELECT COUNT(*) FROM product_variants WHERE product_id = p.id) as variant_count,
       (SELECT name FROM categories WHERE id = p.category_id) as category
+      ${filters.search ? `, MATCH(p.name, p.sku, p.description) AGAINST(?) as relevance` : ''}
     FROM products p
     WHERE p.is_active = 1 AND p.deleted_at IS NULL`;
     const params: any[] = [];
+
+    if (filters.search) {
+        query += ' AND MATCH(p.name, p.sku, p.description) AGAINST(?)';
+        params.push(filters.search, filters.search);
+    }
 
     if (filters.category) {
         query += ' AND p.category_id = (SELECT id FROM categories WHERE slug = ? OR name = ? LIMIT 1)';
@@ -69,7 +77,11 @@ export async function getProducts(filters: {
         query += ' AND p.created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)';
     }
 
-    query += ' ORDER BY p.created_at DESC';
+    if (filters.search) {
+        query += ' ORDER BY relevance DESC, p.created_at DESC';
+    } else {
+        query += ' ORDER BY p.created_at DESC';
+    }
 
     if (filters.limit) {
         query += ` LIMIT ${filters.limit}`;
@@ -85,7 +97,24 @@ export async function getProducts(filters: {
 // Chatbot Search Function
 export async function searchProductsForChat(keyword: string) {
     try {
-        // Search products by name (limit 5)
+        // Search products by name (limit 5) using Full-Text Search
+        const products = await executeQuery<any[]>(
+            `SELECT p.id, p.name, p.base_price, p.retail_price, p.slug, p.short_description,
+               (SELECT url FROM product_images WHERE product_id = p.id AND is_main = 1 LIMIT 1) as image_url,
+               MATCH(p.name, p.sku, p.description) AGAINST(?) as relevance
+        FROM products p
+        WHERE MATCH(p.name, p.sku, p.description) AGAINST(?) AND p.is_active = 1 AND p.deleted_at IS NULL
+        ORDER BY relevance DESC
+        LIMIT 5`,
+            [keyword, keyword]
+        );
+
+        // For each product, fetch available sizes and ratings via helper
+        const result = await formatProductsForChat(products);
+        return result;
+    } catch (error) {
+        console.error('Chatbot Search Error:', error);
+        // Fallback to LIKE if FTS fails
         const products = await executeQuery<any[]>(
             `SELECT p.id, p.name, p.base_price, p.retail_price, p.slug, p.short_description,
                (SELECT url FROM product_images WHERE product_id = p.id AND is_main = 1 LIMIT 1) as image_url
@@ -94,13 +123,7 @@ export async function searchProductsForChat(keyword: string) {
         LIMIT 5`,
             [`%${keyword}%`]
         );
-
-        // For each product, fetch available sizes and ratings via helper
-        const result = await formatProductsForChat(products);
-        return result;
-    } catch (error) {
-        console.error('Chatbot Search Error:', error);
-        return [];
+        return formatProductsForChat(products);
     }
 }
 

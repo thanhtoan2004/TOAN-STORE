@@ -6,7 +6,7 @@ import { useCart } from "@/contexts/CartContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
 import AddToCartButton from "@/components/ui/AddToCartButton";
-import { Heart } from "lucide-react";
+import { Heart, Video, Play } from "lucide-react";
 import { formatCurrency } from "@/lib/date-utils";
 import { useWishlist } from "@/contexts/WishlistContext";
 import ReviewMediaUpload from "@/components/reviews/ReviewMediaUpload";
@@ -34,8 +34,16 @@ interface Product {
     description?: string;
     is_new_arrival: boolean;
     created_at: string;
-    images?: Array<{ url: string; alt_text?: string }>;
+    images?: Array<{ url: string; alt_text?: string; media_type?: 'image' | 'video' }>;
     sizes?: Array<{ size: string; stock: number; reserved?: number }>;
+    attributes?: Array<{
+        name: string;
+        slug: string;
+        type: string;
+        value_text?: string;
+        option_label?: string;
+        option_value?: string;
+    }>;
 }
 
 interface ReviewMedia {
@@ -92,7 +100,7 @@ export default function ProductDetailClient({ id }: { id: string }) {
 
     // Image gallery state
     const [currentImageIndex, setCurrentImageIndex] = useState(0);
-    const [productImages, setProductImages] = useState<string[]>([]);
+    const [productImages, setProductImages] = useState<{ url: string; type: 'image' | 'video' }[]>([]);
 
     const { data: productData, isLoading: productLoading, error: productError } = useProduct(id);
     const { data: reviewsData, isLoading: reviewsLoading } = useReviews(id);
@@ -120,9 +128,15 @@ export default function ProductDetailClient({ id }: { id: string }) {
         if (productData) {
             setProduct(productData);
             // Set product images (main image + additional images if available)
-            const images = productData.images && productData.images.length > 0
-                ? productData.images.map((img: any) => img.url)
-                : [productData.image_url];
+            let images: { url: string; type: 'image' | 'video' }[] = [];
+            if (productData.images && productData.images.length > 0) {
+                images = productData.images.map((img: any) => ({
+                    url: img.url,
+                    type: img.media_type || 'image'
+                }));
+            } else {
+                images = [{ url: productData.image_url, type: 'image' }];
+            }
             setProductImages(images);
 
             // Set sizes directly from product data (no need for separate fetch)
@@ -418,27 +432,47 @@ export default function ProductDetailClient({ id }: { id: string }) {
                     <div className="flex gap-4 lg:sticky lg:top-4">
                         {/* Thumbnail List */}
                         <div className="flex flex-col gap-2 w-20">
-                            {productImages.map((img, index) => (
+                            {productImages.map((media, index) => (
                                 <button
                                     key={index}
                                     onClick={() => setCurrentImageIndex(index)}
                                     className={`relative aspect-square overflow-hidden rounded-lg bg-gray-100 border-2 transition-all ${currentImageIndex === index ? 'border-black' : 'border-transparent hover:border-gray-300'
                                         }`}
                                 >
-                                    <Image src={img} alt={`${activeProduct.name} ${index + 1}`} fill className="object-cover" />
+                                    {media.type === 'video' ? (
+                                        <div className="w-full h-full flex items-center justify-center bg-gray-900">
+                                            <Video className="text-white w-6 h-6" />
+                                        </div>
+                                    ) : (
+                                        <Image src={media.url} alt={`${activeProduct.name} ${index + 1}`} fill className="object-cover" />
+                                    )}
                                 </button>
                             ))}
                         </div>
 
                         {/* Main Image with Navigation */}
                         <div className="flex-1 relative aspect-square overflow-hidden rounded-lg bg-gray-100 group">
-                            <Image
-                                src={productImages[currentImageIndex] || activeProduct.image_url}
-                                alt={activeProduct.name}
-                                fill
-                                className="object-cover"
-                                priority
-                            />
+                            {productImages[currentImageIndex]?.type === 'video' ? (
+                                <div className="relative w-full h-full bg-black flex items-center justify-center">
+                                    <video
+                                        src={productImages[currentImageIndex].url}
+                                        className="w-full h-full object-contain"
+                                        controls
+                                        autoPlay
+                                        muted
+                                        loop
+                                        playsInline
+                                    />
+                                </div>
+                            ) : (
+                                <Image
+                                    src={productImages[currentImageIndex]?.url || activeProduct.image_url}
+                                    alt={activeProduct.name}
+                                    fill
+                                    className="object-cover"
+                                    priority
+                                />
+                            )}
 
                             {/* Badges */}
                             {!!activeProduct.is_new_arrival && (
@@ -537,6 +571,23 @@ export default function ProductDetailClient({ id }: { id: string }) {
                             <div className="border-t pt-6">
                                 <h3 className="text-lg font-semibold mb-3">{t.product.description}</h3>
                                 <p className="text-gray-600 leading-relaxed">{activeProduct.description}</p>
+                            </div>
+                        )}
+
+                        {/* NEW: Dynamic Specifications (EAV) */}
+                        {activeProduct.attributes && activeProduct.attributes.length > 0 && (
+                            <div className="border-t pt-6">
+                                <h3 className="text-lg font-semibold mb-3">Thông số sản phẩm</h3>
+                                <div className="grid grid-cols-1 gap-y-2">
+                                    {activeProduct.attributes.map((attr: { name: string; option_label?: string; value_text?: string }, idx: number) => (
+                                        <div key={idx} className="flex justify-between py-2 border-b border-gray-50 text-sm">
+                                            <span className="text-gray-500 font-medium">{attr.name}</span>
+                                            <span className="text-black font-semibold">
+                                                {attr.option_label || attr.value_text || '—'}
+                                            </span>
+                                        </div>
+                                    ))}
+                                </div>
                             </div>
                         )}
 

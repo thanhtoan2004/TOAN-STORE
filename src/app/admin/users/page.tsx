@@ -7,13 +7,13 @@ import { formatDate } from '@/lib/date-utils';
 interface User {
   id: number;
   email: string;
-  first_name: string;
-  last_name: string;
+  firstName: string;
+  lastName: string;
   phone: string;
-  is_admin: number;
-  is_active: number;
-  is_banned: number;
-  created_at: string;
+  isAdmin?: number;
+  isActive: number;
+  isBanned: number;
+  createdAt: string;
 }
 
 export default function AdminUsersPage() {
@@ -120,8 +120,20 @@ export default function AdminUsersPage() {
             <h1 className="text-3xl font-bold text-gray-900">Users</h1>
             <p className="mt-1 text-sm text-gray-500">Manage user accounts and permissions</p>
           </div>
-          <div className="text-sm font-medium bg-gray-100 px-4 py-2 rounded-full">
-            Total Users: <span className="font-bold">{total}</span>
+          <div className="flex items-center space-x-3">
+            <button
+              onClick={() => window.location.href = '/api/admin/users/export'}
+              className="flex items-center space-x-2 px-4 py-2 bg-white border border-gray-300 rounded-md text-sm font-medium hover:bg-gray-50 transition-colors shadow-sm"
+              title="Export all customers to CSV"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+              </svg>
+              <span>Export CSV</span>
+            </button>
+            <div className="text-sm font-medium bg-gray-100 px-4 py-2 rounded-full">
+              Total Users: <span className="font-bold">{total}</span>
+            </div>
           </div>
         </div>
 
@@ -196,15 +208,15 @@ export default function AdminUsersPage() {
                         <div className="flex items-center gap-3 max-w-full overflow-hidden">
                           <div className="flex-shrink-0 w-10 h-10 rounded-full bg-gray-300 flex items-center justify-center">
                             <span className="text-lg font-medium text-gray-700">
-                              {user.first_name?.[0]?.toUpperCase() || 'U'}
+                              {user.firstName?.[0]?.toUpperCase() || 'U'}
                             </span>
                           </div>
                           <div className="min-w-0 flex-1">
                             <div
                               className="text-sm font-medium text-gray-900 truncate"
-                              title={`${user.first_name || ''} ${user.last_name || ''}`.trim()}
+                              title={`${user.firstName || ''} ${user.lastName || ''}`.trim()}
                             >
-                              {user.first_name} {user.last_name}
+                              {user.firstName} {user.lastName}
                             </div>
                           </div>
                         </div>
@@ -221,44 +233,44 @@ export default function AdminUsersPage() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span
-                          className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${user.is_admin === 1
+                          className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${user.isAdmin === 1
                             ? 'bg-purple-100 text-purple-800'
                             : 'bg-gray-100 text-gray-800'
                             }`}
                         >
-                          {user.is_admin === 1 ? 'Admin' : 'User'}
+                          {user.isAdmin === 1 ? 'Admin' : 'User'}
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span
-                          className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${user.is_banned === 1
+                          className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${user.isBanned === 1
                             ? 'bg-red-100 text-red-800'
                             : 'bg-green-100 text-green-800'
                             }`}
                         >
-                          {user.is_banned === 1 ? 'Banned' : 'Active'}
+                          {user.isBanned === 1 ? 'Banned' : 'Active'}
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm text-gray-900">
-                          {formatDate(user.created_at)}
+                          {formatDate(user.createdAt)}
                         </div>
                       </td>
                       <td className="px-6 py-4 text-right">
                         <div className="flex flex-col gap-2 items-end">
                           <button
-                            onClick={() => toggleAdminRole(user.id, user.is_admin)}
+                            onClick={() => toggleAdminRole(user.id, user.isAdmin || 0)}
                             className="text-sm text-purple-600 hover:text-purple-900 whitespace-nowrap font-medium"
-                            title={user.is_admin === 1 ? 'Remove Admin Role' : 'Make Admin'}
+                            title={user.isAdmin === 1 ? 'Remove Admin Role' : 'Make Admin'}
                           >
-                            {user.is_admin === 1 ? '− Admin' : '+ Admin'}
+                            {user.isAdmin === 1 ? '− Admin' : '+ Admin'}
                           </button>
                           <button
-                            onClick={() => toggleBanStatus(user.id, user.is_banned)}
-                            className={`text-sm whitespace-nowrap font-medium ${user.is_banned === 1 ? 'text-green-600 hover:text-green-900' : 'text-red-600 hover:text-red-900'}`}
-                            title={user.is_banned === 1 ? 'Unban this user' : 'Ban this user'}
+                            onClick={() => toggleBanStatus(user.id, user.isBanned)}
+                            className={`text-sm whitespace-nowrap font-medium ${user.isBanned === 1 ? 'text-green-600 hover:text-green-900' : 'text-red-600 hover:text-red-900'}`}
+                            title={user.isBanned === 1 ? 'Unban this user' : 'Ban this user'}
                           >
-                            {user.is_banned === 1 ? '✓ Unban' : '🚫 Ban'}
+                            {user.isBanned === 1 ? '✓ Unban' : '🚫 Ban'}
                           </button>
                         </div>
                       </td>

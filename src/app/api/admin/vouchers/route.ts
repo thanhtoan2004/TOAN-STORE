@@ -21,7 +21,7 @@ export async function GET(request: NextRequest) {
     const vouchers = await executeQuery(
       `SELECT v.id, v.code, v.value, v.discount_type, v.description, v.status,
               v.recipient_user_id, u.email as recipient_email, v.redeemed_by_user_id, 
-              v.min_order_value, v.applicable_categories,
+              v.min_order_value, v.applicable_categories, v.applicable_tier,
               v.valid_from, v.valid_until, v.redeemed_at, v.created_at, v.updated_at
        FROM vouchers v
        LEFT JOIN users u ON v.recipient_user_id = u.id
@@ -63,7 +63,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { code, value, description, recipient_email, valid_until, discount_type, min_order_value, applicable_categories } = await request.json();
+    const { code, value, description, recipient_email, valid_until, discount_type, min_order_value, applicable_categories, applicable_tier } = await request.json();
 
     if (!code || !value) {
       return NextResponse.json(
@@ -97,9 +97,9 @@ export async function POST(request: NextRequest) {
     const cats = applicable_categories ? JSON.stringify(applicable_categories) : null;
 
     const result = await executeQuery(
-      `INSERT INTO vouchers (code, value, description, recipient_user_id, valid_until, discount_type, min_order_value, applicable_categories, status, created_at, updated_at) 
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'active', NOW(), NOW())`,
-      [code, numValue, description || null, targetUserId, valid_until || null, discount_type || 'fixed', numMinOrder, cats]
+      `INSERT INTO vouchers (code, value, description, recipient_user_id, valid_until, discount_type, min_order_value, applicable_categories, applicable_tier, status, created_at, updated_at) 
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', NOW(), NOW())`,
+      [code, numValue, description || null, targetUserId, valid_until || null, discount_type || 'fixed', numMinOrder, cats, applicable_tier || 'bronze']
     ) as any;
 
     const responseData = {
@@ -137,7 +137,7 @@ export async function PUT(request: NextRequest) {
       );
     }
 
-    const { id, code, value, description, recipient_email, valid_until, status, discount_type, min_order_value, applicable_categories } = await request.json();
+    const { id, code, value, description, recipient_email, valid_until, status, discount_type, min_order_value, applicable_categories, applicable_tier } = await request.json();
 
     if (!id) {
       return NextResponse.json(
@@ -189,11 +189,12 @@ export async function PUT(request: NextRequest) {
                          discount_type = COALESCE(?, discount_type),
                          min_order_value = COALESCE(?, min_order_value),
                          applicable_categories = COALESCE(?, applicable_categories),
+                         applicable_tier = COALESCE(?, applicable_tier),
                          updated_at = NOW() 
        WHERE id = ?`,
       [code || null, numValue, description || null,
         targetUserId, valid_until || null, status || null,
-      discount_type || null, numMinOrder, cats, id]
+      discount_type || null, numMinOrder, cats, applicable_tier || null, id]
     );
 
     // Log audit

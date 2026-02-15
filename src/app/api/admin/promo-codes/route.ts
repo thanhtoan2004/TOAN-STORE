@@ -103,7 +103,8 @@ export async function POST(request: NextRequest) {
       starts_at,
       ends_at,
       usage_limit,
-      usage_limit_per_user
+      usage_limit_per_user,
+      applicable_tier
     } = body;
 
     // Validate required fields
@@ -146,8 +147,8 @@ export async function POST(request: NextRequest) {
     // Insert coupon
     await executeQuery(
       `INSERT INTO coupons 
-       (code, description, discount_type, discount_value, min_order_amount, max_discount_amount, starts_at, ends_at, usage_limit, usage_limit_per_user)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       (code, description, discount_type, discount_value, min_order_amount, max_discount_amount, starts_at, ends_at, usage_limit, usage_limit_per_user, applicable_tier)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         code.toUpperCase(),
         description || '',
@@ -158,7 +159,8 @@ export async function POST(request: NextRequest) {
         starts_at || null,
         ends_at || null,
         usage_limit || null,
-        usage_limit_per_user || null
+        usage_limit_per_user || null,
+        applicable_tier || 'bronze'
       ]
     );
 
@@ -205,7 +207,8 @@ export async function PUT(request: NextRequest) {
       'starts_at',
       'ends_at',
       'usage_limit',
-      'usage_limit_per_user'
+      'usage_limit_per_user',
+      'applicable_tier'
     ];
 
     const updateFields: string[] = [];

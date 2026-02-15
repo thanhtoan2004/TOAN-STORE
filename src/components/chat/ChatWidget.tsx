@@ -8,6 +8,7 @@ import LiveSupportChat from './LiveSupportChat';
 import Link from 'next/link';
 
 import { useAuth } from '@/contexts/AuthContext';
+import { useCart } from '@/contexts/CartContext';
 import { usePathname } from 'next/navigation';
 
 type ChatMode = 'ai' | 'live';
@@ -17,7 +18,7 @@ interface Message {
     role: 'user' | 'model';
     content: string;
     data?: any;
-    dataType?: 'products' | 'order';
+    dataType?: 'products' | 'order' | 'intent_add_to_cart';
 }
 
 const ProductCard = ({ product }: { product: any }) => (
@@ -74,11 +75,85 @@ const OrderStatus = ({ order }: { order: any }) => (
     </div>
 );
 
+const IntentCard = ({ product, intent, onConfirm }: { product: any, intent: any, onConfirm: (productId: number, quantity: number, size: string) => void }) => {
+    const [selectedSize, setSelectedSize] = useState<string>(intent.size || '');
+    const [isAdding, setIsAdding] = useState(false);
+    const [isAdded, setIsAdded] = useState(false);
+
+    const availableSizes = product.sizes ? product.sizes.split(',').map((s: string) => s.trim()) : [];
+
+    const handleConfirm = async () => {
+        if (!selectedSize) return;
+        setIsAdding(true);
+        await onConfirm(parseInt(product.id), intent.quantity || 1, selectedSize);
+        setIsAdding(false);
+        setIsAdded(true);
+    };
+
+    if (isAdded) {
+        return (
+            <div className="bg-green-50 border border-green-200 rounded-xl p-4 flex flex-col items-center gap-2 text-center animate-in fade-in zoom-in duration-300">
+                <div className="w-8 h-8 bg-green-100 text-green-600 rounded-full flex items-center justify-center">
+                    <Send size={16} className="rotate-[-45deg]" />
+                </div>
+                <p className="text-xs font-bold text-green-800">Đã thêm vào giỏ hàng!</p>
+                <Link href="/cart" className="text-[10px] underline text-green-600 hover:text-green-800">
+                    Xem giỏ hàng ngay
+                </Link>
+            </div>
+        );
+    }
+
+    return (
+        <div className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
+            <div className="flex gap-3 p-3 bg-gray-50/50 border-b border-gray-100">
+                <div className="w-12 h-12 bg-white rounded-md border border-gray-200 overflow-hidden flex-shrink-0">
+                    <img src={product.image_url} alt={product.name} className="w-full h-full object-cover" />
+                </div>
+                <div className="flex-1 min-w-0">
+                    <h4 className="text-xs font-bold text-gray-900 truncate">{product.name}</h4>
+                    <p className="text-[10px] text-gray-500">{new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(product.price)}</p>
+                </div>
+            </div>
+            <div className="p-3 space-y-3">
+                {!intent.size && (
+                    <div className="space-y-1">
+                        <label className="text-[10px] font-bold text-gray-500 uppercase">Chọn Size</label>
+                        <div className="flex flex-wrap gap-1.5">
+                            {availableSizes.map((size: string) => (
+                                <button
+                                    key={size}
+                                    onClick={() => setSelectedSize(size)}
+                                    className={`px-2.5 py-1 text-[10px] font-bold border rounded-md transition-all ${selectedSize === size
+                                        ? 'bg-black text-white border-black'
+                                        : 'bg-white text-gray-600 border-gray-200 hover:border-gray-400'
+                                        }`}
+                                >
+                                    {size}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                )}
+                <button
+                    onClick={handleConfirm}
+                    disabled={!selectedSize || isAdding}
+                    className="w-full py-2 bg-black text-white text-xs font-bold rounded-lg hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
+                >
+                    {isAdding ? <Loader2 size={12} className="animate-spin" /> : 'Thêm vào giỏ hàng'}
+                    {!isAdding && intent.quantity > 1 && <span className="bg-white/20 px-1.5 py-0.5 rounded text-[9px]">x{intent.quantity}</span>}
+                </button>
+            </div>
+        </div>
+    );
+};
+
 export default function ChatWidget() {
     const pathname = usePathname();
     const [isOpen, setIsOpen] = useState(false);
     const [chatMode, setChatMode] = useState<ChatMode>('ai');
     const { user } = useAuth();
+    const { addToCart } = useCart();
     const userId = user?.id ? parseInt(user.id.toString()) : undefined;
     const [messages, setMessages] = useState<Message[]>([
         {
@@ -250,6 +325,19 @@ export default function ChatWidget() {
                                             {msg.data && msg.dataType === 'order' && (
                                                 <div className="mt-3 w-[85%]">
                                                     <OrderStatus order={msg.data} />
+                                                </div>
+                                            )}
+
+                                            {msg.data && msg.dataType === 'intent_add_to_cart' && (
+                                                <div className="mt-3 w-[85%]">
+                                                    <IntentCard
+                                                        product={msg.data.product}
+                                                        intent={msg.data.intent}
+                                                        onConfirm={async (pid, qty, sz) => {
+                                                            // Simply call the hook function
+                                                            await addToCart(pid, qty, sz);
+                                                        }}
+                                                    />
                                                 </div>
                                             )}
                                         </div>

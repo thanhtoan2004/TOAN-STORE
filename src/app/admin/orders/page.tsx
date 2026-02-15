@@ -6,15 +6,13 @@ import { formatDateTime, formatCurrency } from '@/lib/date-utils';
 
 interface Order {
   id: number;
-  order_number: string;
-  user_id: number;
-  customer_name: string;
-  customer_email: string;
-  total: number;
+  orderNumber: string;
+  userId: number;
+  customerName: string;
+  customerEmail: string;
+  total: string | number;
   status: string;
-  payment_status: string;
-  placed_at: string;
-  shipping_address: string;
+  placedAt: string;
 }
 
 export default function AdminOrdersPage() {
@@ -98,8 +96,20 @@ export default function AdminOrdersPage() {
             <h1 className="text-3xl font-bold text-gray-900">Orders</h1>
             <p className="mt-1 text-sm text-gray-500">Manage customer orders</p>
           </div>
-          <div className="text-sm font-medium bg-gray-100 px-4 py-2 rounded-full">
-            Total Orders: <span className="font-bold">{total}</span>
+          <div className="flex items-center space-x-3">
+            <button
+              onClick={() => window.location.href = '/api/admin/orders/export'}
+              className="flex items-center space-x-2 px-4 py-2 bg-white border border-gray-300 rounded-md text-sm font-medium hover:bg-gray-50 transition-colors shadow-sm"
+              title="Export all orders to CSV"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+              </svg>
+              <span>Export CSV</span>
+            </button>
+            <div className="text-sm font-medium bg-gray-100 px-4 py-2 rounded-full">
+              Total Orders: <span className="font-bold">{total}</span>
+            </div>
           </div>
         </div>
 
@@ -165,15 +175,15 @@ export default function AdminOrdersPage() {
                   {orders.map((order) => (
                     <tr key={order.id} className="hover:bg-gray-50">
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm font-medium text-gray-900">#{order.order_number}</div>
+                        <div className="text-sm font-medium text-gray-900">#{order.orderNumber}</div>
                       </td>
                       <td className="px-6 py-4">
-                        <div className="text-sm text-gray-900">{order.customer_name}</div>
-                        <div className="text-sm text-gray-500">{order.customer_email}</div>
+                        <div className="text-sm text-gray-900">{order.customerName}</div>
+                        <div className="text-sm text-gray-500">{order.customerEmail}</div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm font-semibold text-gray-900">
-                          {formatCurrency(order.total)}
+                          {formatCurrency(Number(order.total))}
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
@@ -183,7 +193,7 @@ export default function AdminOrdersPage() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm text-gray-900">
-                          {formatDateTime(order.placed_at)}
+                          {formatDateTime(order.placedAt)}
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right space-x-2">

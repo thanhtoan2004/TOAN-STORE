@@ -14,7 +14,7 @@ interface Voucher {
   recipient_email: string | null;
   redeemed_by_user_id: number | null;
   min_order_value: number;
-  applicable_categories: string | null;
+  applicable_tier: string | null;
   status: 'active' | 'inactive' | 'redeemed' | 'expired';
   valid_from: string | null;
   valid_until: string | null;
@@ -38,6 +38,7 @@ export default function AdminVouchersPage() {
     recipient_email: '',
     min_order_value: 0,
     valid_until: '',
+    applicable_tier: 'bronze',
     status: 'active' as 'active' | 'inactive' | 'redeemed' | 'expired'
   });
 
@@ -109,6 +110,7 @@ export default function AdminVouchersPage() {
       recipient_email: voucher.recipient_email || '',
       min_order_value: voucher.min_order_value || 0,
       valid_until: voucher.valid_until ? voucher.valid_until.split('T')[0] : '',
+      applicable_tier: voucher.applicable_tier || 'bronze',
       status: voucher.status
     });
     setEditingId(voucher.id);
@@ -144,6 +146,7 @@ export default function AdminVouchersPage() {
       recipient_email: '',
       min_order_value: 0,
       valid_until: '',
+      applicable_tier: 'bronze',
       status: 'active'
     });
     setEditingId(null);
@@ -234,7 +237,7 @@ export default function AdminVouchersPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700">Ngày hết hạn</label>
                   <input
@@ -243,6 +246,20 @@ export default function AdminVouchersPage() {
                     onChange={(e) => setFormData({ ...formData, valid_until: e.target.value })}
                     className="mt-1 block w-full px-3 py-2 border rounded-md focus:ring-black focus:border-black"
                   />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Hạng thành viên tối thiểu</label>
+                  <select
+                    value={formData.applicable_tier}
+                    onChange={(e) => setFormData({ ...formData, applicable_tier: e.target.value })}
+                    className="mt-1 block w-full px-3 py-2 border rounded-md focus:ring-black focus:border-black"
+                  >
+                    <option value="bronze">Bronze (Tất cả)</option>
+                    <option value="silver">Silver trở lên</option>
+                    <option value="gold">Gold trở lên</option>
+                    <option value="platinum">Platinum</option>
+                  </select>
                 </div>
 
                 <div>
@@ -296,7 +313,7 @@ export default function AdminVouchersPage() {
                   <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Mã / Mô tả</th>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Giá trị / ĐK</th>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Email Người nhận</th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Hạn dùng</th>
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Hạn dùng / Hạng</th>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Trạng thái</th>
                   <th className="px-6 py-4 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">Thao tác</th>
                 </tr>
@@ -327,13 +344,24 @@ export default function AdminVouchersPage() {
                         <span className="text-xs text-gray-400 italic">Dùng chung (Public)</span>
                       )}
                     </td>
-                    <td className="px-6 py-4 text-sm text-gray-600">
-                      {voucher.valid_until ? formatDate(voucher.valid_until) : 'Vĩnh viễn'}
+                    <td className="px-6 py-4">
+                      <div className="text-sm text-gray-600">
+                        {voucher.valid_until ? formatDate(voucher.valid_until) : 'Vĩnh viễn'}
+                      </div>
+                      <div className="mt-1">
+                        <span className={`px-2 py-0.5 text-[10px] font-bold uppercase rounded ${voucher.applicable_tier === 'platinum' ? 'bg-purple-100 text-purple-700' :
+                            voucher.applicable_tier === 'gold' ? 'bg-yellow-100 text-yellow-700' :
+                              voucher.applicable_tier === 'silver' ? 'bg-blue-100 text-blue-700' :
+                                'bg-gray-100 text-gray-700'
+                          }`}>
+                          {voucher.applicable_tier || 'bronze'}
+                        </span>
+                      </div>
                     </td>
                     <td className="px-6 py-4">
                       <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${voucher.status === 'active' ? 'bg-green-100 text-green-800' :
-                          voucher.status === 'redeemed' ? 'bg-blue-100 text-blue-800' :
-                            'bg-gray-100 text-gray-800'
+                        voucher.status === 'redeemed' ? 'bg-blue-100 text-blue-800' :
+                          'bg-gray-100 text-gray-800'
                         }`}>
                         {voucher.status === 'active' ? 'Sẵn dụng' :
                           voucher.status === 'redeemed' ? 'Đã dùng' :

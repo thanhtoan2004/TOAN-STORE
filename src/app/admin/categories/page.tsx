@@ -9,17 +9,17 @@ interface Category {
   name: string;
   slug: string;
   description: string;
-  image_url?: string;
+  imageUrl?: string;
   position: number;
-  is_active: number;
+  isActive: number;
 }
 
 export default function CategoriesPage() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
-  const [newCategory, setNewCategory] = useState({ name: '', slug: '', description: '', image_url: '', position: 0 });
+  const [newCategory, setNewCategory] = useState({ name: '', slug: '', description: '', imageUrl: '', position: 0 });
   const [editingId, setEditingId] = useState<number | null>(null);
-  const [editForm, setEditForm] = useState({ name: '', slug: '', description: '', image_url: '', position: 0 });
+  const [editForm, setEditForm] = useState({ name: '', slug: '', description: '', imageUrl: '', position: 0 });
 
   useEffect(() => {
     fetchCategories();
@@ -53,7 +53,7 @@ export default function CategoriesPage() {
       });
 
       if (response.ok) {
-        setNewCategory({ name: '', slug: '', description: '', image_url: '', position: 0 });
+        setNewCategory({ name: '', slug: '', description: '', imageUrl: '', position: 0 });
         fetchCategories();
       }
     } catch (error) {
@@ -67,7 +67,7 @@ export default function CategoriesPage() {
       name: category.name,
       slug: category.slug,
       description: category.description,
-      image_url: category.image_url || '',
+      imageUrl: category.imageUrl || '',
       position: category.position
     });
   };
@@ -154,8 +154,8 @@ export default function CategoriesPage() {
             <input
               type="text"
               placeholder="URL Hình ảnh"
-              value={newCategory.image_url}
-              onChange={(e) => setNewCategory({ ...newCategory, image_url: e.target.value })}
+              value={newCategory.imageUrl}
+              onChange={(e) => setNewCategory({ ...newCategory, imageUrl: e.target.value })}
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent"
             />
             <input
@@ -217,8 +217,8 @@ export default function CategoriesPage() {
                         />
                         <input
                           type="text"
-                          value={editForm.image_url}
-                          onChange={(e) => setEditForm({ ...editForm, image_url: e.target.value })}
+                          value={editForm.imageUrl}
+                          onChange={(e) => setEditForm({ ...editForm, imageUrl: e.target.value })}
                           placeholder="URL Hình ảnh"
                           className="w-full px-3 py-2 border border-gray-300 rounded-lg"
                         />

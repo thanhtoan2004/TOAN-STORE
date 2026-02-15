@@ -26,6 +26,8 @@ if (dbPassword !== undefined) {
 
 export const pool = mysql.createPool(poolConfig);
 
+console.log(`[SERVICE_INITIALIZATION] MySQL Pool created for database: ${poolConfig.database} on ${poolConfig.host}`);
+
 // Kiểm tra kết nối
 export async function testConnection() {
     try {

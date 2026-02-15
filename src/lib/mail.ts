@@ -212,7 +212,7 @@ export async function sendPaymentReceivedEmail(to: string, orderNumber: string, 
 
 export async function sendVoucherReceivedEmail(to: string, code: string, value: number, discountType: string, minOrderValue: number | null) {
   const subject = 'Bạn nhận được một Voucher mới từ TOAN Store';
-  const formattedValue = discountType === 'percentage' ? `${value}%` : new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(value);
+  const formattedValue = discountType === 'percent' ? `${value}%` : new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(value);
 
   const body = `
     <p>Chào bạn,</p>

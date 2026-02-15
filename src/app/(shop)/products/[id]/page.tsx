@@ -16,11 +16,12 @@ export async function generateMetadata(
   parent: ResolvingMetadata
 ): Promise<Metadata> {
   const id = (await params).id;
+  const productId = parseInt(id);
 
-  // fetch data
+  // 1. Fetch default product data
   const products = await executeQuery(
     'SELECT name, description, category_id, retail_price, base_price, (SELECT url FROM product_images WHERE product_id = products.id AND is_main = 1 LIMIT 1) as image_url FROM products WHERE id = ?',
-    [id]
+    [productId]
   ) as any[];
 
   if (products.length === 0) {
@@ -29,19 +30,36 @@ export async function generateMetadata(
 
   const product = products[0];
 
+  // 2. Fetch Dynamic SEO Metadata from repository
+  const { getSeoMetadata } = await import('@/lib/db/repositories/seo');
+  const dynamicSeo = await getSeoMetadata('product', productId);
+
+  // 3. Merge Metadata (Dynamic > Database > Default)
+  const title = dynamicSeo?.title || `${product.name} | TOAN`;
+  const description = dynamicSeo?.description || (product.description ? product.description.substring(0, 160) : `Mua ${product.name} tại TOAN Store`);
+  const imageUrl = dynamicSeo?.og_image_url || product.image_url || '/og-image.jpg';
+
   return {
-    title: `${product.name} | TOAN`,
-    description: product.description ? product.description.substring(0, 160) : `Mua ${product.name} tại TOAN Store`,
+    title,
+    description,
+    keywords: dynamicSeo?.keywords,
+    alternates: {
+      canonical: dynamicSeo?.canonical_url,
+    },
     openGraph: {
-      title: product.name,
-      description: product.description ? product.description.substring(0, 160) : `Mua ${product.name} tại TOAN Store`,
+      title,
+      description,
       images: [{
-        url: product.image_url || '/og-image.jpg',
+        url: imageUrl,
         width: 1200,
         height: 630,
         alt: product.name
       }],
+      type: 'website',
     },
+    other: dynamicSeo?.structured_data ? {
+      'structured-data': JSON.stringify(dynamicSeo.structured_data)
+    } : undefined
   }
 }
 

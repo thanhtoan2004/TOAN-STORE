@@ -53,6 +53,19 @@ const tools = [
                     },
                     required: ['orderNumber', 'phone']
                 }
+            },
+            {
+                name: 'add_to_cart_check',
+                description: 'Kiểm tra và chuẩn bị thêm sản phẩm vào giỏ hàng. Dùng khi khách hàng có ý định MUA hàng rõ ràng (ví dụ: "mua đôi này", "lấy size 42").',
+                parameters: {
+                    type: 'OBJECT',
+                    properties: {
+                        keyword: { type: 'STRING', description: 'Tên sản phẩm muốn mua' },
+                        size: { type: 'STRING', description: 'Size giày/áo (nếu có)' },
+                        quantity: { type: 'INTEGER', description: 'Số lượng mua (mặc định là 1)' }
+                    },
+                    required: ['keyword']
+                }
             }
         ]
     }
@@ -221,6 +234,37 @@ QUY TẮC BẢO MẬT & VẬN HÀNH:
                                 data = await getOrderStatusForChat(args.orderNumber, args.phone);
                                 toolDataType = 'order';
                             }
+                            else if (name === 'add_to_cart_check') {
+                                // 1. Tìm sản phẩm
+                                const products = await searchProductsForChat(args.keyword);
+                                if (products.length === 0) {
+                                    data = { error: 'not_found', message: 'Không tìm thấy sản phẩm' };
+                                } else if (products.length > 1) {
+                                    // Nhiều sản phẩm -> Trả về danh sách để user chọn
+                                    data = products;
+                                    toolDataType = 'products'; // Fallback to normal product view
+                                } else {
+                                    // 1 sản phẩm duy nhất
+                                    const product = products[0];
+                                    const requestedSize = args.size ? args.size.toString() : null;
+                                    const availableSizes = product.sizes.split(', ').map((s: string) => s.trim());
+
+                                    // Validate Size
+                                    if (requestedSize && !availableSizes.includes(requestedSize)) {
+                                        data = { error: 'size_unavailable', product, availableSizes };
+                                    } else {
+                                        // Ready to intent
+                                        data = {
+                                            product,
+                                            intent: {
+                                                size: requestedSize,
+                                                quantity: args.quantity || 1
+                                            }
+                                        };
+                                        toolDataType = 'intent_add_to_cart';
+                                    }
+                                }
+                            }
                         } catch (e) { console.error(`Tool ${name} fail:`, e); }
 
                         return {
@@ -258,7 +302,7 @@ QUY TẮC BẢO MẬT & VẬN HÀNH:
         const responseData = {
             text: finalResponseText,
             data: toolData,
-            dataType: toolDataType
+            dataType: toolDataType // 'products' | 'order' | 'intent_add_to_cart'
         };
 
         // Cache successful responses for 1 hour (3600s)

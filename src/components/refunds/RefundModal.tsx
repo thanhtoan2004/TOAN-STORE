@@ -42,7 +42,7 @@ export default function RefundModal({ isOpen, onClose, orderId, orderNumber, ite
 
         try {
             setSubmitting(true);
-            const uploadedMedia: string[] = [];
+            const uploadedMedia: { url: string; type: 'image' | 'video' }[] = [];
 
             // 1. Upload media if any
             if (mediaFiles.length > 0) {
@@ -59,14 +59,14 @@ export default function RefundModal({ isOpen, onClose, orderId, orderNumber, ite
 
                     const data = await res.json();
                     if (data.success && data.data) {
-                        return data.data.url;
+                        return { url: data.data.url, type: data.data.type };
                     }
                     return null;
                 });
 
                 const results = await Promise.all(uploadPromises);
-                results.forEach(url => {
-                    if (url) uploadedMedia.push(url);
+                results.forEach(item => {
+                    if (item) uploadedMedia.push(item);
                 });
             }
 

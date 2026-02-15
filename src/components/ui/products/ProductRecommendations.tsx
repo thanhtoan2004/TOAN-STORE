@@ -26,41 +26,35 @@ export default function ProductRecommendations({ currentProductId }: ProductReco
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        async function fetchRelated() {
+        async function fetchSimilar() {
             try {
-                const res = await fetch(`/api/products/${currentProductId}/related`);
+                // Try the new AI similarity endpoint first
+                const res = await fetch(`/api/products/${currentProductId}/similar`);
                 const data = await res.json();
-                if (data.success) {
-                    // Map API data to ProductCard expected format (price = Original, sale_price = Discounted)
-                    const mappedProducts = data.data.map((p: any) => {
-                        const basePrice = Number(p.price);
-                        const retailPrice = p.sale_price ? Number(p.sale_price) : 0;
 
-                        // Check for valid discount
-                        if (retailPrice && retailPrice > basePrice) {
-                            return {
-                                ...p,
-                                price: retailPrice,
-                                sale_price: basePrice
-                            };
-                        }
-                        return {
-                            ...p,
-                            price: basePrice,
-                            sale_price: undefined
-                        };
-                    });
-                    setProducts(mappedProducts);
+                if (data.success && data.data.length > 0) {
+                    // Map API data if needed, but the new API already returns clean objects
+                    setProducts(data.data.map((p: any) => ({
+                        ...p,
+                        id: Number(p.id)
+                    })));
+                } else {
+                    // Fallback to traditional related products
+                    const relRes = await fetch(`/api/products/${currentProductId}/related`);
+                    const relData = await relRes.json();
+                    if (relData.success) {
+                        setProducts(relData.data);
+                    }
                 }
             } catch (error) {
-                console.error('Error fetching related products:', error);
+                console.error('Error fetching recommendations:', error);
             } finally {
                 setLoading(false);
             }
         }
 
         if (currentProductId) {
-            fetchRelated();
+            fetchSimilar();
         }
     }, [currentProductId]);
 

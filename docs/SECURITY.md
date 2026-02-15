@@ -40,6 +40,19 @@ Tài liệu bảo mật cho TOAN E-commerce. Dự án đã đạt chứng chỉ 
 - **Redis Storage**: Refresh tokens lưu trong Redis với TTL, cho phép server-side revocation
 - **Production Enforcement**: `JWT_SECRET` bắt buộc phải set trong production, app crash nếu thiếu
 
+### Role-Based Access Control (RBAC)
+- **Granular Permissions**: Chuyển đổi từ logic check role cứng (`admin`/`super_admin`) sang hệ thống quyền hạn linh hoạt (`permissions`).
+- **Higher-Order Protection**: Sử dụng `withPermission(permissionName, handler)` để bao bọc các API routes, đảm bảo tính nhất quán và dễ mở rộng.
+- **Default Super Admin**: Role `super_admin` tự động có quyền `all`, bypass mọi kiểm tra quyền cụ thể.
+- **Permission Mapping**:
+  | Action | Permission Required |
+  |--------|---------------------|
+  | Quản lý kho | `manage:inventory` |
+  | Quản lý đơn hàng | `manage:orders` |
+  | Xem báo cáo | `view:reports` |
+  | Quản lý người dùng | `manage:users` |
+  | Toàn quyền | `all` |
+
 ---
 
 ## 🛡️ Data Protection

@@ -164,47 +164,50 @@ export default function AdminChatDetailPage() {
         loadChatData();
     }, [chatId]);
 
-    // Polling
+    const socketRef = useRef<any>(null);
+
+    // Socket.io Connection
     useEffect(() => {
-        const poll = async () => {
-            if (!chatId) return;
-            try {
-                // Fetch messages
-                const lastMsg = messages[messages.length - 1];
-                const since = lastMsg ? lastMsg.created_at : undefined;
-                const url = since
-                    ? `/api/support/chat/${chatId}/messages?since=${encodeURIComponent(since)}`
-                    : `/api/support/chat/${chatId}/messages`;
+        if (!chatId || chat?.status === 'closed') return;
 
-                const res = await fetch(url);
-                const data = await res.json();
+        const socketInitializer = async () => {
+            await fetch('/api/socket');
+            const { io } = await import('socket.io-client');
 
-                if (data.success && data.messages.length > 0) {
-                    setMessages(prev => {
-                        const newMessages = data.messages.filter(
-                            (msg: Message) => !prev.some(m => m.id === msg.id)
-                        );
-                        return [...prev, ...newMessages];
-                    });
+            socketRef.current = io({
+                path: '/api/socket'
+            });
+
+            socketRef.current.on('connect', () => {
+                console.log('Admin socket connected');
+                socketRef.current.emit('join-chat', chatId);
+            });
+
+            socketRef.current.on('new-message', (data: Message) => {
+                setMessages(prev => {
+                    if (prev.some(m => m.id === data.id)) return prev;
+                    return [...prev, data];
+                });
+            });
+
+            // Additionally, refresh chat details on message to ensure status/assignment sync
+            socketRef.current.on('chat-updated', async () => {
+                const res = await fetch(`/api/admin/support/chats/${chatId}`);
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data.success && data.chat) setChat(data.chat);
                 }
-
-                // Refresh chat details to update status if changed
-                const detailsRes = await fetch(`/api/admin/support/chats/${chatId}`);
-                if (detailsRes.ok) {
-                    const data = await detailsRes.json();
-                    if (data.success && data.chat) {
-                        setChat(data.chat);
-                    }
-                }
-
-            } catch (error) {
-                console.error('Polling error:', error);
-            }
+            });
         };
 
-        const interval = setInterval(poll, 3000);
-        return () => clearInterval(interval);
-    }, [chatId, messages]);
+        socketInitializer();
+
+        return () => {
+            if (socketRef.current) {
+                socketRef.current.disconnect();
+            }
+        };
+    }, [chatId, chat?.status]);
 
 
     const handleSendMessage = async (e: React.FormEvent) => {
@@ -250,6 +253,14 @@ export default function AdminChatDetailPage() {
                     sender_last_name: user.lastName
                 };
                 setMessages(prev => [...prev, newMsg]);
+
+                // NEW: Emit via socket
+                if (socketRef.current) {
+                    socketRef.current.emit('send-message', {
+                        chatId,
+                        ...newMsg
+                    });
+                }
             }
         } catch (error) {
             console.error('Send failed:', error);

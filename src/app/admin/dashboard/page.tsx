@@ -17,7 +17,10 @@ interface DashboardStats {
   totalDiscounts: number;
   totalShipping: number;
   netRevenue: number;
-  revenueTrend: Array<{ date: string; revenue: number; orderCount: number }>;
+  totalCost: number;
+  totalProfit: number;
+  profitMargin: number;
+  revenueTrend: Array<{ date: string; revenue: number; profit: number; orderCount: number }>;
   revenueByStatus: Array<{ status: string; count: number; revenue: number }>;
   lowStockCount: number;
   outOfStockCount: number;
@@ -154,16 +157,21 @@ export default function AdminDashboardPage() {
             </div>
           </div>
 
-          <div className="bg-white rounded-lg shadow p-6">
+          <div className="bg-white rounded-lg shadow p-6 border-l-4 border-purple-500">
             <div className="flex items-center">
-              <div className="flex-shrink-0 bg-pink-500 rounded-md p-3">
-                <Gift className="h-6 w-6 text-white" />
+              <div className="flex-shrink-0 bg-purple-500 rounded-md p-3">
+                <TrendingUp className="h-6 w-6 text-white" />
               </div>
               <div className="ml-4 flex-1">
-                <p className="text-sm font-medium text-gray-500">Active Gift Cards</p>
-                <p className="text-2xl font-semibold text-gray-900">
-                  {stats?.activeGiftCards || 0}
-                </p>
+                <p className="text-sm font-medium text-gray-500">Net Profit</p>
+                <div className="flex items-baseline gap-2">
+                  <p className="text-2xl font-semibold text-gray-900">
+                    {formatCurrency(stats?.totalProfit)}
+                  </p>
+                  <span className="text-xs font-bold text-green-600">
+                    {stats?.profitMargin?.toFixed(1)}%
+                  </span>
+                </div>
               </div>
             </div>
           </div>
@@ -204,11 +212,12 @@ export default function AdminDashboardPage() {
                 />
                 <YAxis tickFormatter={(value) => `${(value / 1000).toFixed(0)}k`} />
                 <Tooltip
-                  formatter={(value: number | undefined) => value ? [formatCurrency(value), 'Revenue'] : ['0 ₫', 'Revenue']}
+                  formatter={(value: any, name: any) => [formatCurrency(value), name]}
                   labelFormatter={(label) => formatDate(label)}
                 />
                 <Legend />
                 <Line type="monotone" dataKey="revenue" stroke="#10b981" strokeWidth={2} name="Revenue" />
+                <Line type="monotone" dataKey="profit" stroke="#8b5cf6" strokeWidth={2} name="Profit" />
               </LineChart>
             </ResponsiveContainer>
           ) : (
@@ -285,10 +294,9 @@ export default function AdminDashboardPage() {
           </div>
         </div>
 
-        {/* Financial Summary */}
         <div className="bg-white rounded-lg shadow p-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Financial Summary</h2>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">Financial Summary (Delivered Orders)</h2>
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
             <div className="p-4 bg-blue-50 rounded-lg">
               <p className="text-sm text-gray-600">Total VAT Collected</p>
               <p className="text-xl font-bold text-blue-600">
@@ -307,11 +315,18 @@ export default function AdminDashboardPage() {
                 {formatCurrency(stats?.totalShipping)}
               </p>
             </div>
-            <div className="p-4 bg-purple-50 rounded-lg">
-              <p className="text-sm text-gray-600">Net Revenue</p>
-              <p className="text-xl font-bold text-purple-600">
-                {formatCurrency(stats?.netRevenue)}
+            <div className="p-4 bg-orange-50 rounded-lg">
+              <p className="text-sm text-gray-600">Total Cost (COGS)</p>
+              <p className="text-xl font-bold text-orange-600">
+                {formatCurrency(stats?.totalCost)}
               </p>
+            </div>
+            <div className="p-4 bg-purple-50 rounded-lg">
+              <p className="text-sm text-gray-600">Net Profit</p>
+              <p className="text-xl font-bold text-purple-600">
+                {formatCurrency(stats?.totalProfit)}
+              </p>
+              <p className="text-xs text-purple-500 mt-1">Margin: {stats?.profitMargin?.toFixed(1)}%</p>
             </div>
           </div>
         </div>

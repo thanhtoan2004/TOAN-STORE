@@ -12,8 +12,16 @@ interface Product {
     description?: string;
     is_new_arrival: boolean;
     created_at: string;
-    images?: Array<{ url: string; alt_text?: string }>;
+    images?: Array<{ url: string; alt_text?: string; media_type?: 'image' | 'video' }>;
     sizes?: Array<{ size: string; stock: number; reserved?: number }>;
+    attributes?: Array<{
+        name: string;
+        slug: string;
+        type: string;
+        value_text?: string;
+        option_label?: string;
+        option_value?: string;
+    }>;
 }
 
 async function fetchProduct(id: string): Promise<Product | null> {

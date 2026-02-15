@@ -132,46 +132,46 @@ export default function LiveSupportChat({ userId, guestEmail, guestName }: LiveS
         }
     }, [userId, guestEmail, guestName, showGuestForm, guestInfo.name, guestInfo.email]);
 
-    // Polling for new messages
+    const socketRef = useRef<any>(null);
+
+    // Socket.io Connection
     useEffect(() => {
         if (!chatId || chatStatus === 'closed') return;
 
-        const pollMessages = async () => {
-            try {
-                const lastMessageTime = messages.length > 0
-                    ? messages[messages.length - 1].created_at
-                    : undefined;
+        // Initialize socket
+        const socketInitializer = async () => {
+            await fetch('/api/socket');
+            const { io } = await import('socket.io-client');
 
-                const url = lastMessageTime
-                    ? `/api/support/chat/${chatId}/messages?since=${encodeURIComponent(lastMessageTime)}`
-                    : `/api/support/chat/${chatId}/messages`;
+            socketRef.current = io({
+                path: '/api/socket'
+            });
 
-                const response = await fetch(url);
-                const data = await response.json();
+            socketRef.current.on('connect', () => {
+                console.log('Socket connected');
+                socketRef.current.emit('join-chat', chatId);
+            });
 
-                if (data.success && data.messages.length > 0) {
-                    setMessages(prev => {
-                        const newMessages = data.messages.filter(
-                            (msg: Message) => !prev.some(m => m.id === msg.id)
-                        );
-                        return [...prev, ...newMessages];
-                    });
-                    setChatStatus(data.chatStatus);
-                }
-            } catch (error) {
-                console.error('Polling error:', error);
-            }
+            socketRef.current.on('new-message', (data: Message) => {
+                setMessages(prev => {
+                    if (prev.some(m => m.id === data.id)) return prev;
+                    return [...prev, data];
+                });
+            });
+
+            socketRef.current.on('disconnect', () => {
+                console.log('Socket disconnected');
+            });
         };
 
-        // Poll every 3 seconds
-        pollingIntervalRef.current = setInterval(pollMessages, 3000);
+        socketInitializer();
 
         return () => {
-            if (pollingIntervalRef.current) {
-                clearInterval(pollingIntervalRef.current);
+            if (socketRef.current) {
+                socketRef.current.disconnect();
             }
         };
-    }, [chatId, messages, chatStatus]);
+    }, [chatId, chatStatus]);
 
     const loadMessages = async (id: number) => {
         try {
@@ -225,6 +225,14 @@ export default function LiveSupportChat({ userId, guestEmail, guestName }: LiveS
                     created_at: new Date().toISOString()
                 };
                 setMessages(prev => [...prev, newMessage]);
+
+                // NEW: Emit via socket
+                if (socketRef.current) {
+                    socketRef.current.emit('send-message', {
+                        chatId,
+                        ...newMessage
+                    });
+                }
             }
         } catch (error) {
             console.error('Send message error:', error);

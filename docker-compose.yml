@@ -7,7 +7,7 @@ services:
     container_name: nike-mysql
     restart: always
     environment:
-      MYSQL_ROOT_PASSWORD: root
+      MYSQL_ALLOW_EMPTY_PASSWORD: "yes"
       MYSQL_DATABASE: nike_clone
     ports:
       - "3307:3306" # Tránh xung đột với MySQL cài sẵn (cổng 3306)
@@ -38,6 +38,20 @@ services:
     networks:
       - nike-network
 
+  # Meilisearch for Advanced Search
+  meilisearch:
+    image: getmeili/meilisearch:v1.10
+    container_name: nike-meilisearch
+    environment:
+      - MEILI_MASTER_KEY=masterKey # Change in production
+    ports:
+      - "127.0.0.1:7700:7700"
+    volumes:
+      - meili_data:/meili_data
+    restart: always
+    networks:
+      - nike-network
+
 # Define networks
 networks:
   nike-network:
@@ -47,3 +61,4 @@ networks:
 volumes:
   mysql_data:
   redis_data:
+  meili_data:

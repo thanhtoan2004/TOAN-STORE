@@ -3,6 +3,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { executeQuery } from '@/lib/db/mysql';
 import { checkAdminAuth } from '@/lib/auth';
 import { sendWishlistSaleEmail } from '@/lib/email-templates';
+import { syncProductToMeilisearch, deleteProductFromMeilisearch } from '@/lib/meilisearch';
+import { logAdminAction } from '@/lib/audit';
 
 // ... (GET method unchanged)
 // GET - Lấy chi tiết sản phẩm
@@ -70,7 +72,7 @@ export async function PUT(
 
         // Get current product state BEFORE update for comparison
         const currentProducts = await executeQuery<any[]>(
-            'SELECT retail_price, base_price, name FROM products WHERE id = ?',
+            'SELECT * FROM products WHERE id = ?',
             [id]
         );
 
@@ -171,6 +173,35 @@ export async function PUT(
             }
         }
 
+        // Sync to Meilisearch
+        await syncProductToMeilisearch(id);
+
+        // Audit Logging
+        if (currentProduct) {
+            const oldValues: any = {};
+            const newValues: any = {};
+
+            // Compare only the fields that were sent in the update
+            Object.keys(updates).forEach(key => {
+                if (JSON.stringify(currentProduct[key]) !== JSON.stringify(updates[key])) {
+                    oldValues[key] = currentProduct[key];
+                    newValues[key] = updates[key];
+                }
+            });
+
+            if (Object.keys(newValues).length > 0) {
+                await logAdminAction(
+                    admin.userId,
+                    'UPDATE_PRODUCT',
+                    'products',
+                    id,
+                    oldValues,
+                    newValues,
+                    request
+                );
+            }
+        }
+
         return NextResponse.json({
             success: true,
             message: 'Product updated successfully'
@@ -203,6 +234,20 @@ export async function DELETE(
         if (result.affectedRows === 0) {
             return NextResponse.json({ success: false, message: 'Product not found' }, { status: 404 });
         }
+
+        // Delete from Meilisearch
+        await deleteProductFromMeilisearch(id);
+
+        // Audit Logging
+        await logAdminAction(
+            admin.userId,
+            'DELETE_PRODUCT',
+            'products',
+            id,
+            { is_active: 1, deleted_at: null },
+            { is_active: 0, deleted_at: 'CURRENT_TIMESTAMP' },
+            request
+        );
 
         return NextResponse.json({
             success: true,

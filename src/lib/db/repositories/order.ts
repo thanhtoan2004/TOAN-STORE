@@ -160,7 +160,7 @@ export async function createOrder(orderData: {
         for (const item of orderData.items) {
             // Get base product price
             const [productInfo]: any = await connection.execute(
-                `SELECT base_price, retail_price FROM products WHERE id = ?`,
+                `SELECT base_price, retail_price, cost_price FROM products WHERE id = ?`,
                 [item.productId]
             );
 
@@ -269,15 +269,16 @@ export async function createOrder(orderData: {
             // 2. RESERVE STOCK (Don't just subtract quantity, move it to reserved)
             await connection.execute(
                 `UPDATE inventory 
-                 SET quantity = quantity - ?, reserved = reserved + ?
+                SET quantity = quantity - ?, reserved = reserved + ?
                  WHERE id = ?`,
                 [item.quantity, item.quantity, sourceInventoryId]
             );
+            const actualCostPrice = parseFloat(productInfo[0].cost_price || 0);
 
             // 3. INSERT order_items (now we have sourceInventoryId)
             await connection.execute(
-                `INSERT INTO order_items (order_id, product_id, product_variant_id, inventory_id, product_name, sku, size, quantity, unit_price, total_price, flash_sale_item_id)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                `INSERT INTO order_items (order_id, product_id, product_variant_id, inventory_id, product_name, sku, size, quantity, unit_price, total_price, cost_price, flash_sale_item_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
                 [
                     orderId,
                     item.productId,
@@ -289,6 +290,7 @@ export async function createOrder(orderData: {
                     item.quantity,
                     actualUnitPrice,
                     actualUnitPrice * item.quantity,
+                    actualCostPrice,
                     flashSaleItemId
                 ]
             );
