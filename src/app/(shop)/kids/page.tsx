@@ -10,9 +10,9 @@ import { Button } from "@/components/ui/Button";
 import { Footprints, Shirt, Backpack, Baby, School, Trophy } from 'lucide-react';
 
 const HERO_IMAGES = [
-    "https://ext.same-assets.com/3155489436/3889410111.jpeg",
-    "https://ext.same-assets.com/3155489436/2791647303.jpeg",
-    "https://ext.same-assets.com/3155489436/366099981.jpeg"
+    "https://images.unsplash.com/photo-1503944583220-79d8926ad5e2?w=1200&q=80",
+    "https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=1200&q=80",
+    "https://images.unsplash.com/photo-1517836357463-d25dfeac3438?w=1200&q=80"
 ];
 
 const FEATURED_COLLECTIONS = [
@@ -20,7 +20,7 @@ const FEATURED_COLLECTIONS = [
         id: 1,
         title: "Back to School",
         subtitle: "Gear up for learning",
-        image: "https://ext.same-assets.com/3155489436/3889410111.jpeg",
+        image: "https://images.unsplash.com/photo-1503944583220-79d8926ad5e2?w=800&q=80",
         link: "/categories?gender=kids&category=lifestyle",
         price: "From 500.000 ₫"
     },
@@ -28,7 +28,7 @@ const FEATURED_COLLECTIONS = [
         id: 2,
         title: "Sporty Kids",
         subtitle: "Ready for playground",
-        image: "https://ext.same-assets.com/3155489436/2791647303.jpeg",
+        image: "https://images.unsplash.com/photo-1517836357463-d25dfeac3438?w=800&q=80",
         link: "/categories?gender=kids&category=clothing",
         price: "From 350.000 ₫"
     },
@@ -36,7 +36,7 @@ const FEATURED_COLLECTIONS = [
         id: 3,
         title: "Mini Jordan",
         subtitle: "Iconic style for little ones",
-        image: "https://ext.same-assets.com/3155489436/366099981.jpeg",
+        image: "https://images.unsplash.com/photo-1595950653106-6c9ebd614d3a?w=800&q=80",
         link: "/categories?brand=jordan&gender=kids",
         price: "From 1.200.000 ₫"
     },
@@ -44,7 +44,7 @@ const FEATURED_COLLECTIONS = [
         id: 4,
         title: "Outdoor Play",
         subtitle: "Protection and comfort",
-        image: "https://ext.same-assets.com/3155489436/2845474323.jpeg",
+        image: "https://images.unsplash.com/photo-1519331379826-f10be5486c6f?w=800&q=80",
         link: "/categories?gender=kids&sport=running",
         price: "From 600.000 ₫"
     }
@@ -57,6 +57,12 @@ const CATEGORIES = [
     { name: "Trẻ nhỏ", icon: <Baby className="w-8 h-8" />, link: "/categories?gender=kids&age=baby", count: "30+" },
     { name: "Đi học", icon: <School className="w-8 h-8" />, link: "/categories?gender=kids&category=lifestyle", count: "50+" },
     { name: "Thể thao", icon: <Trophy className="w-8 h-8" />, link: "/categories?gender=kids&sport=running", count: "40+" }
+];
+
+const CATEGORY_IMAGES = [
+    "https://static.nike.com/a/images/f_auto/dpr_2.0,vc_auto/w_1206,c_limit/77b0653d-2495-468b-9801-1e9f1687da96/nike-just-do-it.jpg",
+    "https://static.nike.com/a/images/f_auto/dpr_2.0,vc_auto/w_1206,c_limit/c99db104-5827-466d-8e4f-4d516212e3f5/nike-just-do-it.jpg",
+    "https://static.nike.com/a/images/f_auto/dpr_2.0,vc_auto/w_1206,c_limit/f4d7f6c3-1d0b-4b2a-8c1c-9189c4501a52/nike-just-do-it.jpg"
 ];
 
 export default function KidsPage() {

@@ -127,7 +127,41 @@ export const inventory = mysqlTable('inventory', {
     warehouseId: bigint('warehouse_id', { mode: 'number', unsigned: true }),
     quantity: int('quantity').notNull().default(0),
     reserved: int('reserved').notNull().default(0),
+    lowStockThreshold: int('low_stock_threshold').default(10),
+    allowBackorder: tinyint('allow_backorder').default(0),
+    expectedRestockDate: timestamp('expected_restock_date'),
     updatedAt: timestamp('updated_at').defaultNow().onUpdateNow(),
+});
+
+export const warehouses = mysqlTable('warehouses', {
+    id: serial('id').primaryKey(),
+    name: varchar('name', { length: 255 }).notNull().unique(),
+    address: text('address'),
+    isActive: tinyint('is_active').default(1),
+    createdAt: timestamp('created_at').defaultNow(),
+});
+
+export const inventoryTransfers = mysqlTable('inventory_transfers', {
+    id: serial('id').primaryKey(),
+    fromWarehouseId: bigint('from_warehouse_id', { mode: 'number', unsigned: true }).notNull(),
+    toWarehouseId: bigint('to_warehouse_id', { mode: 'number', unsigned: true }).notNull(),
+    productVariantId: bigint('product_variant_id', { mode: 'number', unsigned: true }).notNull(),
+    quantity: int('quantity').notNull(),
+    status: mysqlEnum('status', ['pending', 'approved', 'in_transit', 'completed', 'cancelled']).default('pending'),
+    requestedBy: bigint('requested_by', { mode: 'number', unsigned: true }),
+    approvedBy: bigint('approved_by', { mode: 'number', unsigned: true }),
+    notes: text('notes'),
+    createdAt: timestamp('created_at').defaultNow(),
+    completedAt: timestamp('completed_at'),
+});
+
+export const inventoryLogs = mysqlTable('inventory_logs', {
+    id: serial('id').primaryKey(),
+    inventoryId: bigint('inventory_id', { mode: 'number', unsigned: true }).notNull(),
+    quantityChange: int('quantity_change').notNull(),
+    reason: varchar('reason', { length: 255 }).notNull(), // restock, order_reserved, order_cancelled, order_fulfilled, transfer, adjustment
+    referenceId: varchar('reference_id', { length: 100 }), // order_id or transfer_id
+    createdAt: timestamp('created_at').defaultNow(),
 });
 
 // --- ORDERS ---
@@ -447,5 +481,7 @@ export const dailyMetrics = mysqlTable('daily_metrics', {
     ordersCount: int('orders_count').default(0),
     customersCount: int('customers_count').default(0),
     cancelledCount: int('cancelled_count').default(0),
+    totalCost: decimal('total_cost', { precision: 15, scale: 2 }).default('0.00'),
+    netProfit: decimal('net_profit', { precision: 15, scale: 2 }).default('0.00'),
     updatedAt: timestamp('updated_at').defaultNow().onUpdateNow(),
 });

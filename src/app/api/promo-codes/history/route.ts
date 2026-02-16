@@ -50,7 +50,7 @@ async function voucherHistoryHandler(req: NextRequest): Promise<NextResponse> {
         c.discount_type,
         c.discount_value,
         c.usage_limit,
-        o.total_amount as order_total
+        o.total as order_total
       FROM coupon_usage cu
       JOIN coupons c ON cu.coupon_id = c.id
       LEFT JOIN orders o ON cu.order_id = o.id

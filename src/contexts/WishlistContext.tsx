@@ -33,6 +33,28 @@ export const WishlistProvider = ({ children }: { children: ReactNode }) => {
   const [loading, setLoading] = useState(true);
   const { user, isAuthenticated } = useAuth();
 
+  // Helper to map and sanitize wishlist data
+  const mapWishlistData = (data: any[]): WishlistItem[] => {
+    return data.map((item: any) => {
+      const basePrice = Number(item.price);
+      const retailPrice = item.sale_price ? Number(item.sale_price) : 0;
+
+      if (retailPrice && retailPrice > basePrice) {
+        return {
+          ...item,
+          price: retailPrice,      // Original Price (Crossed out)
+          sale_price: basePrice    // Selling Price (Red)
+        };
+      }
+
+      return {
+        ...item,
+        price: basePrice,
+        sale_price: undefined
+      };
+    });
+  };
+
   // Load wishlist from database when user logs in
   useEffect(() => {
     const fetchWishlist = async () => {
@@ -42,30 +64,7 @@ export const WishlistProvider = ({ children }: { children: ReactNode }) => {
           const response = await fetch(`/api/wishlist?userId=${user.id}`);
           if (response.ok) {
             const data = await response.json();
-            // Ensure numbers for prices as MySQL driver might return strings for DECIMAL
-            const typedData = data.map((item: any) => {
-              const basePrice = Number(item.price); // DB returns base_price as 'price'
-              const retailPrice = item.sale_price ? Number(item.sale_price) : 0; // DB returns retail_price as 'sale_price'
-
-              // Logic: ProductCard expects price = Original(MSRP) and sale_price = Discounted(Base)
-              // If retailPrice > basePrice (MSRP > Selling), then we have a discount.
-
-              if (retailPrice && retailPrice > basePrice) {
-                return {
-                  ...item,
-                  price: retailPrice,      // Original Price (Crossed out)
-                  sale_price: basePrice    // Selling Price (Red)
-                };
-              }
-
-              // No discount or invalid data, just show selling price as standard price
-              return {
-                ...item,
-                price: basePrice,
-                sale_price: undefined
-              };
-            });
-            setWishlist(typedData);
+            setWishlist(mapWishlistData(data));
           }
         } catch (error) {
           console.error('Lỗi khi tải wishlist:', error);
@@ -125,7 +124,7 @@ export const WishlistProvider = ({ children }: { children: ReactNode }) => {
         const fetchResponse = await fetch(`/api/wishlist?userId=${user.id}`);
         if (fetchResponse.ok) {
           const data = await fetchResponse.json();
-          setWishlist(data); // API trả về array trực tiếp
+          setWishlist(mapWishlistData(data));
         }
       } else {
         throw new Error('Không thể xóa khỏi wishlist');

@@ -198,3 +198,10 @@ export async function setDefaultAddress(addressId: number, userId: number) {
         [addressId, userId]
     );
 }
+
+export async function deleteUser(userId: number) {
+    return executeQuery(
+        'UPDATE users SET deleted_at = NOW(), is_active = 0 WHERE id = ?',
+        [userId]
+    );
+}

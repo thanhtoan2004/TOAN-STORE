@@ -9,6 +9,7 @@ import { AUTH_TOKEN, REFRESH_TOKEN, generateAccessToken, generateRefreshToken } 
 import { withRateLimit } from '@/lib/with-rate-limit';
 import { logSecurityEvent } from '@/lib/audit';
 import { getRedisConnection } from '@/lib/redis';
+import { decrypt } from '@/lib/encryption';
 
 async function loginHandler(req: Request): Promise<NextResponse> {
   const body: Partial<LoginRequest> = await req.json();
@@ -59,6 +60,18 @@ async function loginHandler(req: Request): Promise<NextResponse> {
     );
   }
 
+  // Check if user is active
+  const isActive = user.is_active === 1 || user.is_active === '1' || user.is_active === true;
+  if (!isActive) {
+    const ip = req.headers.get('x-forwarded-for') || '127.0.0.1';
+    await logSecurityEvent('login_failed', ip, user.id, { email, reason: 'Account inactive' });
+    return createErrorResponse(
+      'Tài khoản của bạn chưa được kích hoạt. Vui lòng kiểm tra email hoặc liên hệ admin.',
+      403,
+      'ACCOUNT_INACTIVE'
+    );
+  }
+
   // Verify password
   const isPasswordValid = await bcrypt.compare(password, user.password);
 
@@ -69,7 +82,12 @@ async function loginHandler(req: Request): Promise<NextResponse> {
   }
 
   // Generate Tokens
-  const payload = { userId: user.id, email: user.email, is_admin: user.is_admin };
+  const payload = {
+    userId: user.id,
+    email: user.email,
+    is_admin: user.is_admin === 1 || user.is_admin === '1' || user.is_admin === true,
+    tv: user.token_version // Token Version
+  };
   const accessToken = generateAccessToken(payload);
   const refreshToken = generateRefreshToken(payload);
 
@@ -114,7 +132,7 @@ async function loginHandler(req: Request): Promise<NextResponse> {
       email: user.email,
       firstName: user.first_name,
       lastName: user.last_name,
-      phone: user.phone,
+      phone: decrypt(user.phone || ''),
       dateOfBirth: user.date_of_birth,
       gender: user.gender,
       isActive: user.is_active,

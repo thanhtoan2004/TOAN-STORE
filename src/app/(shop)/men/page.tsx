@@ -14,9 +14,9 @@ import { Footprints, Shirt, Backpack, Dumbbell, Trophy, Timer } from 'lucide-rea
 // ============================================================================
 
 const HERO_IMAGES = [
-  "https://ext.same-assets.com/3155489436/3175003540.jpeg",
-  "https://ext.same-assets.com/3155489436/4012202764.jpeg",
-  "https://ext.same-assets.com/3155489436/3836325111.jpeg"
+  "https://images.unsplash.com/photo-1483721310020-03333e577078?w=1200&q=80",
+  "https://images.unsplash.com/photo-1552346154-21d32810aba3?w=1200&q=80",
+  "https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=1200&q=80"
 ];
 
 const FEATURED_COLLECTIONS = [
@@ -24,7 +24,7 @@ const FEATURED_COLLECTIONS = [
     id: 1,
     title: "Professional Essentials",
     subtitle: "Fly Off the Track",
-    image: "https://ext.same-assets.com/3155489436/4012202764.jpeg",
+    image: "https://images.unsplash.com/photo-1552346154-21d32810aba3?w=800&q=80",
     link: "/categories?gender=men&sport=running",
     price: "From 1.500.000 ₫"
   },
@@ -32,7 +32,7 @@ const FEATURED_COLLECTIONS = [
     id: 2,
     title: "Training",
     subtitle: "Fly On the Track",
-    image: "https://ext.same-assets.com/3155489436/3836325111.jpeg",
+    image: "https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=800&q=80",
     link: "/categories?gender=men&sport=training",
     price: "From 1.200.000 ₫"
   },
@@ -40,7 +40,7 @@ const FEATURED_COLLECTIONS = [
     id: 3,
     title: "Basketball",
     subtitle: "Dominate the Court",
-    image: "https://ext.same-assets.com/3155489436/1127694100.jpeg",
+    image: "https://images.unsplash.com/photo-1504450758481-7338eba7524a?w=800&q=80",
     link: "/categories?gender=men&sport=basketball",
     price: "From 2.500.000 ₫"
   },
@@ -48,7 +48,7 @@ const FEATURED_COLLECTIONS = [
     id: 4,
     title: "Lifestyle",
     subtitle: "Everyday Comfort",
-    image: "https://ext.same-assets.com/3155489436/3534139910.jpeg",
+    image: "https://images.unsplash.com/photo-1491553895911-0055eca6402d?w=800&q=80",
     link: "/categories?gender=men&category=lifestyle",
     price: "From 1.800.000 ₫"
   }
@@ -59,21 +59,21 @@ const ATHLETE_COLLECTIONS = [
     id: 1,
     name: "Ace Bailey",
     title: "Comfort Zone",
-    image: "https://ext.same-assets.com/3155489436/1127694100.jpeg",
+    image: "https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=800&q=80",
     link: "/categories?category=lifestyle"
   },
   {
     id: 2,
     name: "Cade Cunningham",
     title: "Effortless Game",
-    image: "https://ext.same-assets.com/3155489436/3534139910.jpeg",
+    image: "https://images.unsplash.com/photo-1491553895911-0055eca6402d?w=800&q=80",
     link: "/categories?sport=basketball"
   },
   {
     id: 3,
     name: "Dylan Harper",
     title: "Winning Formula",
-    image: "https://ext.same-assets.com/3155489436/2467211323.jpeg",
+    image: "https://images.unsplash.com/photo-1517836357463-d25dfeac3438?w=800&q=80",
     link: "/categories?sport=running"
   }
 ];

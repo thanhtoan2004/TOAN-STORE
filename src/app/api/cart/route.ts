@@ -97,7 +97,7 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Xử lý thêm vào giỏ hàng bình thường
+    // Xử lý thêm vào giỏ hàng (Hỗ trợ cả đơn lẻ và hàng loạt)
     const session = await verifyAuth();
     if (!session) {
       return NextResponse.json(
@@ -106,19 +106,58 @@ export async function POST(request: NextRequest) {
       );
     }
     const userId = session.userId;
-    const { productId, quantity = 1, size } = body;
+    const { productId, quantity = 1, size, items } = body;
 
-    // Validate dữ liệu đầu vào
-    if (!userId || !productId) {
-      return NextResponse.json(
-        { success: false, message: 'Thiếu userId hoặc productId' },
-        { status: 400 }
-      );
+    // Trường hợp 1: Thêm hàng loạt (Bulk Add - Dùng cho Reorder)
+    if (items && Array.isArray(items)) {
+      let addedCount = 0;
+      let skippedItems = [];
+
+      for (const item of items) {
+        const { productId: pId, quantity: qty = 1, size: s } = item;
+
+        if (!pId || !s) {
+          console.log(`[Reorder Debug] Skip item due to missing data: pId=${pId}, size=${s}`);
+          continue;
+        }
+
+        const variant = await findVariantBySize(parseInt(pId), s);
+        if (!variant) {
+          console.log(`[Reorder Debug] Skip item: Variant not found for pId=${pId}, size=${s}`);
+          skippedItems.push({ productId: pId, size: s, reason: 'Size không tồn tại' });
+          continue;
+        }
+
+        const hasAvailable = await checkStock(variant.id, qty);
+        if (!hasAvailable) {
+          console.log(`[Reorder Debug] Skip item: Out of stock for variant ${variant.id}`);
+          skippedItems.push({ productId: pId, size: s, reason: 'Hết hàng' });
+          continue;
+        }
+
+        await addToCart(userId, parseInt(pId), s, qty);
+        addedCount++;
+      }
+
+      if (addedCount === 0 && items.length > 0) {
+        return NextResponse.json({
+          success: false,
+          message: 'Không có sản phẩm nào khả dụng để đặt lại (có thể do hết hàng hoặc size không còn tồn tại).',
+          skipped: skippedItems
+        }, { status: 400 });
+      }
+
+      return NextResponse.json({
+        success: true,
+        message: `Đã thêm ${addedCount} sản phẩm vào giỏ hàng.`,
+        skipped: skippedItems
+      });
     }
 
-    if (!size) {
+    // Trường hợp 2: Thêm đơn lẻ (Single Add)
+    if (!productId || !size) {
       return NextResponse.json(
-        { success: false, message: 'Vui lòng chọn size' },
+        { success: false, message: 'Thiếu productId hoặc size' },
         { status: 400 }
       );
     }
@@ -130,9 +169,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Find the product variant by size
     const variant = await findVariantBySize(parseInt(productId), size);
-
     if (!variant) {
       return NextResponse.json(
         { success: false, message: 'Size không tồn tại' },
@@ -140,21 +177,18 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check stock availability
-    const hasStock = await checkStock(variant.id, quantity);
-
-    if (!hasStock) {
+    const hasAvailable = await checkStock(variant.id, quantity);
+    if (!hasAvailable) {
       return NextResponse.json(
         {
           success: false,
-          message: `Không đủ hàng. Chỉ còn ${variant.available} sản phẩm`,
+          message: `Sản phẩm này hiện đã hết hàng và không hỗ trợ đặt trước.`,
           available: variant.available
         },
         { status: 400 }
       );
     }
 
-    // Thêm vào giỏ hàng trong database
     await addToCart(userId, parseInt(productId), size, quantity);
 
     return NextResponse.json({

@@ -20,7 +20,7 @@ function SignInContent() {
   const { login } = useAuth();
 
   useEffect(() => {
-    if (searchParams.get('registered') === 'true') {
+    if (searchParams?.get('registered') === 'true') {
       setSuccessMessage(t.auth.created_account);
     }
 

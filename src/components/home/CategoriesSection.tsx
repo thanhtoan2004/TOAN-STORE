@@ -47,17 +47,17 @@ const CategoriesSection = () => {
   const [categories, setCategories] = useState([
     {
       title: 'Phụ kiện',
-      imageUrl: 'https://ext.same-assets.com/3155489436/1731979930.jpeg',
+      imageUrl: 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=800&q=80',
       link: '/accessories'
     },
     {
       title: 'Giày dép',
-      imageUrl: 'https://ext.same-assets.com/3155489436/3159598247.jpeg',
+      imageUrl: 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=800&q=80',
       link: '/shoes'
     },
     {
       title: 'Quần áo',
-      imageUrl: 'https://ext.same-assets.com/3155489436/906736796.jpeg',
+      imageUrl: 'https://images.unsplash.com/photo-1552346154-21d32810aba3?w=800&q=80',
       link: '/clothing'
     }
   ]);

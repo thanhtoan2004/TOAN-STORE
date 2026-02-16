@@ -62,3 +62,21 @@ export async function query<T = any>(sql: string, params?: any[]): Promise<T> {
     const [results] = await pool.execute(sql, params);
     return results as T;
 }
+
+/**
+ * Executes a callback within a database transaction
+ */
+export async function transaction<T>(callback: (connection: mysql.PoolConnection) => Promise<T>): Promise<T> {
+    const connection = await pool.getConnection();
+    try {
+        await connection.beginTransaction();
+        const result = await callback(connection);
+        await connection.commit();
+        return result;
+    } catch (error) {
+        await connection.rollback();
+        throw error;
+    } finally {
+        connection.release();
+    }
+}

@@ -9,6 +9,7 @@ import {
 } from '@/lib/auth';
 import { getRedisConnection } from '@/lib/redis';
 import { createErrorResponse } from '@/lib/api-utils';
+import { executeQuery } from '@/lib/db/mysql';
 
 export async function POST(req: NextRequest) {
     try {
@@ -50,8 +51,30 @@ export async function POST(req: NextRequest) {
             return createErrorResponse('Token security breach detected', 401, 'SECURITY_BREACH');
         }
 
-        // 3. Generate New Tokens (Rotation)
-        const payload = { userId: decoded.userId, email: decoded.email, is_admin: decoded.is_admin };
+        // 3. Verify User and Token Version in Database
+        const users = await executeQuery(
+            'SELECT id, email, is_active, is_admin, token_version FROM users WHERE id = ? AND deleted_at IS NULL',
+            [decoded.userId]
+        ) as any[];
+
+        if (users.length === 0 || !users[0].is_active) {
+            return createErrorResponse('User not found or inactive', 401, 'USER_INACTIVE');
+        }
+
+        const user = users[0];
+
+        // Security check: Verify token version matches database
+        if (decoded.tv !== user.token_version) {
+            return createErrorResponse('Session expired. Please log in again.', 401, 'SESSION_EXPIRED');
+        }
+
+        // 4. Generate New Tokens (Rotation)
+        const payload = {
+            userId: user.id,
+            email: user.email,
+            is_admin: user.is_admin === 1 || user.is_admin === '1' || user.is_admin === true,
+            tv: user.token_version
+        };
         const newAccessToken = generateAccessToken(payload);
         const newRefreshToken = generateRefreshToken(payload);
 

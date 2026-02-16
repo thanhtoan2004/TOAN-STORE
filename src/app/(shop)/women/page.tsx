@@ -17,7 +17,7 @@ interface HeroSlide {
 const heroSlides: HeroSlide[] = [
   {
     id: 1,
-    image: "https://ext.same-assets.com/3155489436/2483644372.jpeg",
+    image: "https://images.unsplash.com/photo-1594381898411-846e7d193883?w=1200&q=80",
     title: "Bộ Sưu Tập Nữ",
     subtitle: "Khám phá những thiết kế thể thao và thời trang mới nhất dành cho phụ nữ",
     ctaText: "Mua Ngay",
@@ -25,7 +25,7 @@ const heroSlides: HeroSlide[] = [
   },
   {
     id: 2,
-    image: "https://ext.same-assets.com/3155489436/366099981.jpeg",
+    image: "https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?w=1200&q=80",
     title: "Essentials Nữ",
     subtitle: "Phong cách cho mọi buổi tập luyện",
     ctaText: "Khám Phá",
@@ -33,7 +33,7 @@ const heroSlides: HeroSlide[] = [
   },
   {
     id: 3,
-    image: "https://ext.same-assets.com/3155489436/2318793644.jpeg",
+    image: "https://images.unsplash.com/photo-1571008887538-b36bb32f4571?w=1200&q=80",
     title: "Bộ Sưu Tập Yoga",
     subtitle: "Thoải mái trong từng động tác",
     ctaText: "Xem Thêm",
@@ -152,7 +152,7 @@ export default function WomenPage() {
           <div className="group cursor-pointer">
             <div className="relative overflow-hidden rounded-lg">
               <Image
-                src="https://ext.same-assets.com/3155489436/366099981.jpeg"
+                src="https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=800&q=80"
                 alt="Giày thể thao nữ"
                 width={400}
                 height={300}
@@ -169,7 +169,7 @@ export default function WomenPage() {
           <div className="group cursor-pointer">
             <div className="relative overflow-hidden rounded-lg">
               <Image
-                src="https://ext.same-assets.com/3155489436/2318793644.jpeg"
+                src="https://images.unsplash.com/photo-1594381898411-846e7d193883?w=800&q=80"
                 alt="Quần áo thể thao nữ"
                 width={400}
                 height={300}
@@ -186,7 +186,7 @@ export default function WomenPage() {
           <div className="group cursor-pointer">
             <div className="relative overflow-hidden rounded-lg">
               <Image
-                src="https://ext.same-assets.com/3155489436/2845474323.jpeg"
+                src="https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=800&q=80"
                 alt="Phụ kiện thể thao nữ"
                 width={400}
                 height={300}
@@ -210,7 +210,7 @@ export default function WomenPage() {
           <div className="relative">
             <div className="relative h-[500px] w-full overflow-hidden bg-gray-100 rounded-lg">
               <Image
-                src="https://ext.same-assets.com/3155489436/366099981.jpeg"
+                src="https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=800&q=80"
                 alt="Women's Essentials"
                 fill
                 className="object-cover"
@@ -231,7 +231,7 @@ export default function WomenPage() {
           <div className="relative">
             <div className="relative h-[500px] w-full overflow-hidden bg-gray-100 rounded-lg">
               <Image
-                src="https://ext.same-assets.com/3155489436/2318793644.jpeg"
+                src="https://images.unsplash.com/photo-1571008887538-b36bb32f4571?w=800&q=80"
                 alt="Yoga Collection"
                 fill
                 className="object-cover"
@@ -260,7 +260,7 @@ export default function WomenPage() {
           <div className="relative group">
             <div className="relative h-[400px] w-full overflow-hidden bg-gray-100 rounded-lg">
               <Image
-                src="https://ext.same-assets.com/3155489436/2845474323.jpeg"
+                src="https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=800&q=80"
                 alt="Naomi Osaka's Signature Style"
                 fill
                 className="object-cover group-hover:scale-105 transition-transform duration-700"
@@ -279,7 +279,7 @@ export default function WomenPage() {
           <div className="relative group">
             <div className="relative h-[400px] w-full overflow-hidden bg-gray-100 rounded-lg">
               <Image
-                src="https://ext.same-assets.com/3155489436/1219373847.jpeg"
+                src="https://images.unsplash.com/photo-1506152983158-b4a74a01c721?w=800&q=80"
                 alt="Serena Williams Collection"
                 fill
                 className="object-cover group-hover:scale-105 transition-transform duration-700"
@@ -298,7 +298,7 @@ export default function WomenPage() {
           <div className="relative group">
             <div className="relative h-[400px] w-full overflow-hidden bg-gray-100 rounded-lg">
               <Image
-                src="https://ext.same-assets.com/3155489436/2791647303.jpeg"
+                src="https://images.unsplash.com/photo-1504450758481-7338eba7524a?w=800&q=80"
                 alt="Alex Morgan's Game Day Style"
                 fill
                 className="object-cover group-hover:scale-105 transition-transform duration-700"

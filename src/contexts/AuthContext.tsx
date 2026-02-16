@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
 
 type User = {
   id: number;
@@ -48,9 +48,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const response = await fetch('/api/auth/user', {
           cache: 'no-store',
         });
+
         if (response.ok) {
           const data = await response.json();
           setUser(data.user);
+        } else if (response.status === 401) {
+          // Thử refresh token nếu bị 401
+          const refreshRes = await fetch('/api/auth/refresh', { method: 'POST' });
+          if (refreshRes.ok) {
+            // Refresh thành công, thử lấy thông tin user lại
+            const retryRes = await fetch('/api/auth/user', { cache: 'no-store' });
+            if (retryRes.ok) {
+              const data = await retryRes.json();
+              setUser(data.user);
+            } else {
+              setUser(null);
+            }
+          } else {
+            setUser(null);
+          }
         } else {
           setUser(null);
         }
@@ -123,7 +139,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   // Hàm đăng xuất
-  const logout = async (): Promise<void> => {
+  const logout = useCallback(async (): Promise<void> => {
     try {
       await fetch('/api/auth/logout', {
         method: 'POST',
@@ -132,7 +148,40 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch (error) {
       console.error('Lỗi đăng xuất:', error);
     }
-  };
+  }, []);
+
+  // Tự động đăng xuất sau 15 phút không hoạt động
+  useEffect(() => {
+    if (!user) return;
+
+    let timeoutId: NodeJS.Timeout;
+    const TIMEOUT_DURATION = 15 * 60 * 1000; // 15 phút
+
+    const resetTimer = () => {
+      if (timeoutId) clearTimeout(timeoutId);
+      timeoutId = setTimeout(() => {
+        console.log('Session timed out due to inactivity');
+        logout();
+      }, TIMEOUT_DURATION);
+    };
+
+    const activityEvents = ['mousedown', 'mousemove', 'keydown', 'scroll', 'touchstart'];
+
+    const handleActivity = () => resetTimer();
+
+    activityEvents.forEach(event => {
+      window.addEventListener(event, handleActivity);
+    });
+
+    resetTimer();
+
+    return () => {
+      if (timeoutId) clearTimeout(timeoutId);
+      activityEvents.forEach(event => {
+        window.removeEventListener(event, handleActivity);
+      });
+    };
+  }, [user, logout]);
 
   return (
     <AuthContext.Provider value={{

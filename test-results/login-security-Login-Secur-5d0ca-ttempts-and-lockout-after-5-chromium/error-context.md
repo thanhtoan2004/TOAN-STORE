@@ -1,0 +1,204 @@
+# Page snapshot
+
+```yaml
+- generic [active] [ref=e1]:
+  - banner [ref=e2]:
+    - generic [ref=e4]:
+      - generic [ref=e5]:
+        - link [ref=e6] [cursor=pointer]:
+          - /url: /categories?sport=basketball
+          - img [ref=e7]
+        - link [ref=e9] [cursor=pointer]:
+          - /url: /categories?brand=converse
+          - img [ref=e10]
+      - generic [ref=e12]:
+        - link "Tìm cửa hàng" [ref=e13] [cursor=pointer]:
+          - /url: /store
+        - generic [ref=e14]: "|"
+        - link "Trợ giúp" [ref=e15] [cursor=pointer]:
+          - /url: /help
+        - generic [ref=e16]: "|"
+        - link "Đăng ký" [ref=e17] [cursor=pointer]:
+          - /url: /sign-up
+        - generic [ref=e18]: "|"
+        - link "Đăng nhập" [ref=e19] [cursor=pointer]:
+          - /url: /sign-in
+    - generic [ref=e21]:
+      - link [ref=e23] [cursor=pointer]:
+        - /url: /
+        - img [ref=e24]
+      - navigation [ref=e26]:
+        - link "Mới" [ref=e27] [cursor=pointer]:
+          - /url: /categories?sort=newest
+        - link "Nam" [ref=e28] [cursor=pointer]:
+          - /url: /men
+        - link "Nữ" [ref=e29] [cursor=pointer]:
+          - /url: /women
+        - link "Trẻ Em" [ref=e30] [cursor=pointer]:
+          - /url: /kids
+        - link "Jordan" [ref=e31] [cursor=pointer]:
+          - /url: /categories?sport=basketball
+        - link "Thể Thao" [ref=e32] [cursor=pointer]:
+          - /url: /categories?sport=running
+      - generic [ref=e33]:
+        - generic [ref=e34]:
+          - generic:
+            - generic:
+              - generic:
+                - generic:
+                  - img
+                  - textbox "Tìm kiếm sản phẩm..."
+        - link "Danh sách yêu thích" [ref=e35] [cursor=pointer]:
+          - /url: /wishlist
+          - img [ref=e36]
+        - link "Giỏ hàng (0)" [ref=e38] [cursor=pointer]:
+          - /url: /cart
+          - img [ref=e40]
+          - generic: Giỏ hàng (0)
+  - main [ref=e44]:
+    - generic [ref=e46]:
+      - generic [ref=e47]:
+        - heading "Đăng nhập" [level=1] [ref=e48]
+        - paragraph [ref=e49]: Đăng nhập để mua sắm hàng độc quyền và cá nhân hóa trải nghiệm của bạn.
+      - generic [ref=e50]: Email hoặc mật khẩu không chính xác
+      - generic [ref=e51]:
+        - generic [ref=e52]:
+          - generic [ref=e53]: Email
+          - textbox "Email" [ref=e54]:
+            - /placeholder: Email của bạn
+            - text: admin@nike.com
+        - generic [ref=e55]:
+          - generic [ref=e56]: Mật khẩu
+          - textbox "Mật khẩu" [ref=e57]: wrongpassword123
+        - generic [ref=e58]:
+          - checkbox "Lưu thông tin đăng nhập" [ref=e59]
+          - generic [ref=e60]: Lưu thông tin đăng nhập
+          - link "Quên mật khẩu?" [ref=e61] [cursor=pointer]:
+            - /url: /forgot-password
+        - button "Đăng nhập" [ref=e62] [cursor=pointer]
+      - generic [ref=e67]: Hoặc
+      - generic [ref=e68]:
+        - link "Tiếp tục với Google" [ref=e69] [cursor=pointer]:
+          - /url: /api/auth/google
+          - img [ref=e70]
+          - text: Tiếp tục với Google
+        - link "Tiếp tục với Facebook" [ref=e75] [cursor=pointer]:
+          - /url: /api/auth/facebook
+          - img [ref=e76]
+          - text: Tiếp tục với Facebook
+      - paragraph [ref=e79]:
+        - text: Chưa có tài khoản?
+        - link "Đăng ký" [ref=e80] [cursor=pointer]:
+          - /url: /sign-up
+  - contentinfo [ref=e81]:
+    - generic [ref=e82]:
+      - generic [ref=e83]:
+        - navigation [ref=e85]:
+          - link "Tìm cửa hàng" [ref=e86] [cursor=pointer]:
+            - /url: /store
+          - link "Trở thành thành viên" [ref=e87] [cursor=pointer]:
+            - /url: /sign-up
+          - link "VỀ TOAN" [ref=e88] [cursor=pointer]:
+            - /url: /about
+          - link "Gửi phản hồi" [ref=e89] [cursor=pointer]:
+            - /url: /help/contact
+        - generic [ref=e90]:
+          - heading "HỖ TRỢ" [level=3] [ref=e91]
+          - navigation [ref=e92]:
+            - link "HỖ TRỢ" [ref=e93] [cursor=pointer]:
+              - /url: /help
+            - link "Trạng thái đơn hàng" [ref=e94] [cursor=pointer]:
+              - /url: /orders
+            - link "Vận chuyển & Giao hàng" [ref=e95] [cursor=pointer]:
+              - /url: /help/shipping-delivery
+            - link "Trả hàng" [ref=e96] [cursor=pointer]:
+              - /url: /help/returns
+            - link "Hủy đơn" [ref=e97] [cursor=pointer]:
+              - /url: /help/order-cancellation
+            - link "Tùy chọn thanh toán" [ref=e98] [cursor=pointer]:
+              - /url: /help/payment-options
+            - link "Mã giảm giá" [ref=e99] [cursor=pointer]:
+              - /url: /vouchers
+            - link "Số dư thẻ quà tặng" [ref=e100] [cursor=pointer]:
+              - /url: /gift-card-balance
+            - link "Liên hệ chúng tôi" [ref=e101] [cursor=pointer]:
+              - /url: /help/contact
+        - generic [ref=e102]:
+          - heading "VỀ TOAN" [level=3] [ref=e103]
+          - navigation [ref=e104]:
+            - link "VỀ TOAN" [ref=e105] [cursor=pointer]:
+              - /url: /about
+            - link "Tin tức" [ref=e106] [cursor=pointer]:
+              - /url: /news
+            - link "Nghề nghiệp" [ref=e107] [cursor=pointer]:
+              - /url: /careers
+            - link "Nhà đầu tư" [ref=e108] [cursor=pointer]:
+              - /url: /investors
+            - link "Mục đích" [ref=e109] [cursor=pointer]:
+              - /url: /purpose
+            - link "Tính bền vững" [ref=e110] [cursor=pointer]:
+              - /url: /sustainability
+        - generic [ref=e111]:
+          - heading "KHUYẾN MÃI & ƯU ĐÃI" [level=3] [ref=e112]
+          - navigation [ref=e113]:
+            - link "Học sinh" [ref=e114] [cursor=pointer]:
+              - /url: /promo/student
+            - link "Giáo viên" [ref=e115] [cursor=pointer]:
+              - /url: /promo/teacher
+            - link "Sinh nhật" [ref=e116] [cursor=pointer]:
+              - /url: /promo/birthday
+          - generic [ref=e117]:
+            - heading "ĐĂNG KÝ NHẬN TIN" [level=4] [ref=e118]
+            - paragraph [ref=e119]: Nhận thông tin về sản phẩm mới, ưu đãi độc quyền
+            - generic [ref=e120]:
+              - textbox "Email của bạn" [ref=e122]
+              - button "Đăng ký" [ref=e123] [cursor=pointer]
+      - generic [ref=e124]:
+        - link [ref=e125] [cursor=pointer]:
+          - /url: https://twitter.com/_thanhhtoann_
+          - img [ref=e126]
+        - link [ref=e128] [cursor=pointer]:
+          - /url: https://www.facebook.com/dtt6924
+          - img [ref=e129]
+        - link [ref=e131] [cursor=pointer]:
+          - /url: https://www.youtube.com/@thanhhtoann
+          - img [ref=e132]
+        - link [ref=e135] [cursor=pointer]:
+          - /url: https://www.instagram.com/_thanhhtoann_/
+          - img [ref=e136]
+      - generic [ref=e139]:
+        - generic [ref=e141]:
+          - generic [ref=e142]:
+            - img [ref=e143]
+            - generic [ref=e146]: Việt Nam
+          - generic [ref=e147]:
+            - button "VN" [ref=e148] [cursor=pointer]
+            - generic [ref=e149]: "|"
+            - button "EN" [ref=e150] [cursor=pointer]
+          - generic [ref=e151]: © 2026 TOAN, Inc. Bảo lưu mọi quyền.
+        - generic [ref=e152]:
+          - link "Hướng dẫn" [ref=e153] [cursor=pointer]:
+            - /url: /guides
+          - link "Điều khoản bán hàng" [ref=e154] [cursor=pointer]:
+            - /url: /terms
+          - link "Điều khoản sử dụng" [ref=e155] [cursor=pointer]:
+            - /url: /terms-of-use
+          - link "Chính sách bảo mật" [ref=e156] [cursor=pointer]:
+            - /url: /privacy-policy
+          - link "Trách nhiệm xã hội" [ref=e157] [cursor=pointer]:
+            - /url: /csr
+  - button [ref=e158] [cursor=pointer]:
+    - img [ref=e161]
+  - generic [ref=e167] [cursor=pointer]:
+    - button "Open Next.js Dev Tools" [ref=e168]:
+      - img [ref=e169]
+    - generic [ref=e172]:
+      - button "Open issues overlay" [ref=e173]:
+        - generic [ref=e174]:
+          - generic [ref=e175]: "0"
+          - generic [ref=e176]: "1"
+        - generic [ref=e177]: Issue
+      - button "Collapse issues badge" [ref=e178]:
+        - img [ref=e179]
+  - alert [ref=e181]
+```

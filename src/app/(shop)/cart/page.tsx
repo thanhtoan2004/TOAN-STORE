@@ -155,7 +155,7 @@ export default function CartPage() {
                 </div>
                 <div className="divide-y">
                   {cartItems.map((item) => (
-                    <div key={item.id} className="p-6">
+                    <div key={item.id} className="p-6 cart-item">
                       <div className="flex items-start space-x-4">
                         {/* Product Image */}
                         <Link href={`/products/${item.productId}`}>

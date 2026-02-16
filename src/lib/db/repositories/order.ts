@@ -250,18 +250,19 @@ export async function createOrder(orderData: {
 
             verifiedSubtotal += actualUnitPrice * item.quantity;
 
-            // 1. FIND WAREHOUSE WITH STOCK (Pessimistic Locking to prevent Race Condition)
+            // 1. FIND WAREHOUSE WITH STOCK OR BACKORDER ENABLED (Pessimistic Locking)
             const [stockSources]: any = await connection.execute(
-                `SELECT id, warehouse_id, quantity 
+                `SELECT id, warehouse_id, quantity, allow_backorder
                  FROM inventory 
-                 WHERE product_variant_id = ? AND quantity >= ? 
-                 ORDER BY CASE WHEN warehouse_id = 1 THEN 0 ELSE 1 END, id ASC 
+                 WHERE product_variant_id = ? 
+                 AND (quantity >= ? OR allow_backorder = 1)
+                 ORDER BY (quantity >= ?) DESC, CASE WHEN warehouse_id = 1 THEN 0 ELSE 1 END, id ASC 
                  LIMIT 1 FOR UPDATE`,
-                [variantId, item.quantity]
+                [variantId, item.quantity, item.quantity]
             );
 
             if (stockSources.length === 0) {
-                throw new Error(`Sản phẩm ${item.productName} size ${item.size} không đủ hàng tại bất kỳ kho nào.`);
+                throw new Error(`Sản phẩm ${item.productName} size ${item.size} hiện đã hết hàng.`);
             }
 
             const sourceInventoryId = stockSources[0].id;
@@ -697,7 +698,8 @@ export async function updateOrderStatus(orderNumber: string, status: string) {
                         const newPoints = Math.max(0, currentPoints - pointsToDeduct);
 
                         let newTier = 'bronze';
-                        if (newPoints >= 5000) newTier = 'gold';
+                        if (newPoints >= 10000) newTier = 'platinum';
+                        else if (newPoints >= 5000) newTier = 'gold';
                         else if (newPoints >= 1000) newTier = 'silver';
 
                         await connection.execute(
@@ -736,7 +738,8 @@ export async function updateOrderStatus(orderNumber: string, status: string) {
                             const currentPoints = users[0].accumulated_points || 0;
                             const newPoints = currentPoints + pointsEarned;
                             let newTier = 'bronze';
-                            if (newPoints >= 5000) newTier = 'gold';
+                            if (newPoints >= 10000) newTier = 'platinum';
+                            else if (newPoints >= 5000) newTier = 'gold';
                             else if (newPoints >= 1000) newTier = 'silver';
                             await connection.execute(
                                 'UPDATE users SET accumulated_points = ?, membership_tier = ? WHERE id = ?',

@@ -1,0 +1,178 @@
+﻿[
+  {
+    "Field": "id",
+    "Type": "bigint unsigned",
+    "Null": "NO",
+    "Key": "PRI",
+    "Default": null,
+    "Extra": "auto_increment"
+  },
+  {
+    "Field": "email",
+    "Type": "varchar(255)",
+    "Null": "NO",
+    "Key": "UNI",
+    "Default": null,
+    "Extra": ""
+  },
+  {
+    "Field": "is_admin",
+    "Type": "tinyint(1)",
+    "Null": "YES",
+    "Key": "",
+    "Default": "0",
+    "Extra": ""
+  },
+  {
+    "Field": "password",
+    "Type": "varchar(255)",
+    "Null": "YES",
+    "Key": "",
+    "Default": null,
+    "Extra": ""
+  },
+  {
+    "Field": "first_name",
+    "Type": "varchar(100)",
+    "Null": "YES",
+    "Key": "",
+    "Default": null,
+    "Extra": ""
+  },
+  {
+    "Field": "last_name",
+    "Type": "varchar(100)",
+    "Null": "YES",
+    "Key": "",
+    "Default": null,
+    "Extra": ""
+  },
+  {
+    "Field": "full_name",
+    "Type": "varchar(255)",
+    "Null": "YES",
+    "Key": "",
+    "Default": null,
+    "Extra": ""
+  },
+  {
+    "Field": "phone",
+    "Type": "varchar(255)",
+    "Null": "YES",
+    "Key": "",
+    "Default": null,
+    "Extra": ""
+  },
+  {
+    "Field": "date_of_birth",
+    "Type": "date",
+    "Null": "YES",
+    "Key": "",
+    "Default": null,
+    "Extra": ""
+  },
+  {
+    "Field": "gender",
+    "Type": "enum('male','female','other')",
+    "Null": "YES",
+    "Key": "",
+    "Default": null,
+    "Extra": ""
+  },
+  {
+    "Field": "is_active",
+    "Type": "tinyint(1)",
+    "Null": "YES",
+    "Key": "",
+    "Default": "1",
+    "Extra": ""
+  },
+  {
+    "Field": "is_verified",
+    "Type": "tinyint(1)",
+    "Null": "YES",
+    "Key": "",
+    "Default": "0",
+    "Extra": ""
+  },
+  {
+    "Field": "meta",
+    "Type": "json",
+    "Null": "YES",
+    "Key": "",
+    "Default": null,
+    "Extra": ""
+  },
+  {
+    "Field": "created_at",
+    "Type": "timestamp",
+    "Null": "YES",
+    "Key": "",
+    "Default": "CURRENT_TIMESTAMP",
+    "Extra": "DEFAULT_GENERATED"
+  },
+  {
+    "Field": "updated_at",
+    "Type": "timestamp",
+    "Null": "YES",
+    "Key": "",
+    "Default": "CURRENT_TIMESTAMP",
+    "Extra": "DEFAULT_GENERATED on update CURRENT_TIMESTAMP"
+  },
+  {
+    "Field": "is_banned",
+    "Type": "tinyint(1)",
+    "Null": "YES",
+    "Key": "MUL",
+    "Default": "0",
+    "Extra": ""
+  },
+  {
+    "Field": "accumulated_points",
+    "Type": "int",
+    "Null": "YES",
+    "Key": "",
+    "Default": "0",
+    "Extra": ""
+  },
+  {
+    "Field": "membership_tier",
+    "Type": "enum('bronze','silver','gold','platinum')",
+    "Null": "YES",
+    "Key": "",
+    "Default": "bronze",
+    "Extra": ""
+  },
+  {
+    "Field": "deleted_at",
+    "Type": "timestamp",
+    "Null": "YES",
+    "Key": "MUL",
+    "Default": null,
+    "Extra": ""
+  },
+  {
+    "Field": "google_id",
+    "Type": "varchar(255)",
+    "Null": "YES",
+    "Key": "UNI",
+    "Default": null,
+    "Extra": ""
+  },
+  {
+    "Field": "facebook_id",
+    "Type": "varchar(255)",
+    "Null": "YES",
+    "Key": "UNI",
+    "Default": null,
+    "Extra": ""
+  },
+  {
+    "Field": "avatar_url",
+    "Type": "varchar(1000)",
+    "Null": "YES",
+    "Key": "",
+    "Default": null,
+    "Extra": ""
+  }
+]

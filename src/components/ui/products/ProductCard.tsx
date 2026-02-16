@@ -5,6 +5,7 @@ import Image from "next/image";
 import { Heart } from "lucide-react";
 import { useWishlist } from "@/contexts/WishlistContext";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { imageService } from "@/lib/image-service";
 
 interface ProductCardProps {
   id: string;
@@ -62,7 +63,7 @@ const ProductCard = ({
         {/* Hình ảnh sản phẩm */}
         <div className="relative mb-3 overflow-hidden aspect-square rounded-lg bg-gray-100">
           <Image
-            src={image_url || '/images/placeholder.png'}
+            src={imageService.getUrl(image_url, { preset: 'PRODUCT_CARD' })}
             alt={name}
             fill
             className="object-cover transition-transform duration-300 group-hover:scale-105 mix-blend-multiply"

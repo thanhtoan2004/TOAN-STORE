@@ -21,6 +21,9 @@ export interface ProductVariant {
   width_measurement?: number;
   depth?: number;
   product_name?: string;
+  low_stock_threshold?: number;
+  allow_backorder?: number;
+  expected_restock_date?: string | null;
 }
 
 export interface InventoryData {
@@ -54,7 +57,10 @@ export async function getProductVariants(productId: number): Promise<(ProductVar
       i.warehouse_id,
       COALESCE(i.quantity, 0) as quantity,
       COALESCE(i.reserved, 0) as reserved,
-      COALESCE(i.quantity, 0) - COALESCE(i.reserved, 0) as available
+      COALESCE(i.quantity, 0) - COALESCE(i.reserved, 0) as available,
+      COALESCE(i.low_stock_threshold, 10) as low_stock_threshold,
+      COALESCE(i.allow_backorder, 0) as allow_backorder,
+      i.expected_restock_date
     FROM product_variants pv
     LEFT JOIN inventory i ON i.product_variant_id = pv.id
     WHERE pv.product_id = ?
@@ -80,7 +86,10 @@ export async function getVariantById(variantId: number): Promise<(ProductVariant
       i.warehouse_id,
       COALESCE(i.quantity, 0) as quantity,
       COALESCE(i.reserved, 0) as reserved,
-      COALESCE(i.quantity, 0) - COALESCE(i.reserved, 0) as available
+      COALESCE(i.quantity, 0) - COALESCE(i.reserved, 0) as available,
+      COALESCE(i.low_stock_threshold, 10) as low_stock_threshold,
+      COALESCE(i.allow_backorder, 0) as allow_backorder,
+      i.expected_restock_date
     FROM product_variants pv
     LEFT JOIN inventory i ON i.product_variant_id = pv.id
     WHERE pv.id = ?
@@ -133,7 +142,9 @@ export async function findVariantBySize(productId: number, size: string): Promis
  */
 export async function checkStock(variantId: number, requestedQuantity: number): Promise<boolean> {
   const sql = `
-    SELECT (COALESCE(i.quantity, 0) - COALESCE(i.reserved, 0)) as available
+    SELECT 
+      (COALESCE(i.quantity, 0) - COALESCE(i.reserved, 0)) as available,
+      COALESCE(i.allow_backorder, 0) as allowBackorder
     FROM inventory i
     WHERE i.product_variant_id = ?
   `;
@@ -142,7 +153,8 @@ export async function checkStock(variantId: number, requestedQuantity: number): 
 
   if (results.length === 0) return false;
 
-  return results[0].available >= requestedQuantity;
+  const { available, allowBackorder } = results[0];
+  return available >= requestedQuantity || allowBackorder === 1;
 }
 
 /**
@@ -160,7 +172,10 @@ export async function reserveStock(variantId: number, quantity: number, orderId:
       `UPDATE inventory 
        SET reserved = reserved + ?
        WHERE product_variant_id = ?
-       AND (quantity - reserved) >= ?`,
+       AND (
+         (quantity - reserved) >= ?
+         OR allow_backorder = 1
+       )`,
       [quantity, variantId, quantity]
     );
 

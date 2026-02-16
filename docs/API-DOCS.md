@@ -211,6 +211,13 @@ Lấy thông tin admin hiện tại.
 | GET | `/api/orders/lookup` | Tra cứu đơn (`?email=...&orderNumber=...`) |
 | GET | `/api/orders/:orderNumber/tracking` | Theo dõi vận đơn |
 
+**Order Detail Data Fields:**
+Ngoài các thông tin cơ bản, dữ liệu đơn hàng hiện bao gồm:
+- `tax`: Số tiền thuế VAT (10%).
+- `voucherDiscount`: Số tiền giảm giá từ VoucherCode.
+- `giftcardDiscount`: Số tiền từ Thẻ quà tặng.
+- `discount`: Tổng giảm giá (bao gồm chiết khấu hạng thành viên).
+
 ### Order State Machine
 ```
 pending → pending_payment → payment_received → confirmed → processing → shipped → delivered

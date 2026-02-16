@@ -11,12 +11,14 @@ export async function GET(request: Request) {
         }
         const userId = Number(session.userId);
 
+        console.log(`DEBUG: Fetching addresses for userId: ${userId}`);
         const addresses = await getAddresses(userId);
+        console.log(`DEBUG: Found ${addresses.length} addresses`);
         return NextResponse.json(addresses);
-    } catch (error) {
-        console.error('Error fetching addresses:', error);
+    } catch (error: any) {
+        console.error('DEBUG: Error details:', error.message, error.stack);
         return NextResponse.json(
-            { message: 'Internal Server Error' },
+            { message: 'Internal Server Error', error: error.message },
             { status: 500 }
         );
     }

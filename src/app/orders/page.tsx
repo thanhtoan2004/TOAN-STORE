@@ -7,6 +7,8 @@ import { useLanguage } from '@/contexts/LanguageContext';
 import { Button } from "@/components/ui/Button";
 import { Package } from 'lucide-react';
 import { formatDateTime, formatCurrency } from '@/lib/date-utils';
+import { useCart } from '@/contexts/CartContext';
+import { useRouter } from 'next/navigation';
 
 interface Order {
   orderNumber: string;
@@ -19,6 +21,7 @@ interface Order {
 
 export default function OrdersPage() {
   const { t } = useLanguage();
+  const router = useRouter();
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -103,6 +106,49 @@ export default function OrdersPage() {
     if (newPage >= 1 && newPage <= totalPages) {
       setPage(newPage);
       window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  };
+
+  const { addToCart, addMultipleToCart } = useCart();
+  const [reordering, setReordering] = useState<string | null>(null);
+
+  const handleReorder = async (orderNumber: string) => {
+    try {
+      setReordering(orderNumber);
+
+      // 1. Lấy chi tiết đơn hàng để có danh sách items (bao gồm size)
+      const res = await fetch(`/api/orders/${orderNumber}`);
+      if (!res.ok) throw new Error('Không thể lấy chi tiết đơn hàng');
+
+      const data = await res.json();
+      const orderItems = data.order?.items;
+
+      if (!orderItems || orderItems.length === 0) {
+        alert('Không tìm thấy sản phẩm trong đơn hàng này');
+        return;
+      }
+
+      // 2. Chuyển đổi sang định dạng API bulk add yêu cầu
+      const itemsToReorder = orderItems.map((item: any) => ({
+        productId: item.product_id,
+        quantity: item.quantity,
+        size: item.size
+      }));
+
+      // 3. Gọi hàm bulk add
+      const success = await addMultipleToCart(itemsToReorder);
+
+      if (success) {
+        // Chuyển hướng đến giỏ hàng để người dùng kiểm tra
+        router.push('/cart');
+      } else {
+        alert('Không thể đặt lại đơn hàng. Có thể sản phẩm đã hết hàng hoặc không còn kinh doanh.');
+      }
+    } catch (error) {
+      console.error('Lỗi khi Reorder:', error);
+      alert('Có lỗi xảy ra khi đặt lại đơn hàng');
+    } finally {
+      setReordering(null);
     }
   };
 
@@ -221,8 +267,19 @@ export default function OrdersPage() {
                         </Button>
                       </Link>
                       {order.status === 'delivered' && (
-                        <Button variant="outline" size="sm" className="rounded-full border-gray-300 text-gray-700 hover:bg-gray-50">
-                          {t.orders.buy_again}
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          disabled={reordering === order.orderNumber}
+                          onClick={() => handleReorder(order.orderNumber)}
+                          className="rounded-full border-gray-300 text-gray-700 hover:bg-gray-50"
+                        >
+                          {reordering === order.orderNumber ? (
+                            <div className="flex items-center gap-2">
+                              <div className="w-3 h-3 border-2 border-gray-400 border-t-transparent rounded-full animate-spin"></div>
+                              <span>Đang xử lý...</span>
+                            </div>
+                          ) : t.orders.buy_again}
                         </Button>
                       )}
                       {order.status === 'shipping' && (

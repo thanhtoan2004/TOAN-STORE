@@ -9,12 +9,15 @@ export interface User {
   phone?: string;
   date_of_birth?: string;
   gender?: string;
-  is_active?: boolean;
-  is_verified?: boolean;
-  is_admin?: boolean;
+  is_active?: number | string | boolean;
+  is_verified?: number | string | boolean;
+  is_admin?: number | string | boolean;
   is_banned?: number | string | boolean;
+  failed_login_attempts: number;
+  lockout_until?: string | null;
   accumulatedPoints?: number;
   membershipTier?: string;
+  token_version: number;
   created_at?: string;
   updated_at?: string;
 }

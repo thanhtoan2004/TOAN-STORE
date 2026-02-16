@@ -46,6 +46,7 @@ export async function GET(
     const [items] = await pool.execute(
       `SELECT 
         oi.id,
+        oi.product_id,
         oi.product_name as name,
         oi.unit_price,
         oi.quantity,

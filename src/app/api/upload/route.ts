@@ -38,14 +38,23 @@ export async function POST(request: NextRequest) {
         const buffer = Buffer.from(bytes);
         const base64Image = `data:${file.type};base64,${buffer.toString('base64')}`;
 
-        // 4. Upload to Cloudinary
-        const result = await uploadImage(base64Image, 'nike-clone/uploads');
+        // 4. Upload to Cloudinary with metadata
+        const resourceType = file.type.startsWith('video/') ? 'video' : 'image';
+        const folder = resourceType === 'video' ? 'nike-clone/videos' : 'nike-clone/products';
+
+        const result = await uploadImage(base64Image, folder);
+
+        // Add tagging logic or other metadata if needed via a separate call if your uploadImage helper doesn't support it
+        // For now, we use the folder and automatic optimization during upload.
 
         return NextResponse.json({
             success: true,
             imageUrl: result.secure_url,
             publicId: result.public_id,
-            resourceType: result.resource_type
+            resourceType: result.resource_type,
+            format: result.format,
+            width: result.width,
+            height: result.height,
         });
 
     } catch (error) {

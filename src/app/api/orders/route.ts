@@ -188,14 +188,16 @@ async function createOrderHandler(request: NextRequest) {
         const tier = users[0].membership_tier;
 
         // Tier Discount
-        if (tier === 'gold') {
+        if (tier === 'platinum') {
+          membershipDiscount = Math.round(subtotal * 0.15); // 15%
+        } else if (tier === 'gold') {
           membershipDiscount = Math.round(subtotal * 0.10); // 10%
         } else if (tier === 'silver') {
           membershipDiscount = Math.round(subtotal * 0.05); // 5%
         }
 
-        // Tier Free Shipping
-        if (tier === 'gold' || tier === 'silver') {
+        // Tier Free Shipping (Silver and above)
+        if (tier === 'platinum' || tier === 'gold' || tier === 'silver') {
           finalShippingFee = 0;
         }
       }
@@ -263,6 +265,6 @@ async function createOrderHandler(request: NextRequest) {
 // Export wrapped POST handler
 export const POST = withRateLimit(createOrderHandler, {
   tag: 'order',
-  limit: 5,
-  windowMs: 60 * 60 * 1000, // 5 orders per hour
+  limit: 100,
+  windowMs: 60 * 60 * 1000, // 100 orders per hour
 });

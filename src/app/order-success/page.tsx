@@ -5,12 +5,12 @@ import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { Order } from '@/types/auth'; // Ensure this type exists or adjust import
 import { Button } from "@/components/ui/Button";
-import { CheckCircle, Facebook, Twitter, CreditCard } from 'lucide-react';
+import { CheckCircle, Facebook, Twitter, CreditCard, Printer } from 'lucide-react';
 import { formatCurrency, formatDate } from '@/lib/date-utils';
 
 function OrderSuccessContent() {
   const searchParams = useSearchParams();
-  const orderNumber = searchParams.get('orderNumber');
+  const orderNumber = searchParams?.get('orderNumber');
   // Define Order interface locally if not available in types/auth to be safe, 
   // or use any if strict typing is an issue, but better to stick to existing patterns.
   // Assuming Order type matches what we need based on previous file content.
@@ -163,6 +163,12 @@ function OrderSuccessContent() {
             <Link href="/orders">
               <Button variant="outline" className="rounded-full border-gray-300 text-gray-700 hover:bg-gray-50">
                 Xem tất cả đơn hàng
+              </Button>
+            </Link>
+            <Link href={`/orders/${orderNumber}`}>
+              <Button variant="outline" className="rounded-full border-gray-300 text-gray-700 hover:bg-gray-50 flex items-center gap-2">
+                <Printer className="w-4 h-4" />
+                In hóa đơn
               </Button>
             </Link>
             <Link href="/">

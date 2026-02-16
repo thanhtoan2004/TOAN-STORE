@@ -5,6 +5,7 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { Play } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
+import { imageService } from '@/lib/image-service'
 
 import { useLanguage } from '@/contexts/LanguageContext';
 
@@ -29,7 +30,7 @@ const HeroSection = () => {
         {/* Only render image on client-side to avoid hydration errors */}
         {isMounted && (
           <Image
-            src="https://ext.same-assets.com/3155489436/512266164.jpeg"
+            src={imageService.getUrl("https://images.unsplash.com/photo-1541339907198-e08759dfc3ef?w=1920&q=80", { preset: 'HERO_BANNER' })}
             alt="Sophia Smith - Nike athlete"
             fill
             className="object-cover"

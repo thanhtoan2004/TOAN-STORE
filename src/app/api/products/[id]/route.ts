@@ -46,7 +46,7 @@ export async function GET(
     }
 
     // Calculate available stock
-    const availableSizes = sizes.filter((s: any) => (s.stock - s.reserved) > 0);
+    const availableSizes = sizes.filter((s: any) => (s.stock - s.reserved) > 0 || s.allow_backorder === 1);
 
     const response = {
       success: true,
@@ -54,7 +54,10 @@ export async function GET(
         ...product,
         base_price: product.base_price ? parseFloat(product.base_price) : 0,
         retail_price: product.retail_price ? parseFloat(product.retail_price) : 0,
-        sizes: sizes,
+        sizes: sizes.map((s: any) => ({
+          ...s,
+          available: (s.stock || 0) - (s.reserved || 0)
+        })),
         images: images,
         attributes: attributes,
         image_url: images.find((img: any) => img.is_main)?.url || images[0]?.url || '/placeholder.png',

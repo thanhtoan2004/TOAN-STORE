@@ -37,9 +37,9 @@ export async function PUT(
       );
     }
 
-    // Ownership check
+    // Ownership check - join with carts table to get user_id
     const items = await executeQuery(
-      'SELECT user_id FROM cart_items WHERE id = ?',
+      'SELECT c.user_id FROM cart_items ci JOIN carts c ON ci.cart_id = c.id WHERE ci.id = ?',
       [cartItemId]
     ) as any[];
 
@@ -98,9 +98,9 @@ export async function DELETE(
       );
     }
 
-    // Ownership check
+    // Ownership check - join with carts table to get user_id
     const items = await executeQuery(
-      'SELECT user_id FROM cart_items WHERE id = ?',
+      'SELECT c.user_id FROM cart_items ci JOIN carts c ON ci.cart_id = c.id WHERE ci.id = ?',
       [cartItemId]
     ) as any[];
 

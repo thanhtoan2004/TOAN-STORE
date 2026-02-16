@@ -41,19 +41,12 @@ export async function GET(request: NextRequest) {
 
     const revenueTrend = await executeQuery<any[]>(`
       SELECT 
-        DATE(o.placed_at) as date,
-        COALESCE(SUM(o.total), 0) as revenue,
-        COALESCE(SUM(o.subtotal - (o.discount + o.voucher_discount + o.giftcard_discount) - (
-          SELECT COALESCE(SUM(oi.cost_price * oi.quantity), 0) 
-          FROM order_items oi 
-          WHERE oi.order_id = o.id
-        )), 0) as profit,
-        COUNT(o.id) as order_count
-      FROM orders o
-      WHERE o.placed_at >= DATE_SUB(NOW(), INTERVAL ? DAY) 
-        AND o.status != 'cancelled' 
-        AND o.status != 'refunded'
-      GROUP BY DATE(o.placed_at)
+        date,
+        CAST(revenue AS DOUBLE) as revenue,
+        CAST(net_profit AS DOUBLE) as profit,
+        orders_count as order_count
+      FROM daily_metrics
+      WHERE date >= DATE_SUB(CURDATE(), INTERVAL ? DAY)
       ORDER BY date ASC
     `, [days]);
 

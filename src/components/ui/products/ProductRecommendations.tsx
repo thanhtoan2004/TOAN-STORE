@@ -33,11 +33,7 @@ export default function ProductRecommendations({ currentProductId }: ProductReco
                 const data = await res.json();
 
                 if (data.success && data.data.length > 0) {
-                    // Map API data if needed, but the new API already returns clean objects
-                    setProducts(data.data.map((p: any) => ({
-                        ...p,
-                        id: Number(p.id)
-                    })));
+                    setProducts(data.data);
                 } else {
                     // Fallback to traditional related products
                     const relRes = await fetch(`/api/products/${currentProductId}/related`);

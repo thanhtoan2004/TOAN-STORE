@@ -18,12 +18,12 @@ export async function GET(request: Request) {
         // Total revenue
         const [revenueData] = await query(
             `SELECT 
-        SUM(total_amount) as total_revenue,
+        SUM(total) as total_revenue,
         COUNT(*) as total_orders,
-        AVG(total_amount) as avg_order_value
+        AVG(total) as avg_order_value
        FROM orders
        WHERE status IN ('completed', 'delivered')
-         AND created_at >= DATE_SUB(NOW(), INTERVAL ? DAY)`,
+         AND placed_at >= DATE_SUB(NOW(), INTERVAL ? DAY)`,
             [period]
         );
 
@@ -31,7 +31,7 @@ export async function GET(request: Request) {
         const ordersByStatus = await query(
             `SELECT status, COUNT(*) as count
        FROM orders
-       WHERE created_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
+       WHERE placed_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
        GROUP BY status`,
             [period]
         );
@@ -39,13 +39,13 @@ export async function GET(request: Request) {
         // Revenue by day (last 30 days)
         const revenueByDay = await query(
             `SELECT 
-        DATE(created_at) as date,
-        SUM(total_amount) as revenue,
+        DATE(placed_at) as date,
+        SUM(total) as revenue,
         COUNT(*) as orders
        FROM orders
        WHERE status IN ('completed', 'delivered')
-         AND created_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
-       GROUP BY DATE(created_at)
+         AND placed_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
+       GROUP BY DATE(placed_at)
        ORDER BY date ASC`,
             [period]
         );
@@ -57,12 +57,12 @@ export async function GET(request: Request) {
         p.name,
         (SELECT url FROM product_images WHERE product_id = p.id AND is_main = 1 LIMIT 1) as image_url,
         SUM(oi.quantity) as total_sold,
-        SUM(oi.quantity * oi.price) as revenue
+        SUM(oi.quantity * oi.unit_price) as revenue
        FROM order_items oi
        JOIN products p ON oi.product_id = p.id
        JOIN orders o ON oi.order_id = o.id
        WHERE o.status IN ('completed', 'delivered')
-         AND o.created_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
+         AND o.placed_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
        GROUP BY p.id, p.name
        ORDER BY total_sold DESC
        LIMIT 10`,
@@ -99,13 +99,13 @@ export async function GET(request: Request) {
         c.name as category,
         COUNT(DISTINCT oi.order_id) as orders,
         SUM(oi.quantity) as items_sold,
-        SUM(oi.quantity * oi.price) as revenue
+        SUM(oi.quantity * oi.unit_price) as revenue
        FROM order_items oi
        JOIN products p ON oi.product_id = p.id
        JOIN categories c ON p.category_id = c.id
        JOIN orders o ON oi.order_id = o.id
        WHERE o.status IN ('completed', 'delivered')
-         AND o.created_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
+         AND o.placed_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
        GROUP BY c.id, c.name
        ORDER BY revenue DESC
        LIMIT 10`,

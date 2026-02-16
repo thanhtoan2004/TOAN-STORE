@@ -1,0 +1,106 @@
+﻿[
+  {
+    "Field": "id",
+    "Type": "bigint unsigned",
+    "Null": "NO",
+    "Key": "PRI",
+    "Default": null,
+    "Extra": "auto_increment"
+  },
+  {
+    "Field": "order_id",
+    "Type": "bigint unsigned",
+    "Null": "NO",
+    "Key": "MUL",
+    "Default": null,
+    "Extra": ""
+  },
+  {
+    "Field": "product_id",
+    "Type": "bigint unsigned",
+    "Null": "YES",
+    "Key": "MUL",
+    "Default": null,
+    "Extra": ""
+  },
+  {
+    "Field": "product_variant_id",
+    "Type": "bigint unsigned",
+    "Null": "YES",
+    "Key": "MUL",
+    "Default": null,
+    "Extra": ""
+  },
+  {
+    "Field": "inventory_id",
+    "Type": "bigint unsigned",
+    "Null": "YES",
+    "Key": "MUL",
+    "Default": null,
+    "Extra": ""
+  },
+  {
+    "Field": "product_name",
+    "Type": "varchar(500)",
+    "Null": "NO",
+    "Key": "",
+    "Default": null,
+    "Extra": ""
+  },
+  {
+    "Field": "sku",
+    "Type": "varchar(200)",
+    "Null": "YES",
+    "Key": "",
+    "Default": null,
+    "Extra": ""
+  },
+  {
+    "Field": "size",
+    "Type": "varchar(10)",
+    "Null": "YES",
+    "Key": "",
+    "Default": null,
+    "Extra": ""
+  },
+  {
+    "Field": "quantity",
+    "Type": "int",
+    "Null": "NO",
+    "Key": "",
+    "Default": "1",
+    "Extra": ""
+  },
+  {
+    "Field": "unit_price",
+    "Type": "decimal(12,2)",
+    "Null": "NO",
+    "Key": "",
+    "Default": null,
+    "Extra": ""
+  },
+  {
+    "Field": "cost_price",
+    "Type": "decimal(12,2)",
+    "Null": "YES",
+    "Key": "",
+    "Default": "0.00",
+    "Extra": ""
+  },
+  {
+    "Field": "total_price",
+    "Type": "decimal(12,2)",
+    "Null": "NO",
+    "Key": "",
+    "Default": null,
+    "Extra": ""
+  },
+  {
+    "Field": "flash_sale_item_id",
+    "Type": "bigint unsigned",
+    "Null": "YES",
+    "Key": "MUL",
+    "Default": null,
+    "Extra": ""
+  }
+]

@@ -79,8 +79,10 @@ erDiagram
 | name | VARCHAR(500) | — |
 | slug | VARCHAR(600) UNIQUE | URL-friendly |
 | description | TEXT | — |
-| price | DECIMAL(12,2) NOT NULL | — |
-| original_price | DECIMAL(12,2) | Before discount |
+| base_price | DECIMAL(12,2) | Base/Sale price |
+| retail_price | DECIMAL(12,2) NOT NULL | Official retail price |
+| cost_price | DECIMAL(12,2) | Internal cost price |
+| is_new_arrival | TINYINT(1) | Badge "New Arrival" |
 | category_id | BIGINT FK→categories | — |
 | gender | ENUM('men','women','kids','unisex') | — |
 | is_active | TINYINT(1) DEFAULT 1 | — |
@@ -139,17 +141,15 @@ erDiagram
 | order_number | VARCHAR(50) UNIQUE | e.g., "NK-20260213-XXXXX" |
 | user_id | BIGINT FK→users | — |
 | status | VARCHAR(50) | State Machine status |
-| total_price | DECIMAL(12,2) | — |
+| total | DECIMAL(12,2) | Final amount paid |
 | subtotal | DECIMAL(12,2) | Before discounts |
-| discount_amount | DECIMAL(12,2) DEFAULT 0 | — |
+| discount | DECIMAL(12,2) DEFAULT 0 | General/Membership discount |
 | shipping_fee | DECIMAL(12,2) DEFAULT 0 | — |
-| email | VARCHAR(255) | Encrypted |
-| phone | VARCHAR(50) | Encrypted |
-| shipping_address_id | BIGINT FK→user_addresses | — |
-| payment_method | VARCHAR(50) | cod, vnpay, momo |
+| tax | DECIMAL(12,2) DEFAULT 0 | VAT Tax amount (10%) |
 | voucher_code | VARCHAR(50) NULL | Applied voucher |
-| gift_card_id | BIGINT NULL | Applied gift card |
-| gift_card_amount | DECIMAL(12,2) DEFAULT 0 | Amount deducted |
+| voucher_discount | DECIMAL(12,2) DEFAULT 0 | — |
+| giftcard_number | VARCHAR(100) NULL | — |
+| giftcard_discount | DECIMAL(12,2) DEFAULT 0 | — |
 | tracking_number | VARCHAR(100) NULL | Shipping tracking |
 | carrier | VARCHAR(100) NULL | Shipping carrier |
 | notes | TEXT NULL | Customer notes |

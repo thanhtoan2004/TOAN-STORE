@@ -7,7 +7,8 @@ export interface JWTPayload {
     email: string;
     roleId?: number;
     role: string;
-    is_admin: boolean | number;
+    is_admin: boolean | number | string;
+    tv: number; // Token Version (Security Stamp)
     exp: number;
 }
 
@@ -78,13 +79,21 @@ export async function verifyAuth() {
 
         const decoded = jwt.verify(token, getJwtSecret()) as JWTPayload;
 
-        // DB Verification for active status
+        // Ensure decoded has token version
+        if (typeof decoded.tv === 'undefined') return null;
+
+        // DB Verification for active status AND token version
         const users = await executeQuery(
-            'SELECT id, is_active FROM users WHERE id = ? AND is_banned = 0 AND deleted_at IS NULL',
+            'SELECT id, is_active, token_version FROM users WHERE id = ? AND is_banned = 0 AND deleted_at IS NULL',
             [decoded.userId]
         ) as any[];
 
         if (users.length === 0 || !users[0].is_active) {
+            return null;
+        }
+
+        // Security check: Verify token version matches database
+        if (decoded.tv !== users[0].token_version) {
             return null;
         }
 

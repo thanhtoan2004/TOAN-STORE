@@ -3,7 +3,13 @@ import { executeQuery } from '../connection';
 // Product functions
 export async function getProductSizes(productId: number) {
     return executeQuery(`
-    SELECT pv.size, i.quantity as stock, i.reserved, pv.price as price_adjustment
+    SELECT 
+        pv.size, 
+        i.quantity as stock, 
+        i.reserved, 
+        pv.price as price_adjustment,
+        COALESCE(i.allow_backorder, 0) as allow_backorder,
+        i.expected_restock_date
     FROM product_variants pv
     LEFT JOIN inventory i ON i.product_variant_id = pv.id
     WHERE pv.product_id = ?

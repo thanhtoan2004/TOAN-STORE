@@ -152,11 +152,30 @@ export default function CheckoutPage() {
   };
 
   const subtotal = cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-  const shippingFee = subtotal > 1000000 ? 0 : 30000;
+
+  // Membership Discount & Free Shipping Logic
+  const tier = user?.membershipTier?.toLowerCase() || 'bronze';
+  let membershipDiscountPercent = 0;
+  let isFreeShippingByTier = false;
+
+  if (tier === 'platinum') {
+    membershipDiscountPercent = 0.15;
+    isFreeShippingByTier = true;
+  } else if (tier === 'gold') {
+    membershipDiscountPercent = 0.1;
+    isFreeShippingByTier = true;
+  } else if (tier === 'silver') {
+    membershipDiscountPercent = 0.05;
+    isFreeShippingByTier = true;
+  }
+
+  const membershipDiscountAmount = Math.round(subtotal * membershipDiscountPercent);
+  const shippingFee = (subtotal > 1000000 || isFreeShippingByTier) ? 0 : 30000;
+
   const tax = Math.round(subtotal * 0.1);
   const voucherDiscount = appliedVoucher?.discountAmount || 0;
-  const giftCardDiscount = Math.min(appliedGiftCard?.balance || 0, subtotal + shippingFee + tax - voucherDiscount);
-  const total = Math.max(0, subtotal + shippingFee + tax - voucherDiscount - giftCardDiscount);
+  const giftCardDiscount = Math.min(appliedGiftCard?.balance || 0, subtotal + shippingFee + tax - voucherDiscount - membershipDiscountAmount);
+  const total = Math.max(0, subtotal + shippingFee + tax - voucherDiscount - membershipDiscountAmount - giftCardDiscount);
 
   // handleInputChange removed as react-hook-form handles it
 
@@ -264,7 +283,8 @@ export default function CheckoutPage() {
         totalAmount: subtotal,
         shippingFee,
         tax,
-        discount: voucherDiscount + giftCardDiscount,
+        discount: voucherDiscount + giftCardDiscount + membershipDiscountAmount,
+        membershipDiscount: membershipDiscountAmount,
         voucherCode: appliedVoucher?.code || null,
         voucherDiscount: voucherDiscount,
         giftcardNumber: appliedGiftCard?.cardNumber || null,
@@ -371,7 +391,8 @@ export default function CheckoutPage() {
         totalAmount: subtotal,
         shippingFee,
         tax,
-        discount: voucherDiscount + giftCardDiscount,
+        discount: voucherDiscount + giftCardDiscount + membershipDiscountAmount,
+        membershipDiscount: membershipDiscountAmount,
         voucherCode: appliedVoucher?.code || null,
         voucherDiscount: voucherDiscount,
         giftcardNumber: appliedGiftCard?.cardNumber || null,
@@ -801,6 +822,14 @@ export default function CheckoutPage() {
                       <span>-{formatCurrency(voucherDiscount)}</span>
                     </div>
                   )}
+                  {membershipDiscountAmount > 0 && (
+                    <div className="flex justify-between text-blue-600">
+                      <span className="flex items-center gap-1">
+                        Chiết khấu {tier.charAt(0).toUpperCase() + tier.slice(1)}:
+                      </span>
+                      <span>-{formatCurrency(membershipDiscountAmount)}</span>
+                    </div>
+                  )}
                   {giftCardDiscount > 0 && (
                     <div className="flex justify-between text-green-600">
                       <span>Thẻ quà tặng:</span>
@@ -808,9 +837,19 @@ export default function CheckoutPage() {
                     </div>
                   )}
                   <hr />
-                  <div className="flex justify-between font-helvetica-medium text-lg"><span>{t.cart.total}:</span><span>{formatCurrency(total)}</span></div>
+                  <div className="flex justify-between font-helvetica-medium text-lg">
+                    <span>{t.cart.total}:</span>
+                    <span>{formatCurrency(total)}</span>
+                  </div>
                 </div>
-                <Button type="submit" disabled={loading} size="lg" className="w-full mt-6 rounded-full font-medium transition-colors">{loading ? t.checkout.processing : `${t.checkout.place_order} • ${formatCurrency(total)}`}</Button>
+                <Button
+                  type="submit"
+                  disabled={loading}
+                  size="lg"
+                  className="w-full mt-6 rounded-full font-medium transition-colors"
+                >
+                  {loading ? t.checkout.processing : `${t.checkout.place_order} • ${formatCurrency(total)}`}
+                </Button>
                 <div className="mt-4 p-3 bg-gray-50 rounded-lg">
                   <div className="flex items-center text-sm text-gray-600">
                     <Lock className="w-4 h-4 mr-2" />
@@ -821,42 +860,39 @@ export default function CheckoutPage() {
             </div>
           </div>
         </form>
-
       </Form>
 
       {/* QR Code Modal */}
-      {
-        showQR && (
-          <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-            <div className="bg-white rounded-lg p-6 max-w-sm w-full">
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="font-bold text-lg">{t.checkout.payment}</h3>
-                <button onClick={() => setShowQR(false)} className="text-gray-500 hover:text-black">✕</button>
-              </div>
-              <PaymentQRCode
-                amount={total}
-                description={`CK Don hang ${user.email} (Demo)`}
-              />
-              <div className="mt-4 space-y-2">
-                <Button
-                  onClick={handleQRPaymentConfirmed}
-                  disabled={loading}
-                  className="w-full bg-black text-white hover:bg-gray-800"
-                >
-                  {loading ? t.checkout.processing : 'Tôi đã chuyển khoản'}
-                </Button>
-                <Button
-                  onClick={() => setShowQR(false)}
-                  variant="outline"
-                  className="w-full border-gray-300 hover:bg-gray-50"
-                >
-                  Thanh toán sau (COD)
-                </Button>
-              </div>
+      {showQR && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-lg p-6 max-w-sm w-full">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="font-bold text-lg">{t.checkout.payment}</h3>
+              <button onClick={() => setShowQR(false)} className="text-gray-500 hover:text-black">✕</button>
+            </div>
+            <PaymentQRCode
+              amount={total}
+              description={`CK Don hang ${user?.email} (Demo)`}
+            />
+            <div className="mt-4 space-y-2">
+              <Button
+                onClick={handleQRPaymentConfirmed}
+                disabled={loading}
+                className="w-full bg-black text-white hover:bg-gray-800"
+              >
+                {loading ? t.checkout.processing : 'Tôi đã chuyển khoản'}
+              </Button>
+              <Button
+                onClick={() => setShowQR(false)}
+                variant="outline"
+                className="w-full border-gray-300 hover:bg-gray-50"
+              >
+                Thanh toán sau (COD)
+              </Button>
             </div>
           </div>
-        )
-      }
-    </div >
+        </div>
+      )}
+    </div>
   );
 }

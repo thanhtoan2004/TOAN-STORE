@@ -3,20 +3,35 @@
  * Handles image delivery, optimization hints, and provider switching (CDN/S3/Local)
  */
 
+export type ImagePreset = 'THUMBNAIL' | 'PRODUCT_CARD' | 'PRODUCT_DETAIL' | 'HERO_BANNER' | 'ORIGINAL';
+
 interface ImageOptions {
     width?: number;
     height?: number;
-    quality?: number;
-    format?: 'webp' | 'jpg' | 'png';
+    quality?: number | 'auto';
+    format?: 'webp' | 'avif' | 'auto';
+    preset?: ImagePreset;
 }
+
+const PRESETS: Record<ImagePreset, Partial<ImageOptions>> = {
+    THUMBNAIL: { width: 150, height: 150, quality: 'auto' },
+    PRODUCT_CARD: { width: 500, height: 500, quality: 'auto' },
+    PRODUCT_DETAIL: { width: 1000, height: 1000, quality: 'auto' },
+    HERO_BANNER: { width: 1920, quality: 'auto' },
+    ORIGINAL: { quality: 'auto' }
+};
 
 class ImageService {
     private static instance: ImageService;
-    private provider: 'local' | 'cloudinary' | 's3' = 'local';
+    private provider: 'local' | 'cloudinary' | 's3' = 'cloudinary'; // Default to cloudinary for production-ready state
 
     private constructor() {
-        // In a real app, this would be set by environment variables
-        // process.env.IMAGE_PROVIDER as 'local' | 'cloudinary' | 's3';
+        // Provider can be controlled via env in future if needed
+        if (process.env.NEXT_PUBLIC_IMAGE_PROVIDER === 's3') {
+            this.provider = 's3';
+        } else if (process.env.NEXT_PUBLIC_IMAGE_PROVIDER === 'local') {
+            this.provider = 'local';
+        }
     }
 
     static getInstance(): ImageService {
@@ -31,11 +46,22 @@ class ImageService {
      */
     getUrl(path: string, options: ImageOptions = {}): string {
         if (!path) return '/images/placeholder.png';
-        if (path.startsWith('http')) return path;
+        if (path.startsWith('http')) {
+            // If already a Cloudinary URL but without transformations, we might want to inject them
+            if (path.includes('res.cloudinary.com') && !path.includes('/upload/')) {
+                // handle raw cloudinary URLs if any
+            }
+            return path;
+        }
+
+        // Apply preset if provided
+        const finalOptions = options.preset
+            ? { ...PRESETS[options.preset], ...options }
+            : options;
 
         switch (this.provider) {
             case 'cloudinary':
-                return this.getCloudinaryUrl(path, options);
+                return this.getCloudinaryUrl(path, finalOptions);
             case 's3':
                 return this.getS3Url(path);
             case 'local':
@@ -45,21 +71,29 @@ class ImageService {
     }
 
     private getCloudinaryUrl(path: string, options: ImageOptions): string {
-        const cloudName = process.env.CLOUDINARY_CLOUD_NAME;
+        const cloudName = process.env.CLOUDINARY_CLOUD_NAME || process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME;
         if (!cloudName) return path;
 
-        // Example transformation: c_scale,w_500,q_auto,f_webp
+        // Clean path (remove leading slash if exists)
+        const cleanPath = path.startsWith('/') ? path.substring(1) : path;
+
         const transformations = [];
-        if (options.width) transformations.push(`w_${options.width}`);
-        if (options.height) transformations.push(`h_${options.height}`);
+
+        // Essential Cloudinary optimizations
         transformations.push(`q_${options.quality || 'auto'}`);
         transformations.push(`f_${options.format || 'auto'}`);
 
-        return `https://res.cloudinary.com/${cloudName}/image/upload/${transformations.join(',')}/${path}`;
+        if (options.width && options.height) {
+            transformations.push(`c_fill,w_${options.width},h_${options.height}`);
+        } else if (options.width) {
+            transformations.push(`c_scale,w_${options.width}`);
+        }
+
+        return `https://res.cloudinary.com/${cloudName}/image/upload/${transformations.join(',')}/${cleanPath}`;
     }
 
     private getS3Url(path: string): string {
-        const bucket = process.env.AWS_S_BUCKET;
+        const bucket = process.env.AWS_S3_BUCKET;
         const region = process.env.AWS_REGION;
         if (!bucket || !region) return path;
 

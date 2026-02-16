@@ -4,6 +4,7 @@ import { executeQuery } from '@/lib/db/mysql';
 import { RegisterRequest, User } from '@/types/auth';
 import { sendWelcomeEmail } from '@/lib/mail';
 import { withRateLimit } from '@/lib/with-rate-limit';
+import { encrypt } from '@/lib/encryption';
 
 async function registerHandler(req: Request) {
   try {
@@ -42,10 +43,10 @@ async function registerHandler(req: Request) {
     // Mã hóa mật khẩu
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // Thêm người dùng mới vào CSDL
+    // Thêm người dùng mới vào CSDL (Mặc định is_active = 1)
     await executeQuery(
-      'INSERT INTO users (email, password, first_name, last_name, phone, date_of_birth, gender) VALUES (?, ?, ?, ?, ?, ?, ?)',
-      [email.toLowerCase().trim(), hashedPassword, sanitize(firstName), sanitize(lastName), phone || null, dateOfBirth || null, gender || null]
+      'INSERT INTO users (email, password, first_name, last_name, phone, date_of_birth, gender, is_active) VALUES (?, ?, ?, ?, ?, ?, ?, 1)',
+      [email.toLowerCase().trim(), hashedPassword, sanitize(firstName), sanitize(lastName), encrypt(phone || null), dateOfBirth || null, gender || null]
     );
 
     // Gửi email chào mừng

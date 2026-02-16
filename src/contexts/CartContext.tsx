@@ -20,6 +20,7 @@ interface CartContextType {
   cartCount: number;
   loading: boolean;
   addToCart: (productId: number, quantity?: number, size?: string, color?: string) => Promise<boolean>;
+  addMultipleToCart: (items: { productId: number; quantity: number; size: string }[]) => Promise<boolean>;
   updateQuantity: (itemId: number, quantity: number) => Promise<boolean>;
   removeItem: (itemId: number) => Promise<boolean>;
   clearCart: () => Promise<boolean>;
@@ -43,7 +44,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       setLoading(true);
       const response = await fetch(`/api/cart?userId=${user.id}`);
       const data = await response.json();
-      
+
       if (data.success) {
         setCartItems(data.data);
       }
@@ -65,9 +66,9 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
   // Thêm sản phẩm vào giỏ hàng
   const addToCart = useCallback(async (
-    productId: number, 
-    quantity = 1, 
-    size?: string, 
+    productId: number,
+    quantity = 1,
+    size?: string,
     color?: string
   ): Promise<boolean> => {
     if (!user) {
@@ -91,7 +92,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       });
 
       const data = await response.json();
-      
+
       if (data.success) {
         await refreshCart(); // Refresh để lấy dữ liệu mới nhất
         return true;
@@ -102,6 +103,39 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     } catch (error) {
       console.error('Lỗi khi thêm vào giỏ hàng:', error);
       alert('Lỗi khi thêm vào giỏ hàng');
+      return false;
+    }
+  }, [user, refreshCart]);
+
+  // Thêm nhiều sản phẩm vào giỏ hàng (cho Reorder)
+  const addMultipleToCart = useCallback(async (
+    items: { productId: number; quantity: number; size: string }[]
+  ): Promise<boolean> => {
+    if (!user) {
+      alert('Vui lòng đăng nhập để thực hiện');
+      return false;
+    }
+
+    try {
+      const response = await fetch('/api/cart', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ userId: user.id, items }),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        await refreshCart();
+        return true;
+      } else {
+        alert(data.message || 'Lỗi khi đặt lại đơn hàng');
+        return false;
+      }
+    } catch (error) {
+      console.error('Lỗi khi thêm hàng loạt vào giỏ hàng:', error);
       return false;
     }
   }, [user, refreshCart]);
@@ -118,10 +152,10 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       });
 
       const data = await response.json();
-      
+
       if (data.success) {
-        setCartItems(prev => 
-          prev.map(item => 
+        setCartItems(prev =>
+          prev.map(item =>
             item.id === itemId ? { ...item, quantity } : item
           )
         );
@@ -145,7 +179,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       });
 
       const data = await response.json();
-      
+
       if (data.success) {
         setCartItems(prev => prev.filter(item => item.id !== itemId));
         return true;
@@ -170,7 +204,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       });
 
       const data = await response.json();
-      
+
       if (data.success) {
         setCartItems([]);
         return true;
@@ -190,6 +224,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     cartCount,
     loading,
     addToCart,
+    addMultipleToCart,
     updateQuantity,
     removeItem,
     clearCart,

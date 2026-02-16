@@ -4,6 +4,20 @@ Tất cả thay đổi quan trọng được ghi nhận tại đây theo format 
 
 ---
 
+## [2.4.0] - 2026-02-16
+
+### ✨ Professional Printing & Financial Transparency (Phase 58)
+- **Professional Printing Subsystem** — Triển khai hệ thống in hóa đơn (Invoice) và catalog sản phẩm chuyên nghiệp, tối ưu hóa layout A4, tự động ẩn UI thừa và hỗ trợ in đa trang sạch sẽ.
+- **VAT & Financial Detail** — Cập nhật hóa đơn và quy trình checkout để hiển thị chi tiết thuế VAT, chiết khấu Voucher, số dư Gift Card và ưu đãi thành viên một cách minh bạch.
+- **Membership Loyalty Enhancement** — Đồng bộ logic chiết khấu theo hạng thành viên (lên đến 15% cho Platinum) trên toàn bộ hệ thống từ Cart đến Invoice.
+- **AI Recommendation Price Fix** — Khắc phục lỗi hiển thị giá 0đ trong mục "Có thể bạn sẽ thích" bằng cách alias chính xác các trường dữ liệu giá từ AI Recommendation API.
+
+### 🔐 Security & UX Improvements
+- **Inactivity Auto-Logout** — Tăng cường bảo mật bằng cách tự động đăng xuất người dùng sau 15 phút không hoạt động.
+- **Order Tracking Integration** — Bổ sung link theo dõi vận đơn (Tracking Number) trực tiếp trong chi tiết đơn hàng cho khách hàng.
+- **Phone Encryption Fix** — Sửa lỗi logic mã hóa/giải mã số điện thoại trong hồ sơ người dùng để đảm bảo tính toàn vẹn dữ liệu.
+- **Workspace Optimization** — Dọn dẹp toàn bộ file logs và temporary txt để giữ môi trường phát triển sạch sẽ.
+
 ## [2.3.0] - 2026-02-15
 
 ### 🛡️ RBAC & Observability (Phase 36)

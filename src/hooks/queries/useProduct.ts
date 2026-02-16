@@ -13,7 +13,13 @@ interface Product {
     is_new_arrival: boolean;
     created_at: string;
     images?: Array<{ url: string; alt_text?: string; media_type?: 'image' | 'video' }>;
-    sizes?: Array<{ size: string; stock: number; reserved?: number }>;
+    sizes?: Array<{
+        size: string;
+        stock: number;
+        reserved?: number;
+        allow_backorder?: number;
+        expected_restock_date?: string | null;
+    }>;
     attributes?: Array<{
         name: string;
         slug: string;

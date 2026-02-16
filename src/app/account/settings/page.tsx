@@ -31,6 +31,13 @@ export default function AccountSettings() {
 
   const [returnUrl, setReturnUrl] = useState<string | null>(null);
 
+  // Sensitive action states
+  const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
+  const [passwordValue, setPasswordValue] = useState('');
+  const [pendingAction, setPendingAction] = useState<'export' | 'delete' | null>(null);
+  const [passwordError, setPasswordError] = useState('');
+  const [verifyingPassword, setVerifyingPassword] = useState(false);
+
   // Address state
   const [addresses, setAddresses] = useState<any[]>([]);
   const [loadingAddresses, setLoadingAddresses] = useState(false);
@@ -90,7 +97,13 @@ export default function AccountSettings() {
       try {
         const date = new Date(dateStr);
         if (isNaN(date.getTime())) return '';
-        return date.toISOString().split('T')[0];
+
+        // Sử dụng local date components để tránh lệch múi giờ
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+
+        return `${year}-${month}-${day}`;
       } catch (e) {
         return '';
       }
@@ -124,7 +137,11 @@ export default function AccountSettings() {
         setAddresses(data);
       }
     } catch (error) {
-      console.error('Lỗi khi tải địa chỉ:', error);
+      console.error('DEBUG: loadAddresses Fetch Error:', error);
+      if (error instanceof TypeError && error.message === 'Failed to fetch') {
+        console.error('DEBUG: Network error or server is unreachable');
+      }
+      setMessage('Không thể tải địa chỉ. Vui lòng thử lại sau.');
     } finally {
       setLoadingAddresses(false);
     }
@@ -278,6 +295,109 @@ export default function AccountSettings() {
     }
   };
 
+  const handleExportData = async () => {
+    // If password not verified yet, open modal
+    if (!isPasswordModalOpen || pendingAction !== 'export') {
+      setPendingAction('export');
+      setPasswordValue('');
+      setPasswordError('');
+      setIsPasswordModalOpen(true);
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const response = await fetch('/api/account/export');
+      if (response.ok) {
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `nike_personal_data_${user?.id}.json`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        setMessage('Dữ liệu của bạn đang được tải xuống.');
+        setIsPasswordModalOpen(false);
+        setPendingAction(null);
+      } else {
+        setMessage('Không thể xuất dữ liệu. Vui lòng thử lại sau.');
+      }
+    } catch (error) {
+      setMessage('Lỗi kết nối server');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteAccount = async () => {
+    // If password not verified yet, open modal
+    if (!isPasswordModalOpen || pendingAction !== 'delete') {
+      setPendingAction('delete');
+      setPasswordValue('');
+      setPasswordError('');
+      setIsPasswordModalOpen(true);
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const response = await fetch('/api/account/delete', {
+        method: 'DELETE',
+      });
+
+      if (response.ok) {
+        setIsPasswordModalOpen(false);
+        setPendingAction(null);
+        alert('Tài khoản của bạn đã được xóa thành công. Bạn sẽ được chuyển hướng về trang chủ.');
+        window.location.href = '/';
+      } else {
+        const data = await response.json();
+        setMessage(data.message || 'Không thể xóa tài khoản');
+      }
+    } catch (error) {
+      setMessage('Lỗi kết nối server');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleVerifyPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!passwordValue) {
+      setPasswordError('Vui lòng nhập mật khẩu');
+      return;
+    }
+
+    setVerifyingPassword(true);
+    setPasswordError('');
+
+    try {
+      const response = await fetch('/api/account/verify-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: passwordValue })
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        // Password verified, execute the pending action
+        if (pendingAction === 'export') {
+          handleExportData();
+        } else if (pendingAction === 'delete') {
+          handleDeleteAccount();
+        }
+      } else {
+        setPasswordError(data.message || 'Mật khẩu không chính xác');
+      }
+    } catch (error) {
+      setPasswordError('Lỗi kết nối server');
+    } finally {
+      setVerifyingPassword(false);
+    }
+  };
+
   if (!isAuthenticated) {
     return null;
   }
@@ -298,19 +418,22 @@ export default function AccountSettings() {
 
   // Helper function to calculate progress
   const getMembershipProgress = (points: number, tier: string) => {
-    if (tier === 'gold') return 100;
+    if (tier === 'platinum') return 100;
+    if (tier === 'gold') return Math.max(0, Math.min(100, (points - 5000) / (10000 - 5000) * 100));
     if (tier === 'silver') return Math.max(0, Math.min(100, (points - 1000) / (5000 - 1000) * 100));
     return Math.max(0, Math.min(100, points / 1000 * 100));
   };
 
   const getNextTierPoints = (tier: string) => {
-    if (tier === 'gold') return 0;
+    if (tier === 'platinum') return 0;
+    if (tier === 'gold') return 10000;
     if (tier === 'silver') return 5000;
     return 1000;
   };
 
   const getTierColor = (tier: string) => {
-    if (tier === 'gold') return 'text-yellow-500 bg-yellow-50 border-yellow-200';
+    if (tier === 'platinum') return 'text-indigo-700 bg-indigo-50 border-indigo-200';
+    if (tier === 'gold') return 'text-yellow-600 bg-yellow-50 border-yellow-200';
     if (tier === 'silver') return 'text-gray-500 bg-gray-50 border-gray-200';
     return 'text-amber-700 bg-amber-50 border-amber-200';
   };
@@ -389,7 +512,7 @@ export default function AccountSettings() {
           <div className="lg:col-span-3">
             <div className="bg-white rounded-lg shadow-sm border p-8">
               {message && (
-                <div className={`mb-6 p-4 rounded-lg ${message.includes('thành công') ? 'bg-green-50 text-green-800 border border-green-200' : 'bg-red-50 text-red-800 border border-red-200'}`}>
+                <div className={`mb-6 p-4 rounded-lg ${message.includes('thành công') || message.includes('tải xuống') ? 'bg-green-50 text-green-800 border border-green-200' : 'bg-red-50 text-red-800 border border-red-200'}`}>
                   {message}
                 </div>
               )}
@@ -406,7 +529,7 @@ export default function AccountSettings() {
                       <div>
                         <p className="text-sm uppercase tracking-wider font-semibold opacity-70">Hạng hiện tại</p>
                         <h3 className="text-3xl font-bold uppercase mt-1">
-                          {currentTier === 'gold' ? 'Vàng (Gold)' : currentTier === 'silver' ? 'Bạc (Silver)' : 'Đồng (Bronze)'}
+                          {currentTier === 'platinum' ? 'Bạch kim (Platinum)' : currentTier === 'gold' ? 'Vàng (Gold)' : currentTier === 'silver' ? 'Bạc (Silver)' : 'Đồng (Bronze)'}
                         </h3>
                       </div>
                       <div className="text-right">
@@ -420,12 +543,12 @@ export default function AccountSettings() {
                         <div className="text-xs font-semibold inline-block py-1 px-2 uppercase rounded-full bg-white bg-opacity-50">
                           {Math.round(progress)}%
                         </div>
-                        {currentTier !== 'gold' && (
+                        {currentTier !== 'platinum' && (
                           <div className="text-xs font-semibold inline-block">
                             Còn {Math.max(0, nextCheckpoint - currentPoints).toLocaleString('vi-VN')} điểm để thăng hạng
                           </div>
                         )}
-                        {currentTier === 'gold' && (
+                        {currentTier === 'platinum' && (
                           <div className="text-xs font-semibold inline-block">
                             Bạn đang ở hạng cao nhất!
                           </div>
@@ -437,7 +560,7 @@ export default function AccountSettings() {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
                     <div className={`p-4 border rounded-lg ${currentTier === 'bronze' ? 'ring-2 ring-black bg-gray-50' : 'opacity-60'}`}>
                       <h4 className="font-bold text-lg mb-2 text-amber-900">Đồng (Bronze)</h4>
                       <p className="text-sm text-gray-600 mb-2">0 - 999 điểm</p>
@@ -457,11 +580,20 @@ export default function AccountSettings() {
                     </div>
                     <div className={`p-4 border rounded-lg ${currentTier === 'gold' ? 'ring-2 ring-black bg-gray-50' : 'opacity-60'}`}>
                       <h4 className="font-bold text-lg mb-2 text-yellow-600">Vàng (Gold)</h4>
-                      <p className="text-sm text-gray-600 mb-2">5,000+ điểm</p>
+                      <p className="text-sm text-gray-600 mb-2">5,000 - 9,999 điểm</p>
                       <ul className="text-sm space-y-1">
                         <li>• Tất cả quyền lợi hạng Bạc</li>
                         <li>• Giảm 10% khi mua hàng</li>
                         <li>• Quà tặng đặc biệt cuối năm</li>
+                      </ul>
+                    </div>
+                    <div className={`p-4 border rounded-lg ${currentTier === 'platinum' ? 'ring-2 ring-black bg-gray-50' : 'opacity-60'}`}>
+                      <h4 className="font-bold text-lg mb-2 text-indigo-700">Bạch kim (Platinum)</h4>
+                      <p className="text-sm text-gray-600 mb-2">10,000+ điểm</p>
+                      <ul className="text-sm space-y-1">
+                        <li>• Tất cả quyền lợi hạng Vàng</li>
+                        <li>• Giảm 15% khi mua hàng</li>
+                        <li>• Vé mời sự kiện Nike độc quyền</li>
                         <li>• Hỗ trợ ưu tiên 24/7</li>
                       </ul>
                     </div>
@@ -540,10 +672,43 @@ export default function AccountSettings() {
               {activeTab === 'security' && (
                 <div>
                   <h2 className="text-2xl font-semibold mb-6">Bảo mật</h2>
-                  <div className="p-4 border rounded-lg">
-                    <h3 className="font-medium mb-2">Đổi mật khẩu</h3>
-                    <p className="text-sm text-gray-600 mb-4">Cập nhật mật khẩu của bạn</p>
-                    <Link href="/account/change-password"><button className="px-6 py-2 border-2 border-black rounded-full font-medium hover:bg-black hover:text-white transition-colors">Đổi mật khẩu</button></Link>
+                  <div className="space-y-6">
+                    <div className="p-4 border rounded-lg">
+                      <h3 className="font-medium mb-2">Đổi mật khẩu</h3>
+                      <p className="text-sm text-gray-600 mb-4">Cập nhật mật khẩu của bạn</p>
+                      <Link href="/account/change-password"><button className="px-6 py-2 border-2 border-black rounded-full font-medium hover:bg-black hover:text-white transition-colors">Đổi mật khẩu</button></Link>
+                    </div>
+
+                    <div className="p-4 border border-red-200 rounded-lg bg-red-50">
+                      <h3 className="font-medium mb-2 text-red-700">Đăng xuất khỏi tất cả các thiết bị</h3>
+                      <p className="text-sm text-red-600 mb-4">
+                        Nếu bạn nghi ngờ tài khoản bị xâm nhập hoặc làm mất thiết bị, hãy sử dụng tính năng này để buộc đăng xuất khỏi tất cả các thiết bị đang hoạt động.
+                      </p>
+                      <button
+                        onClick={async () => {
+                          if (!confirm('Bạn có chắc chắn muốn đăng xuất khỏi tất cả các thiết bị? Điều này sẽ yêu cầu bạn đăng nhập lại trên mọi thiết bị hiện đang hoạt động.')) return;
+                          try {
+                            setLoading(true);
+                            const res = await fetch('/api/auth/logout-all', { method: 'POST' });
+                            const data = await res.json();
+                            if (data.success) {
+                              alert(data.message);
+                              window.location.href = '/login';
+                            } else {
+                              alert(data.message || 'Lỗi khi đăng xuất');
+                            }
+                          } catch (e) {
+                            alert('Đã xảy ra lỗi kết nối');
+                          } finally {
+                            setLoading(false);
+                          }
+                        }}
+                        disabled={loading}
+                        className="px-6 py-2 bg-red-600 text-white rounded-full font-medium hover:bg-red-700 transition-colors disabled:opacity-50"
+                      >
+                        {loading ? 'Đang xử lý...' : 'Đăng xuất tất cả thiết bị'}
+                      </button>
+                    </div>
                   </div>
                 </div>
               )}
@@ -933,26 +1098,24 @@ export default function AccountSettings() {
                   <div className="space-y-4">
                     <div className="p-4 border rounded-lg">
                       <h3 className="font-medium mb-2">Dữ liệu cá nhân</h3>
-                      <p className="text-sm text-gray-600 mb-3">Quản lý cách chúng tôi sử dụng thông tin của bạn</p>
+                      <p className="text-sm text-gray-600 mb-3">Tải xuống toàn bộ thông tin cá nhân của bạn (GDPR).</p>
+                      <button
+                        onClick={handleExportData}
+                        disabled={loading}
+                        className="px-6 py-2 border-2 border-black rounded-full font-medium hover:bg-black hover:text-white transition-colors disabled:bg-gray-200 disabled:cursor-not-allowed"
+                      >
+                        {loading ? 'Đang chuẩn bị...' : 'Xuất dữ liệu cá nhân (JSON)'}
+                      </button>
+                    </div>
+                    <div className="p-4 border rounded-lg">
+                      <h3 className="font-medium mb-2">Tùy chọn hiển thị</h3>
                       <label className="flex items-center gap-2 cursor-pointer mb-3">
                         <input type="checkbox" checked={dataPersistence} onChange={(e) => setDataPersistence(e.target.checked)} className="w-4 h-4" />
                         <span className="text-sm">Cho phép sử dụng dữ liệu để cá nhân hóa trải nghiệm</span>
                       </label>
-                      <label className="flex items-center gap-2 cursor-pointer">
-                        <input type="checkbox" checked={researchUsage} onChange={(e) => setResearchUsage(e.target.checked)} className="w-4 h-4" />
-                        <span className="text-sm">Cho phép sử dụng dữ liệu cho nghiên cứu</span>
-                      </label>
-                    </div>
-                    <div className="p-4 border rounded-lg">
-                      <h3 className="font-medium mb-2">Bạn bè và gia đình</h3>
-                      <p className="text-sm text-gray-600 mb-3">Kiểm soát quyền riêng tư của tài khoản</p>
                       <label className="flex items-center gap-2 cursor-pointer mb-3">
                         <input type="checkbox" checked={publicProfile} onChange={(e) => setPublicProfile(e.target.checked)} className="w-4 h-4" />
                         <span className="text-sm">Tài khoản công khai</span>
-                      </label>
-                      <label className="flex items-center gap-2 cursor-pointer">
-                        <input type="checkbox" checked={searchableProfile} onChange={(e) => setSearchableProfile(e.target.checked)} className="w-4 h-4" />
-                        <span className="text-sm">Cho phép mọi người xem hồ sơ của tôi</span>
                       </label>
                     </div>
                     <div className="p-4 border rounded-lg">
@@ -960,8 +1123,8 @@ export default function AccountSettings() {
                       <p className="text-sm text-gray-600 mb-3">Xóa vĩnh viễn tài khoản và dữ liệu của bạn</p>
                       <button
                         onClick={() => {
-                          if (confirm('BẠN CÓ CHẮC MUỐN XÓA TÀI KHOẢN? Hành động này không thể hoàn tác, tất cả dữ liệu đơn hàng và điểm tích lũy sẽ bị mất vĩnh viễn.')) {
-                            alert('Yêu cầu xóa tài khoản đã được gửi. Chúng tôi sẽ phản hồi qua email trong vòng 30 ngày.');
+                          if (window.confirm('Bạn có chắc chắn muốn xóa tài khoản vĩnh viễn không? Hành động này không thể hoàn tác.')) {
+                            handleDeleteAccount();
                           }
                         }}
                         className="px-6 py-2 border-2 border-red-600 text-red-600 rounded-full font-medium hover:bg-red-50 transition-colors"
@@ -976,6 +1139,56 @@ export default function AccountSettings() {
           </div>
         </div>
       </div>
+      {/* Password Verification Modal */}
+      {isPasswordModalOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-xl animate-in fade-in zoom-in duration-200">
+            <h2 className="text-xl font-bold mb-4">
+              {pendingAction === 'export' ? 'Xác nhận thông tin' : 'Xác nhận xóa tài khoản'}
+            </h2>
+            <p className="text-gray-600 mb-6 text-sm">
+              Vì lý do bảo mật, vui lòng nhập mật khẩu của bạn để {pendingAction === 'export' ? 'tải xuống dữ liệu cá nhân' : 'xóa tài khoản vĩnh viễn'}.
+            </p>
+
+            <form onSubmit={handleVerifyPassword}>
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-1">Mật khẩu</label>
+                <input
+                  type="password"
+                  value={passwordValue}
+                  onChange={(e) => setPasswordValue(e.target.value)}
+                  className={`w-full p-3 border rounded-xl focus:ring-2 focus:ring-black outline-none transition-all ${passwordError ? 'border-red-500' : 'border-gray-200'}`}
+                  placeholder="Nhập mật khẩu của bạn"
+                  autoFocus
+                />
+                {passwordError && <p className="text-red-500 text-xs mt-1">{passwordError}</p>}
+              </div>
+
+              <div className="flex gap-3 mt-6">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsPasswordModalOpen(false);
+                    setPendingAction(null);
+                    setPasswordValue('');
+                    setPasswordError('');
+                  }}
+                  className="flex-1 py-3 border border-gray-200 rounded-full font-medium hover:bg-gray-50 transition-colors"
+                >
+                  Hủy
+                </button>
+                <button
+                  type="submit"
+                  disabled={verifyingPassword || !passwordValue}
+                  className="flex-1 py-3 bg-black text-white rounded-full font-medium hover:bg-gray-800 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
+                >
+                  {verifyingPassword ? 'Đang xác thực...' : 'Xác nhận'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
