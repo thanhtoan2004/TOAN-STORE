@@ -12,7 +12,7 @@ export default function TermsOfUsePage() {
             <section>
               <h2 className="text-2xl font-helvetica-medium mb-4">1. Chấp Nhận Điều Khoản</h2>
               <p className="text-gray-700 leading-relaxed">
-                Bằng việc truy cập và sử dụng website TOAN, bạn đồng ý tuân thủ các điều khoản và điều kiện được nêu trong tài liệu này.
+                Bằng việc truy cập và sử dụng website TOAN Store, bạn đồng ý tuân thủ các điều khoản và điều kiện được nêu trong tài liệu này.
                 Nếu bạn không đồng ý với bất kỳ phần nào của điều khoản này, vui lòng không sử dụng website của chúng tôi.
               </p>
             </section>
@@ -45,7 +45,7 @@ export default function TermsOfUsePage() {
             <section>
               <h2 className="text-2xl font-helvetica-medium mb-4">4. Quyền Sở Hữu Trí Tuệ</h2>
               <p className="text-gray-700 leading-relaxed">
-                Tất cả nội dung trên website, bao gồm logo, hình ảnh, văn bản, thiết kế đều thuộc quyền sở hữu của TOAN
+                Tất cả nội dung trên website, bao gồm logo, hình ảnh, văn bản, thiết kế đều thuộc quyền sở hữu của TOAN Store
                 và được bảo vệ bởi luật bản quyền Việt Nam và quốc tế.
               </p>
             </section>
@@ -53,7 +53,7 @@ export default function TermsOfUsePage() {
             <section>
               <h2 className="text-2xl font-helvetica-medium mb-4">5. Giới Hạn Trách Nhiệm</h2>
               <p className="text-gray-700 leading-relaxed">
-                TOAN không chịu trách nhiệm cho bất kỳ thiệt hại nào phát sinh từ việc sử dụng hoặc không thể sử dụng website,
+                TOAN Store không chịu trách nhiệm cho bất kỳ thiệt hại nào phát sinh từ việc sử dụng hoặc không thể sử dụng website,
                 bao gồm nhưng không giới hạn: thiệt hại trực tiếp, gián tiếp, ngẫu nhiên hoặc hậu quả.
               </p>
             </section>

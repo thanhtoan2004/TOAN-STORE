@@ -43,11 +43,11 @@ export default function CareersPage() {
         <div className="max-w-6xl mx-auto">
           <h1 className="text-4xl font-bold mb-4">Nghề Nghiệp</h1>
           <p className="text-gray-600 mb-8">
-            Tham gia đội ngũ TOAN và cùng chúng tôi tạo ra những sản phẩm thể thao hàng đầu
+            Tham gia đội ngũ TOAN Store và cùng chúng tôi tạo ra những sản phẩm thể thao hàng đầu
           </p>
 
           <div className="bg-white rounded-lg p-8 shadow-sm mb-8">
-            <h2 className="text-2xl font-helvetica-medium mb-4">Tại Sao Chọn TOAN?</h2>
+            <h2 className="text-2xl font-helvetica-medium mb-4">Tại Sao Chọn TOAN Store?</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
                 <h3 className="font-helvetica-medium mb-2">Môi Trường Làm Việc Năng Động</h3>
@@ -93,7 +93,7 @@ export default function CareersPage() {
             <h2 className="text-2xl font-helvetica-medium mb-4">Nộp Đơn</h2>
             <p className="text-gray-700 mb-6">
               Hiện tại chúng tôi không có vị trí nào đang tuyển dụng. Vui lòng gửi CV của bạn đến{' '}
-              <a href="mailto:careers@toan.com" className="text-black underline">careers@toan.com</a> để
+              <a href="mailto:careers@TOAN Store.com" className="text-black underline">careers@TOAN Store.com</a> để
               chúng tôi có thể liên hệ khi có cơ hội phù hợp.
             </p>
             <Link

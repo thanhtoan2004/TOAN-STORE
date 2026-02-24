@@ -8,6 +8,9 @@ import {
 } from '@/lib/db/supportChat';
 import { checkAdminAuth } from '@/lib/auth';
 
+/**
+ * API Lấy chi tiết lịch sử trò chuyện (Messages) của một phiên chat.
+ */
 export async function GET(
     request: NextRequest,
     { params }: { params: Promise<{ chatId: string }> }
@@ -42,6 +45,13 @@ export async function GET(
     }
 }
 
+/**
+ * API Xử lý hành động trong phiên Chat.
+ * Hành động:
+ * 1. `assign`: Gán phiên chat cho một nhân viên hỗ trợ.
+ * 2. `send_message`: Gửi tin nhắn trả lời từ Admin (kèm ảnh nếu có).
+ * 3. `resolve`: Đóng phiên chat sau khi hỗ trợ xong.
+ */
 export async function POST(
     request: NextRequest,
     { params }: { params: Promise<{ chatId: string }> }

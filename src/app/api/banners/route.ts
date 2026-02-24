@@ -2,6 +2,12 @@ import { NextRequest, NextResponse } from 'next/server';
 import { executeQuery } from '@/lib/db/mysql';
 
 // GET - Lấy danh sách banners
+/**
+ * API Lấy danh sách Banner quảng cáo theo vị trí.
+ * Cơ chế: 
+ * 1. Chỉ lấy các banner đang hoạt động và trong thời hạn cho phép.
+ * 2. Tự động cộng dồn lượt hiển thị (Impression count) cho các banner được trả về.
+ */
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);

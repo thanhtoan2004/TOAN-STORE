@@ -3,14 +3,22 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { dictionary, Locale } from '@/lib/dictionary';
 
+/**
+ * LanguageContextType: Kiểu dữ liệu chứa state ngôn ngữ hiện tại và từ điển dịch.
+ */
 interface LanguageContextType {
-    language: Locale;
-    setLanguage: (lang: Locale) => void;
-    t: typeof dictionary['vi'];
+    language: Locale;                                // Mã ngôn ngữ hiện tại ('vi' hoặc 'en')
+    setLanguage: (lang: Locale) => void;             // Hàm đổi ngôn ngữ
+    t: typeof dictionary['vi'];                      // Object `t` chứa bộ từ vựng đã được map tự động theo ngôn ngữ đang chọn
 }
 
+// Khởi tạo Context
 const LanguageContext = createContext<LanguageContextType | undefined>(undefined);
 
+/**
+ * LanguageProvider: Bao bọc ứng dụng để cung cấp hệ thống Đa Ngôn Ngữ (i18n).
+ * Đọc cài đặt ngôn ngữ từ localStorage khi load trang và tự động gióng 't' vào đúng bộ từ điển `vi` hoặc `en`.
+ */
 export function LanguageProvider({ children }: { children: React.ReactNode }) {
     const [language, setLanguageState] = useState<Locale>('vi');
     const [mounted, setMounted] = useState(false);

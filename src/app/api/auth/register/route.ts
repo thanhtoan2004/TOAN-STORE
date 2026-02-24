@@ -6,6 +6,15 @@ import { sendWelcomeEmail } from '@/lib/mail';
 import { withRateLimit } from '@/lib/with-rate-limit';
 import { encrypt } from '@/lib/encryption';
 
+/**
+ * API Đăng ký tài khoản người mới.
+ * Quy trình xử lý và bảo mật:
+ * 1. Chống trùng lặp: Kiểm tra tính duy nhất của Email (cần chưa bị xóa mềm).
+ * 2. Bảo vệ XSS: Tự động lọc sạch (sanitize) các thẻ HTML trong Họ và Tên.
+ * 3. Bảo mật PII: Mã hóa Số điện thoại bằng AES-256 trước khi lưu vào CSDL.
+ * 4. Password Hashing: Sử dụng Bcrypt (Salt rounds = 10).
+ * 5. Tương tác người dùng: Gửi Email chào mừng thông qua Background Queue (không chặn luồng đăng ký).
+ */
 async function registerHandler(req: Request) {
   try {
     const { email, password, firstName, lastName, dateOfBirth, gender, phone } = await req.json();
@@ -50,7 +59,8 @@ async function registerHandler(req: Request) {
     );
 
     // Gửi email chào mừng
-    sendWelcomeEmail(email, firstName || 'Member').catch(console.error);
+    const fullName = [firstName, lastName].filter(Boolean).join(' ') || 'Member';
+    sendWelcomeEmail(email, fullName).catch(console.error);
 
     return NextResponse.json(
       { success: true, message: 'Đăng ký thành công' },

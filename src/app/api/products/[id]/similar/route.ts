@@ -1,6 +1,10 @@
 import { NextResponse } from 'next/server';
 import { getSimilarProducts } from '@/lib/db/repositories/recommendation';
 
+/**
+ * API Gợi ý sản phẩm tương tự (Alternative Suggestions).
+ * Logic: Tìm kiếm các sản phẩm cùng danh mục, phong cách hoặc mức giá để tối ưu tỷ lệ chuyển đổi.
+ */
 export async function GET(
     request: Request,
     { params }: { params: Promise<{ id: string }> }

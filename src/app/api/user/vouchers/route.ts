@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { executeQuery } from '@/lib/db/mysql';
 import { verifyAuth } from '@/lib/auth';
 
+/**
+ * API Lấy danh sách mã giảm giá cá nhân của người dùng.
+ * Chỉ trả về các voucher dành riêng cho User này (recipient_user_id) và còn hiệu lực.
+ */
 export async function GET(request: NextRequest) {
     try {
         const auth = await verifyAuth();

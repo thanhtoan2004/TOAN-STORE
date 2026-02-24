@@ -8,6 +8,13 @@ import { ResponseWrapper } from '@/lib/api-response';
 import { logger } from '@/lib/logger';
 
 // GET - Lấy danh sách đơn hàng (Admin)
+/**
+ * API Lấy danh sách toàn bộ đơn hàng (Dành cho Admin).
+ * Tính năng:
+ * 1. Phân quyền: Chỉ Admin mới có quyền truy cập.
+ * 2. Giải mã (PII Decrypt): Tự động giải mã Số điện thoại và Email khách hàng để hiển thị trên UI quản trị.
+ * 3. Tìm kiếm: Hỗ trợ tìm theo Mã đơn hàng hoặc thông tin khách hàng.
+ */
 export async function GET(request: NextRequest) {
   try {
     const admin = await checkAdminAuth();

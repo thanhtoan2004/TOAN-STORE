@@ -11,6 +11,7 @@ interface ViewedProduct {
     price: number;
     sale_price?: number;
     image_url: string;
+    is_new_arrival?: boolean;
 }
 
 import { useLanguage } from '@/contexts/LanguageContext';
@@ -51,6 +52,7 @@ export default function RecentlyViewed() {
                         price={product.price}
                         sale_price={product.sale_price}
                         image_url={product.image_url}
+                        is_new_arrival={Boolean(product.is_new_arrival)}
                     />
                 ))}
             </div>

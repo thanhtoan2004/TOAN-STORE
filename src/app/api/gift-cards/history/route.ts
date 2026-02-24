@@ -3,6 +3,10 @@ import { createErrorResponse, createSuccessResponse, withErrorHandling } from '@
 import { executeQuery } from '@/lib/db/mysql';
 
 // GET - Lấy lịch sử giao dịch thẻ quà tặng
+/**
+ * API Tra cứu lịch sử giao dịch của thẻ quà tặng.
+ * Trả về thông tin chi tiết thẻ và danh sách các lần nạp/tiêu tiền, kèm mã đơn hàng tương ứng.
+ */
 async function giftcardHistoryHandler(req: NextRequest): Promise<NextResponse> {
   const { searchParams } = new URL(req.url);
   const cardNumber = searchParams.get('cardNumber');

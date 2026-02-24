@@ -2,6 +2,13 @@ import { NextRequest, NextResponse } from 'next/server';
 import { executeQuery } from '@/lib/db/mysql';
 import { checkAdminAuth } from '@/lib/auth';
 
+/**
+ * API Thống kê Wishlist (Danh sách mong muốn).
+ * Chức năng:
+ * 1. Xếp hạng các sản phẩm được đưa vào Wishlist nhiều nhất.
+ * 2. Cung cấp số liệu tổng quan về mức độ quan tâm của khách hàng đối với từng sản phẩm.
+ * 3. Hỗ trợ Admin trong việc đưa ra quyết định nhập hàng hoặc khuyến mãi.
+ */
 export async function GET(request: NextRequest) {
   try {
     const admin = await checkAdminAuth();

@@ -3,6 +3,10 @@ import { checkAdminAuth } from '@/lib/auth';
 import { ResponseWrapper } from '@/lib/api-response';
 import { InventoryRepository } from '@/lib/db/repositories/inventory';
 
+/**
+ * API Phê duyệt hoặc Từ chối lệnh điều chuyển hàng hóa.
+ * Logic: Khi được phê duyệt, hệ thống sẽ thực hiện trừ kho nguồn và cộng kho đích tương ứng.
+ */
 export async function PATCH(
     req: NextRequest,
     { params }: { params: { id: string } }

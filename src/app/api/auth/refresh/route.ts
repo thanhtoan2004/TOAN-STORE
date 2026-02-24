@@ -11,6 +11,13 @@ import { getRedisConnection } from '@/lib/redis';
 import { createErrorResponse } from '@/lib/api-utils';
 import { executeQuery } from '@/lib/db/mysql';
 
+/**
+ * API Làm mới Token (Token Refresh).
+ * Cơ chế bảo mật nâng cao:
+ * 1. Token Rotation: Mỗi lần refresh sẽ cấp một cặp Token mới và thu hồi token cũ.
+ * 2. Theft Detection: Nếu Refresh Token cũ được dùng lại, hệ thống sẽ coi là bị tấn công và hủy toàn bộ các phiên đăng nhập của người dùng đó.
+ * 3. Token Versioning: Kiểm tra phiên bản token (tv) trong DB để hỗ trợ đăng xuất từ xa trên mọi thiết bị.
+ */
 export async function POST(req: NextRequest) {
     try {
         const cookieStore = await cookies();

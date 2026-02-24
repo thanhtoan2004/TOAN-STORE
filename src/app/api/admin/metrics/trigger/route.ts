@@ -3,6 +3,10 @@ import { checkAdminAuth } from '@/lib/auth';
 import { ResponseWrapper } from '@/lib/api-response';
 import { aggregateDailyMetrics } from '@/lib/cron/revenue-aggregation';
 
+/**
+ * API Kích hoạt tổng hợp dữ liệu doanh thu (Metrics Aggregation).
+ * Dùng để chạy thủ công việc gom nhóm dữ liệu đơn hàng thành báo cáo doanh thu theo ngày.
+ */
 export async function POST(request: NextRequest) {
     try {
         const admin = await checkAdminAuth();

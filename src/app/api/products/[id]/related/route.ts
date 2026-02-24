@@ -2,6 +2,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { executeQuery } from '@/lib/db/mysql';
 
+/**
+ * API Lấy danh sách sản phẩm liên quan (You may also like).
+ * Chức năng: Tìm ngẫu nhiên 4 sản phẩm trong cùng danh mục để hiển thị gợi ý mở rộng cho khách hàng.
+ */
 export async function GET(
     request: NextRequest,
     { params }: { params: Promise<{ id: string }> }
@@ -40,6 +44,7 @@ export async function GET(
         p.slug, 
         p.base_price as price, 
         p.retail_price as sale_price,
+        p.is_new_arrival,
         (SELECT url FROM product_images WHERE product_id = p.id AND is_main = 1 LIMIT 1) as image_url,
         (SELECT name FROM categories WHERE id = p.category_id) as category
        FROM products p

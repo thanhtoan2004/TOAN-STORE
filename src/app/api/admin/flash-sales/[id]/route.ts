@@ -8,6 +8,9 @@ import { invalidateCache } from '@/lib/cache';
 /**
  * GET - Get individual flash sale detail for admin
  */
+/**
+ * API Lấy chi tiết một đợt Flash Sale kèm danh sách sản phẩm tham gia.
+ */
 export async function GET(
     request: NextRequest,
     { params }: { params: Promise<{ id: string }> }
@@ -52,6 +55,10 @@ export async function GET(
 
 /**
  * PATCH - Update flash sale
+ */
+/**
+ * API Cập nhật thông tin đợt Flash Sale (Tên, Mô tả, Thời gian).
+ * Tự động xóa Cache public sau khi cập nhật.
  */
 export async function PATCH(
     request: NextRequest,
@@ -102,6 +109,9 @@ export async function PATCH(
 
 /**
  * DELETE - Delete flash sale
+ */
+/**
+ * API Xóa đợt Flash Sale (Soft Delete).
  */
 export async function DELETE(
     request: NextRequest,

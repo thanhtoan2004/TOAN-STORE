@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { checkAdminAuth } from '@/lib/auth';
 import { getSettings, updateSetting } from '@/lib/db/settings';
 
+/**
+ * API Lấy toàn bộ cấu hình hệ thống (Settings).
+ * Bao gồm các thông số về Header, Footer, SEO, và các cấu hình nghiệp vụ khác.
+ */
 export async function GET(request: NextRequest) {
   try {
     const admin = await checkAdminAuth();
@@ -17,6 +21,10 @@ export async function GET(request: NextRequest) {
   }
 }
 
+/**
+ * API Cập nhật cấu hình hệ thống.
+ * Hỗ trợ cập nhật hàng loạt các cặp Key-Value vào bảng settings.
+ */
 export async function PUT(request: NextRequest) {
   const admin = await checkAdminAuth();
   if (!admin) {

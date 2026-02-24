@@ -3,6 +3,10 @@ import { executeQuery } from '@/lib/db/mysql';
 import { checkAdminAuth } from '@/lib/auth';
 import { logAdminAction } from '@/lib/audit';
 
+/**
+ * API Lấy danh sách Voucher (Mã giảm giá cá nhân).
+ * Hỗ trợ phân trang và hiển thị thông tin người nhận/người đã sử dụng.
+ */
 export async function GET(request: NextRequest) {
   try {
     const adminAuth = await checkAdminAuth();
@@ -53,6 +57,13 @@ export async function GET(request: NextRequest) {
   }
 }
 
+/**
+ * API Tạo Voucher mới.
+ * Hỗ trợ:
+ * 1. Voucher công khai hoặc chỉ dành riêng cho 1 người dùng (qua email).
+ * 2. Ràng buộc theo Hạng thành viên (Tier) và Chuyên mục sản phẩm (Categories).
+ * 3. Tự động gửi email thông báo cho người nhận nếu được chỉ định.
+ */
 export async function POST(request: NextRequest) {
   try {
     const adminAuth = await checkAdminAuth();
@@ -127,6 +138,10 @@ export async function POST(request: NextRequest) {
   }
 }
 
+/**
+ * API Cập nhật thông tin Voucher.
+ * Tự động gửi email mới nếu thông tin mã thay đổi và có người nhận.
+ */
 export async function PUT(request: NextRequest) {
   try {
     const adminAuth = await checkAdminAuth();
@@ -239,6 +254,9 @@ export async function PUT(request: NextRequest) {
   }
 }
 
+/**
+ * API Xóa Voucher (Soft Delete).
+ */
 export async function DELETE(request: NextRequest) {
   try {
     const adminAuth = await checkAdminAuth();

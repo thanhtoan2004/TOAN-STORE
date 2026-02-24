@@ -5,6 +5,11 @@ import { adminActivityLogs, adminUsers } from '@/lib/db/schema';
 import { eq, and, desc, sql, count } from 'drizzle-orm';
 import { ResponseWrapper } from '@/lib/api-response';
 
+/**
+ * API Truy xuất Nhật ký hoạt động Admin (Audit Logs).
+ * Chỉ dành cho Admin cấp cao. Giúp theo dõi xe ai đã sửa gì, vào lúc nào, từ IP nào.
+ * Dữ liệu được join giữa bảng logs và bảng admin_users để lấy tên người thực hiện.
+ */
 export async function GET(request: NextRequest) {
     try {
         const admin = await checkAdminAuth();

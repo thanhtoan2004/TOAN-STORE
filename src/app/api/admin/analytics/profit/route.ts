@@ -2,6 +2,14 @@ import { NextResponse } from 'next/server';
 import { checkAdminAuth } from '@/lib/auth';
 import { executeQuery } from '@/lib/db/mysql';
 
+/**
+ * API Phân tích Lợi nhuận (Profit Analytics).
+ * Tính toán dựa trên:
+ * - Doanh thu: Tổng tiền từ các đơn hàng không bị hủy.
+ * - Giá vốn: Tổng `cost_price` từ các item trong đơn.
+ * - Lợi nhuận ròng: Doanh thu - Giá vốn.
+ * Hỗ trợ các mốc thời gian: 24h, 7 ngày, 30 ngày.
+ */
 export async function GET(request: Request) {
     const admin = await checkAdminAuth();
     if (!admin) {

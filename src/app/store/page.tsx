@@ -69,7 +69,7 @@ export default function StorePage() {
         <div className="max-w-6xl mx-auto">
           <h1 className="text-4xl font-bold mb-4">Tìm Cửa Hàng</h1>
           <p className="text-gray-600 mb-8">
-            Tìm cửa hàng TOAN gần nhất để trải nghiệm sản phẩm trực tiếp
+            Tìm cửa hàng TOAN Store gần nhất để trải nghiệm sản phẩm trực tiếp
           </p>
 
           <div className="bg-white rounded-lg p-6 shadow-sm mb-8">

@@ -1,6 +1,6 @@
 # Security Documentation
 
-Tài liệu bảo mật cho TOAN E-commerce. Dự án đã đạt chứng chỉ **Enterprise Grade (Level 3/3)** với điểm kiểm duyệt **10/10**.
+Tài liệu bảo mật cho TOAN Store E-commerce. Dự án đã đạt chứng chỉ **Enterprise Grade (Level 3/3)** với điểm kiểm duyệt **10/10**.
 
 ---
 
@@ -36,9 +36,13 @@ Tài liệu bảo mật cho TOAN E-commerce. Dự án đã đạt chứng chỉ 
 - Refresh Token rotation: mỗi lần refresh tạo token mới, token cũ bị revoke
 
 ### Token Security
-- **Breach Detection**: Nếu refresh token đã bị revoke mà vẫn được sử dụng → xóa toàn bộ sessions của user (potential token theft)
-- **Redis Storage**: Refresh tokens lưu trong Redis với TTL, cho phép server-side revocation
+- **Token Versioning (tv)**: Lưu `token_version` trong database. Khi đổi mật khẩu hoặc "Đăng xuất tất cả thiết bị", version này tăng lên -> làm tất cả JWT cũ (access/refresh) trở nên vô hiệu ngay cả khi còn hạn.
 - **Production Enforcement**: `JWT_SECRET` bắt buộc phải set trong production, app crash nếu thiếu
+
+### Multi-Factor Authentication (MFA/2FA)
+- **Email OTP**: Sử dụng mã OTP 6 số gửi qua email (TTL 5 phút).
+- **Redis Scoping**: OTP được lưu trong Redis với prefix `2fa:otp:{userId}` để đảm bảo tốc độ và tự động hết hạn.
+- **Graceful Migration**: Người dùng cũ được tự động gán trạng thái 2FA mặc định nhưng có thể tùy chỉnh tắt/bật trong Settings.
 
 ### Role-Based Access Control (RBAC)
 - **Granular Permissions**: Chuyển đổi từ logic check role cứng (`admin`/`super_admin`) sang hệ thống quyền hạn linh hoạt (`permissions`).
@@ -86,6 +90,14 @@ Tài liệu bảo mật cho TOAN E-commerce. Dự án đã đạt chứng chỉ 
 - **Ownership checks**: Mỗi resource kiểm tra thuộc về user hiện tại (IDOR prevention)
 - **SQL Parameterization**: 100% queries sử dụng parameterized statements
 
+### IDOR Prevention (Phase 63.2)
+| Resource | Protection |
+|----------|------------|
+| Cart Items (PUT/DELETE) | `cart_items JOIN carts WHERE c.user_id = ?` — kiểm tra ownership tại database |
+| Orders (GET/PUT/DELETE) | `order.user_id === session.userId` |
+| Review Purchase Check | Session-based `userId` (không nhận từ query param) |
+| Promo Code History | Non-admin chỉ xem lịch sử của mình, admin có full access |
+
 ---
 
 ## 🔒 Request Security
@@ -101,6 +113,10 @@ Tài liệu bảo mật cho TOAN E-commerce. Dự án đã đạt chứng chỉ 
 | Auth (login/register) | 5 requests | 1 minute |
 | General API | 100 requests | 1 minute |
 | Payment | 10 requests | 1 minute |
+| Forgot Password | 3 requests | 1 minute |
+| Newsletter Subscribe | 5 requests | 1 minute |
+| Gift Card Check Balance | 10 requests | 1 minute |
+| Cart Gift Card Check | Rate limited | Per IP |
 
 Implementation: Redis-backed sliding window.  
 - **Fail-Closed**: Với các tag nhạy cảm (`auth`, `admin`, `payment`), hệ thống sẽ **chặn** request nếu Redis lỗi.
@@ -175,6 +191,11 @@ Mọi thay đổi tồn kho được ghi nhận:
 | Orders JS Pagination | MEDIUM | Known | Dùng JS slice thay vì SQL LIMIT/OFFSET |
 | Review ORDER BY | LOW | ✅ Fixed | Đã sử dụng whitelist mapping toàn bộ |
 | CSRF Dev Mode | LOW | Known | CSRF protection disabled trong development |
+| Debug Sentry Open | HIGH | ✅ Fixed | Đã thêm `checkAdminAuth` — chỉ admin truy cập được |
+| Cron Auth Bypass | HIGH | ✅ Fixed | Đã đổi logic: reject nếu `CRON_SECRET` chưa cấu hình |
+| Newsletter No Rate Limit | MEDIUM | ✅ Fixed | Thêm rate limit 5 req/60s |
+| Gift Card Brute Force | MEDIUM | ✅ Fixed | Thêm rate limit 10 req/60s |
+| Promo Codes Data Leak | LOW | ✅ Fixed | Giới hạn fields trả về (ẩn discount_value, usage_limit) |
 
 ---
 

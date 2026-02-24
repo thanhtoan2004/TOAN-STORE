@@ -555,8 +555,8 @@ About Us page
 555: Terms & Conditions page
 556: ✅ Size Guide page
 557: ✅ FAQ page
-Careers page
-Store Locator page
+558: ✅ Careers page
+559: ✅ Store Locator page
 
 
 📧 NOTIFICATIONS (25 yêu cầu)

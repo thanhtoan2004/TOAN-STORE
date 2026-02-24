@@ -1,9 +1,27 @@
 import { NextResponse } from 'next/server';
 import { logger } from '@/lib/logger';
 import * as Sentry from '@sentry/nextjs';
+import { checkAdminAuth } from '@/lib/auth';
 
+/**
+ * API Debug: Kiểm tra hệ thống giám sát lỗi (Sentry Diagnostics).
+ * Kích hoạt các thông báo lỗi và log thủ công để đảm bảo Sentry đang thu thập dữ liệu đúng cách.
+ * Không khả dụng ở môi trường Production.
+ */
 export async function GET() {
     try {
+        if (process.env.NODE_ENV === 'production') {
+            return NextResponse.json({ success: false, message: 'Not Found' }, { status: 404 });
+        }
+
+        const admin = await checkAdminAuth();
+        if (!admin) {
+            return NextResponse.json(
+                { success: false, message: 'Unauthorized' },
+                { status: 401 }
+            );
+        }
+
         // 1. Test Sentry directly
         Sentry.captureMessage('Sentry Diagnostic: Direct Message');
 

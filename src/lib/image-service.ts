@@ -1,5 +1,5 @@
 /**
- * Image Service abstraction for TOAN
+ * Image Service abstraction for TOAN Store
  * Handles image delivery, optimization hints, and provider switching (CDN/S3/Local)
  */
 

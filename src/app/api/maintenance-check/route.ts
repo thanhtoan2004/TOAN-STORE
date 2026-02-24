@@ -1,6 +1,10 @@
 import { NextResponse } from 'next/server';
 import { executeQuery } from '@/lib/db/mysql';
 
+/**
+ * API Kiểm tra trạng thái bảo trì của hệ thống.
+ * Trả về `maintenance: true` nếu trang web đang được quản trị viên đưa vào chế độ bảo trì.
+ */
 export async function GET() {
     try {
         const result: any = await executeQuery(

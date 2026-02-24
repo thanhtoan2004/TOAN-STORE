@@ -4,6 +4,10 @@ import { executeQuery } from '@/lib/db/mysql';
 import { checkAdminAuth } from '@/lib/auth';
 
 // GET - Lấy tất cả banners (Admin)
+/**
+ * API Lấy danh sách Banner quảng cáo.
+ * Hỗ trợ lọc theo vị trí (Ví dụ: homepage, checkout_success).
+ */
 export async function GET(request: NextRequest) {
     try {
         const admin = await checkAdminAuth();
@@ -37,6 +41,9 @@ export async function GET(request: NextRequest) {
 }
 
 // POST - Tạo banner mới
+/**
+ * API Tạo Banner mới.
+ */
 export async function POST(request: NextRequest) {
     try {
         const admin = await checkAdminAuth();
@@ -90,6 +97,10 @@ export async function POST(request: NextRequest) {
 }
 
 // PUT - Cập nhật banner
+/**
+ * API Cập nhật thông tin Banner.
+ * Chỉ cập nhật các trường được gửi lên (Partial Update).
+ */
 export async function PUT(request: NextRequest) {
     try {
         const admin = await checkAdminAuth();
@@ -143,6 +154,9 @@ export async function PUT(request: NextRequest) {
 }
 
 // DELETE - Xóa banner
+/**
+ * API Xóa Banner vĩnh viễn khỏi hệ thống.
+ */
 export async function DELETE(request: NextRequest) {
     try {
         const admin = await checkAdminAuth();

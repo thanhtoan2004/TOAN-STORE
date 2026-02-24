@@ -4,6 +4,13 @@ import { uploadImage } from '@/lib/cloudinary';
 
 const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
 
+/**
+ * API Tải lên tệp tin (Hình ảnh/Video) lên Cloudinary.
+ * Quy trình:
+ * 1. Kiểm tra xác thực.
+ * 2. Validate định dạng tệp (Chỉ cho phép ảnh và video) và dung lượng tối đa (50MB).
+ * 3. Chuyển đổi sang Base64 và tải lên thư mục tương ứng trên Cloudinary.
+ */
 export async function POST(request: NextRequest) {
     try {
         // 1. Authentication Check

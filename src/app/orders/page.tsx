@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/Button";
 import { Package } from 'lucide-react';
 import { formatDateTime, formatCurrency } from '@/lib/date-utils';
 import { useCart } from '@/contexts/CartContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 
 interface Order {
@@ -29,22 +30,25 @@ export default function OrdersPage() {
   const [totalPages, setTotalPages] = useState(1);
   const limit = 5; // Show 5 orders per page
 
+  const { user: authUser, isLoading: isAuthLoading } = useAuth();
+
   useEffect(() => {
     const fetchOrders = async () => {
+      // Wait for auth context to finish loading
+      if (isAuthLoading) return;
+
       try {
         setLoading(true);
         setError(null);
 
-        // Get user info from API to ensure it's always up-to-date
-        const authRes = await fetch('/api/auth/user');
-        if (!authRes.ok) {
-          setError(t.common.error); // Or a specific login error
+        // Check if user is logged in
+        if (!authUser || !authUser.id) {
+          setError(t.common.error);
           setLoading(false);
           return;
         }
 
-        const userData = await authRes.json();
-        const ordersRes = await fetch(`/api/orders?userId=${userData.user.id}&page=${page}&limit=${limit}`);
+        const ordersRes = await fetch(`/api/orders?userId=${authUser.id}&page=${page}&limit=${limit}`);
 
         if (!ordersRes.ok) {
           throw new Error('Failed to fetch orders');
@@ -78,7 +82,7 @@ export default function OrdersPage() {
     };
 
     fetchOrders();
-  }, [page, t.common.error]); // Re-fetch when page changes
+  }, [page, limit, authUser, isAuthLoading, t.common.error]); // Re-fetch when dependencies change
 
   const getStatusColor = (status: string) => {
     switch (status) {

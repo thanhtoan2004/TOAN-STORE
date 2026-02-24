@@ -42,7 +42,6 @@ export async function invalidateCache(key: string): Promise<void> {
     try {
         const redis = getRedisConnection();
         await redis.del(CACHE_PREFIX + key);
-        console.log(`Cache Invalidated: ${CACHE_PREFIX + key}`);
     } catch (error) {
         console.error(`Cache Invalidate Error [${key}]:`, error);
     }
@@ -57,7 +56,6 @@ export async function invalidateCachePattern(pattern: string): Promise<void> {
         const keys = await redis.keys(CACHE_PREFIX + pattern);
         if (keys.length > 0) {
             await redis.del(...keys);
-            console.log(`Cache Pattern Invalidated: ${CACHE_PREFIX + pattern} (${keys.length} keys)`);
         }
     } catch (error) {
         console.error(`Cache Invalidate Pattern Error [${pattern}]:`, error);

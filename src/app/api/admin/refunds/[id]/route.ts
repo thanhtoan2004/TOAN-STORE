@@ -3,6 +3,9 @@ import { NextResponse } from 'next/server';
 import { checkAdminAuth } from '@/lib/auth';
 import { updateRefundStatus, getRefundById } from '@/lib/db/repositories/refund';
 
+/**
+ * API Lấy chi tiết yêu cầu hoàn tiền.
+ */
 export async function GET(
     request: Request,
     props: { params: Promise<{ id: string }> }
@@ -29,6 +32,10 @@ export async function GET(
     }
 }
 
+/**
+ * API Phê duyệt hoặc Từ chối yêu cầu hoàn tiền.
+ * Yêu cầu gửi kèm trạng thái (`approved` hoặc `rejected`) và phản hồi cho khách hàng.
+ */
 export async function PUT(
     request: Request,
     props: { params: Promise<{ id: string }> }

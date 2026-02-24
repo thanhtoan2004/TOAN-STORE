@@ -127,9 +127,9 @@ export default function StudentPromoPage() {
                   1
                 </span>
                 <div>
-                  <strong>Đăng ký tài khoản TOAN</strong>
+                  <strong>Đăng ký tài khoản TOAN Store</strong>
                   <p className="text-gray-600 mt-1">
-                    Tạo tài khoản miễn phí tại trang chủ hoặc ứng dụng TOAN
+                    Tạo tài khoản miễn phí tại trang chủ hoặc ứng dụng TOAN Store
                   </p>
                 </div>
               </li>
@@ -183,7 +183,7 @@ export default function StudentPromoPage() {
               <li>• Giảm giá 15% cho sản phẩm giá gốc, không áp dụng cho sản phẩm sale</li>
               <li>• Không kết hợp với các chương trình khuyến mãi khác</li>
               <li>• Mã giảm giá có hiệu lực 1 năm kể từ ngày cấp</li>
-              <li>• TOAN có quyền hủy ưu đãi nếu phát hiện gian lận</li>
+              <li>• TOAN Store có quyền hủy ưu đãi nếu phát hiện gian lận</li>
             </ul>
           </motion.div>
 

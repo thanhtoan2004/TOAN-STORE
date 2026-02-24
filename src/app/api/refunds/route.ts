@@ -5,6 +5,9 @@ import { createRefundRequest, getRefundByOrder, getUserRefunds } from '@/lib/db/
 import { executeQuery } from '@/lib/db/mysql';
 
 // GET: Get list of refunds for logged-in user
+/**
+ * API Lấy danh sách các yêu cầu hoàn tiền của người dùng hiện tại.
+ */
 export async function GET(request: Request) {
     try {
         const auth = await verifyAuth();
@@ -22,6 +25,12 @@ export async function GET(request: Request) {
 }
 
 // POST: Create a new refund request
+/**
+ * API Gửi yêu cầu hoàn tiền mới cho một đơn hàng.
+ * Điều kiện:
+ * 1. Đơn hàng phải thuộc về người dùng và có trạng thái 'delivered'.
+ * 2. Đơn hàng chưa có yêu cầu hoàn tiền nào khác đang được xử lý.
+ */
 export async function POST(request: Request) {
     try {
         const auth = await verifyAuth();

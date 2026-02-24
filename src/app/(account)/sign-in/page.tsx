@@ -32,6 +32,10 @@ function SignInContent() {
     }
   }, [searchParams, t]);
 
+  const [showOTP, setShowOTP] = useState(false);
+  const [otp, setOtp] = useState('');
+  const [authEmail, setAuthEmail] = useState('');
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
@@ -39,24 +43,61 @@ function SignInContent() {
     setSuccessMessage('');
 
     try {
-      await login(email, password);
+      const result = await login(email, password);
 
-      // Handle remember me
-      if (rememberMe) {
-        localStorage.setItem('rememberedEmail', email);
-      } else {
-        localStorage.removeItem('rememberedEmail');
+      if (typeof result === 'object' && result.requires2FA) {
+        setAuthEmail(result.email);
+        setShowOTP(true);
+        // Send OTP email automatically
+        await fetch('/api/auth/2fa/send', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: result.email, purpose: 'login' })
+        });
+        setSuccessMessage('Mã xác thực 2 bước đã được gửi vào email của bạn.');
+        return;
       }
 
-      // If login succeeds, redirect to home
-      router.push('/');
-    } catch (err: unknown) {
-      // Display the actual error message from API
-      const errorMessage = err instanceof Error ? err.message : t.auth.login_error;
-      setError(errorMessage);
+      // If login succeeds without 2FA
+      handleSuccessfulLogin();
+    } catch (err: any) {
+      setError(err.message || t.auth.login_error);
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleVerifyOTP = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+    setError('');
+
+    try {
+      const res = await fetch('/api/auth/2fa/verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: authEmail, otp })
+      });
+      const data = await res.json();
+
+      if (!res.ok) throw new Error(data.message || 'Xác thực thất bại');
+
+      handleSuccessfulLogin();
+    } catch (err: any) {
+      setError(err.message || 'Mã xác thực không đúng');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleSuccessfulLogin = () => {
+    if (rememberMe) {
+      localStorage.setItem('rememberedEmail', email);
+    } else {
+      localStorage.removeItem('rememberedEmail');
+    }
+    // Hard refresh to update auth state across app
+    window.location.href = '/';
   };
 
   return (
@@ -81,65 +122,113 @@ function SignInContent() {
           </div>
         )}
 
-        <form onSubmit={handleSubmit}>
-          <div className="mb-4">
-            <label htmlFor="email" className="block text-sm font-helvetica-medium mb-1">
-              {t.common.email}
-            </label>
-            <input
-              type="email"
-              id="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full p-3 border rounded focus:outline-none focus:ring-2 focus:ring-black"
-              placeholder={t.footer.email_placeholder || "name@example.com"}
-              required
-            />
-          </div>
+        {showOTP ? (
+          <form onSubmit={handleVerifyOTP}>
+            <div className="mb-6">
+              <label htmlFor="otp" className="block text-sm font-helvetica-medium mb-2 text-center">
+                Mã xác thực 6 số
+              </label>
+              <p className="text-sm text-gray-500 text-center mb-4">
+                Vui lòng kiểm tra email của bạn để lấy mã xác thực.
+              </p>
+              <input
+                type="text"
+                id="otp"
+                value={otp}
+                onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                className="w-full p-4 border rounded-lg text-center text-2xl tracking-[0.5em] font-medium focus:outline-none focus:ring-2 focus:ring-black"
+                placeholder="000000"
+                required
+                minLength={6}
+                maxLength={6}
+                autoComplete="one-time-code"
+              />
+            </div>
 
-          <div className="mb-4">
-            <label htmlFor="password" className="block text-sm font-helvetica-medium mb-1">
-              {t.common.password}
-            </label>
-            <input
-              type="password"
-              id="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full p-3 border rounded focus:outline-none focus:ring-2 focus:ring-black"
-              placeholder={t.auth.password}
-              required
-              minLength={6}
-            />
-          </div>
+            <button
+              type="submit"
+              disabled={isLoading || otp.length !== 6}
+              className={cn(
+                "w-full bg-black text-white py-3 rounded hover:bg-zinc-800 transition-colors font-helvetica-medium mb-4",
+                (isLoading || otp.length !== 6) && "opacity-70 cursor-not-allowed"
+              )}
+            >
+              {isLoading ? t.auth.loading : 'Xác nhận OTP'}
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setShowOTP(false);
+                setOtp('');
+                setError('');
+                setSuccessMessage('');
+              }}
+              className="w-full text-center text-sm text-gray-500 hover:text-black underline"
+            >
+              Quay lại đăng nhập bằng mật khẩu
+            </button>
+          </form>
+        ) : (
+          <form onSubmit={handleSubmit}>
+            <div className="mb-4">
+              <label htmlFor="email" className="block text-sm font-helvetica-medium mb-1">
+                {t.common.email}
+              </label>
+              <input
+                type="email"
+                id="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="w-full p-3 border rounded focus:outline-none focus:ring-2 focus:ring-black"
+                placeholder={t.footer.email_placeholder || "name@example.com"}
+                required
+              />
+            </div>
 
-          <div className="flex items-center mb-4">
-            <input
-              type="checkbox"
-              id="remember"
-              checked={rememberMe}
-              onChange={(e) => setRememberMe(e.target.checked)}
-              className="h-4 w-4 border border-gray-300 rounded"
-            />
-            <label htmlFor="remember" className="ml-2 text-sm text-gray-600">
-              {t.auth.remember_me}
-            </label>
-            <Link href="/forgot-password" className="ml-auto text-sm text-black hover:underline">
-              {t.auth.forgot_password}
-            </Link>
-          </div>
+            <div className="mb-4">
+              <label htmlFor="password" className="block text-sm font-helvetica-medium mb-1">
+                {t.common.password}
+              </label>
+              <input
+                type="password"
+                id="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full p-3 border rounded focus:outline-none focus:ring-2 focus:ring-black"
+                placeholder={t.auth.password}
+                required
+                minLength={6}
+              />
+            </div>
 
-          <button
-            type="submit"
-            disabled={isLoading}
-            className={cn(
-              "w-full bg-black text-white py-3 rounded hover:bg-zinc-800 transition-colors font-helvetica-medium mb-4",
-              isLoading && "opacity-70 cursor-not-allowed"
-            )}
-          >
-            {isLoading ? t.auth.loading : t.common.login}
-          </button>
-        </form>
+            <div className="flex items-center mb-4">
+              <input
+                type="checkbox"
+                id="remember"
+                checked={rememberMe}
+                onChange={(e) => setRememberMe(e.target.checked)}
+                className="h-4 w-4 border border-gray-300 rounded"
+              />
+              <label htmlFor="remember" className="ml-2 text-sm text-gray-600">
+                {t.auth.remember_me}
+              </label>
+              <Link href="/forgot-password" className="ml-auto text-sm text-black hover:underline">
+                {t.auth.forgot_password}
+              </Link>
+            </div>
+
+            <button
+              type="submit"
+              disabled={isLoading}
+              className={cn(
+                "w-full bg-black text-white py-3 rounded hover:bg-zinc-800 transition-colors font-helvetica-medium mb-4",
+                isLoading && "opacity-70 cursor-not-allowed"
+              )}
+            >
+              {isLoading ? t.auth.loading : t.common.login}
+            </button>
+          </form>
+        )}
 
         <div className="relative my-6">
           <div className="absolute inset-0 flex items-center">

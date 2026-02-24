@@ -37,7 +37,7 @@ export default function PaymentOptionsPage() {
                 <div className="border-l-4 border-gray-300 pl-4">
                   <h3 className="font-helvetica-medium text-lg mb-2">Thẻ Quà Tặng</h3>
                   <p className="text-gray-700">
-                    Sử dụng thẻ quà tặng TOAN để thanh toán. Kiểm tra số dư tại{' '}
+                    Sử dụng thẻ quà tặng TOAN Store để thanh toán. Kiểm tra số dư tại{' '}
                     <Link href="/gift-card-balance" className="text-black underline">đây</Link>.
                   </p>
                 </div>

@@ -44,14 +44,19 @@ export async function updateFlashSaleSoldQuantity(flashSaleItemId: number, quant
 }
 
 export async function checkFlashSaleLimit(userId: number, flashSaleItemId: number): Promise<number> {
-    // Count how many items of this flash sale the user has already bought (in orders)
-    // Note: This matches orders that contain the product during the flash sale period.
-    // However, exact mapping is hard without storing flash_sale_id in order_items.
-    // For now, we can check active orders within the flash sale time window?
-    // Or simpler: We should migrate to store flash_sale_id in order_items for accurate tracking.
+    // Count how many items of this flash sale product the user has already bought
+    // We check completed/processing orders that contain the same product_id as the flash sale item
+    const query = `
+        SELECT COALESCE(SUM(oi.quantity), 0) as total_bought
+        FROM order_items oi
+        JOIN orders o ON oi.order_id = o.id
+        JOIN flash_sale_items fsi ON fsi.id = ? AND oi.product_id = fsi.product_id
+        JOIN flash_sales fs ON fsi.flash_sale_id = fs.id
+        WHERE o.user_id = ?
+        AND o.status NOT IN ('cancelled', 'refunded')
+        AND o.created_at BETWEEN fs.start_time AND fs.end_time
+    `;
 
-    // Fallback: Just return 0 for now as we don't have order history tracking for specific flash sale instance yet.
-    // We will enforce limit in Cart for the current session.
-
-    return 0; // TODO: Implement robust limit check across orders
+    const results = await executeQuery<any[]>(query, [flashSaleItemId, userId]);
+    return results[0]?.total_bought || 0;
 }

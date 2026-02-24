@@ -1,4 +1,4 @@
-import { sendEmail } from './mail';
+import { sendEmail, wrapEmailHtml } from './mail';
 
 interface OrderItem {
   name: string;
@@ -50,22 +50,8 @@ export async function sendOrderConfirmationEmail(details: OrderDetails) {
     </tr>
   `).join('');
 
-  const html = `
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <meta charset="utf-8">
-      <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    </head>
-    <body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f5f5f5;">
-      <div style="max-width: 600px; margin: 0 auto; background-color: white;">
-        <!-- Header -->
-        <div style="background-color: #111; color: white; padding: 30px 20px; text-align: center;">
-          <h1 style="margin: 0; font-size: 28px;">TOAN</h1>
-        </div>
-
-        <!-- Content -->
-        <div style="padding: 40px 20px;">
+  const body = `
+        <div style="padding: 10px 0;">
           <h2 style="color: #111; margin-top: 0;">Cảm ơn bạn đã đặt hàng!</h2>
           <p style="color: #666; line-height: 1.6;">
             Xin chào ${customerName},<br>
@@ -148,21 +134,12 @@ export async function sendOrderConfirmationEmail(details: OrderDetails) {
             </p>
           </div>
         </div>
-
-        <!-- Footer -->
-        <div style="background-color: #f5f5f5; padding: 20px; text-align: center; color: #666; font-size: 12px;">
-          <p style="margin: 5px 0;">© 2025 TOAN. All rights reserved.</p>
-          <p style="margin: 5px 0;">Email này được gửi tự động, vui lòng không trả lời.</p>
-        </div>
-      </div>
-    </body>
-    </html>
   `;
 
   return sendEmail({
     to: customerEmail,
-    subject: `Xác nhận đơn hàng #${orderNumber} - TOAN`,
-    html
+    subject: `Xác nhận đơn hàng #${orderNumber} - TOAN Store`,
+    html: wrapEmailHtml('Xác nhận đơn hàng', 'check', body)
   });
 }
 
@@ -208,7 +185,7 @@ export async function sendShippingNotificationEmail(
         </div>
 
         <div style="background-color: #f5f5f5; padding: 20px; text-align: center; color: #666; font-size: 12px;">
-          <p style="margin: 5px 0;">© 2025 TOAN. All rights reserved.</p>
+          <p style="margin: 5px 0;">© 2026 TOAN Store. All rights reserved.</p>
         </div>
       </div>
     </body>
@@ -217,7 +194,7 @@ export async function sendShippingNotificationEmail(
 
   return sendEmail({
     to: customerEmail,
-    subject: `Đơn hàng #${orderNumber} đang được giao - TOAN`,
+    subject: `Đơn hàng #${orderNumber} đang được giao - TOAN Store`,
     html
   });
 }
@@ -249,7 +226,7 @@ export async function sendDeliveryConfirmationEmail(
           </p>
 
           <p style="color: #666; line-height: 1.6;">
-            Cảm ơn bạn đã mua sắm tại TOAN. Chúng tôi hy vọng bạn hài lòng với sản phẩm.
+            Cảm ơn bạn đã mua sắm tại TOAN Store. Chúng tôi hy vọng bạn hài lòng với sản phẩm.
           </p>
 
           <div style="text-align: center; margin: 30px 0;">
@@ -261,7 +238,7 @@ export async function sendDeliveryConfirmationEmail(
         </div>
 
         <div style="background-color: #f5f5f5; padding: 20px; text-align: center; color: #666; font-size: 12px;">
-          <p style="margin: 5px 0;">© 2025 TOAN. All rights reserved.</p>
+          <p style="margin: 5px 0;">© 2026 TOAN Store. All rights reserved.</p>
         </div>
       </div>
     </body>
@@ -270,7 +247,7 @@ export async function sendDeliveryConfirmationEmail(
 
   return sendEmail({
     to: customerEmail,
-    subject: `Đơn hàng #${orderNumber} đã giao thành công - TOAN`,
+    subject: `Đơn hàng #${orderNumber} đã giao thành công - TOAN Store`,
     html
   });
 }
@@ -313,7 +290,7 @@ export async function sendOrderCancelledEmail(
         </div>
 
         <div style="background-color: #f5f5f5; padding: 20px; text-align: center; color: #666; font-size: 12px;">
-          <p style="margin: 5px 0;">© 2025 TOAN. All rights reserved.</p>
+          <p style="margin: 5px 0;">© 2026 TOAN Store. All rights reserved.</p>
         </div>
       </div>
     </body>
@@ -322,7 +299,7 @@ export async function sendOrderCancelledEmail(
 
   return sendEmail({
     to: customerEmail,
-    subject: `Xác nhận hủy đơn hàng #${orderNumber} - TOAN`,
+    subject: `Xác nhận hủy đơn hàng #${orderNumber} - TOAN Store`,
     html
   });
 }
@@ -377,7 +354,7 @@ export async function sendWishlistSaleEmail(
         </div>
 
         <div style="background-color: #f5f5f5; padding: 20px; text-align: center; color: #666; font-size: 12px;">
-          <p style="margin: 5px 0;">© 2025 TOAN. All rights reserved.</p>
+          <p style="margin: 5px 0;">© 2026 TOAN Store. All rights reserved.</p>
         </div>
       </div>
     </body>
@@ -432,7 +409,7 @@ export async function sendWishlistRestockEmail(
         </div>
 
         <div style="background-color: #f5f5f5; padding: 20px; text-align: center; color: #666; font-size: 12px;">
-          <p style="margin: 5px 0;">© 2025 TOAN. All rights reserved.</p>
+          <p style="margin: 5px 0;">© 2026 TOAN Store. All rights reserved.</p>
         </div>
       </div>
     </body>
@@ -442,6 +419,75 @@ export async function sendWishlistRestockEmail(
   return sendEmail({
     to: customerEmail,
     subject: `📦 Hàng về: ${productName} đã có hàng trở lại!`,
+    html
+  });
+}
+
+/**
+ * Send abandoned cart reminder email
+ */
+export async function sendAbandonedCartEmail(
+  customerEmail: string,
+  customerName: string,
+  itemCount: number,
+  cartTotal: number,
+  productNames: string
+) {
+  const formatPrice = (price: number) => {
+    return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(price);
+  };
+
+  const html = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+    </head>
+    <body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f5f5f5;">
+      <div style="max-width: 600px; margin: 0 auto; background-color: white;">
+        <div style="background-color: #111; color: white; padding: 30px 20px; text-align: center;">
+          <h1 style="margin: 0;">Bạn quên gì trong giỏ hàng? 🛒</h1>
+        </div>
+        
+        <div style="padding: 40px 20px;">
+          <p style="color: #666; line-height: 1.6;">
+            Xin chào ${customerName},<br>
+            Bạn còn <strong>${itemCount} sản phẩm</strong> trong giỏ hàng đang chờ bạn!
+          </p>
+
+          <div style="background-color: #f9f9f9; padding: 20px; border-radius: 8px; margin: 20px 0;">
+            <p style="margin: 0 0 10px 0; font-size: 14px; color: #444;">
+              <strong>Sản phẩm:</strong> ${productNames}
+            </p>
+            <p style="margin: 0; font-size: 20px; font-weight: bold; color: #111;">
+              Tổng: ${formatPrice(cartTotal)}
+            </p>
+          </div>
+
+          <p style="color: #666; line-height: 1.6; font-size: 14px;">
+            Đừng để sản phẩm yêu thích hết hàng nhé! Hoàn tất đơn hàng ngay bây giờ.
+          </p>
+
+          <div style="text-align: center; margin: 30px 0;">
+            <a href="${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/cart" 
+               style="display: inline-block; background-color: #111; color: white; padding: 14px 40px; text-decoration: none; border-radius: 4px; font-weight: 600;">
+              Quay lại giỏ hàng
+            </a>
+          </div>
+        </div>
+
+        <div style="background-color: #f5f5f5; padding: 20px; text-align: center; color: #666; font-size: 12px;">
+          <p style="margin: 5px 0;">© 2026 TOAN Store. All rights reserved.</p>
+          <p style="margin: 5px 0;">Email này được gửi tự động, vui lòng không trả lời.</p>
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+
+  return sendEmail({
+    to: customerEmail,
+    subject: `🛒 Bạn quên ${itemCount} sản phẩm trong giỏ hàng! - TOAN Store`,
     html
   });
 }

@@ -6,6 +6,10 @@ import { cookies } from 'next/headers';
 import { User, UserWithoutPassword, LoginRequest, AuthResponse } from '@/types/auth';
 import { ADMIN_TOKEN, getJwtSecret } from '@/lib/auth';
 
+/**
+ * API Đăng nhập dành riêng cho quản trị viên (Admin).
+ * Đặc điểm: Truy vấn từ bảng `admin_users` riêng biệt để tách bạch quyền hạn và tăng cường bảo mật.
+ */
 export async function POST(req: Request) {
   try {
     const { email, password }: LoginRequest = await req.json();

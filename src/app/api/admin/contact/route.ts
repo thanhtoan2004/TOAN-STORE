@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { executeQuery } from '@/lib/db/mysql';
 import { checkAdminAuth } from '@/lib/auth';
 
+/**
+ * API Lấy danh sách tin nhắn liên hệ từ khách hàng.
+ * Hỗ trợ lọc theo trạng thái (status) và tìm kiếm theo tên/email.
+ */
 export async function GET(request: NextRequest) {
   const admin = await checkAdminAuth();
   if (!admin) {

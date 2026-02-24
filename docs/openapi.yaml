@@ -1,0 +1,597 @@
+openapi: 3.0.3
+info:
+  title: TOAN Store E-commerce API
+  description: |
+    API documentation for TOAN Store E-commerce platform.
+    
+    **Authentication**: JWT via HTTP-Only Cookies (`nike_auth_session` / `nike_admin_session`)  
+    **Rate Limiting**: Redis-backed sliding window, Fail-Closed for sensitive endpoints.
+  version: 2.5.0
+  contact:
+    email: admin@toanstore.com
+
+servers:
+  - url: http://localhost:3000
+    description: Local development
+
+tags:
+  - name: Auth
+    description: Authentication & session management
+  - name: Account
+    description: User account management
+  - name: Products
+    description: Product catalog
+  - name: Cart
+    description: Shopping cart operations
+  - name: Orders
+    description: Order management
+  - name: Payment
+    description: Payment processing
+  - name: Reviews
+    description: Product reviews
+  - name: Promotions
+    description: Vouchers, promo codes & gift cards
+  - name: Content
+    description: CMS content (news, FAQ, banners, etc.)
+  - name: Admin
+    description: Admin-only endpoints (requires admin JWT)
+
+paths:
+  # ═══════════════════════════════════
+  # AUTH
+  # ═══════════════════════════════════
+  /api/auth/register:
+    post:
+      tags: [Auth]
+      summary: Register new user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password, firstName, lastName]
+              properties:
+                email: { type: string, format: email }
+                password: { type: string, minLength: 6 }
+                firstName: { type: string }
+                lastName: { type: string }
+      responses:
+        '201': { description: User created }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+
+  /api/auth/login:
+    post:
+      tags: [Auth]
+      summary: Login user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email: { type: string, format: email }
+                password: { type: string }
+      responses:
+        '200':
+          description: Login successful, sets cookies
+          headers:
+            Set-Cookie:
+              schema: { type: string }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  /api/auth/login-admin:
+    post:
+      tags: [Auth]
+      summary: Login admin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email: { type: string, format: email }
+                password: { type: string }
+      responses:
+        '200': { description: Admin login successful }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  /api/auth/me:
+    get:
+      tags: [Auth]
+      summary: Get current user info
+      security: [{ cookieAuth: [] }]
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  /api/auth/logout:
+    post:
+      tags: [Auth]
+      summary: Logout — revoke tokens & clear cookies
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+
+  /api/auth/refresh:
+    post:
+      tags: [Auth]
+      summary: Refresh access token
+      responses:
+        '200': { description: Token refreshed }
+        '401': { description: Refresh token invalid/revoked }
+
+  /api/auth/forgot-password:
+    post:
+      tags: [Auth]
+      summary: Send password reset email
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email]
+              properties:
+                email: { type: string, format: email }
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+
+  /api/auth/reset-password:
+    post:
+      tags: [Auth]
+      summary: Reset password with token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [token, password]
+              properties:
+                token: { type: string }
+                password: { type: string, minLength: 6 }
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+
+  # ═══════════════════════════════════
+  # ACCOUNT
+  # ═══════════════════════════════════
+  /api/account/update:
+    put:
+      tags: [Account]
+      summary: Update user profile
+      security: [{ cookieAuth: [] }]
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  /api/account/change-password:
+    post:
+      tags: [Account]
+      summary: Change password
+      security: [{ cookieAuth: [] }]
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  /api/account/export:
+    get:
+      tags: [Account]
+      summary: Export personal data (GDPR)
+      security: [{ cookieAuth: [] }]
+      responses:
+        '200': { description: Personal data export }
+
+  # ═══════════════════════════════════
+  # PRODUCTS
+  # ═══════════════════════════════════
+  /api/products:
+    get:
+      tags: [Products]
+      summary: List products with filters
+      parameters:
+        - { name: page, in: query, schema: { type: integer, default: 1 } }
+        - { name: limit, in: query, schema: { type: integer, default: 12 } }
+        - { name: gender, in: query, schema: { type: string, enum: [men, women, kids] } }
+        - { name: category, in: query, schema: { type: string } }
+        - { name: sort, in: query, schema: { type: string, enum: [price_asc, price_desc, newest] } }
+        - { name: minPrice, in: query, schema: { type: number } }
+        - { name: maxPrice, in: query, schema: { type: number } }
+      responses:
+        '200':
+          description: Product list with pagination
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - properties:
+                      data: { type: array, items: { $ref: '#/components/schemas/Product' } }
+
+  /api/products/{id}:
+    get:
+      tags: [Products]
+      summary: Get product detail
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer } }
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /api/products/search:
+    get:
+      tags: [Products]
+      summary: Search products
+      parameters:
+        - { name: q, in: query, required: true, schema: { type: string } }
+        - { name: limit, in: query, schema: { type: integer, default: 10 } }
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+
+  # ═══════════════════════════════════
+  # CART
+  # ═══════════════════════════════════
+  /api/cart:
+    get:
+      tags: [Cart]
+      summary: Get cart items
+      security: [{ cookieAuth: [] }]
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+    post:
+      tags: [Cart]
+      summary: Add item to cart
+      security: [{ cookieAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [productId, size, quantity]
+              properties:
+                productId: { type: integer }
+                size: { type: string }
+                quantity: { type: integer, minimum: 1 }
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+    delete:
+      tags: [Cart]
+      summary: Clear entire cart
+      security: [{ cookieAuth: [] }]
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+
+  /api/cart/{itemId}:
+    put:
+      tags: [Cart]
+      summary: Update cart item quantity (ownership check)
+      security: [{ cookieAuth: [] }]
+      parameters:
+        - { name: itemId, in: path, required: true, schema: { type: integer } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                quantity: { type: integer, minimum: 1 }
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+    delete:
+      tags: [Cart]
+      summary: Remove cart item (ownership check)
+      security: [{ cookieAuth: [] }]
+      parameters:
+        - { name: itemId, in: path, required: true, schema: { type: integer } }
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+
+  /api/cart/check-balance:
+    post:
+      tags: [Cart]
+      summary: Check gift card balance (rate limited — 10 req/60s)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [cardNumber, pin]
+              properties:
+                cardNumber: { type: string, pattern: '^\d{16}$' }
+                pin: { type: string, pattern: '^\d{4}$' }
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+
+  # ═══════════════════════════════════
+  # ORDERS
+  # ═══════════════════════════════════
+  /api/orders:
+    get:
+      tags: [Orders]
+      summary: List user's orders
+      security: [{ cookieAuth: [] }]
+      parameters:
+        - { name: status, in: query, schema: { type: string } }
+        - { name: page, in: query, schema: { type: integer, default: 1 } }
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+    post:
+      tags: [Orders]
+      summary: Create new order
+      security: [{ cookieAuth: [] }]
+      responses:
+        '201': { description: Order created }
+
+  /api/orders/{orderNumber}:
+    get:
+      tags: [Orders]
+      summary: Get order detail
+      security: [{ cookieAuth: [] }]
+      parameters:
+        - { name: orderNumber, in: path, required: true, schema: { type: string } }
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    delete:
+      tags: [Orders]
+      summary: Cancel order
+      security: [{ cookieAuth: [] }]
+      parameters:
+        - { name: orderNumber, in: path, required: true, schema: { type: string } }
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+
+  # ═══════════════════════════════════
+  # PAYMENT
+  # ═══════════════════════════════════
+  /api/payment/vnpay/create:
+    post:
+      tags: [Payment]
+      summary: Create VNPay payment URL
+      security: [{ cookieAuth: [] }]
+      responses:
+        '200': { description: Returns payment URL }
+
+  /api/payment/momo/create:
+    post:
+      tags: [Payment]
+      summary: Create MoMo payment URL
+      security: [{ cookieAuth: [] }]
+      responses:
+        '200': { description: Returns payment URL }
+
+  # ═══════════════════════════════════
+  # REVIEWS
+  # ═══════════════════════════════════
+  /api/reviews:
+    get:
+      tags: [Reviews]
+      summary: List reviews
+      parameters:
+        - { name: productId, in: query, schema: { type: integer } }
+        - { name: page, in: query, schema: { type: integer, default: 1 } }
+        - { name: sort, in: query, schema: { type: string, enum: [newest, highest, lowest] } }
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+    post:
+      tags: [Reviews]
+      summary: Create review (must have purchased)
+      security: [{ cookieAuth: [] }]
+      responses:
+        '201': { description: Review created }
+
+  # ═══════════════════════════════════
+  # PROMOTIONS
+  # ═══════════════════════════════════
+  /api/promo-codes/available:
+    get:
+      tags: [Promotions]
+      summary: List available promo codes (public fields only)
+      responses:
+        '200':
+          description: Returns code, description, discount_type, starts_at, ends_at
+
+  /api/promo-codes/validate:
+    post:
+      tags: [Promotions]
+      summary: Validate a promo code
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [code, cartTotal]
+              properties:
+                code: { type: string }
+                cartTotal: { type: number }
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+
+  /api/promo-codes/history:
+    get:
+      tags: [Promotions]
+      summary: Promo code usage history (Auth + RBAC)
+      security: [{ cookieAuth: [] }]
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  /api/user/vouchers:
+    get:
+      tags: [Promotions]
+      summary: Get user's personal vouchers
+      security: [{ cookieAuth: [] }]
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+
+  # ═══════════════════════════════════
+  # CONTENT
+  # ═══════════════════════════════════
+  /api/newsletter:
+    post:
+      tags: [Content]
+      summary: Subscribe to newsletter (rate limited — 5 req/60s)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email]
+              properties:
+                email: { type: string, format: email }
+                name: { type: string }
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+
+  /api/contact:
+    post:
+      tags: [Content]
+      summary: Submit contact form
+      security: [{ cookieAuth: [] }]
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+
+  /api/news:
+    get:
+      tags: [Content]
+      summary: List news articles
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+
+  /api/faqs:
+    get:
+      tags: [Content]
+      summary: List FAQs
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+
+  /api/stores:
+    get:
+      tags: [Content]
+      summary: List store locations
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+
+  /api/banners:
+    get:
+      tags: [Content]
+      summary: List banners
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+
+  # ═══════════════════════════════════
+  # CRON
+  # ═══════════════════════════════════
+  /api/cron/cleanup-orders:
+    get:
+      tags: [Admin]
+      summary: Cleanup expired orders (requires CRON_SECRET)
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  /api/cron/cleanup-reservations:
+    get:
+      tags: [Admin]
+      summary: Cleanup expired stock reservations (requires CRON_SECRET)
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+# ═══════════════════════════════════════════
+# COMPONENTS
+# ═══════════════════════════════════════════
+components:
+  securitySchemes:
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: nike_auth_session
+    adminCookieAuth:
+      type: apiKey
+      in: cookie
+      name: nike_admin_session
+    bearerAuth:
+      type: http
+      scheme: bearer
+
+  schemas:
+    ApiResponse:
+      type: object
+      properties:
+        success: { type: boolean }
+        data: {}
+        message: { type: string }
+
+    Product:
+      type: object
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        slug: { type: string }
+        base_price: { type: number }
+        retail_price: { type: number }
+        image_url: { type: string }
+        category_name: { type: string }
+        brand_name: { type: string }
+
+    ErrorResponse:
+      type: object
+      properties:
+        success: { type: boolean, example: false }
+        message: { type: string }
+
+  responses:
+    Success:
+      description: Successful operation
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ApiResponse' }
+    BadRequest:
+      description: Bad request
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+    Unauthorized:
+      description: Authentication required
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+    RateLimited:
+      description: Too many requests
+      headers:
+        Retry-After:
+          schema: { type: integer }
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              success: { type: boolean, example: false }
+              message: { type: string, example: 'Too many requests. Please try again later.' }
+              retryAfterSeconds: { type: integer }

@@ -3,6 +3,9 @@ import { getAddresses, addAddress } from '@/lib/db/mysql';
 import { verifyAuth } from '@/lib/auth';
 
 // GET: Fetch user addresses
+/**
+ * API Lấy danh sách địa chỉ giao hàng của User.
+ */
 export async function GET(request: Request) {
     try {
         const session = await verifyAuth();
@@ -11,9 +14,8 @@ export async function GET(request: Request) {
         }
         const userId = Number(session.userId);
 
-        console.log(`DEBUG: Fetching addresses for userId: ${userId}`);
+
         const addresses = await getAddresses(userId);
-        console.log(`DEBUG: Found ${addresses.length} addresses`);
         return NextResponse.json(addresses);
     } catch (error: any) {
         console.error('DEBUG: Error details:', error.message, error.stack);
@@ -25,6 +27,9 @@ export async function GET(request: Request) {
 }
 
 // POST: Add new address
+/**
+ * API Thêm địa chỉ giao hàng mới.
+ */
 export async function POST(request: Request) {
     try {
         const session = await verifyAuth();
@@ -52,6 +57,10 @@ export async function POST(request: Request) {
 }
 
 // DELETE: Delete an address
+/**
+ * API Xóa địa chỉ giao hàng.
+ * Phải xác thực đúng chủ sở hữu địa chỉ mới được phép xóa (logic ở Database layer).
+ */
 export async function DELETE(request: Request) {
     try {
         const session = await verifyAuth();

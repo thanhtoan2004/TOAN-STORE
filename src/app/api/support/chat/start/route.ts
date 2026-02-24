@@ -6,6 +6,13 @@ import {
 } from '@/lib/db/supportChat';
 import { verifyAuth } from '@/lib/auth';
 
+/**
+ * API Bắt đầu phiên hỗ trợ trực tuyến (Support Chat).
+ * Chức năng: 
+ * 1. Tạo phiên chat mới hoặc khôi phục phiên chat cũ (Resume) nếu còn hoạt động.
+ * 2. Hỗ trợ cả thành viên và khách vãng lai (Guest).
+ * 3. Cấp Access Token cho khách để bảo mật phiên chat mà không cần login.
+ */
 export async function POST(request: NextRequest) {
     try {
         const session = await verifyAuth();

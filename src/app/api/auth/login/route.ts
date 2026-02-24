@@ -11,6 +11,15 @@ import { logSecurityEvent } from '@/lib/audit';
 import { getRedisConnection } from '@/lib/redis';
 import { decrypt } from '@/lib/encryption';
 
+/**
+ * API Xử lý Đăng nhập người dùng.
+ * Quy trình bảo mật 5 lớp:
+ * 1. Validate định dạng Email/Password.
+ * 2. Rate Limit: Giới hạn 10 request/phút mỗi IP để chống brute-force.
+ * 3. Redis Account Lockout: Khóa tài khoản 15 phút nếu sai mật khẩu 5 lần.
+ * 4. Kiểm tra trạng thái: Banned (Bị chặn), Active (Kích hoạt), Deleted (Đã xóa).
+ * 5. Check 2FA: Nếu bật, yêu cầu xác thực OTP trước khi cấp Token.
+ */
 async function loginHandler(req: Request): Promise<NextResponse> {
   const body: Partial<LoginRequest> = await req.json();
 
@@ -46,12 +55,37 @@ async function loginHandler(req: Request): Promise<NextResponse> {
   }
 
   const user = users[0];
+  const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || '127.0.0.1';
+
+  // Account lockout check (Redis-backed, 5 attempts, 15 min lockout)
+  const MAX_ATTEMPTS = 5;
+  const LOCKOUT_SECONDS = 15 * 60; // 15 minutes
+  const lockoutKey = `login_attempts:${user.id}`;
+  let currentAttempts = 0;
+
+  try {
+    const redis = getRedisConnection();
+    const attempts = await redis.get(lockoutKey);
+    currentAttempts = parseInt(attempts || '0');
+
+    if (currentAttempts >= MAX_ATTEMPTS) {
+      const ttl = await redis.ttl(lockoutKey);
+      const minutesLeft = Math.ceil(ttl / 60);
+      await logSecurityEvent('login_failed', ip, user.id, { email, attempts: currentAttempts, reason: 'Account locked' });
+      return createErrorResponse(
+        `Tài khoản tạm khóa do đăng nhập sai quá nhiều. Vui lòng thử lại sau ${minutesLeft} phút.`,
+        429,
+        'ACCOUNT_LOCKED'
+      );
+    }
+  } catch (e) {
+    // Redis unavailable — skip lockout check (fail-open for login)
+  }
 
   // Check if user is banned
   const isBanned = user.is_banned === 1 || user.is_banned === '1' || user.is_banned === true;
 
   if (isBanned) {
-    const ip = req.headers.get('x-forwarded-for') || '127.0.0.1';
     await logSecurityEvent('login_failed', ip, user.id, { email, reason: 'Account banned' });
     return createErrorResponse(
       'Tài khoản của bạn đã bị khóa. Vui lòng liên hệ admin để được hỗ trợ.',
@@ -63,7 +97,6 @@ async function loginHandler(req: Request): Promise<NextResponse> {
   // Check if user is active
   const isActive = user.is_active === 1 || user.is_active === '1' || user.is_active === true;
   if (!isActive) {
-    const ip = req.headers.get('x-forwarded-for') || '127.0.0.1';
     await logSecurityEvent('login_failed', ip, user.id, { email, reason: 'Account inactive' });
     return createErrorResponse(
       'Tài khoản của bạn chưa được kích hoạt. Vui lòng kiểm tra email hoặc liên hệ admin.',
@@ -76,9 +109,51 @@ async function loginHandler(req: Request): Promise<NextResponse> {
   const isPasswordValid = await bcrypt.compare(password, user.password);
 
   if (!isPasswordValid) {
-    const ip = req.headers.get('x-forwarded-for') || '127.0.0.1';
-    await logSecurityEvent('login_failed', ip, user.id, { email, reason: 'Invalid password' });
-    return createErrorResponse('Email hoặc mật khẩu không chính xác', 401, 'INVALID_CREDENTIALS');
+    // Increment failed attempts in Redis
+    try {
+      const redis = getRedisConnection();
+      const newAttempts = await redis.incr(lockoutKey);
+      if (newAttempts === 1) {
+        await redis.expire(lockoutKey, LOCKOUT_SECONDS);
+      }
+      const remaining = MAX_ATTEMPTS - newAttempts;
+      await logSecurityEvent('login_failed', ip, user.id, { email, reason: 'Invalid password', attempts: newAttempts });
+      if (remaining > 0) {
+        return createErrorResponse(
+          `Email hoặc mật khẩu không chính xác. Còn ${remaining} lần thử.`,
+          401,
+          'INVALID_CREDENTIALS'
+        );
+      } else {
+        return createErrorResponse(
+          `Tài khoản tạm khóa do đăng nhập sai quá nhiều. Vui lòng thử lại sau 15 phút.`,
+          429,
+          'ACCOUNT_LOCKED'
+        );
+      }
+    } catch (e) {
+      await logSecurityEvent('login_failed', ip, user.id, { email, reason: 'Invalid password' });
+      return createErrorResponse('Email hoặc mật khẩu không chính xác', 401, 'INVALID_CREDENTIALS');
+    }
+  }
+
+  // Clear failed attempts on successful login
+  try {
+    const redis = getRedisConnection();
+    await redis.del(lockoutKey);
+  } catch (e) { /* ignore */ }
+
+  // Check 2FA
+  const userAny = user as any;
+  const is2FAEnabled = userAny.two_factor_enabled === 1 || userAny.two_factor_enabled === '1' || userAny.two_factor_enabled === true;
+
+  if (is2FAEnabled) {
+    return NextResponse.json({
+      success: true,
+      requires2FA: true,
+      email: user.email,
+      message: 'Vui lòng xác thực 2 bước'
+    });
   }
 
   // Generate Tokens
@@ -142,7 +217,6 @@ async function loginHandler(req: Request): Promise<NextResponse> {
   };
 
   // Success
-  const ip = req.headers.get('x-forwarded-for') || '127.0.0.1';
   await logSecurityEvent('login_success', ip, user.id, { email });
 
   return NextResponse.json(response);

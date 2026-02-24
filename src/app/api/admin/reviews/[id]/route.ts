@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { executeQuery } from '@/lib/db/mysql';
 import { checkAdminAuth } from '@/lib/auth';
 
+/**
+ * API Phản hồi (Admin Reply) cho các đánh giá sản phẩm từ khách hàng.
+ */
 export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }

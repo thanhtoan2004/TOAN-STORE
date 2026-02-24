@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { executeQuery } from '@/lib/db/mysql';
 import { checkAdminAuth } from '@/lib/auth';
 
+/**
+ * API Xuất danh sách người dùng (Khách hàng) ra file CSV.
+ * Hỗ trợ các thông tin cơ bản: Tên, Email, SĐT, Trạng thái và Ngày tham gia.
+ */
 export async function GET(request: NextRequest) {
     try {
         // Check authentication

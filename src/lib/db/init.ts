@@ -853,6 +853,32 @@ export async function initDb() {
                           ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4
                             `);
 
+    // Tạo bảng refunds
+    await connection.query(`
+      CREATE TABLE IF NOT EXISTS refunds (
+        id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+        order_id BIGINT UNSIGNED NOT NULL,
+        refund_amount DECIMAL(12,2) NOT NULL,
+        status VARCHAR(50) DEFAULT 'completed',
+        reason TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    `);
+
+    // Tạo bảng point_transactions
+    await connection.query(`
+      CREATE TABLE IF NOT EXISTS point_transactions (
+        id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+        user_id BIGINT UNSIGNED NOT NULL,
+        points INT NOT NULL,
+        type ENUM('earn', 'spend') NOT NULL,
+        description VARCHAR(255),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    `);
+
     // Tạo bảng admin_activity_logs
     await connection.query(`
       CREATE TABLE IF NOT EXISTS admin_activity_logs(

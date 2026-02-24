@@ -731,11 +731,12 @@ export async function updateOrderStatus(orderNumber: string, status: string) {
                     const pointsEarned = Math.floor(total / 10000);
                     if (pointsEarned > 0) {
                         const [users]: any = await connection.execute(
-                            'SELECT accumulated_points FROM users WHERE id = ? FOR UPDATE',
+                            'SELECT accumulated_points, membership_tier, email, full_name FROM users WHERE id = ? FOR UPDATE',
                             [userId]
                         );
                         if (users.length > 0) {
                             const currentPoints = users[0].accumulated_points || 0;
+                            const oldTier = users[0].membership_tier || 'bronze';
                             const newPoints = currentPoints + pointsEarned;
                             let newTier = 'bronze';
                             if (newPoints >= 10000) newTier = 'platinum';
@@ -745,6 +746,22 @@ export async function updateOrderStatus(orderNumber: string, status: string) {
                                 'UPDATE users SET accumulated_points = ?, membership_tier = ? WHERE id = ?',
                                 [newPoints, newTier, userId]
                             );
+
+                            // Tier Upgrade Notification
+                            if (newTier !== oldTier) {
+                                const tierOrder = ['bronze', 'silver', 'gold', 'platinum'];
+                                if (tierOrder.indexOf(newTier) > tierOrder.indexOf(oldTier)) {
+                                    // Fire-and-forget tier upgrade notification
+                                    eventBus.publish('tier.upgraded', {
+                                        userId,
+                                        email: users[0].email,
+                                        fullName: users[0].full_name,
+                                        oldTier,
+                                        newTier,
+                                        totalPoints: newPoints,
+                                    }).catch(() => { });
+                                }
+                            }
                         }
                     }
                 }

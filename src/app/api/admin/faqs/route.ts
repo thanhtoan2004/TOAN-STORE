@@ -3,6 +3,10 @@ import { executeQuery } from '@/lib/db/mysql';
 import { checkAdminAuth } from '@/lib/auth';
 import { sanitizeRichContent } from '@/lib/sanitize';
 
+/**
+ * API Lấy danh sách câu hỏi thường gặp (FAQs).
+ * Phân trang và sắp xếp theo vị trí ưu tiên (position).
+ */
 export async function GET(request: NextRequest) {
   try {
     const adminAuth = await checkAdminAuth();
@@ -46,6 +50,10 @@ export async function GET(request: NextRequest) {
   }
 }
 
+/**
+ * API Tạo mới câu hỏi thường gặp.
+ * Bảo mật: Làm sạch nội dung HTML (Sanitize) để phòng chống XSS trước khi lưu vào DB.
+ */
 export async function POST(request: NextRequest) {
   try {
     const adminAuth = await checkAdminAuth();
@@ -87,6 +95,9 @@ export async function POST(request: NextRequest) {
   }
 }
 
+/**
+ * API Cập nhật câu hỏi thường gặp.
+ */
 export async function PUT(request: NextRequest) {
   try {
     const adminAuth = await checkAdminAuth();
@@ -127,6 +138,9 @@ export async function PUT(request: NextRequest) {
   }
 }
 
+/**
+ * API Xóa vĩnh viễn câu hỏi thường gặp.
+ */
 export async function DELETE(request: NextRequest) {
   try {
     const adminAuth = await checkAdminAuth();

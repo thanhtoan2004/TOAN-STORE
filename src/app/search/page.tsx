@@ -8,7 +8,7 @@ import { useProductSearch } from '@/hooks/queries/useProductSearch';
 
 function SearchContent() {
   const searchParams = useSearchParams();
-  const query = searchParams.get('q') || '';
+  const query = searchParams?.get('q') || '';
   const { data: searchData, isLoading: loading } = useProductSearch({
     q: query,
     limit: 12
@@ -77,7 +77,7 @@ function SearchContent() {
                       price={product.retail_price || product.base_price || 0}
                       sale_price={product.base_price && product.retail_price && product.base_price < product.retail_price ? product.base_price : undefined}
                       image_url={product.image_url || '/placeholder.png'}
-                      is_new_arrival={product.is_new_arrival}
+                      is_new_arrival={Boolean(product.is_new_arrival)}
                     />
                   ))}
                 </div>

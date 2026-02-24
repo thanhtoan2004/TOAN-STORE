@@ -2,8 +2,18 @@ import { NextResponse } from 'next/server';
 import { testConnection, initDb } from '@/lib/db/mysql';
 import { checkAdminAuth } from '@/lib/auth';
 
+/**
+ * API Khởi tạo cấu trúc Cơ sở dữ liệu (Database Initialization).
+ * Chỉ dành cho môi trường Development/Staging để thiết lập bảng ban đầu.
+ * Bị chặn hoàn toàn ở môi trường Production để bảo vệ dữ liệu.
+ */
 export async function GET() {
   try {
+    // Block in production — this route should only be used during setup
+    if (process.env.NODE_ENV === 'production') {
+      return NextResponse.json({ success: false, message: 'Not available in production' }, { status: 403 });
+    }
+
     const admin = await checkAdminAuth();
     if (!admin) {
       return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });

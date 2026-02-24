@@ -3,6 +3,9 @@ import { executeQuery } from '@/lib/db/mysql';
 
 import { checkAdminAuth } from '@/lib/auth';
 
+/**
+ * API Xóa vĩnh viễn thẻ quà tặng khỏi hệ thống.
+ */
 export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
   try {
     const admin = await checkAdminAuth();

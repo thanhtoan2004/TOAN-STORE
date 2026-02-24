@@ -2,6 +2,13 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getProductById, getProductSizes, executeQuery } from '@/lib/db/mysql';
 import { getCache, setCache } from '@/lib/cache';
 
+/**
+ * API Lấy chi tiết thông tin sản phẩm dành cho trang Product Detail Page (PDP).
+ * Chức năng:
+ * - Tổng hợp dữ liệu từ nhiều bảng: Sản phẩm, Size (Kho), Ảnh và Thuộc tính (Attributes).
+ * - Tính toán trạng thái In-Stock và các size khả dụng thực tế.
+ * - Caching: Lưu kết quả vào Redis trong 1 giờ để tối ưu tốc độ tải trang.
+ */
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -21,7 +28,6 @@ export async function GET(
     const cacheKey = `product:detail:${productId}`;
     const cachedData = await getCache<any>(cacheKey);
     if (cachedData) {
-      console.log(`Cache HIT for product details: ${productId}`);
       return NextResponse.json(cachedData);
     }
 
@@ -56,7 +62,8 @@ export async function GET(
         retail_price: product.retail_price ? parseFloat(product.retail_price) : 0,
         sizes: sizes.map((s: any) => ({
           ...s,
-          available: (s.stock || 0) - (s.reserved || 0)
+          available: (s.stock || 0) - (s.reserved || 0),
+          sku: s.sku
         })),
         images: images,
         attributes: attributes,

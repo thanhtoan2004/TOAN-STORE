@@ -1,6 +1,17 @@
 import { executeQuery } from '../connection';
 
-// Cart functions
+/**
+ * Thêm sản phẩm vào giỏ hàng của user.
+ * Xử lý luồng:
+ * 1. Tìm giỏ hàng (Cart ID) của user, nếu chưa có thì tạo mới.
+ * 2. Tra cứu kho hàng lấy Variant ID dựa vào Size.
+ * 3. Kiểm tra xem sản phẩm cùng size này đã có trong giỏ chưa. Có rồi thì cộng dồn +1, chưa có thì insert dòng mới.
+ * 
+ * @param userId ID người dùng
+ * @param productId ID sản phẩm
+ * @param size Kích cỡ (VD: 40, 41)
+ * @param quantity Số lượng thêm vào (Mặc định 1)
+ */
 export async function addToCart(userId: number, productId: number, size: string, quantity: number = 1) {
     // Tìm hoặc tạo cart cho user
     const carts = await executeQuery<any[]>(`SELECT id FROM carts WHERE user_id = ? LIMIT 1`, [userId]);
@@ -57,6 +68,11 @@ export async function addToCart(userId: number, productId: number, size: string,
     }
 }
 
+/**
+ * Lấy danh sách toàn bộ sản phẩm đang có trong giỏ hàng của User.
+ * Kết nối (JOIN) nhiều bảng: cart_items, carts, products, product_images, product_variants, inventory
+ * để trả về đầy đủ thông tin: Tên sản phẩm, giá, hình ảnh, size và số lượng tồn kho (để check hết hàng).
+ */
 export async function getCart(userId: number) {
     const query = `
     SELECT 
@@ -86,17 +102,25 @@ export async function getCart(userId: number) {
     return executeQuery(query, [userId]);
 }
 
-export async function removeFromCart(cartItemId: number) {
-    await executeQuery(`DELETE FROM cart_items WHERE id = ?`, [cartItemId]);
+export async function removeFromCart(cartItemId: number, userId: number) {
+    await executeQuery(
+        `DELETE ci FROM cart_items ci 
+         JOIN carts c ON ci.cart_id = c.id 
+         WHERE ci.id = ? AND c.user_id = ?`,
+        [cartItemId, userId]
+    );
 }
 
-export async function updateCartItemQuantity(cartItemId: number, quantity: number) {
+export async function updateCartItemQuantity(cartItemId: number, quantity: number, userId: number) {
     if (quantity <= 0) {
-        await removeFromCart(cartItemId);
+        await removeFromCart(cartItemId, userId);
     } else {
         await executeQuery(
-            `UPDATE cart_items SET quantity = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
-            [quantity, cartItemId]
+            `UPDATE cart_items ci
+             JOIN carts c ON ci.cart_id = c.id 
+             SET ci.quantity = ?, ci.updated_at = CURRENT_TIMESTAMP 
+             WHERE ci.id = ? AND c.user_id = ?`,
+            [quantity, cartItemId, userId]
         );
     }
 }

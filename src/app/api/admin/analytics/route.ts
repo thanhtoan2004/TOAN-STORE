@@ -3,8 +3,9 @@ import { query } from '@/lib/db/mysql';
 import { checkAdminAuth } from '@/lib/auth';
 
 /**
- * Get dashboard analytics
- * GET /api/admin/analytics
+ * API Lấy dữ liệu phân tích (Analytics) cho Dashboard.
+ * Bao gồm: Tổng doanh thu, Đơn hàng theo trạng thái, Top sản phẩm bán chạy, 
+ * Khách hàng mới và các sản phẩm sắp hết hàng.
  */
 export async function GET(request: Request) {
     try {

@@ -4,6 +4,12 @@ import { verifyAuth, AUTH_TOKEN, REFRESH_TOKEN } from '@/lib/auth';
 import { executeQuery } from '@/lib/db/mysql';
 import { getRedisConnection } from '@/lib/redis';
 
+/**
+ * API Đăng xuất khỏi tất cả các thiết bị.
+ * Cơ chế: 
+ * 1. Tăng `token_version` trong Database để vô hiệu hóa toàn bộ Access Token và Refresh Token cũ ngay lập tức.
+ * 2. Xóa Refresh Token trong Redis.
+ */
 export async function POST() {
     try {
         const session = await verifyAuth();

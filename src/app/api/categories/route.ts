@@ -1,6 +1,10 @@
 import { NextResponse } from 'next/server';
 import { executeQuery } from '@/lib/db/mysql';
 
+/**
+ * API Lấy danh sách danh mục sản phẩm đang hoạt động.
+ * Logic bổ trợ: Nếu danh mục không có ảnh đại diện riêng, hệ thống tự động lấy ảnh của sản phẩm mới nhất thuộc danh mục đó để hiển thị.
+ */
 export async function GET() {
   try {
     const result = await executeQuery(

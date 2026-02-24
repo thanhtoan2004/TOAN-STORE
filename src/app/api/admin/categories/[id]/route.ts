@@ -3,6 +3,10 @@ import { executeQuery } from '@/lib/db/mysql';
 import { checkAdminAuth } from '@/lib/auth';
 import { logAdminAction } from '@/lib/audit';
 
+/**
+ * API Cập nhật thông tin danh mục.
+ * Logic: So sánh dữ liệu cũ và mới để ghi nhận các trường đã thay đổi vào Audit Log.
+ */
 export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const admin = await checkAdminAuth();
   if (!admin) {
@@ -51,6 +55,9 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
   }
 }
 
+/**
+ * API Xóa danh mục (Soft Delete).
+ */
 export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const admin = await checkAdminAuth();
   if (!admin) {

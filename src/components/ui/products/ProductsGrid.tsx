@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useMemo, memo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef, memo } from 'react';
 import ProductCard from './ProductCard';
 import Pagination from './Pagination';
 
@@ -29,6 +29,7 @@ interface ProductsGridProps {
   showSortOptions?: boolean;
   filterParams?: Record<string, string>;
   onError?: (error: Error) => void;
+  enableInfiniteScroll?: boolean;
 }
 
 // Loading skeleton component
@@ -96,11 +97,13 @@ const ProductsGrid = ({
   title,
   showSortOptions = true,
   filterParams = {},
-  onError
+  onError,
+  enableInfiniteScroll: enableInfiniteScrollProp = true
 }: ProductsGridProps) => {
   const { t } = useLanguage();
   const [products, setProducts] = useState<ProductType[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pagination, setPagination] = useState<PaginationData>({
     page: 1,
@@ -109,6 +112,8 @@ const ProductsGrid = ({
     totalPages: 0
   });
   const [sortOrder, setSortOrder] = useState('newest');
+  const [infiniteScroll, setInfiniteScroll] = useState(enableInfiniteScrollProp);
+  const sentinelRef = useRef<HTMLDivElement>(null);
 
   // Memoize filter params string to avoid unnecessary re-fetches
   const filterParamsString = useMemo(
@@ -116,9 +121,13 @@ const ProductsGrid = ({
     [filterParams]
   );
 
-  const fetchProducts = useCallback(async (page: number = 1, sort: string = 'newest') => {
+  const fetchProducts = useCallback(async (page: number = 1, sort: string = 'newest', append: boolean = false) => {
     try {
-      setLoading(true);
+      if (append) {
+        setLoadingMore(true);
+      } else {
+        setLoading(true);
+      }
       setError(null);
 
       const params = new URLSearchParams({
@@ -135,21 +144,46 @@ const ProductsGrid = ({
       }
 
       const data = await response.json();
+      const newProducts = data.products || [];
+      const newPagination = data.pagination || { page: 1, limit: 12, total: 0, totalPages: 0 };
 
-      setProducts(data.products || []);
-      setPagination(data.pagination || { page: 1, limit: 12, total: 0, totalPages: 0 });
+      if (append) {
+        setProducts(prev => [...prev, ...newProducts]);
+      } else {
+        setProducts(newProducts);
+      }
+      setPagination(newPagination);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : t.plp.generic_error;
       setError(errorMessage);
       onError?.(err instanceof Error ? err : new Error(errorMessage));
     } finally {
       setLoading(false);
+      setLoadingMore(false);
     }
   }, [filterParams, onError, t]);
 
   useEffect(() => {
     fetchProducts(1, sortOrder);
   }, [filterParamsString, sortOrder, fetchProducts]);
+
+  // Infinite scroll: IntersectionObserver
+  useEffect(() => {
+    if (!infiniteScroll || !sentinelRef.current) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const first = entries[0];
+        if (first.isIntersecting && !loadingMore && pagination.page < pagination.totalPages) {
+          fetchProducts(pagination.page + 1, sortOrder, true);
+        }
+      },
+      { threshold: 0.1 }
+    );
+
+    observer.observe(sentinelRef.current);
+    return () => observer.disconnect();
+  }, [infiniteScroll, loadingMore, pagination.page, pagination.totalPages, sortOrder, fetchProducts]);
 
   const handleSortChange = useCallback((newSort: string) => {
     setSortOrder(newSort);
@@ -164,6 +198,22 @@ const ProductsGrid = ({
     fetchProducts(pagination.page, sortOrder);
   }, [fetchProducts, pagination.page, sortOrder]);
 
+  const toggleScrollMode = useCallback(() => {
+    setInfiniteScroll(prev => {
+      const next = !prev;
+      localStorage.setItem('nike_scroll_mode', next ? 'infinite' : 'pagination');
+      // Reset to page 1 when switching modes
+      fetchProducts(1, sortOrder);
+      return next;
+    });
+  }, [fetchProducts, sortOrder]);
+
+  // Load preference from localStorage
+  useEffect(() => {
+    const saved = localStorage.getItem('nike_scroll_mode');
+    if (saved === 'infinite') setInfiniteScroll(true);
+  }, []);
+
   if (loading) {
     return <LoadingSkeleton />;
   }
@@ -174,21 +224,42 @@ const ProductsGrid = ({
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
+      <div className="flex justify-between items-center flex-wrap gap-2">
         <h2 className="text-2xl font-bold">{title || t.plp.all_products}</h2>
 
-        {showSortOptions && (
-          <select
-            value={sortOrder}
-            onChange={(e) => handleSortChange(e.target.value)}
-            className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-black"
+        <div className="flex items-center gap-3">
+          {/* Scroll mode toggle */}
+          <button
+            onClick={toggleScrollMode}
+            className="hidden sm:flex items-center gap-1.5 px-3 py-2 text-xs font-medium border border-gray-200 rounded-lg hover:border-gray-400 transition-all"
+            title={infiniteScroll ? 'Switch to Pagination' : 'Switch to Infinite Scroll'}
           >
-            <option value="newest">{t.plp.sort_newest}</option>
-            <option value="price-asc">{t.plp.sort_price_asc}</option>
-            <option value="price-desc">{t.plp.sort_price_desc}</option>
-            <option value="discount">{t.plp.sort_discount}</option>
-          </select>
-        )}
+            {infiniteScroll ? (
+              <>
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" /></svg>
+                Pagination
+              </>
+            ) : (
+              <>
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" /></svg>
+                Infinite Scroll
+              </>
+            )}
+          </button>
+
+          {showSortOptions && (
+            <select
+              value={sortOrder}
+              onChange={(e) => handleSortChange(e.target.value)}
+              className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-black"
+            >
+              <option value="newest">{t.plp.sort_newest}</option>
+              <option value="price-asc">{t.plp.sort_price_asc}</option>
+              <option value="price-desc">{t.plp.sort_price_desc}</option>
+              <option value="discount">{t.plp.sort_discount}</option>
+            </select>
+          )}
+        </div>
       </div>
 
       {products.length === 0 ? (
@@ -196,28 +267,56 @@ const ProductsGrid = ({
       ) : (
         <>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {products.map((product) => (
-              <ProductCard
-                key={product.id}
-                id={product.id.toString()}
-                name={product.name}
-                category={product.category}
-                price={product.retail_price || product.base_price || product.price}
-                sale_price={product.base_price && product.retail_price && product.base_price < product.retail_price ? product.base_price : product.sale_price}
-                image_url={product.image_url}
-                is_new_arrival={product.is_new_arrival}
-              />
-            ))}
+            {products.map((product, index) => {
+              // Ensure retail_price/base_price parsing and correct display mapping
+              const originalPrice = product.retail_price ? Number(product.retail_price) : Number(product.base_price || product.price || 0);
+              const salePriceValue = (product.base_price && product.retail_price && product.base_price < product.retail_price)
+                ? Number(product.base_price)
+                : (product.sale_price ? Number(product.sale_price) : undefined);
+
+              return (
+                <ProductCard
+                  key={`${product.id}-${index}`}
+                  id={product.id.toString()}
+                  name={product.name}
+                  category={product.category}
+                  price={originalPrice}
+                  sale_price={salePriceValue}
+                  image_url={product.image_url}
+                  is_new_arrival={Boolean(product.is_new_arrival)}
+                />
+              );
+            })}
           </div>
 
-          {pagination.totalPages > 1 && (
-            <div className="flex justify-center">
-              <Pagination
-                currentPage={pagination.page}
-                totalPages={pagination.totalPages}
-                onPageChange={handlePageChange}
-              />
+          {infiniteScroll ? (
+            <div className="w-full mt-8">
+              {/* Infinite scroll sentinel */}
+              <div ref={sentinelRef} className="h-4 w-full" />
+              {loadingMore && (
+                <div className="flex justify-center py-6">
+                  <div className="flex items-center gap-3 text-gray-500 bg-white px-4 py-2 rounded-full shadow-sm border border-gray-100">
+                    <div className="w-5 h-5 border-2 border-gray-300 border-t-black rounded-full animate-spin" />
+                    <span className="text-sm font-medium">Đang tải thêm...</span>
+                  </div>
+                </div>
+              )}
+              {pagination.page >= pagination.totalPages && products.length > 0 && (
+                <p className="text-center text-sm text-gray-400 py-8">
+                  Đã hiển thị tất cả {pagination.total} sản phẩm
+                </p>
+              )}
             </div>
+          ) : (
+            pagination.totalPages > 1 && (
+              <div className="flex justify-center">
+                <Pagination
+                  currentPage={pagination.page}
+                  totalPages={pagination.totalPages}
+                  onPageChange={handlePageChange}
+                />
+              </div>
+            )
           )}
         </>
       )}

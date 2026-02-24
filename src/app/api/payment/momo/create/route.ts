@@ -34,7 +34,7 @@ async function createMomoHandler(request: Request) {
             [orderId, auth.userId, 'momo', amount, 'pending']
         );
 
-        const orderInfo = `Thanh toan don hang #${orderId} qua MoMo`;
+        const orderInfo = `Thanh TOAN Store don hang #${orderId} qua MoMo`;
         const result = await createMomoPayment(orderId, amount, orderInfo);
 
         if (result && result.payUrl) {

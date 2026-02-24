@@ -3,6 +3,10 @@ import { executeQuery } from '@/lib/db/mysql';
 import { checkAdminAuth } from '@/lib/auth';
 
 // DELETE - Cleanup expired and used tokens
+/**
+ * API Dọn dẹp các mã Token khôi phục mật khẩu (Cleanup).
+ * Chức năng: Xóa các token đã hết hạn hoặc đã sử dụng (để lâu hơn 7 ngày) để tối ưu dung lượng DB.
+ */
 export async function DELETE() {
     try {
         const admin = await checkAdminAuth();
@@ -46,6 +50,9 @@ export async function DELETE() {
 }
 
 // GET - Get token statistics
+/**
+ * API Lấy thống kê về tình trạng Token (Tổng số, Đã dùng, Đang hoạt động).
+ */
 export async function GET() {
     try {
         const admin = await checkAdminAuth();

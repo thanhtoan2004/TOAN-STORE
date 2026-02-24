@@ -18,7 +18,7 @@ export default function OrderingGuidePage() {
 
                     <h1 className="text-4xl font-bold mb-6">Hướng Dẫn Đặt Hàng</h1>
                     <p className="text-gray-600 mb-12 text-lg">
-                        Mua sắm tại TOAN thật dễ dàng và thuận tiện. Thực hiện theo các bước đơn giản sau.
+                        Mua sắm tại TOAN Store thật dễ dàng và thuận tiện. Thực hiện theo các bước đơn giản sau.
                     </p>
 
                     <div className="space-y-8">

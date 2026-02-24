@@ -3,6 +3,9 @@ import { executeQuery } from '@/lib/db/mysql';
 import { checkAdminAuth } from '@/lib/auth';
 
 // GET /api/admin/warehouses - List all warehouses
+/**
+ * API Lấy danh sách toàn bộ các kho hàng (Warehouses).
+ */
 export async function GET(request: NextRequest) {
     try {
         const admin = await checkAdminAuth();
@@ -28,6 +31,9 @@ export async function GET(request: NextRequest) {
 }
 
 // POST /api/admin/warehouses - Create new warehouse
+/**
+ * API Thêm mới kho hàng vào hệ thống.
+ */
 export async function POST(request: NextRequest) {
     try {
         const admin = await checkAdminAuth();
@@ -48,7 +54,7 @@ export async function POST(request: NextRequest) {
         const result = await executeQuery(
             'INSERT INTO warehouses (name, location) VALUES (?, ?)',
             [name, location || '']
-        );
+        ) as any;
 
         return NextResponse.json({
             success: true,

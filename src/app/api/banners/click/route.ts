@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { executeQuery } from '@/lib/db/mysql';
 
 // POST - Track banner click
+/**
+ * API Ghi nhận lượt click vào Banner.
+ * Dùng để đo lường hiệu quả (CTR) của các chiến dịch quảng cáo.
+ */
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();

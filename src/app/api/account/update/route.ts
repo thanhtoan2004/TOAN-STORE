@@ -3,6 +3,13 @@ import { executeQuery } from '@/lib/db/mysql';
 import { verifyAuth } from '@/lib/auth';
 import { encrypt } from '@/lib/encryption';
 
+/**
+ * API Cập nhật thông tin cá nhân (Profile Update).
+ * Bảo mật:
+ * 1. Xác thực User qua Session.
+ * 2. Số điện thoại (Phone) được mã hóa AES-256-GCM để bảo vệ quyền riêng tư (PII).
+ * 3. Tự động ghi nhận thời gian update (updated_at).
+ */
 export async function PUT(request: NextRequest) {
   try {
     const session = await verifyAuth();

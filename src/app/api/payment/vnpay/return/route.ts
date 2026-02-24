@@ -3,6 +3,13 @@ import { NextResponse } from 'next/server';
 import { verifyReturnUrl } from '@/lib/payment/vnpay';
 import { executeQuery } from '@/lib/db/mysql';
 
+/**
+ * API Receipt/Return của VNPAY (Client-side).
+ * Nhiệm vụ cực kỳ quan trọng:
+ * 1. Thu thập tham số từ VNPAY trả về trên URL.
+ * 2. Thực hiện `verifyReturnUrl` (Kiểm tra Checksum/Chữ ký số) để đảm bảo dữ liệu không bị sửa đổi bởi người dùng.
+ * 3. Điều hướng người dùng về trang kết quả (/order-result) tương ứng với trạng thái.
+ */
 export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const query = Object.fromEntries(searchParams.entries());

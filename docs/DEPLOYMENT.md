@@ -1,6 +1,6 @@
 # Deployment Guide
 
-Hướng dẫn triển khai TOAN E-commerce trên các môi trường khác nhau.
+Hướng dẫn triển khai TOAN Store E-commerce trên các môi trường khác nhau.
 
 ---
 
@@ -260,6 +260,9 @@ curl http://localhost:3000/api/health
 
 # Cleanup expired tokens (mỗi giờ)
 0 * * * * curl -X POST http://localhost:3000/api/admin/cleanup-tokens -H "Authorization: Bearer <CRON_SECRET>"
+
+# Abandoned Cart (mỗi 12 giờ)
+0 */12 * * * curl http://localhost:3000/api/cron/abandoned-cart -H "Authorization: Bearer <CRON_SECRET>"
 ```
 
 ---

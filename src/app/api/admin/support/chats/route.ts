@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getAdminChats } from '@/lib/db/supportChat';
 import { checkAdminAuth } from '@/lib/auth';
 
+/**
+ * API Lấy danh sách các phiên Chat hỗ trợ (Support Sessions).
+ * Phân trang và lọc theo trạng thái (Đang chờ, Đang xử lý, Đã đóng).
+ */
 export async function GET(request: NextRequest) {
     try {
         const admin = await checkAdminAuth();

@@ -2,6 +2,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import { executeQuery } from '@/lib/db/mysql';
 
 // GET - Public news list
+/**
+ * API Lấy danh sách tin tức (Blog/News) công khai.
+ * Chỉ trả về các bài viết đã được xuất bản (is_published = 1).
+ * Hỗ trợ phân trang và lọc theo danh mục.
+ */
 export async function GET(request: NextRequest) {
     try {
         const { searchParams } = new URL(request.url);

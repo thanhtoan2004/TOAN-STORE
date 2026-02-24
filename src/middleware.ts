@@ -1,3 +1,8 @@
+/**
+ * Next.js Edge Middleware.
+ * Lớp phòng thủ ngoài cùng (First Line of Defense) của toàn bộ hệ thống.
+ * Chạy Độc Lập ở server Edge Vercel TRƯỚC khi Request chạm vào Code API hay DB.
+ */
 import { NextResponse, NextRequest } from 'next/server';
 
 export async function middleware(req: NextRequest) {
@@ -5,7 +10,11 @@ export async function middleware(req: NextRequest) {
   const isProd = process.env.NODE_ENV === 'production';
   const response = NextResponse.next();
 
-  // --- 1. Security Headers (Apply to ALL responses, including API) ---
+  /**
+   * 1. Content-Security-Policy (CSP)
+   * Ngăn chặn mã độc XSS (Cross-Site Scripting).
+   * Cấm gọi script/ảnh/font từ các nguồn lạ ngoại trừ Google Fonts, Maps và CDN hợp lệ.
+   */
   const cspHeader = `
     default-src 'self';
     script-src 'self' 'unsafe-inline' 'unsafe-eval' https://maps.googleapis.com;
@@ -30,12 +39,14 @@ export async function middleware(req: NextRequest) {
     response.headers.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains; preload');
   }
 
-  // --- 2. CSRF Protection for API (Mutating Methods) ---
+  /**
+   * 2. CSRF (Cross-Site Request Forgery) Protection cho các tác vụ thay đổi CSDL (POST, PUT, DELETE)
+   * Sử dụng kĩ thuật Stateless: Bắt buộc request phải có Header `X-Requested-With: XMLHttpRequest`
+   * hoặc Origin/Referer phải khớp chuẩn với Domain trang web. Các domain giả thư mục sẽ bị chặn đứng (Status 403).
+   */
   if (pathname.startsWith('/api')) {
     const mutatingMethods = ['POST', 'PUT', 'PATCH', 'DELETE'];
     if (mutatingMethods.includes(req.method)) {
-      // Stateless CSRF Protection: Check for custom header
-      // Browsers don't allow cross-origin requests to add custom headers without CORS preflight
       const requestedWith = req.headers.get('x-requested-with');
       const origin = req.headers.get('origin');
       const host = req.headers.get('host');

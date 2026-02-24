@@ -2,8 +2,9 @@
 import React from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { Heart } from "lucide-react";
+import { Heart, GitCompareArrows } from "lucide-react";
 import { useWishlist } from "@/contexts/WishlistContext";
+import { useComparison } from "@/contexts/ComparisonContext";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { imageService } from "@/lib/image-service";
 
@@ -57,6 +58,23 @@ const ProductCard = ({
     }
   };
 
+  const { addToCompare, removeFromCompare, isInCompare } = useComparison();
+  const inCompare = isInCompare(id);
+
+  const handleCompare = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    // Debugging comparison values
+    console.log('Adding to compare:', { id, name, category, price, sale_price, image_url, is_new_arrival });
+
+    if (inCompare) {
+      removeFromCompare(id);
+    } else {
+      addToCompare({ id, name, category, price, sale_price, image_url, is_new_arrival });
+    }
+  };
+
   return (
     <Link href={`/products/${id}`} className="block w-full group">
       <div className="relative cursor-pointer">
@@ -69,14 +87,21 @@ const ProductCard = ({
             className="object-cover transition-transform duration-300 group-hover:scale-105 mix-blend-multiply"
             loading="lazy"
           />
-          {/* Wishlist icon */}
-          <div className="absolute top-2 right-2 z-10">
+          {/* Wishlist & Compare icons */}
+          <div className="absolute top-2 right-2 z-10 flex flex-col gap-1">
             <button
               onClick={handleWishlist}
               className="p-1 rounded-full bg-white/80 hover:bg-white shadow transition-all duration-200"
               aria-label={inWishlist ? 'Bỏ khỏi yêu thích' : 'Thêm vào yêu thích'}
             >
               <Heart size={22} className={`transition-colors duration-200 ${inWishlist ? 'text-red-500 fill-red-500' : 'text-gray-400 hover:text-red-500'}`} fill={inWishlist ? 'currentColor' : 'none'} />
+            </button>
+            <button
+              onClick={handleCompare}
+              className={`p-1 rounded-full shadow transition-all duration-200 ${inCompare ? 'bg-black text-white' : 'bg-white/80 hover:bg-white text-gray-400 hover:text-black'}`}
+              aria-label={inCompare ? 'Bỏ so sánh' : 'Thêm vào so sánh'}
+            >
+              <GitCompareArrows size={20} />
             </button>
           </div>
           {/* Các thẻ badges (Giảm giá & Mới) */}

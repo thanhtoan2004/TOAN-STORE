@@ -12,6 +12,7 @@ interface Product {
     sale_price?: number;
     image_url: string;
     slug: string;
+    is_new_arrival?: boolean | number;
 }
 
 interface ProductRecommendationsProps {
@@ -71,7 +72,7 @@ export default function ProductRecommendations({ currentProductId }: ProductReco
                         price={Number(product.price)}
                         sale_price={product.sale_price ? Number(product.sale_price) : undefined}
                         image_url={product.image_url}
-                        is_new_arrival={false} // API doesn't return this yet, optional
+                        is_new_arrival={Boolean(product.is_new_arrival)}
                     />
                 ))}
             </div>

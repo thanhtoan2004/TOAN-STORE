@@ -1,7 +1,9 @@
 import { RedisRateLimiter } from './redis/rateLimit';
 
 /**
- * Redis-backed rate limiter (Replaces MySQL implementation)
+ * Rate Limiter (Hệ thống chống DDoS/Spam API) được thiết kế chạy trên RAM của Redis.
+ * Cực kỳ quan trọng để bảo vệ các Endpoints nhạy cảm (Đăng nhập, Quên mật khẩu, Thanh toán)
+ * khỏi việc bị Bot tấn công dò Pass hoặc đẩy hàng ngàn Request làm sập Server.
  */
 export class RateLimiter {
     private static instances = new Map<string, RateLimiter>();
@@ -48,7 +50,11 @@ export class RateLimiter {
         } catch (error) {
             console.error('RateLimit Redis Error:', error);
 
-            // Enterprise Hardening: Fail-Closed for critical security paths
+            /**
+             * Enterprise Hardening: Cơ chế Fail-Closed cho các Module Tử Huyệt
+             * Bất cứ sự cố sập Redis nào cũng lập tức CHẶN CỨNG các hoạt động nhảy cảm (đăng nhập, thẻ).
+             * Thà sập app còn hơn bị Bot càn quét lấy sạch Data trong lúc Rate Limit ngừng hoạt động.
+             */
             const criticalTags = ['auth', 'admin', 'payment'];
             if (criticalTags.includes(this.tag)) {
                 return {
@@ -59,7 +65,11 @@ export class RateLimiter {
                 };
             }
 
-            // Fallback: Allow request if Redis fails for non-critical paths (Fail Open)
+            /**
+             * Fallback: Cơ chế Fail-Open cho tính năng Thường.
+             * Nếu Redis sập, cho phép thả trôi (không chặn) các API đọc báo, xem hàng...
+             * Để người thật vẫn mua sắm được bình thường thay vì lỗi trắng trang.
+             */
             return {
                 success: true,
                 limit,

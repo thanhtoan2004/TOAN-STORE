@@ -3,6 +3,13 @@ import bcrypt from 'bcrypt';
 import { executeQuery } from '@/lib/db/mysql';
 import { verifyAuth } from '@/lib/auth';
 
+/**
+ * API Đổi mật khẩu người dùng (Change Password).
+ * Quy trình:
+ * 1. Xác thực Session người dùng.
+ * 2. So sánh mật khẩu hiện tại (currentPassword) với bản hash trong DB.
+ * 3. Nếu khớp, thực hiện Hash mật khẩu mới và cập nhật vào Database.
+ */
 export async function POST(request: NextRequest) {
   try {
     const session = await verifyAuth();

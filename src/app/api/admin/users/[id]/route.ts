@@ -5,6 +5,10 @@ import { checkAdminAuth } from '@/lib/auth';
 import { encrypt, decrypt } from '@/lib/encryption';
 
 // PATCH /api/admin/users/[id] - Update user (admin role, status, etc.)
+/**
+ * API Cập nhật thông tin người dùng (Quyền admin, Trạng thái, Chặn người dùng).
+ * Tự động mã hóa số điện thoại nếu có thay đổi.
+ */
 export async function PATCH(
     request: NextRequest,
     { params }: { params: Promise<{ id: string }> }
@@ -96,6 +100,9 @@ export async function PATCH(
 }
 
 // DELETE /api/admin/users/[id] - Delete user (optional, for future use)
+/**
+ * API Xóa người dùng (Soft Delete).
+ */
 export async function DELETE(
     request: NextRequest,
     { params }: { params: Promise<{ id: string }> }

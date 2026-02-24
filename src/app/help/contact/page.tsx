@@ -77,8 +77,8 @@ export default function ContactPage() {
               <div className="space-y-3 text-gray-700">
                 <div>
                   <p className="font-medium">Email:</p>
-                  <a href="mailto:support@toan.com" className="text-black hover:underline">
-                    support@toan.com
+                  <a href="mailto:support@toanstore.com" className="text-black hover:underline">
+                    support@toanstore.com
                   </a>
                 </div>
                 <div>
@@ -97,7 +97,7 @@ export default function ContactPage() {
             <div className="bg-white rounded-lg p-6 shadow-sm">
               <h2 className="text-xl font-helvetica-medium mb-4">Tìm Cửa Hàng</h2>
               <p className="text-gray-700 mb-4">
-                Tìm cửa hàng TOAN gần nhất để trải nghiệm sản phẩm trực tiếp.
+                Tìm cửa hàng TOAN Store gần nhất để trải nghiệm sản phẩm trực tiếp.
               </p>
               <Link
                 href="/store"

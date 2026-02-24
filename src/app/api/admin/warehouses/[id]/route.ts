@@ -3,6 +3,10 @@ import { executeQuery } from '@/lib/db/mysql';
 import { checkAdminAuth } from '@/lib/auth';
 
 // PUT /api/admin/warehouses/[id] - Update warehouse
+/**
+ * API Cập nhật thông tin kho hàng.
+ * Hỗ trợ cập nhật Tên, Vị trí và Trạng thái hoạt động.
+ */
 export async function PUT(
     request: NextRequest,
     { params }: { params: { id: string } }
@@ -63,6 +67,10 @@ export async function PUT(
 // DELETE /api/admin/warehouses/[id] - Delete (or soft delete) warehouse
 // Note: We generally shouldn't delete warehouses if they have inventory/orders.
 // For now, we'll allow deletion but DB FK constraints might block it if used.
+/**
+ * API Xóa kho hàng.
+ * Chốt chặn bảo mật: Không cho phép xóa kho nếu vẫn còn hàng tồn để tránh mất mát dữ liệu sản phẩm.
+ */
 export async function DELETE(
     request: NextRequest,
     { params }: { params: { id: string } }

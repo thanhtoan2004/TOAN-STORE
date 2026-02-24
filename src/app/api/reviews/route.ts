@@ -3,6 +3,12 @@ import { executeQuery } from '@/lib/db/mysql';
 import { checkAdminAuth, verifyAuth } from '@/lib/auth';
 
 // GET - Lấy danh sách reviews của sản phẩm
+/**
+ * API Lấy danh sách đánh giá của sản phẩm.
+ * Hỗ trợ 2 chế độ:
+ * 1. Admin: Xem toàn bộ reviews (kể cả review đang chờ duyệt - Pending).
+ * 2. Khách: Chỉ xem review đã được Approve, kèm theo số liệu thống kê sao (Statistics) và Media (Ảnh/Video).
+ */
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
@@ -86,6 +92,7 @@ export async function GET(request: NextRequest) {
        FROM product_reviews r
        LEFT JOIN users u ON r.user_id = u.id
        WHERE r.product_id = ? AND r.status = 'approved'
+       ${searchParams.get('rating') ? `AND r.rating = ${parseInt(searchParams.get('rating')!)}` : ''}
        ORDER BY ${finalOrderBy}
        LIMIT ? OFFSET ?`,
       [productId, limit, offset]
@@ -161,6 +168,14 @@ export async function GET(request: NextRequest) {
 }
 
 // POST - Tạo review mới
+/**
+ * API Gửi đánh giá mới cho sản phẩm.
+ * Bảo mật & Logic:
+ * 1. Yêu cầu đăng nhập.
+ * 2. BẮT BUỘC người dùng phải mua sản phẩm này rồi (is_verified_purchase) mới được đánh giá.
+ * 3. Mỗi người dùng chỉ được đánh giá 1 lần cho 1 sản phẩm.
+ * 4. Hỗ trợ upload nhiều ảnh/video minh họa đi kèm.
+ */
 export async function POST(request: NextRequest) {
   try {
     const session = await verifyAuth();

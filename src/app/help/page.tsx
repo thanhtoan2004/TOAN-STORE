@@ -129,8 +129,8 @@ export default function HelpPage() {
                   <button
                     onClick={() => setSelectedCategory(null)}
                     className={`px-4 py-2 rounded-lg text-sm transition ${selectedCategory === null
-                        ? 'bg-black text-white'
-                        : 'bg-gray-100 hover:bg-gray-200'
+                      ? 'bg-black text-white'
+                      : 'bg-gray-100 hover:bg-gray-200'
                       }`}
                   >
                     Tất cả
@@ -140,8 +140,8 @@ export default function HelpPage() {
                       key={cat.id}
                       onClick={() => setSelectedCategory(cat.id)}
                       className={`px-4 py-2 rounded-lg text-sm transition ${selectedCategory === cat.id
-                          ? 'bg-black text-white'
-                          : 'bg-gray-100 hover:bg-gray-200'
+                        ? 'bg-black text-white'
+                        : 'bg-gray-100 hover:bg-gray-200'
                         }`}
                     >
                       {cat.name}
@@ -158,7 +158,7 @@ export default function HelpPage() {
                 {faqs.map((faq) => (
                   <div key={faq.id} className="border-b border-gray-200 pb-4 last:border-0">
                     <h3 className="font-helvetica-medium mb-2 text-lg">{faq.question}</h3>
-                    <p className="text-gray-600 mb-2" dangerouslySetInnerHTML={{ __html: faq.answer }} />
+                    <p className="text-gray-600 mb-2">{faq.answer.replace(/<[^>]*>/g, '')}</p>
                     <div className="flex items-center gap-4 text-sm text-gray-500">
                       <span className="px-3 py-1 bg-gray-100 rounded-full">{faq.category_name}</span>
                       {faq.helpful_count > 0 && (

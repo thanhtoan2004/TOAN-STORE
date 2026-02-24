@@ -70,7 +70,7 @@ export default function WishlistPage() {
             price={item.price}
             sale_price={item.sale_price}
             image_url={item.image_url}
-            is_new_arrival={item.is_new_arrival}
+            is_new_arrival={Boolean(item.is_new_arrival)}
           />
         ))}
       </div>

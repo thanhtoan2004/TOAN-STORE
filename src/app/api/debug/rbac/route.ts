@@ -3,8 +3,17 @@ import { checkAdminAuth } from '@/lib/auth';
 import { getAdminPermissions } from '@/lib/auth/rbac';
 import { ResponseWrapper } from '@/lib/api-response';
 
+/**
+ * API Debug: Kiểm tra phân quyền Admin (RBAC Diagnostic).
+ * Được sử dụng để kiểm kê danh sách quyền (permissions) thực tế của một Admin user.
+ * Chỉ hỗ trợ trong môi trường Development.
+ */
 export async function GET(request: NextRequest) {
     try {
+        if (process.env.NODE_ENV === 'production') {
+            return ResponseWrapper.notFound();
+        }
+
         const session = await checkAdminAuth();
 
         if (!session) {

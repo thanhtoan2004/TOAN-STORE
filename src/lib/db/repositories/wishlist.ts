@@ -1,6 +1,10 @@
 import { executeQuery } from '../connection';
 
-// Wishlist functions
+/**
+ * Thêm sản phẩm vào DB Wishlist.
+ * Tương tự Cart, hệ thống sẽ tạo một "Default Wishlist" nấp bóng ẩn danh dưới ID của user nếu chưa từng có.
+ * Dùng lệnh `INSERT IGNORE` của MySQL để chặn lỗi trùng lặp nếu User bấm tim 2 lần.
+ */
 export async function addToWishlist(userId: number, productId: number) {
     // Tìm hoặc tạo wishlist cho user
     const wishlists = await executeQuery<any[]>(
@@ -26,6 +30,11 @@ export async function addToWishlist(userId: number, productId: number) {
     );
 }
 
+/**
+ * Trích xuất toàn bộ sản phẩm yêu thích của 1 User.
+ * Lưu ý: Logic lấy mác "Hàng Mới" ở đây đang được fix cứng theo hàm DATE_SUB(NOW(), 30 DAY).
+ * Tức là cứ giày nào mới publish trong 30 ngày gần nhất thì tự động có mác "Hàng Mới".
+ */
 export async function getWishlist(userId: number) {
     const query = `
     SELECT 

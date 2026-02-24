@@ -2,6 +2,9 @@
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { useAuth } from './AuthContext';
 
+/**
+ * WishlistItem: Đại diện cho 1 sản phẩm mà người dùng đã bấm thả tim (Yêu thích).
+ */
 export interface WishlistItem {
   id: string | number;
   name: string;
@@ -12,14 +15,18 @@ export interface WishlistItem {
   is_new_arrival?: boolean;
 }
 
+/**
+ * WishlistContextType: Các hàm và state được bộc lộ ra cho các Component con sử dụng.
+ */
 interface WishlistContextType {
-  wishlist: WishlistItem[];
-  loading: boolean;
-  addToWishlist: (item: WishlistItem) => Promise<void>;
-  removeFromWishlist: (id: string | number) => Promise<void>;
-  isInWishlist: (id: string | number) => boolean;
+  wishlist: WishlistItem[];                                     // Danh sách sản phẩm thả tim
+  loading: boolean;                                             // Trạng thái đang tải từ API
+  addToWishlist: (item: WishlistItem) => Promise<void>;         // Hàm thêm mới (gửi API POST)
+  removeFromWishlist: (id: string | number) => Promise<void>;   // Hàm xóa bỏ (gửi API DELETE)
+  isInWishlist: (id: string | number) => boolean;               // Kiểm tra sản phẩm đã nằm trong Wishlist chưa (đổi màu trái tim)
 }
 
+// Khởi tạo Context
 const WishlistContext = createContext<WishlistContextType | undefined>(undefined);
 
 export const useWishlist = () => {

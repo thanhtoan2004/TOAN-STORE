@@ -1,4 +1,4 @@
-# Cấu trúc thư mục chi tiết dự án TOAN (Nike Clone)
+# Cấu trúc thư mục chi tiết dự án TOAN Store (Nike Clone)
 
 Dưới đây là sơ đồ chi tiết từng file và thư mục trong dự án, kèm theo chức năng cụ thể của chúng.
 

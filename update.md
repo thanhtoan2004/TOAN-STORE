@@ -1,4 +1,4 @@
-# TOAN E-commerce Project Status Report
+# TOAN Store E-commerce Project Status Report
 
 ## 🎯 TỔNG QUAN
 Hệ thống đã đạt trình độ **Enterprise Grade** sau khi hoàn thành Phase 39. Toàn bộ các vấn đề nghiêm trọng về quản lý kho, bảo mật và đối soát dữ liệu đã được giải quyết triệt để.

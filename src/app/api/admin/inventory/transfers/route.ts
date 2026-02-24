@@ -3,6 +3,9 @@ import { checkAdminAuth } from '@/lib/auth';
 import { ResponseWrapper } from '@/lib/api-response';
 import { InventoryRepository } from '@/lib/db/repositories/inventory';
 
+/**
+ * API Lấy danh sách các lệnh điều chuyển hàng hóa giữa các kho.
+ */
 export async function GET(req: NextRequest) {
     try {
         const auth = await checkAdminAuth();
@@ -15,6 +18,10 @@ export async function GET(req: NextRequest) {
     }
 }
 
+/**
+ * API Khởi tạo lệnh điều chuyển hàng hóa.
+ * Ràng buộc: Kho nguồn và kho đích phải khác nhau.
+ */
 export async function POST(req: NextRequest) {
     try {
         const auth = await checkAdminAuth();

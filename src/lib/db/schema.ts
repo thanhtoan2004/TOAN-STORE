@@ -35,6 +35,7 @@ export const users = mysqlTable('users', {
     googleId: varchar('google_id', { length: 255 }).unique(),
     facebookId: varchar('facebook_id', { length: 255 }).unique(),
     avatarUrl: varchar('avatar_url', { length: 1000 }),
+    notificationPreferences: json('notification_preferences'),
     createdAt: timestamp('created_at').defaultNow(),
     updatedAt: timestamp('updated_at').defaultNow().onUpdateNow(),
     deletedAt: timestamp('deleted_at'),
@@ -485,3 +486,18 @@ export const dailyMetrics = mysqlTable('daily_metrics', {
     netProfit: decimal('net_profit', { precision: 15, scale: 2 }).default('0.00'),
     updatedAt: timestamp('updated_at').defaultNow().onUpdateNow(),
 });
+
+export const searchAnalytics = mysqlTable('search_analytics', {
+    id: serial('id').primaryKey(),
+    query: varchar('query', { length: 255 }).notNull(),
+    categoryFilter: varchar('category_filter', { length: 100 }),
+    resultsCount: int('results_count').default(0),
+    processingTimeMs: int('processing_time_ms').default(0),
+    userId: bigint('user_id', { mode: 'number', unsigned: true }),
+    ipAddress: varchar('ip_address', { length: 45 }),
+    createdAt: timestamp('created_at').defaultNow(),
+}, (table) => ({
+    queryIdx: index('idx_query').on(table.query),
+    createdAtIdx: index('idx_created_at').on(table.createdAt),
+}));
+

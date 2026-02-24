@@ -1,15 +1,34 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createErrorResponse, createSuccessResponse, withErrorHandling } from '@/lib/api-utils';
 import { executeQuery } from '@/lib/db/mysql';
+import { verifyAuth, checkAdminAuth } from '@/lib/auth';
 
 // GET - Lấy lịch sử sử dụng voucher (theo user hoặc theo voucher code)
+/**
+ * API Lấy lịch sử sử dụng mã giảm giá.
+ * - Khách hàng: Chỉ xem được lịch sử của chính mình.
+ * - Admin: Có thể xem lịch sử của mọi User hoặc tra cứu theo từng mã Voucher cụ thể để thống kê hiệu quả.
+ */
 async function voucherHistoryHandler(req: NextRequest): Promise<NextResponse> {
+  const session = await verifyAuth();
+  if (!session) {
+    return createErrorResponse('Unauthorized', 401);
+  }
+
+  const admin = await checkAdminAuth();
   const { searchParams } = new URL(req.url);
-  const userId = searchParams.get('userId');
+
+  // If not admin, always use session userId and ignore query params
+  const userId = admin ? (searchParams.get('userId') || session.userId) : session.userId;
   const voucherCode = searchParams.get('code');
 
   if (!userId && !voucherCode) {
     return createErrorResponse('Cần userId hoặc voucher code', 400);
+  }
+
+  // If search by code and NOT admin, forbidden
+  if (voucherCode && !admin) {
+    return createErrorResponse('Forbidden', 403);
   }
 
   let query = '';

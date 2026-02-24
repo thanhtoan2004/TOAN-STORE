@@ -15,7 +15,7 @@ export default function PurposePage() {
                 Sứ Mệnh Của Chúng Tôi
               </h2>
               <p className="text-gray-700 leading-relaxed">
-                TOAN tin rằng thể thao có sức mạnh thay đổi thế giới. Sứ mệnh của chúng tôi là
+                TOAN Store tin rằng thể thao có sức mạnh thay đổi thế giới. Sứ mệnh của chúng tôi là
                 mang đến những sản phẩm và trải nghiệm giúp mọi người khám phá tiềm năng của mình,
                 bất kể họ là ai hay họ đến từ đâu.
               </p>

@@ -3,8 +3,11 @@ import { query } from '@/lib/db/mysql';
 import { getCache, setCache } from '@/lib/cache';
 
 /**
- * Get active flash sale
- * GET /api/flash-sales/active
+ * API Lấy chương trình Flash Sale đang diễn ra (Active).
+ * Đặc điểm kỹ thuật:
+ * 1. Filtering: Tự động so sánh thời gian hệ thống với `start_time` và `end_time` trong Database.
+ * 2. Caching: Dùng Redis Cache 5 phút. Trong sự kiện Flash Sale, hàng ngàn người sẽ F5 trang chủ cùng lúc, việc Cache giúp Server không bị "die" vì query SQL quá nhiều.
+ * 3. Data Mapping: Trả về danh sách sản phẩm kèm theo % giảm giá và tiến độ đã bán (quantity_sold).
  */
 export async function GET() {
     try {

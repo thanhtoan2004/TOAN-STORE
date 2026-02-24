@@ -4,7 +4,15 @@ import { randomUUID } from 'crypto';
 // ==================== SUPPORT CHAT FUNCTIONS ====================
 
 /**
- * Create a new support chat session
+ * Module cấu hình Hệ thống Live Chat CSKH.
+ * Ghi chú Kiến trúc: Dự án hiện đang dùng Database-Polling (gọi API liên tục mỗi 3s để tải tin nhắn mới)
+ * thay vì WebSockets (Socket.io) để tiết kiệm chi phí duy trì Server Node.js chìm.
+ */
+
+/**
+ * Tạo một phiên Chat mới (Session).
+ * Có hỗ trợ cho cả Guest (vãng lai không đăng nhập) lẫn User có ID.
+ * @returns Object chứa `chatId` và `accessToken` (dùng để xác thực Session ở Client).
  */
 export async function createSupportChat(data: {
     userId?: number;

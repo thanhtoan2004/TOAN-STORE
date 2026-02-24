@@ -6,6 +6,13 @@ import { checkAdminAuth } from '@/lib/auth';
  * API endpoint to send order confirmation email
  * Called after successful order placement (Admin/System only)
  */
+/**
+ * API Gửi lại Email xác nhận đơn hàng (Manual Trigger).
+ * Sử dụng khi:
+ * 1. Khách hàng báo không nhận được email tự động.
+ * 2. Admin muốn kiểm tra lại nội dung hiển thị của email đơn hàng.
+ * Bảo mật: Yêu cầu quyền Admin để ngăn chặn việc spam email hàng loạt.
+ */
 export async function POST(request: NextRequest) {
     try {
         const admin = await checkAdminAuth();

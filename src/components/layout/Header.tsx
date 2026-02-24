@@ -19,16 +19,25 @@ import {
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useAuth } from "@/contexts/AuthContext";
 
+/**
+ * Header Component
+ * Đóng vai trò là thanh điều hướng chính (Navbar) của toàn bộ ứng dụng.
+ * Chứa các menu, thanh tìm kiếm, giỏ hàng, danh sách yêu thích và menu người dùng.
+ */
 const Header = () => {
-  // useEffect(() => {
-
-  // }, []);
-
+  // Lấy hàm t (translate) từ LanguageContext để hỗ trợ đa ngôn ngữ (i18n)
   const { t } = useLanguage();
+
+  // Lấy thông tin xác thực của người dùng (user profile, trạng thái login) từ AuthContext
   const { user, isAuthenticated, logout } = useAuth();
+
+  // Lấy danh sách sản phẩm yêu thích (wishlist) để hiển thị số lượng badge trên icon Heart
   const { wishlist } = useWishlist();
+
+  // Quản lý trạng thái đóng/mở của màn hình tìm kiếm nổi (Search Overlay)
   const [isSearchOpen, setIsSearchOpen] = useState(false);
 
+  // Mảng chứa các đường link điều hướng chính trên thanh Menu
   const mainNavigationLinks = [
     { name: t.nav.new, href: '/categories?sort=newest' },
     { name: t.nav.men, href: '/men' },
@@ -36,13 +45,16 @@ const Header = () => {
     { name: t.nav.kids, href: '/kids' },
     { name: t.nav.jordan, href: '/categories?sport=basketball' },
     { name: t.nav.sports, href: '/categories?sport=running' },
+    { name: t.nav.blog, href: '/news' },
   ];
 
   return (
     <header className="w-full bg-white">
-      {/* Top mini-nav */}
+      {/* Top mini-nav: Thanh điều hướng phụ phía trên cùng (Màu xám nhạt) */}
       <div className="bg-[#f5f5f5] py-2">
         <div className="nike-container flex justify-between items-center text-xs">
+
+          {/* Logo các thương hiệu con (Jordan, Converse) */}
           <div className="flex space-x-1.5">
             <Link href="/categories?sport=basketball" className="flex items-center hover:opacity-70 transition-opacity">
               <svg className="w-6 h-6" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
@@ -55,16 +67,20 @@ const Header = () => {
               </svg>
             </Link>
           </div>
+
+          {/* Menu công cụ bổ sung (Tìm cửa hàng, Trợ giúp, Tài khoản) */}
           <div className="flex space-x-4 font-helvetica text-[11px]">
             <Link href="/store" className="hover:text-black text-[#757575]">{t.common.find_store}</Link>
             <span className="text-[#757575]">|</span>
             <Link href="/help" className="hover:text-black text-[#757575]">{t.common.help}</Link>
             <span className="text-[#757575]">|</span>
 
+            {/* Hiển thị Menu thả xuống (Dropdown) nếu người dùng ĐÃ đăng nhập */}
             {isAuthenticated ? (
               <>
                 <DropdownMenu>
                   <DropdownMenuTrigger className="hover:text-black text-[#757575] flex items-center gap-1">
+                    {/* Ưu tiên hiển thị Tên + Họ, nếu không có thì hiển thị email */}
                     {t.common.hello}, {(user as any)?.firstName && (user as any)?.lastName ? `${(user as any).firstName} ${(user as any).lastName}` : user?.email}
                     <ChevronDown className="w-3 h-3" />
                   </DropdownMenuTrigger>
@@ -85,6 +101,7 @@ const Header = () => {
                 </DropdownMenu>
               </>
             ) : (
+              // Hiển thị link Đăng ký / Đăng nhập nếu CHƯA đăng nhập
               <>
                 <Link href="/sign-up" className="hover:text-black text-[#757575]">{t.common.register}</Link>
                 <span className="text-[#757575]">|</span>
@@ -95,10 +112,11 @@ const Header = () => {
         </div>
       </div>
 
-      {/* Main navigation */}
+      {/* Main navigation: Khu vực menu chính (Logo, Links, Icons) */}
       <div className="nike-container py-4">
         <div className="flex items-center justify-between">
-          {/* Logo */}
+
+          {/* Logo chính của ứng dụng */}
           <div>
             <Link href="/">
               <svg className="h-16 w-32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -107,7 +125,7 @@ const Header = () => {
             </Link>
           </div>
 
-          {/* Nav Links */}
+          {/* Nav Links: Danh sách các trang chính (Ẩn trên màn hình nhỏ) */}
           <nav className="hidden md:flex space-x-4 font-helvetica-medium">
             {mainNavigationLinks.map((link) => (
               <Link
@@ -120,14 +138,18 @@ const Header = () => {
             ))}
           </nav>
 
-          {/* Search & Icons */}
+          {/* Khu vực Tìm kiếm & Các Icon (Yêu thích, Giỏ hàng) */}
           <div className="flex items-center space-x-4">
+
+            {/* Thanh tìm kiếm (Mở SearchOverlay khi click) */}
             <div className="hidden md:block w-64" onClick={() => setIsSearchOpen(true)}>
               <div className="pointer-events-none">
                 <SearchBar />
               </div>
             </div>
             <SearchOverlay isOpen={isSearchOpen} onClose={() => setIsSearchOpen(false)} />
+
+            {/* Nút Yêu thích (Wishlist) kèm số lượng (Badge) */}
             <Link
               href="/wishlist"
               className="relative p-2 hover:bg-gray-100 rounded-lg transition-colors group text-black"
@@ -140,12 +162,14 @@ const Header = () => {
                 </span>
               )}
             </Link>
+
+            {/* Nút Giỏ hàng (Tách thành Component riêng để quản lý state) */}
             <CartIcon />
           </div>
         </div>
       </div>
 
-      {/* Mobile menu button - only shows on small screens */}
+      {/* Nút mở Menu trên nền tảng Mobile (Chỉ hiện trên màn hình nhỏ) */}
       <div className="md:hidden nike-container pb-2 text-black">
         <button className="flex items-center space-x-1 text-sm">
           <span>{t.common.menu}</span>
@@ -157,3 +181,4 @@ const Header = () => {
 }
 
 export default Header
+

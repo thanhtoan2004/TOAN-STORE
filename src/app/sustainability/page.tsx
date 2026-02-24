@@ -15,7 +15,7 @@ export default function SustainabilityPage() {
                 Cam Kết Của Chúng Tôi
               </h2>
               <p className="text-gray-700 leading-relaxed">
-                TOAN cam kết giảm thiểu tác động đến môi trường và tạo ra một tương lai bền vững hơn
+                TOAN Store cam kết giảm thiểu tác động đến môi trường và tạo ra một tương lai bền vững hơn
                 cho thế hệ mai sau. Chúng tôi đang nỗ lực để đạt được mục tiêu không phát thải carbon
                 vào năm 2030.
               </p>

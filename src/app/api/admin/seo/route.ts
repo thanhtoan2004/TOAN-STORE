@@ -2,6 +2,9 @@ import { NextResponse } from 'next/server';
 import { checkAdminAuth } from '@/lib/auth';
 import { getSeoMetadata, upsertSeoMetadata, deleteSeoMetadata } from '@/lib/db/repositories/seo';
 
+/**
+ * API Truy xuất cấu hình SEO (Meta data) cho một thực thể cụ thể.
+ */
 export async function GET(request: Request) {
     const admin = await checkAdminAuth();
     if (!admin) {
@@ -25,6 +28,9 @@ export async function GET(request: Request) {
     }
 }
 
+/**
+ * API Cập nhật hoặc chèn mới (Upsert) cấu hình SEO.
+ */
 export async function POST(request: Request) {
     const admin = await checkAdminAuth();
     if (!admin) {
@@ -41,6 +47,9 @@ export async function POST(request: Request) {
     }
 }
 
+/**
+ * API Gỡ bỏ cấu hình SEO của một thực thể.
+ */
 export async function DELETE(request: Request) {
     const admin = await checkAdminAuth();
     if (!admin) {

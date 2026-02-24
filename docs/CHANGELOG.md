@@ -4,6 +4,54 @@ Tất cả thay đổi quan trọng được ghi nhận tại đây theo format 
 
 ---
 
+## [2.7.0] - 2026-02-24
+
+### ✨ Documentation & Developer Experience
+- **100% API JSDoc Coverage** — Hoàn tất việc tài liệu hóa toàn bộ 133+ API endpoints bằng tiếng Việt trực tiếp trong mã nguồn. Bao gồm mô tả logic nghiệp vụ, cơ chế bảo mật (PII encryption) và các bước xử lý dữ liệu.
+- **Enhanced API-DOCS** — Đồng bộ hóa `docs/API-DOCS.md` với các route mới: Logout All, Maintenance Check, Health Check và hệ thống Cron Jobs.
+- **Enterprise Diagnostics** — Tài liệu hóa các công cụ chẩn đoán vận hành (Sentry, RBAC diagnostics, Database Init).
+
+### 🔐 Security & Features
+- **Two-Factor Authentication (2FA)** — Triển khai hệ thống xác thực 2 lớp qua Email OTP. Bao gồm API gửi mã, xác thực và toggle trạng thái (Auto-migration cho người dùng cũ).
+- **Global Logout** — Tính năng "Đăng xuất khỏi tất cả thiết bị" thông qua cơ chế `token_version` invalidation, đảm bảo an toàn tuyệt đối khi tài khoản bị nghi ngờ xâm nhập.
+- **Maintenance Mode** — Hệ thống kiểm tra trạng thái bảo trì tập trung, cho phép Admin tạm dừng hoạt động website để nâng cấp.
+
+---
+
+## [2.6.0] - 2026-02-24
+
+### ✨ Rebranding & UI Polish
+- **TOAN Store Rebranding** — Hoàn tất việc chuyển đổi nhận diện thương hiệu từ "Nike Clone" / "TOAN" sang "TOAN Store" trên toàn bộ giao diện, chính sách, trang giới thiệu và các tài liệu tĩnh.
+- **Button Uniformity** — Đồng bộ hoá thiết kế các nhóm nút bấm (Actions) trong trang Chi tiết đơn hàng: Đảm bảo khoảng cách, căn giữa text và bổ sung các icon (Package, Headphones) tương ứng.
+- **Cookie Consent Banner** — Bổ sung thanh thông báo Cookie Consent tuân thủ chuẩn Privacy Compliance, trạng thái hiển thị được lưu trực tiếp vào `localStorage`.
+- **Infinite Scroll Default** — Kích hoạt mặc định tính năng cuộn vô hạn (Infinite Scroll) thay vì phân trang cho danh sách Sản phẩm (`ProductsGrid`), giúp tăng trải nghiệm lướt mượt mà.
+
+### 🤖 Gemini AI Enhancements
+- **LLM Fallback Mechanism** — Mở rộng chuỗi dự phòng cho Chatbot (`gemini-2.5-flash` -> `gemini-2.0-flash` -> `gemini-1.5-pro` -> `gemini-1.5-flash`). Khắc phục hiện tượng sập app (Internal Server Error 500) do Google API bị nghẽn mạng.
+- **Order Status Fast-Path** — Cấu trúc lại luồng tra cứu (Fast-Path) trực tiếp trong chat: Bot có thể đọc lịch sử để trích xuất `orderId` và `phone` bị thiếu, đồng thời chủ động hỏi người dùng thay vì gọi model AI để phân tích, giảm tải hoàn toàn sự phụ thuộc ngoại vi.
+- **Aggressive Caching Removal** — Gỡ bỏ bộ nhớ đệm AI (caching responses) bị lỗi khiến AI bị "mất trí nhớ" chuỗi logic tư duy, thay vào đó chỉ cache các câu lệnh Fast-path chuẩn (Tìm hàng, Tra vận đơn).
+
+---
+
+## [2.5.0] - 2026-02-23
+
+### 🔒 Comprehensive Security Hardening (Phase 63.2 & 63.3)
+
+#### IDOR & Information Disclosure (Phase 63.2)
+- **Review Purchase Check** — Chuyển từ `userId` query param sang session-based auth, ngăn chặn IDOR.
+- **Promo Code History** — Thêm RBAC: non-admin chỉ xem lịch sử mình, admin full access.
+- **Cart Item Operations** — `removeFromCart` và `updateCartItemQuantity` giờ kiểm tra `user_id` ownership tại database level.
+
+#### Full Security Audit (Phase 63.3) — 126 API Routes Reviewed
+- **Debug Sentry** — Thêm `checkAdminAuth` cho `/api/debug/sentry`, ngăn spam Sentry diagnostics.
+- **Cron Jobs Fail-Secure** — Đổi logic: reject request nếu `CRON_SECRET` chưa cấu hình (trước đây bypass).
+- **Newsletter Rate Limit** — Thêm rate limiting 5 req/60s cho `/api/newsletter`.
+- **Gift Card Check Balance Rate Limit** — Thêm rate limiting 10 req/60s cho `/api/cart/check-balance`.
+- **Promo Codes Data Restriction** — `/api/promo-codes/available` giờ chỉ trả về `code`, `description`, `discount_type`, `starts_at`, `ends_at` (ẩn `discount_value`, `usage_limit`, `times_used`).
+
+### ✅ Automated Security Tests
+- Playwright test suite `security-v2.spec.ts` — **10/10 passed** kiểm tra auth enforcement toàn bộ API routes.
+
 ## [2.4.0] - 2026-02-16
 
 ### ✨ Professional Printing & Financial Transparency (Phase 58)

@@ -3,6 +3,13 @@ import { verifyAuth } from '@/lib/auth';
 import { executeQuery } from '@/lib/db/mysql';
 import { decrypt } from '@/lib/encryption';
 
+/**
+ * API Xuất dữ liệu cá nhân (Personal Data Export - GDPR Compliance).
+ * Nhiệm vụ:
+ * 1. Thu thập toàn bộ dữ liệu liên quan đến User từ 5-6 bảng khác nhau.
+ * 2. Giải mã (Decrypt) các thông tin nhạy cảm đã mã hóa trong DB (Phone, Address).
+ * 3. Đóng gói thành file JSON và gửi về trình duyệt với header `attachment` để tự động tải về.
+ */
 export async function GET() {
     try {
         const session = await verifyAuth();

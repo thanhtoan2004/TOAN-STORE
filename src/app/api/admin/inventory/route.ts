@@ -6,6 +6,9 @@ import { ResponseWrapper } from '@/lib/api-response';
 import { logger } from '@/lib/logger';
 import { withPermission } from '@/lib/auth/rbac-api';
 
+/**
+ * API Lấy danh sách tồn kho tại các chi nhánh/kho hàng.
+ */
 export const GET = withPermission('manage:inventory', async (request: NextRequest) => {
   try {
     const searchParams = request.nextUrl.searchParams;
@@ -66,6 +69,11 @@ export const GET = withPermission('manage:inventory', async (request: NextReques
   }
 });
 
+/**
+ * API Nhập hàng vào kho (Restock / Initialize).
+ * Logic đặc biệt: Khi số lượng tồn kho chuyển từ 0 lên > 0, hệ thống sẽ tự động quét
+ * danh sách Wishlist và gửi Email thông báo "Hàng đã về" cho khách hàng đang chờ.
+ */
 export const POST = withPermission('manage:inventory', async (request: Request) => {
   try {
     const { product_id, size, color, quantity, warehouse_id } = await request.json();

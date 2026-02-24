@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getProductVariants } from '@/lib/db/variants';
 
 // GET /api/products/[id]/variants - Get all variants for a product
+/**
+ * API Lấy danh sách các biến thể (SKU) của một sản phẩm.
+ * Dữ liệu bao gồm: Size, Màu sắc, Giá và trạng thái tồn kho chi tiết (Số lượng thực, Đã giữ chỗ, Khả dụng).
+ */
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }

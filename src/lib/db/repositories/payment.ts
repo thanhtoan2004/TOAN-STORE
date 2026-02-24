@@ -1,6 +1,14 @@
 import { executeQuery } from '../connection';
 
-// Gift card functions
+/**
+ * Hàm kiểm tra mã số thẻ quà tặng (Gift Card) và mật khẩu (PIN).
+ * Dùng khi khách hàng nhập thẻ ở bước Thanh Toán (Checkout) để trừ tiền hóa đơn.
+ * Hỗ trợ đồng thời 2 chuẩn mã hóa PIN: Hash (Bcrypt) cũ và Mã hóa 2 chiều (AES-256) mới.
+ * 
+ * @param cardNumber Dãy số seri in trên thẻ quà tặng
+ * @param pin Mã bí mật người dùng nhập
+ * @returns Object chứa thông tin thẻ nếu hợp lệ, ngược lại trả về `null`
+ */
 export async function checkGiftCardBalance(cardNumber: string, pin: string) {
     const { decrypt } = await import('@/lib/encryption');
     const bcrypt = await import('bcrypt');

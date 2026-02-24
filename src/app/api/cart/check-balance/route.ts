@@ -1,8 +1,9 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { createErrorResponse, createSuccessResponse, validateRequiredFields, withErrorHandling } from '@/lib/api-utils';
 import { checkGiftCardBalance } from '@/lib/db/mysql';
+import { withRateLimit } from '@/lib/with-rate-limit';
 
-async function balanceHandler(req: Request): Promise<NextResponse> {
+async function balanceHandler(req: NextRequest): Promise<NextResponse> {
   const body = await req.json();
   const { cardNumber, pin } = body;
 
@@ -20,7 +21,7 @@ async function balanceHandler(req: Request): Promise<NextResponse> {
   }
 
   const card = await checkGiftCardBalance(cardNumber, pin);
-  
+
   if (!card) {
     return createErrorResponse('Thẻ quà tặng không tồn tại hoặc đã hết hạn', 404);
   }
@@ -30,7 +31,7 @@ async function balanceHandler(req: Request): Promise<NextResponse> {
   }
 
   return createSuccessResponse(
-    { 
+    {
       balance: card.current_balance,
       expiresAt: card.expires_at,
       status: card.status
@@ -39,4 +40,9 @@ async function balanceHandler(req: Request): Promise<NextResponse> {
   );
 }
 
-export const POST = withErrorHandling(balanceHandler);
+// Rate limit: 10 requests per 60 seconds per IP to prevent brute-force card enumeration
+export const POST = withRateLimit(withErrorHandling(balanceHandler), {
+  tag: 'gift-card-balance',
+  limit: 10,
+  windowMs: 60_000
+});

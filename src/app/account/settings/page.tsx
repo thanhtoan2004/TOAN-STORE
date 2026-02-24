@@ -674,6 +674,48 @@ export default function AccountSettings() {
                   <h2 className="text-2xl font-semibold mb-6">Bảo mật</h2>
                   <div className="space-y-6">
                     <div className="p-4 border rounded-lg">
+                      <h3 className="font-medium mb-2">Xác thực 2 bước (2FA)</h3>
+                      <p className="text-sm text-gray-600 mb-4">
+                        Bảo vệ tài khoản của bạn bằng cách yêu cầu mã xác thực gửi qua email mỗi khi đăng nhập.
+                      </p>
+                      <button
+                        onClick={async () => {
+                          try {
+                            setLoading(true);
+                            const res = await fetch('/api/auth/2fa/toggle', {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({ enabled: !(user as any)?.two_factor_enabled })
+                            });
+                            const data = await res.json();
+                            if (data.success) {
+                              setMessage(data.message);
+                              // Force reload to update user context
+                              window.location.reload();
+                            } else {
+                              setMessage(data.message || 'Lỗi khi cập nhật 2FA');
+                            }
+                          } catch (e) {
+                            setMessage('Lỗi kết nối server');
+                          } finally {
+                            setLoading(false);
+                          }
+                        }}
+                        disabled={loading}
+                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${(user as any)?.two_factor_enabled ? 'bg-black' : 'bg-gray-200'
+                          }`}
+                      >
+                        <span
+                          className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${(user as any)?.two_factor_enabled ? 'translate-x-6' : 'translate-x-1'
+                            }`}
+                        />
+                      </button>
+                      <span className="ml-3 text-sm font-medium">
+                        {(user as any)?.two_factor_enabled ? 'Đang bật' : 'Đang tắt'}
+                      </span>
+                    </div>
+
+                    <div className="p-4 border rounded-lg">
                       <h3 className="font-medium mb-2">Đổi mật khẩu</h3>
                       <p className="text-sm text-gray-600 mb-4">Cập nhật mật khẩu của bạn</p>
                       <Link href="/account/change-password"><button className="px-6 py-2 border-2 border-black rounded-full font-medium hover:bg-black hover:text-white transition-colors">Đổi mật khẩu</button></Link>

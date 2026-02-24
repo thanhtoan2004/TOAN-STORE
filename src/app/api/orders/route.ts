@@ -5,6 +5,14 @@ import { formatCurrency } from '@/lib/date-utils';
 import { withRateLimit } from '@/lib/with-rate-limit';
 
 // GET - Lấy danh sách đơn hàng
+/**
+ * API Lấy lịch sử đơn hàng của người dùng.
+ * Yêu cầu: Xác thực tài khoản (verifyAuth).
+ * Tính năng:
+ * 1. Filtering: Lọc theo trạng thái đơn (Chờ duyệt, Đang giao, Đã hủy, v.v.).
+ * 2. Pagination: Phân trang để tối ưu tốc độ load.
+ * 3. Enrichment: Tự động query thêm ảnh đại diện của sản phẩm đầu tiên để hiển thị ở List View.
+ */
 export async function GET(request: NextRequest) {
   try {
     const session = await verifyAuth();
@@ -76,6 +84,14 @@ export async function GET(request: NextRequest) {
 }
 
 // POST Handler logic
+/**
+ * API Khởi tạo đơn hàng (Checkout Flow).
+ * Quy trình xử lý bảo mật & nghiệp vụ cực kỳ chặt chẽ:
+ * 1. Kiểm tra tồn kho (Inventory) theo từng Size.
+ * 2. Phân loại giá: Kiểm tra xem sản phẩm có đang trong Flash Sale không để áp giá khuyến mãi.
+ * 3. Voucher & Giftcard: Khấu trừ số dư và kiểm tra tính hợp lệ của mã giảm giá.
+ * 4. Transaction: Đảm bảo nếu lưu đơn lỗi thì hoàn trả (Rollback) lại số lượng kho đã trừ.
+ */
 async function createOrderHandler(request: NextRequest) {
   try {
     const session = await verifyAuth();
@@ -173,10 +189,16 @@ async function createOrderHandler(request: NextRequest) {
       return sum + (item.price * item.quantity);
     }, 0);
 
-    let finalShippingFee = shippingFee || (subtotal >= 500000 ? 0 : 30000);
-    let finalDiscount = discount || 0;
+    // SECURITY FIX: Server-side Shipping Fee Calculation
+    // Free shipping for orders >= 500,000 VND, otherwise 30,000 VND
+    let finalShippingFee = subtotal >= 500000 ? 0 : 30000;
 
-    // Membership logic
+    // SECURITY FIX: Server-side Discount Calculation
+    let finalDiscount = 0;
+    let appliedVoucherCode = null;
+    let appliedVoucherDiscount = 0;
+
+    // 1. Membership Discount
     let membershipDiscount = 0;
     if (userId) {
       const users = await executeQuery(
@@ -186,15 +208,10 @@ async function createOrderHandler(request: NextRequest) {
 
       if (users.length > 0) {
         const tier = users[0].membership_tier;
-
         // Tier Discount
-        if (tier === 'platinum') {
-          membershipDiscount = Math.round(subtotal * 0.15); // 15%
-        } else if (tier === 'gold') {
-          membershipDiscount = Math.round(subtotal * 0.10); // 10%
-        } else if (tier === 'silver') {
-          membershipDiscount = Math.round(subtotal * 0.05); // 5%
-        }
+        if (tier === 'platinum') membershipDiscount = Math.round(subtotal * 0.15); // 15%
+        else if (tier === 'gold') membershipDiscount = Math.round(subtotal * 0.10); // 10%
+        else if (tier === 'silver') membershipDiscount = Math.round(subtotal * 0.05); // 5%
 
         // Tier Free Shipping (Silver and above)
         if (tier === 'platinum' || tier === 'gold' || tier === 'silver') {
@@ -202,10 +219,91 @@ async function createOrderHandler(request: NextRequest) {
         }
       }
     }
-
-    // Recalculate Total (Ignoring body total)
     finalDiscount += membershipDiscount;
-    const totalAmount = subtotal + finalShippingFee - finalDiscount;
+
+    // 2. Voucher Validation (Restore functionality safely)
+    if (voucherCode) {
+      // Check Coupons Table
+      let coupon: any = null;
+      const couponsArr = await executeQuery<any[]>(
+        `SELECT * FROM coupons WHERE code = ? AND (ends_at IS NULL OR ends_at > NOW()) AND (starts_at IS NULL OR starts_at <= NOW())`,
+        [voucherCode]
+      );
+
+      if (couponsArr && couponsArr.length > 0) {
+        coupon = couponsArr[0];
+        // Check Usage Limit
+        if (coupon.usage_limit !== null) {
+          const usageCount = await executeQuery<any[]>(`SELECT COUNT(*) as count FROM coupon_usage WHERE coupon_id = ?`, [coupon.id]);
+          if (usageCount[0].count >= coupon.usage_limit) coupon = null; // Exceeded
+        }
+      } else {
+        // Check Personal Vouchers
+        const vouchersArr = await executeQuery<any[]>(
+          `SELECT * FROM vouchers WHERE code = ? AND status = 'active' AND (valid_until IS NULL OR valid_until > NOW())`,
+          [voucherCode]
+        );
+        if (vouchersArr && vouchersArr.length > 0) {
+          coupon = vouchersArr[0];
+          if (coupon.recipient_user_id && (!userId || Number(userId) !== Number(coupon.recipient_user_id))) {
+            coupon = null; // Not owner
+          }
+        }
+      }
+
+      if (coupon) {
+        // Check Min Order
+        const minOrder = coupon.min_order_amount || coupon.min_order_value || 0;
+        if (subtotal >= minOrder) {
+          // Calculate Discount
+          const val = coupon.discount_value || coupon.value;
+          const type = coupon.discount_type; // 'percent' or 'fixed'
+
+          let vDiscount = 0;
+          if (type === 'percent') {
+            vDiscount = Math.round((subtotal * val) / 100);
+          } else {
+            vDiscount = val;
+          }
+          // Cap at subtotal
+          vDiscount = Math.min(vDiscount, subtotal);
+
+          appliedVoucherCode = coupon.code;
+          appliedVoucherDiscount = vDiscount;
+          finalDiscount += vDiscount;
+        }
+      }
+    }
+
+    // Recalculate Total (Before Gift Card)
+    if (finalDiscount > subtotal) finalDiscount = subtotal;
+
+    let totalAmount = subtotal + finalShippingFee - finalDiscount;
+    if (totalAmount < 0) totalAmount = 0;
+
+    // 3. Gift Card Validation
+    let appliedGiftCardNumber = null;
+    let appliedGiftCardDiscount = 0;
+
+    if (giftcardNumber) {
+      const cardsArr = await executeQuery<any[]>(
+        `SELECT id, current_balance, status, expires_at FROM gift_cards WHERE card_number = ?`,
+        [giftcardNumber]
+      );
+
+      if (cardsArr && cardsArr.length > 0) {
+        const card = cardsArr[0];
+        if (card.status === 'active' && (!card.expires_at || new Date(card.expires_at) > new Date())) {
+          const balance = parseFloat(card.current_balance);
+          const deduction = Math.min(balance, totalAmount);
+
+          if (deduction > 0) {
+            appliedGiftCardNumber = giftcardNumber;
+            appliedGiftCardDiscount = deduction;
+          }
+        }
+      }
+    }
 
     // Tạo order trong database
     const orderId = await createOrder({
@@ -215,10 +313,10 @@ async function createOrderHandler(request: NextRequest) {
       shippingFee: finalShippingFee,
       discount: finalDiscount,
       tax: body.tax || 0,
-      voucherCode: voucherCode || null,
-      voucherDiscount: voucherDiscount || 0,
-      giftcardNumber: giftcardNumber || null,
-      giftcardDiscount: giftcardDiscount || 0,
+      voucherCode: appliedVoucherCode,
+      voucherDiscount: appliedVoucherDiscount,
+      giftcardNumber: appliedGiftCardNumber,
+      giftcardDiscount: appliedGiftCardDiscount,
       shippingAddress: typeof shippingAddress === 'string' ? shippingAddress : JSON.stringify(shippingAddress),
       phone,
       email,

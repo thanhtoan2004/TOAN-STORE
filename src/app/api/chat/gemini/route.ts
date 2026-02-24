@@ -71,6 +71,13 @@ const tools = [
     }
 ];
 
+/**
+ * API Chatbot thông minh tích hợp Google Gemini AI.
+ * Cơ chế hoạt động 3 lớp:
+ * 1. Fast Path (Rule-based): Xử lý tức thì các yêu cầu tìm sản phẩm hoặc tra cứu đơn hàng bằng Regex để giảm chi phí AI và tăng tốc độ phản hồi.
+ * 2. Function Calling: AI có khả năng tự gọi các hàm nghiệp vụ (search_products, get_order_status...) để truy vấn dữ liệu thực tế từ Database.
+ * 3. AI Safety & Security: Chống Prompt Injection, lọc nội dung nhạy cảm và bảo vệ quyền riêng tư người dùng.
+ */
 async function chatHandler(req: NextRequest) {
     if (!process.env.GEMINI_API_KEY) {
         return NextResponse.json({ error: 'Gemini API key not configured' }, { status: 500 });
@@ -90,68 +97,114 @@ async function chatHandler(req: NextRequest) {
         const { message, history } = body;
         if (!message) return NextResponse.json({ error: 'Message is required' }, { status: 400 });
 
-        // CACHE: Generate cache key from message content
-        const messageHash = crypto.createHash('sha256').update(message.trim().toLowerCase()).digest('hex');
-        const cacheKey = `chat:response:${messageHash}`;
-
-        try {
-            const cachedData = await redis.get(cacheKey);
-            if (cachedData) {
-                return NextResponse.json(JSON.parse(cachedData));
-            }
-        } catch (cacheErr) {
-            console.warn('[Chatbot] Redis Cache Error:', cacheErr);
-        }
-
         // --- FAST PATH: Rule-based Intent Detection (Bypass AI for speed) ---
         const lowerMsg = message.trim().toLowerCase();
+        // CACHE ONLY FOR FAST PATH PRODUCT SEARCHES
+        const messageHash = crypto.createHash('sha256').update(lowerMsg).digest('hex');
+        const cacheKey = `chat:fastpath:products:${messageHash}`;
 
-        // 1. Fast Path: Product Search (e.g., "tìm giày jordan", "giá áo nike")
-        // Regex: (tìm|kiếm|giá|cho xem) + [keyword]
-        const searchMatch = lowerMsg.match(/^(tìm|kiếm|giá|cho xem|mua)\s+(.*)/i);
-        if (searchMatch && searchMatch[2].length > 2) {
-            const keyword = searchMatch[2].trim();
-            console.log(`[Chatbot] Fast Path: Search for '${keyword}'`);
-            try {
-                const products = await searchProductsForChat(keyword);
-                const response = {
-                    text: products.length > 0
-                        ? `Mình tìm thấy một vài sản phẩm "${keyword}" cho bạn đây:`
-                        : `Tiếc quá, mình không tìm thấy sản phẩm "${keyword}" nào. Bạn thử từ khóa khác nhé!`,
-                    data: products,
-                    dataType: 'products'
-                };
-                // Cache Fast Path result
-                await redis.set(cacheKey, JSON.stringify(response), 'EX', 3600);
-                return NextResponse.json(response);
-            } catch (e) { console.error('Fast Path Search Error', e); }
+        // 1. Fast Path: Product Search
+        // Xử lý các câu hỏi linh hoạt hơn: "Giày jordan giá bao nhiêu", "tìm giày jordan", "jordan 4 giá sao"
+        const isSearchIntent = /(tìm|kiếm|giá|cho xem|mua|bao nhiêu|giá sao)/i.test(lowerMsg);
+
+        if (isSearchIntent && lowerMsg.length > 3) {
+            // Lọc bỏ các từ thừa để lấy keyword cốt lõi (ví dụ: "giày jordan giá bao nhiêu" -> "giày jordan")
+            let keyword = lowerMsg
+                .replace(/(cho xem|mua|tìm|kiếm|giá bao nhiêu|giá sao|giá|thuộc danh mục nào)/gi, '')
+                .replace(/\s+/g, ' ')
+                .trim();
+
+            // Nếu sau khi lọc mà chuỗi quá ngắn hoặc không còn gì (người dùng chỉ gõ mỗi từ "giá?"), ta bỏ qua fast-path
+            if (keyword.length > 2) {
+                console.log(`[Chatbot] Fast Path: Search for '${keyword}' extracted from '${message}'`);
+                try {
+                    const products = await searchProductsForChat(keyword);
+
+                    // Luôn luôn trả về kết quả qua Fast-path ngay cả khi không tìm thấy, 
+                    // để không bắt Gemini AI phải xử lý câu hỏi tra cứu DB thuần túy.
+                    const response = {
+                        text: products.length > 0
+                            ? `Dạ, đây là các sản phẩm liên quan đến "${keyword}" mà bạn đang tìm kiếm ạ:`
+                            : `Tiếc quá, dạo này bên mình đang hết hàng hoặc không có sản phẩm nào tên là "${keyword}". Bạn thử tìm từ khóa ngắn hơn xem sao nhé!`,
+                        data: products,
+                        dataType: 'products'
+                    };
+
+                    // Cache Fast Path result
+                    await redis.set(cacheKey, JSON.stringify(response), 'EX', 3600);
+                    return NextResponse.json(response);
+
+                } catch (e) { console.error('Fast Path Search Error', e); }
+            }
         }
 
-        // 2. Fast Path: Order Status (e.g., "đơn hàng NK123 sđt 0987...")
-        // Regex requires both Order ID (NK...) and Phone (0...)
-        const orderMatch = lowerMsg.match(/(nk|nike)\d+_\w+/i) || lowerMsg.match(/(nk|nike)\d+/i); // Rough match for ID
-        const phoneMatch = lowerMsg.match(/(0\d{9,10})/);
+        // 2. Fast Path: Order Status Tra cứu đơn hàng
+        let orderId = '';
+        let phone = '';
 
-        if (orderMatch && phoneMatch) {
-            const orderId = orderMatch[0].toUpperCase();
-            const phone = phoneMatch[0];
-            console.log(`[Chatbot] Fast Path: Checking Order ${orderId}, Phone ${phone}`);
-            try {
-                const order = await getOrderStatusForChat(orderId, phone);
-                const response = {
-                    text: order
-                        ? `Thông tin đơn hàng ${orderId} của bạn:`
-                        : `Mình không tìm thấy đơn hàng ${orderId} với số điện thoại ${phone}. Bạn kiểm tra lại nhé!`,
-                    data: order,
-                    dataType: 'order'
-                };
-                await redis.set(cacheKey, JSON.stringify(response), 'EX', 3600);
-                return NextResponse.json(response);
-            } catch (e) { console.error('Fast Path Order Error', e); }
+        // Phân tích câu nói hiện tại của user xem có chứa Order ID hoặc SĐT không
+        let matchO = lowerMsg.match(/(nk|nike)\d+_\w+/i) || lowerMsg.match(/(nk|nike)\d+/i);
+        let matchP = lowerMsg.match(/\b(0\d{9,10})\b/);
+
+        if (matchO) orderId = matchO[0].toUpperCase();
+        if (matchP) phone = matchP[0];
+
+        // Nếu người dùng có nhắc đến ý định kiểm tra đơn hàng, hoặc cung cấp mã đơn/sđt trống không
+        const isOrderIntent = /(đơn hàng|kiểm tra đơn|xem đơn|đơn của tôi|check đơn)/i.test(lowerMsg);
+
+        if (orderId || phone || isOrderIntent) {
+            // Lục lọi lại 4 câu nói gần nhất trong lịch sử chat để tìm mảnh ghép còn thiếu
+            const recentHist = (history || []).slice(-4).reverse();
+            for (const msg of recentHist) {
+                if (msg.role === 'user') {
+                    const contentLower = msg.content.toLowerCase();
+                    if (!orderId) {
+                        const histO = contentLower.match(/(nk|nike)\d+_\w+/i) || contentLower.match(/(nk|nike)\d+/i);
+                        if (histO) orderId = histO[0].toUpperCase();
+                    }
+                    if (!phone) {
+                        const histP = contentLower.match(/\b(0\d{9,10})\b/);
+                        if (histP) phone = histP[0];
+                    }
+                }
+            }
+
+            // Xử lý logic hội thoại 1-1 bằng if...else đơn giản, không cần đưa vào AI
+            if (orderId && !phone) {
+                return NextResponse.json({
+                    text: `Mình đã ghi nhận mã đơn ${orderId}. Bạn vui lòng cung cấp Số điện thoại đã dùng để đặt hàng để mình tra cứu nhé! 📦`,
+                    dataType: 'products'
+                });
+            } else if (!orderId && phone) {
+                return NextResponse.json({
+                    text: `Cảm ơn bạn. Tuy nhiên thiếu mã đơn hàng mất rồi. Kèm với số điện thoại ${phone}, bạn vui lòng cung cấp thêm Mã đơn hàng (Ví dụ: NK...) nữa nhé! 📝`,
+                    dataType: 'products'
+                });
+            } else if (!orderId && !phone) {
+                return NextResponse.json({
+                    text: `Dạ được ạ. Để mình có thể kiểm tra trạng thái đơn hàng giúp bạn, bạn vui lòng cung cấp **Mã đơn hàng** (Ví dụ: NK123...) và **Số điện thoại** đã dùng để đặt hàng nhé! 📦`,
+                    dataType: 'products'
+                });
+            } else if (orderId && phone) {
+                console.log(`[Chatbot] Fast Path: Cả 2 thông tin đã đủ. Checking Order ${orderId}, Phone ${phone}`);
+                try {
+                    const order = await getOrderStatusForChat(orderId, phone);
+                    const response = {
+                        text: order
+                            ? `Mình đã tìm thấy Đơn hàng mã **${orderId}** của số điện thoại **${phone}**. Dưới đây là thông tin chi tiết dành cho bạn:`
+                            : `Oái, mình kiểm tra thì không thấy có Đơn hàng **${orderId}** nào khớp với số thuê bao **${phone}** cả. Bạn xem lại viết đúng mã đơn với số điện thoại chưa nhé! 🔍`,
+                        data: order,
+                        dataType: 'order'
+                    };
+                    return NextResponse.json(response);
+                } catch (e) {
+                    console.error('Fast Path Order Error', e);
+                }
+            }
         }
         // -------------------------------------------------------------------
 
-        const modelNames = ["gemini-2.0-flash", "gemini-1.5-flash", "gemini-pro-latest"];
+        const modelNames = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-2.0-flash-lite-preview-02-05", "gemini-1.5-flash-latest", "gemini-1.5-pro-latest", "gemini-pro"];
         let finalResponseText = "";
         let toolData = null;
         let toolDataType = 'products';
@@ -288,15 +341,16 @@ QUY TẮC BẢO MẬT & VẬN HÀNH:
                 break;
 
             } catch (err: any) {
-                console.error(`Model ${modelName} error:`, err.status);
-                // Nếu là model cuối cùng mà vẫn lỗi 429
-                if (modelName === modelNames[modelNames.length - 1] && (err.status === 429 || (err.message && err.message.includes('429')))) {
-                    return NextResponse.json({
-                        text: "Hệ thống AI của Nike Store đang bận xử lý hàng ngàn đơn hàng. Bạn đợi mình khoảng 10 giây rồi hỏi lại nhé! 👟"
-                    });
-                }
+                console.error(`Model ${modelName} error:`, err.status || err.message);
                 continue; // Thử model tiếp theo
             }
+        }
+
+        // Bắt lỗi sập toàn bộ Model (Ví dụ hết quota, đứt cáp...) khiến AI không trả về được chữ nào.
+        if (!finalResponseText) {
+            return NextResponse.json({
+                text: "Hệ thống AI của Nike Store hiện tại đang quá tải do có quá nhiều yêu cầu cùng lúc. Bạn vui lòng đợi khoảng 1 phút rồi thử lại giúp mình nhé! 👟🙏"
+            });
         }
 
         const responseData = {
@@ -304,15 +358,6 @@ QUY TẮC BẢO MẬT & VẬN HÀNH:
             data: toolData,
             dataType: toolDataType // 'products' | 'order' | 'intent_add_to_cart'
         };
-
-        // Cache successful responses for 1 hour (3600s)
-        try {
-            if (!toolData || toolDataType !== 'order') {
-                await redis.set(cacheKey, JSON.stringify(responseData), 'EX', 3600);
-            }
-        } catch (setErr) {
-            console.warn('[Chatbot] Redis Set Error:', setErr);
-        }
 
         return NextResponse.json(responseData);
     } catch (error) {

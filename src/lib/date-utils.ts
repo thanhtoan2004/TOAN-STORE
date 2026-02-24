@@ -1,5 +1,5 @@
 /**
- * Common date utilities for TOAN
+ * Common date utilities for TOAN Store
  * Enforces Vietnam timezone (UTC+7) and consistent formatting
  */
 

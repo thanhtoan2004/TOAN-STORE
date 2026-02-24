@@ -35,7 +35,7 @@ export async function generateMetadata(
   const dynamicSeo = await getSeoMetadata('product', productId);
 
   // 3. Merge Metadata (Dynamic > Database > Default)
-  const title = dynamicSeo?.title || `${product.name} | TOAN`;
+  const title = dynamicSeo?.title || `${product.name} | TOAN Store`;
   const description = dynamicSeo?.description || (product.description ? product.description.substring(0, 160) : `Mua ${product.name} tại TOAN Store`);
   const imageUrl = dynamicSeo?.og_image_url || product.image_url || '/og-image.jpg';
 
@@ -142,8 +142,8 @@ export default async function Page({ params }: Props) {
       />
       <ProductDetailClient id={id} />
 
-      {/* Product Reviews Section */}
-      <ProductReviews productId={parseInt(id)} />
+      {/* Product Reviews Section - Rendered inside ProductDetailClient */}
+      {/* <ProductReviews productId={parseInt(id)} /> */}
     </div>
   );
 }

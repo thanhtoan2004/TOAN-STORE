@@ -11,6 +11,13 @@ interface ContactRequest {
   userId?: number;
 }
 
+/**
+ * API Gửi tin nhắn liên hệ từ khách hàng.
+ * Bảo mật:
+ * - Tự động liên kết tin nhắn với UserId nếu người dùng đã đăng nhập.
+ * - Chống UserId Spoofing: Bỏ qua ID do client gửi lên nếu không có session hợp lệ.
+ * - Kiểm tra định dạng Email và độ dài tối thiểu của tin nhắn (Cơ chế chống spam cơ bản).
+ */
 async function contactHandler(req: NextRequest): Promise<NextResponse> {
   const session = await verifyAuth();
   const body: Partial<ContactRequest> = await req.json();

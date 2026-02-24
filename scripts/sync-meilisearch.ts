@@ -96,7 +96,68 @@ async function syncProducts() {
                 'sort',
                 'exactness',
                 'created_at:desc'
-            ]
+            ],
+            synonyms: {
+                // Shoe types
+                'giày': ['giầy', 'shoes', 'sneakers', 'giày dép'],
+                'giầy': ['giày'],
+                'sneakers': ['giày', 'shoes', 'giày thể thao'],
+                'shoes': ['giày', 'sneakers'],
+                'dép': ['sandals', 'slides'],
+                'sandals': ['dép'],
+                'slides': ['dép'],
+
+                // Clothing
+                'áo': ['shirt', 'top', 'jersey'],
+                'quần': ['pants', 'shorts', 'trousers'],
+                'shorts': ['quần short', 'quần đùi'],
+                'hoodie': ['áo hoodie', 'áo khoác hoodie'],
+                'jacket': ['áo khoác', 'áo jacket'],
+                'áo khoác': ['jacket', 'hoodie', 'windbreaker'],
+
+                // Size & Fit
+                'size': ['cỡ', 'kích cỡ', 'kích thước'],
+                'cỡ': ['size'],
+
+                // Activity & Categories
+                'chạy bộ': ['running', 'jogging'],
+                'running': ['chạy bộ', 'jogging'],
+                'bóng rổ': ['basketball'],
+                'basketball': ['bóng rổ'],
+                'tập luyện': ['training', 'gym', 'tập gym'],
+                'training': ['tập luyện', 'gym'],
+                'bóng đá': ['football', 'soccer'],
+                'football': ['bóng đá', 'soccer'],
+                'soccer': ['bóng đá', 'football'],
+                'lifestyle': ['đời thường', 'casual'],
+
+                // Colors
+                'đen': ['black'],
+                'trắng': ['white'],
+                'đỏ': ['red'],
+                'xanh': ['blue', 'xanh dương', 'xanh lá'],
+                'hồng': ['pink'],
+
+                // Brand terms
+                'air max': ['airmax'],
+                'airmax': ['air max'],
+                'air force': ['af1', 'air force 1'],
+                'af1': ['air force', 'air force 1'],
+                'jordan': ['air jordan', 'aj'],
+                'aj': ['jordan', 'air jordan'],
+                'dunk': ['nike dunk', 'sb dunk'],
+                'pegasus': ['nike pegasus'],
+
+                // Common shopping terms
+                'giảm giá': ['sale', 'khuyến mãi', 'ưu đãi', 'flash sale'],
+                'sale': ['giảm giá', 'khuyến mãi'],
+                'mới': ['new', 'new arrival', 'hàng mới'],
+                'new': ['mới', 'new arrival'],
+                'nam': ['men', "men's"],
+                'nữ': ['women', "women's"],
+                'trẻ em': ['kids', 'children'],
+                'kids': ['trẻ em'],
+            }
         });
 
         // 4. Upload Documents

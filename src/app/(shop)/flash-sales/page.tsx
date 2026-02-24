@@ -10,8 +10,8 @@ import FlashSaleTimer from './FlashSaleTimer';
 export const dynamic = 'force-dynamic';
 
 export const metadata: Metadata = {
-    title: 'Flash Sales | TOAN',
-    description: 'Săn ngay các ưu đãi Flash Sale cực sốc tại TOAN. Số lượng có hạn!',
+    title: 'Flash Sales | TOAN Store',
+    description: 'Săn ngay các ưu đãi Flash Sale cực sốc tại TOAN Store. Số lượng có hạn!',
 };
 
 async function getActiveFlashSale() {

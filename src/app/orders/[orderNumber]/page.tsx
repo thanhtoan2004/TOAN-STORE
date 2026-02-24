@@ -9,7 +9,7 @@ import { useCart } from '@/contexts/CartContext';
 import { Button } from "@/components/ui/Button";
 import { formatDateTime, formatCurrency } from '@/lib/date-utils';
 import { OrderTimeline } from '@/components/orders/OrderTimeline';
-import { Printer } from 'lucide-react';
+import { Printer, Share2, Calendar, Package, Headphones } from 'lucide-react';
 
 interface OrderItem {
   id: string;
@@ -228,6 +228,25 @@ export default function OrderDetailPage() {
     }
   };
 
+
+  const handleShareOrder = () => {
+    const url = window.location.href;
+    navigator.clipboard.writeText(url).then(() => {
+      alert('Đã sao chép liên kết đơn hàng vào bộ nhớ tạm!');
+    }).catch(() => {
+      alert('Không thể sao chép liên kết');
+    });
+  };
+
+  const handleAddToCalendar = () => {
+    if (!orderData) return;
+
+    const title = `Giao hàng TOAN Store - Đơn #${orderData.orderNumber}`;
+    const details = `Đơn hàng của bạn #${orderData.orderNumber} dự kiến giao vào ${orderData.estimatedDelivery}. Tổng tiền: ${formatCurrency(orderData.finalTotal)}`;
+    const googleCalendarUrl = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(title)}&details=${encodeURIComponent(details)}`;
+
+    window.open(googleCalendarUrl, '_blank');
+  };
 
   const handleCancelOrder = async () => {
     if (!confirm('Bạn có chắc chắn muốn hủy đơn hàng này?')) return;
@@ -450,13 +469,31 @@ export default function OrderDetailPage() {
               <div className="bg-white rounded-lg shadow-sm border p-6">
                 <h2 className="text-xl font-helvetica-medium mb-4">Hành động</h2>
                 <div className="space-y-3">
-                  <Link href={`/orders/${orderNumber}`}>
-                    <Button variant="outline" className="w-full rounded-full border-black text-black hover:bg-black hover:text-white">
+                  <Link href={`/orders/${orderNumber}`} className="block w-full">
+                    <Button variant="outline" className="w-full rounded-full border-gray-300 text-gray-700 hover:bg-gray-50 flex items-center justify-center gap-2">
+                      <Package className="w-4 h-4" />
                       Theo dõi đơn hàng
                     </Button>
                   </Link>
-                  <Link href="/help/contact">
-                    <Button variant="outline" className="w-full rounded-full border-gray-300 text-gray-700 hover:bg-gray-50">
+                  <Button
+                    variant="outline"
+                    onClick={handleShareOrder}
+                    className="w-full rounded-full border-gray-300 text-gray-700 hover:bg-gray-50 flex items-center justify-center gap-2"
+                  >
+                    <Share2 className="w-4 h-4" />
+                    Chia sẻ đơn hàng
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={handleAddToCalendar}
+                    className="w-full rounded-full border-gray-300 text-gray-700 hover:bg-gray-50 flex items-center justify-center gap-2"
+                  >
+                    <Calendar className="w-4 h-4" />
+                    Thêm vào lịch
+                  </Button>
+                  <Link href="/help/contact" className="block w-full">
+                    <Button variant="outline" className="w-full rounded-full border-gray-300 text-gray-700 hover:bg-gray-50 flex items-center justify-center gap-2">
+                      <Headphones className="w-4 h-4" />
                       Liên hệ hỗ trợ
                     </Button>
                   </Link>
@@ -513,7 +550,7 @@ export default function OrderDetailPage() {
                     ) : (
                       <Button
                         variant="outline"
-                        className="w-full rounded-full border-gray-3000 text-gray-700 hover:bg-gray-100"
+                        className="w-full rounded-full border-gray-300 text-gray-700 hover:bg-gray-100"
                         onClick={() => setShowRefundModal(true)}
                       >
                         Yêu cầu hoàn tiền / Trả hàng
@@ -596,7 +633,7 @@ function InvoiceSection({ orderData, copyLabel }: { orderData: OrderData; copyLa
     <div className="py-4 px-6 max-w-4xl mx-auto">
       <div className="flex justify-between items-start mb-4">
         <div>
-          <h1 className="text-2xl font-bold nike-heading">NIKE CLONE STORE</h1>
+          <h1 className="text-2xl font-bold nike-heading">TOAN Store</h1>
           <p className="text-xs text-gray-600">Website: nike-clone.demo | Hotline: 1800-1234</p>
         </div>
         <div className="text-right">
@@ -701,7 +738,7 @@ function InvoiceSection({ orderData, copyLabel }: { orderData: OrderData; copyLa
         </div>
       </div>
 
-      <p className="text-center text-[10px] text-gray-400 mt-4">Cảm ơn quý khách đã mua sắm tại Nike Clone!</p>
+      <p className="text-center text-[10px] text-gray-400 mt-4">Cảm ơn quý khách đã mua sắm tại TOAN Store!</p>
     </div>
   );
 }

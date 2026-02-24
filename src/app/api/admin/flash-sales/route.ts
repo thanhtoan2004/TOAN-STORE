@@ -8,6 +8,9 @@ import { logAdminAction } from '@/lib/audit';
 /**
  * GET - List all flash sales for admin
  */
+/**
+ * API Lấy danh sách toàn bộ các đợt Flash Sale (Dòng thời gian).
+ */
 export async function GET(request: NextRequest) {
     try {
         const admin = await checkAdminAuth();
@@ -31,6 +34,10 @@ export async function GET(request: NextRequest) {
 
 /**
  * POST - Create matching flash sale
+ */
+/**
+ * API Khởi tạo một chương trình Flash Sale mới.
+ * Lưu ý: Chỉ khởi tạo khung thời gian, sản phẩm sẽ được thêm ở API riêng.
  */
 export async function POST(request: NextRequest) {
     try {

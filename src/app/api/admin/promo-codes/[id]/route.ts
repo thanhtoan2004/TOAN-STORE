@@ -4,6 +4,10 @@ import { invalidateCache } from '@/lib/cache';
 import { checkAdminAuth } from '@/lib/auth';
 
 // PUT - Cập nhật coupon theo ID
+/**
+ * API Cập nhật mã giảm giá (Partial Update).
+ * Tự động xóa cache danh sách ưu đãi công khai sau khi thay đổi.
+ */
 export async function PUT(
     request: NextRequest,
     { params }: { params: Promise<{ id: string }> }
@@ -79,6 +83,9 @@ export async function PUT(
 }
 
 // DELETE - Xóa coupon theo ID
+/**
+ * API Xóa mã giảm giá (Soft Delete).
+ */
 export async function DELETE(
     request: NextRequest,
     { params }: { params: Promise<{ id: string }> }

@@ -8,7 +8,8 @@ export type EventType =
     | 'order.cancelled'
     | 'order.paid'
     | 'inventory.adjusted'
-    | 'user.registered';
+    | 'user.registered'
+    | 'tier.upgraded';
 
 export interface AppEvent<T = any> {
     type: EventType;

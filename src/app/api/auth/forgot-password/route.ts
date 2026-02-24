@@ -4,6 +4,12 @@ import { sendPasswordResetEmail } from '@/lib/mail';
 import crypto from 'crypto';
 import { withRateLimit } from '@/lib/with-rate-limit';
 
+/**
+ * API Yêu cầu khôi phục mật khẩu.
+ * Bảo mật: 
+ * - Áp dụng Rate Limit để chống spam email.
+ * - Không tiết lộ email có tồn tại trong hệ thống hay không để tránh bị dò quét tài khoản (Information Exposure).
+ */
 async function forgotPasswordHandler(req: Request) {
     try {
         const { email } = await req.json();
@@ -17,7 +23,7 @@ async function forgotPasswordHandler(req: Request) {
 
         // Check if user exists
         const users = await executeQuery(
-            'SELECT id, first_name FROM users WHERE email = ?',
+            'SELECT id, first_name, last_name FROM users WHERE email = ?',
             [email]
         ) as any[];
 
@@ -40,7 +46,8 @@ async function forgotPasswordHandler(req: Request) {
         );
 
         // Send email
-        sendPasswordResetEmail(email, token).catch(console.error);
+        const fullName = [users[0].first_name, users[0].last_name].filter(Boolean).join(' ') || 'bạn';
+        sendPasswordResetEmail(email, fullName, token).catch(console.error);
 
         return NextResponse.json({
             success: true,

@@ -2,19 +2,31 @@ import type { Metadata } from "next";
 import "./globals.css";
 import { Suspense } from 'react';
 import RootLayoutWrapper from "@/components/RootLayoutWrapper";
-import { AuthProvider } from "@/contexts/AuthContext";
 
+// Import toàn bộ các Context Providers để cung cấp State Global cho ứng dụng
+import { AuthProvider } from "@/contexts/AuthContext";
 import { CartProvider } from "@/contexts/CartContext";
 import { WishlistProvider } from "@/contexts/WishlistContext";
 import { LanguageProvider } from "@/contexts/LanguageContext";
 import QueryProvider from "@/components/providers/QueryProvider";
+import { ComparisonProvider } from '@/contexts/ComparisonContext';
+
+// Import các Widgets và Component dùng chung toàn trang (Global Ui)
 import ChatWidget from "@/components/chat/ChatWidget";
 import Pixel from "@/components/analytics/Pixel";
+import ScrollToTop from '@/components/ui/ScrollToTop';
+import CookieConsent from '@/components/ui/CookieConsent';
+import AccessibilityWidget from '@/components/ui/AccessibilityWidget';
+import ComparisonBar from '@/components/ui/ComparisonBar';
 
+/**
+ * Định nghĩa Global Metadata cho SEO (Search Engine Optimization)
+ * Các trang con có thể ghi đè lại giá trị thông qua tính năng template của Next.js
+ */
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'),
   title: {
-    template: '%s | TOAN Store',
+    template: '%s | TOAN Store', // Ví dụ: Giày Nam | TOAN Store
     default: 'TOAN Store - Just Do It',
   },
   description: "Nike delivers innovative products, experiences and services to inspire athletes.",
@@ -25,7 +37,7 @@ export const metadata: Metadata = {
     siteName: 'TOAN Store',
     images: [
       {
-        url: '/og-image.jpg', // Make sure this exists or use a default
+        url: '/og-image.jpg', // Ảnh mặc định khi chia sẻ link lên Facebook, Zalo, Twitter...
         width: 1200,
         height: 630,
       },
@@ -33,18 +45,23 @@ export const metadata: Metadata = {
     locale: 'vi_VN',
     type: 'website',
   },
-  keywords: ['nike', 'giày nike', 'giày chạy bộ', 'thời trang thể thao', 'toan store', 'nike vietnam'],
+  keywords: ['nike', 'giày nike', 'giày chạy bộ', 'thời trang thể thao', 'TOAN Store', 'nike vietnam'],
 };
 
 
-
+/**
+ * RootLayout Component
+ * Đây là khung sườn bao bọc toàn bộ component trong project Next.js.
+ * Tất cả các trang sẽ được render lồng vào bên trong tham số {children}.
+ */
 export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    // suppressHydrationWarning giúp bỏ qua lỗi chênh lệch giao diện SSR và CSR ban đầu
+    <html lang="vi" suppressHydrationWarning>
       <head>
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <meta httpEquiv="x-ua-compatible" content="ie=edge" />
@@ -52,56 +69,46 @@ export default function RootLayout({
       </head>
 
       <body className="overflow-x-hidden" suppressHydrationWarning>
+        {/* Lớp bọc bảo mật và quản lý thông tin User */}
         <AuthProvider>
+          {/* Lớp bọc quản lý Fetching/Caching data của React Query */}
           <QueryProvider>
+            {/* Lớp bọc quản lý trạng thái Giỏ Hàng (Cart) */}
             <CartProvider>
+              {/* Lớp bọc quản lý Yêu thích (Wishlist) */}
               <WishlistProvider>
+                {/* Lớp bọc Đa Ngôn Ngữ (VI/EN) */}
                 <LanguageProvider>
-                  <RootLayoutWrapper>
-                    {children}
-                  </RootLayoutWrapper>
-                  <ChatWidget />
-                  <Suspense fallback={null}>
-                    <Pixel />
-                  </Suspense>
+                  {/* Lớp bọc tính năng So sánh sản phẩm (Tối đa 4 sản phẩm) */}
+                  <ComparisonProvider>
+
+                    {/* Shell Component chứa Header và Footer chung */}
+                    <RootLayoutWrapper>
+                      {/* Vị trí render của các pages con (VD: Trang chủ, Sản phẩm...) */}
+                      {children}
+                    </RootLayoutWrapper>
+
+                    {/* Các công cụ / UI gắn fixed (Toàn cục) */}
+                    <ChatWidget />
+
+                    {/* Lazy-load logic đo lường Analytics (Meta Pixel / Google) */}
+                    <Suspense fallback={null}>
+                      <Pixel />
+                    </Suspense>
+
+                    <ScrollToTop />
+                    <CookieConsent />
+                    <AccessibilityWidget />
+
+                    {/* Thanh nổi chức năng So sánh hiển thị ở cuối màn hình */}
+                    <ComparisonBar />
+
+                  </ComparisonProvider>
                 </LanguageProvider>
               </WishlistProvider>
             </CartProvider>
           </QueryProvider>
         </AuthProvider>
-
-        {/* Script để xử lý lỗi hydration do thuộc tính crossOrigin */}
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `
-              (function() {
-                document.addEventListener('DOMContentLoaded', function() {
-                  document.querySelectorAll('img').forEach(img => {
-                    if (img.hasAttribute('crossorigin')) {
-                      img.removeAttribute('crossorigin');
-                    }
-                  });
-                });
-              })();
-            `,
-          }}
-        />
-
-        {/* Script xử lý hydration errors (reload trang nếu có lỗi) */}
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `
-              (function() {
-                var timeout = setTimeout(function() {
-                  if (document.querySelectorAll('[data-jsx-error]').length) {
-                    console.info('Fixing hydration mismatch');
-                    window.location.reload();
-                  }
-                }, 500);
-              })();
-            `,
-          }}
-        />
       </body>
     </html>
   );

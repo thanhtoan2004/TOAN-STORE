@@ -29,6 +29,9 @@ import { addToWishlist, getWishlist, removeFromWishlist } from '@/lib/db/mysql';
 import { verifyAuth } from '@/lib/auth';
 
 // Lấy wishlist
+/**
+ * API Lấy danh sách sản phẩm yêu thích (Wishlist) của User.
+ */
 export async function GET(request: Request) {
   try {
     const session = await verifyAuth();
@@ -49,6 +52,10 @@ export async function GET(request: Request) {
 }
 
 // Thêm vào wishlist
+/**
+ * API Thêm sản phẩm vào Wishlist.
+ * Nếu sản phẩm đã tồn tại thì DB sẽ bỏ qua (duplication check).
+ */
 export async function POST(request: Request) {
   try {
     const session = await verifyAuth();
@@ -78,6 +85,10 @@ export async function POST(request: Request) {
 }
 
 // Xóa khỏi wishlist
+/**
+ * API Xóa sản phẩm khỏi Wishlist.
+ * Sử dụng `productId` từ query string.
+ */
 export async function DELETE(request: Request) {
   try {
     const session = await verifyAuth();

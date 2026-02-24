@@ -5,6 +5,13 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
 
+/**
+ * API Đồng bộ dữ liệu Recommendation (Gợi ý sản phẩm).
+ * Chức năng:
+ * 1. Quét toàn bộ sản phẩm đang hoạt động.
+ * 2. Sử dụng Google Gemini (model text-embedding-004) để chuyển đổi nội dung text thành Vector (Embedding).
+ * 3. Lưu Vector vào DB để phục vụ tính năng tìm kiếm sản phẩm tương tự bằng AI.
+ */
 export async function POST() {
     const admin = await checkAdminAuth();
     if (!admin) {

@@ -27,7 +27,11 @@ export async function getAddresses(userId: number) {
     return getUserAddresses(userId);
 }
 
-// User Address functions
+/**
+ * Láy danh sách Sổ địa chỉ của người dùng.
+ * Bắt buộc phải chạy qua hàm giải mã `decrypt` (AES-256) vì Phone và Địa chỉ là thông tin PII nhạy cảm,
+ * database chỉ lưu chuỗi mã hóa không đọc được.
+ */
 export async function getUserAddresses(userId: number) {
     const addresses = await executeQuery<any[]>(
         `SELECT * FROM user_addresses 
@@ -43,6 +47,11 @@ export async function getUserAddresses(userId: number) {
     }));
 }
 
+/**
+ * Thêm địa chỉ mới vào Database.
+ * Thông tin nhạy cảm (Số điện thoại, Số nhà) đều sẽ bị mã hóa bằng `encrypt()` trước khi chui vào DB.
+ * Nếu user set tag `is_default`, hàm này sẽ dập tắt cờ default của tất cả địa chỉ cũ trước khi gán.
+ */
 export async function addUserAddress(userId: number, address: {
     label?: string;
     recipient_name: string;
@@ -199,6 +208,11 @@ export async function setDefaultAddress(addressId: number, userId: number) {
     );
 }
 
+/**
+ * Xóa tài khoản người dùng.
+ * Sử dụng cơ chế SOFT-DELETE (Xóa Mềm). Chỉ gán cờ `is_active = 0` và lưu ngày tháng xóa,
+ * chứ tuyệt đối không `DELETE FROM users` để tránh vỡ ràng buộc khóa ngoại với Đơn hàng / Hóa đơn cũ.
+ */
 export async function deleteUser(userId: number) {
     return executeQuery(
         'UPDATE users SET deleted_at = NOW(), is_active = 0 WHERE id = ?',

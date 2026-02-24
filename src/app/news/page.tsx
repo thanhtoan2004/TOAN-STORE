@@ -1,9 +1,10 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { formatDate } from '@/lib/date-utils';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 interface NewsItem {
   id: number;
@@ -16,38 +17,76 @@ interface NewsItem {
 }
 
 export default function NewsPage() {
+  const { language } = useLanguage();
+  const isVi = language === 'vi';
+
   const [newsItems, setNewsItems] = useState<NewsItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [activeCategory, setActiveCategory] = useState('');
+  const [categories, setCategories] = useState<string[]>([]);
 
-  useEffect(() => {
-    fetchNews();
-  }, []);
-
-  const fetchNews = async () => {
+  const fetchNews = useCallback(async (category = '') => {
     try {
-      const response = await fetch('/api/news?limit=20');
+      setLoading(true);
+      const params = new URLSearchParams({ limit: '20' });
+      if (category) params.set('category', category);
+
+      const response = await fetch(`/api/news?${params}`);
       const data = await response.json();
 
       if (data.success) {
-        setNewsItems(data.data.news);
+        setNewsItems(data.data.news || []);
+
+        // Extract unique categories on initial full load
+        if (!category && categories.length === 0) {
+          const cats = [...new Set((data.data.news || []).map((n: NewsItem) => n.category).filter(Boolean))] as string[];
+          setCategories(cats);
+        }
       }
     } catch (error) {
       console.error('Error fetching news:', error);
     } finally {
       setLoading(false);
     }
-  };
+  }, [categories.length]);
 
-  // formatDate removed
+  useEffect(() => {
+    fetchNews(activeCategory);
+  }, [activeCategory, fetchNews]);
 
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="nike-container py-12">
         <div className="max-w-6xl mx-auto">
-          <h1 className="text-4xl font-bold mb-4">Tin Tức</h1>
+          <h1 className="text-4xl font-bold mb-4">
+            {isVi ? 'Tin Tức' : 'News'}
+          </h1>
           <p className="text-gray-600 mb-8">
-            Cập nhật những tin tức mới nhất từ TOAN
+            {isVi ? 'Cập nhật những tin tức mới nhất từ TOAN Store' : 'Latest news from TOAN Store'}
           </p>
+
+          {/* Category Filter */}
+          {categories.length > 0 && (
+            <div className="flex gap-2 overflow-x-auto pb-4 mb-6 scrollbar-hide">
+              <button
+                onClick={() => setActiveCategory('')}
+                className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-all ${!activeCategory ? 'bg-black text-white' : 'bg-white text-gray-600 border border-gray-200 hover:border-gray-400'
+                  }`}
+              >
+                {isVi ? 'Tất cả' : 'All'}
+              </button>
+              {categories.map(cat => (
+                <button
+                  key={cat}
+                  onClick={() => setActiveCategory(cat)}
+                  className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-all ${activeCategory === cat ? 'bg-black text-white' : 'bg-white text-gray-600 border border-gray-200 hover:border-gray-400'
+                    }`}
+                >
+                  {cat}
+                </button>
+              ))}
+            </div>
+          )}
 
           {loading ? (
             <div className="text-center py-12">

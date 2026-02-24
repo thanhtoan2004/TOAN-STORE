@@ -1,6 +1,6 @@
 # Database Schema
 
-TOAN sử dụng **MySQL 8.0** với 30+ bảng. Schema tự khởi tạo qua `src/lib/db/init.ts`.
+TOAN Store sử dụng **MySQL 8.0** với 30+ bảng. Schema tự khởi tạo qua `src/lib/db/init.ts`.
 
 ---
 
@@ -51,6 +51,8 @@ erDiagram
 | is_active | TINYINT(1) DEFAULT 1 | — |
 | is_verified | TINYINT(1) DEFAULT 0 | Email verified |
 | is_banned | TINYINT(1) DEFAULT 0 | Ban status |
+| token_version | INT DEFAULT 1 | Remote logout logic |
+| two_fa_enabled | TINYINT(1) DEFAULT 1 | 2FA Status |
 | created_at | TIMESTAMP | — |
 | updated_at | TIMESTAMP | — |
 | deleted_at | TIMESTAMP NULL | Soft delete |

@@ -3,6 +3,13 @@ import { NextResponse } from 'next/server';
 import { executeQuery } from '@/lib/db/mysql';
 import bcrypt from 'bcrypt';
 
+/**
+ * API Đặt lại mật khẩu mới thông qua Token.
+ * Quy trình:
+ * 1. Kiểm tra Token có hợp lệ, chưa sử dụng và chưa hết hạn (1 giờ).
+ * 2. Mã hóa mật khẩu mới bằng bcrypt trước khi lưu.
+ * 3. Đánh dấu Token đã sử dụng để tránh tấn công Replay.
+ */
 export async function POST(req: Request) {
     try {
         const { token, password } = await req.json();

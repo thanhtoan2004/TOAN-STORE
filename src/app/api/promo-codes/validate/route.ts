@@ -4,6 +4,15 @@ import { executeQuery } from '@/lib/db/mysql';
 
 import { verifyAuth } from '@/lib/auth';
 
+/**
+ * API Kiểm tra tính hợp lệ của mã giảm giá (Voucher/Coupon).
+ * Các bước kiểm tra nghiêm ngặt:
+ * 1. Thời hạn: Còn hiệu lực và đã bắt đầu chưa.
+ * 2. Đối tượng: Nếu là voucher cá nhân, phải khớp với UserId.
+ * 3. Hạng thành viên (Tier): Kiểm tra xem user có đủ hạng (Gold, Platinum...) để dùng mã không.
+ * 4. Điều kiện đơn hàng: Giá trị tối thiểu (Min Order) và Danh mục sản phẩm (Category restrictions).
+ * 5. Giới hạn lượt dùng: Kiểm tra số lần đã sử dụng thực tế trong bảng coupon_usage.
+ */
 async function validateCouponHandler(req: NextRequest): Promise<NextResponse> {
   const body: any = await req.json();
   const { code, orderAmount, items } = body; // items is optional but recommended for category checks

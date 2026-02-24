@@ -29,7 +29,7 @@ export async function generateMetadata(
     const category = categories[0];
 
     return {
-        title: `${category.name} | TOAN`,
+        title: `${category.name} | TOAN Store`,
         description: category.description || `Mua sắm sản phẩm ${category.name} tại TOAN Store.`,
         openGraph: {
             title: `${category.name} | TOAN Store`,

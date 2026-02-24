@@ -2,6 +2,13 @@ import { NextResponse } from 'next/server';
 import { executeQuery } from '@/lib/db/mysql';
 import { getRedisConnection } from '@/lib/redis';
 
+/**
+ * API Kiểm tra sức khỏe hệ thống (Health Check).
+ * Thực hiện kiểm tra kết nối tới:
+ * 1. Database (MySQL).
+ * 2. Caching Layer (Redis).
+ * Trả về mã lỗi 503 nếu một trong các dịch vụ cốt lõi gặp sự cố.
+ */
 export async function GET() {
     const status = {
         uptime: process.uptime(),

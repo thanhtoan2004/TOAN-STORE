@@ -2,6 +2,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createErrorResponse, createSuccessResponse, withErrorHandling } from '@/lib/api-utils';
 import { checkGiftCardBalance } from '@/lib/db/mysql';
 
+/**
+ * API Kiểm tra số dư và trạng thái thẻ quà tặng.
+ * Bảo mật: Yêu cầu khớp cả Số thẻ (16 số) và mã PIN (4 số).
+ * Kiểm tra hạn sử dụng và trạng thái hoạt động trước khi trả về kết quả.
+ */
 async function giftcardHandler(req: NextRequest): Promise<NextResponse> {
   const body: any = await req.json();
   const { cardNumber, pin } = body;

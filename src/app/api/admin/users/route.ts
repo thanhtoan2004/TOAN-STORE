@@ -8,6 +8,12 @@ import { ResponseWrapper } from '@/lib/api-response';
 import { logger } from '@/lib/logger';
 
 // GET - Lấy danh sách users (Admin)
+/**
+ * API Lấy danh sách toàn bộ người dùng (Dành cho Admin).
+ * Chức năng:
+ * 1. Phân trang và tìm kiếm theo Tên, Email, Số điện thoại.
+ * 2. Giải mã (Decrypt) số điện thoại người dùng để Admin liên hệ hỗ trợ.
+ */
 export async function GET(request: NextRequest) {
   try {
     const admin = await checkAdminAuth();
@@ -71,6 +77,10 @@ export async function GET(request: NextRequest) {
 }
 
 // PUT - Cập nhật user (Admin)
+/**
+ * API Cập nhật thông tin người dùng từ phía quản trị.
+ * Chỉ cho phép cập nhật các trường an toàn như firstName, lastName, phone, isActive, membershipTier.
+ */
 export async function PUT(request: NextRequest) {
   try {
     const admin = await checkAdminAuth();
@@ -109,6 +119,10 @@ export async function PUT(request: NextRequest) {
 }
 
 // DELETE - Xóa người dùng (Soft Delete)
+/**
+ * API Xóa người dùng (Soft Delete).
+ * Thực hiện: Đánh dấu `deletedAt` và vô hiệu hóa (`isActive = 0`) thay vì xóa cứng dữ liệu.
+ */
 export async function DELETE(request: NextRequest) {
   try {
     const admin = await checkAdminAuth();

@@ -127,7 +127,7 @@ export default function BirthdayPromoPage() {
                   1
                 </span>
                 <div>
-                  <strong>Đăng ký làm thành viên TOAN</strong>
+                  <strong>Đăng ký làm thành viên TOAN Store</strong>
                   <p className="text-gray-600 mt-1">
                     Cập nhật đầy đủ thông tin cá nhân, đặc biệt là ngày sinh
                   </p>
@@ -222,7 +222,7 @@ export default function BirthdayPromoPage() {
           >
             <h3 className="text-lg md:text-xl font-medium mb-4">Điều Kiện & Điều Khoản</h3>
             <ul className="space-y-2 text-sm md:text-base text-gray-600">
-              <li>• Áp dụng cho tất cả thành viên TOAN có cập nhật ngày sinh</li>
+              <li>• Áp dụng cho tất cả thành viên TOAN Store có cập nhật ngày sinh</li>
               <li>• Voucher 200.000đ áp dụng cho đơn hàng từ 1.000.000đ trở lên</li>
               <li>• Voucher có hiệu lực 30 ngày kể từ ngày sinh nhật</li>
               <li>• Điểm thưởng gấp đôi áp dụng cho tất cả đơn hàng trong tháng sinh nhật</li>

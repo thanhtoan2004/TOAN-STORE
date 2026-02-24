@@ -1,7 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { executeQuery } from '@/lib/db/mysql';
+import { withRateLimit } from '@/lib/with-rate-limit';
 
-export async function POST(request: NextRequest) {
+/**
+ * API Đăng ký bản tin (Newsletter Subscription).
+ * Chức năng:
+ * 1. Lưu email/tên khách hàng muốn nhận tin khuyến mãi.
+ * 2. Tự động kích hoạt lại nếu email đã từng Unsubscribe.
+ * 3. Bảo vệ bằng Rate Limit: Tối đa 5 lần thử/phút để tránh spam bots.
+ */
+async function newsletterHandler(request: NextRequest): Promise<NextResponse> {
   try {
     const { email, name } = await request.json();
 
@@ -50,11 +58,18 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('Newsletter subscription error:', error);
     return NextResponse.json(
-      { 
-        success: false, 
-        message: 'Không thể đăng ký nhận tin' 
+      {
+        success: false,
+        message: 'Không thể đăng ký nhận tin'
       },
       { status: 500 }
     );
   }
 }
+
+// Rate limit: 5 requests per 60 seconds per IP to prevent spam
+export const POST = withRateLimit(newsletterHandler, {
+  tag: 'newsletter',
+  limit: 5,
+  windowMs: 60_000
+});

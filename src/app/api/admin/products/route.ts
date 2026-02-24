@@ -10,6 +10,12 @@ import { ResponseWrapper } from '@/lib/api-response';
 import { logger } from '@/lib/logger';
 
 // GET - Lấy danh sách sản phẩm (Admin)
+/**
+ * API Lấy danh sách sản phẩm phục vụ trang Quản lý (Admin).
+ * Khác với API Public, Endpoint này dùng thư viện Drizzle ORM để query 
+ * và bắt buộc phải qua lớp xác thực `checkAdminAuth`.
+ * Hỗ trợ các filter: Tìm theo tên/SKU, lọc theo Trạng thái (Active/Inactive).
+ */
 export async function GET(request: NextRequest) {
   try {
     const admin = await checkAdminAuth();
@@ -73,6 +79,15 @@ export async function GET(request: NextRequest) {
 }
 
 // POST - Tạo sản phẩm mới (Admin)
+/**
+ * API Tạo mới sản phẩm (Admin).
+ * Quy trình xử lý phức tạp:
+ * 1. Insert bảng products (Dữ liệu chính).
+ * 2. Insert bảng product_images (Ảnh chính).
+ * 3. Invalidate Cache: Xóa các bản cache "products:list:*" để UI cập nhật ngay lập tức.
+ * 4. Sync Meilisearch: Đẩy sản phẩm mới lên bộ máy tìm kiếm RAM.
+ * 5. Audit Log: Ghi lại log xem admin nào đã thực hiện hành động này.
+ */
 export async function POST(request: NextRequest) {
   try {
     const admin = await checkAdminAuth();

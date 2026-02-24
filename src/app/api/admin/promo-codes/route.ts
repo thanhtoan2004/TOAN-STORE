@@ -4,6 +4,10 @@ import { invalidateCache } from '@/lib/cache';
 import { checkAdminAuth } from '@/lib/auth';
 
 // GET - Lấy danh sách coupons (cho admin)
+/**
+ * API Lấy danh sách toàn bộ mã giảm giá (Coupons).
+ * Hỗ trợ lọc theo trạng thái Đang hoạt động (Active) hoặc Hết hạn.
+ */
 export async function GET(request: NextRequest) {
   try {
     const admin = await checkAdminAuth();
@@ -86,6 +90,11 @@ export async function GET(request: NextRequest) {
 }
 
 // POST - Tạo coupon mới (admin only)
+/**
+ * API Tạo mã giảm giá mới.
+ * Hỗ trợ nhiều loại: Giảm theo số tiền cố định (Fixed) hoặc Phần trăm (Percent).
+ * Có cài đặt hạn mức sử dụng (Usage limit) và hạng thành viên tối thiểu.
+ */
 export async function POST(request: NextRequest) {
   try {
     const admin = await checkAdminAuth();
@@ -181,6 +190,9 @@ export async function POST(request: NextRequest) {
 }
 
 // PUT - Cập nhật coupon (admin only)
+/**
+ * API Cập nhật thông tin mã giảm giá.
+ */
 export async function PUT(request: NextRequest) {
   try {
     const admin = await checkAdminAuth();
@@ -252,6 +264,9 @@ export async function PUT(request: NextRequest) {
 }
 
 // DELETE - Xóa coupon (admin only)
+/**
+ * API Xóa mã giảm giá (Soft Delete).
+ */
 export async function DELETE(request: NextRequest) {
   try {
     const admin = await checkAdminAuth();

@@ -1,19 +1,26 @@
-
 import { MeiliSearch } from 'meilisearch';
 
-// Initialize the MeiliSearch client
-// Ensure env vars are set, fallback to defaults for development
+/**
+ * Tích hợp Meilisearch - Search Engine siêu tốc (Viết bằng ngôn ngữ Rust).
+ * Thay vì dùng lệnh `WHERE name LIKE '%...%'` siêu chậm của MySQL,
+ * hệ thống sẽ đẩy toàn bộ dữ liệu Sản phẩm thu gọn vào một "Dự Chứa" (Index) có tên `products` của Meilisearch
+ * để phản hồi Suggestion Search ở Navbar chỉ trong < 50ms.
+ */
+
+// Initialize the MeiliSearch client lazily to avoid connection errors during build
 const host = process.env.NEXT_PUBLIC_MEILISEARCH_HOST || 'http://127.0.0.1:7700';
 const apiKey = process.env.MEILISEARCH_MASTER_KEY || 'masterKey';
 
-export const meiliClient = new MeiliSearch({
-    host,
-    apiKey,
-});
+let _meiliClient: MeiliSearch | null = null;
 
-console.log(`[SERVICE_INITIALIZATION] Meilisearch client initialized at ${host}`);
+export function getMeiliClient(): MeiliSearch {
+    if (!_meiliClient) {
+        _meiliClient = new MeiliSearch({ host, apiKey });
+    }
+    return _meiliClient;
+}
 
-// Product Index Schema
+// Cấu trúc Data của 1 Sản phẩm được lưu trong RAM của Meilisearch
 export interface ProductDocument {
     id: number;
     name: string;
@@ -35,10 +42,12 @@ export interface ProductDocument {
 export const PRODUCT_INDEX = 'products';
 
 // Helper to get index (and create if not exists - handled in sync script)
-export const getProductIndex = () => meiliClient.index<ProductDocument>(PRODUCT_INDEX);
+export const getProductIndex = () => getMeiliClient().index<ProductDocument>(PRODUCT_INDEX);
 
 /**
- * Syncs a single product to Meilisearch
+ * Đồng bộ Product từ MySQL Database lên bộ nhớ Meilisearch.
+ * Hàm này thường được gọi ngầm qua Background Queue (Redis BullMQ) 
+ * sau mỗi lần Admin Create/Update sản phẩm trong Dashboard.
  */
 export async function syncProductToMeilisearch(productId: number | string) {
     try {
@@ -94,9 +103,8 @@ export async function syncProductToMeilisearch(productId: number | string) {
 
         const index = getProductIndex();
         await index.addDocuments([document]);
-        console.log(`✅ Meilisearch: Synced product ${productId}`);
     } catch (error) {
-        console.error(`❌ Meilisearch: Failed to sync product ${productId}:`, error);
+        console.error(`Meilisearch: Failed to sync product ${productId}:`, error);
     }
 }
 
@@ -107,8 +115,7 @@ export async function deleteProductFromMeilisearch(productId: number | string) {
     try {
         const index = getProductIndex();
         await index.deleteDocument(productId);
-        console.log(`✅ Meilisearch: Deleted product ${productId}`);
     } catch (error) {
-        console.error(`❌ Meilisearch: Failed to delete product ${productId}:`, error);
+        console.error(`Meilisearch: Failed to delete product ${productId}:`, error);
     }
 }

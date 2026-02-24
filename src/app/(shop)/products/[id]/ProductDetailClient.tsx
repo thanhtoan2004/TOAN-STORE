@@ -6,9 +6,10 @@ import { useCart } from "@/contexts/CartContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
 import AddToCartButton from "@/components/ui/AddToCartButton";
-import { Heart, Video, Play, Printer } from "lucide-react";
+import { Heart, Video, Play, Printer, GitCompareArrows } from "lucide-react";
 import { formatCurrency } from "@/lib/date-utils";
 import { useWishlist } from "@/contexts/WishlistContext";
+import { useComparison } from "@/contexts/ComparisonContext";
 import ReviewMediaUpload from "@/components/reviews/ReviewMediaUpload";
 import ProductRecommendations from "@/components/ui/products/ProductRecommendations";
 import RecentlyViewed from "@/components/ui/products/RecentlyViewed";
@@ -24,6 +25,7 @@ interface ProductSize {
     stock: number;
     allow_backorder?: number;
     expected_restock_date?: string | null;
+    sku?: string;
 }
 
 interface Product {
@@ -97,6 +99,8 @@ export default function ProductDetailClient({ id }: { id: string }) {
     const [error, setError] = useState<string | null>(null);
     const { addToCart } = useCart();
     const { addToWishlist, removeFromWishlist, isInWishlist } = useWishlist();
+    const { addToCompare, removeFromCompare, isInCompare } = useComparison();
+    const inCompare = isInCompare(id);
     const inWishlist = isInWishlist(id);
     const [wishlistLoading, setWishlistLoading] = useState(false);
 
@@ -129,6 +133,21 @@ export default function ProductDetailClient({ id }: { id: string }) {
     });
     const [showSizeGuide, setShowSizeGuide] = useState(false);
 
+    // Helpful toggle state
+    const [likedReviews, setLikedReviews] = useState<number[]>([]);
+
+    useEffect(() => {
+        // Load liked reviews from localStorage on mount
+        const savedLikes = localStorage.getItem('liked_reviews');
+        if (savedLikes) {
+            try {
+                setLikedReviews(JSON.parse(savedLikes));
+            } catch (e) {
+                console.error('Error parsing liked reviews:', e);
+            }
+        }
+    }, []);
+
     useEffect(() => {
         if (productData) {
             setProduct(productData);
@@ -150,7 +169,8 @@ export default function ProductDetailClient({ id }: { id: string }) {
                     size: v.size,
                     stock: (v.stock || 0) - (v.reserved || 0),
                     allow_backorder: v.allow_backorder,
-                    expected_restock_date: v.expected_restock_date
+                    expected_restock_date: v.expected_restock_date,
+                    sku: v.sku
                 }));
                 setSizes(productSizes);
             }
@@ -188,7 +208,8 @@ export default function ProductDetailClient({ id }: { id: string }) {
                     category: product.category,
                     price: product.retail_price || product.price,
                     sale_price: (product.base_price && product.retail_price && product.base_price < product.retail_price) ? product.base_price : undefined,
-                    image_url: product.image_url
+                    image_url: product.image_url,
+                    is_new_arrival: product.is_new_arrival
                 };
 
                 const stored = localStorage.getItem('recently_viewed');
@@ -286,6 +307,27 @@ export default function ProductDetailClient({ id }: { id: string }) {
             console.error('Error updating wishlist:', error);
         } finally {
             setWishlistLoading(false);
+        }
+    };
+
+    const handleCompare = (e: React.MouseEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (!activeProduct) return;
+
+        if (inCompare) {
+            removeFromCompare(activeProduct.id);
+        } else {
+            addToCompare({
+                id: String(activeProduct.id),
+                name: activeProduct.name,
+                category: activeProduct.category,
+                price: activeProduct.retail_price || activeProduct.price,
+                retail_price: activeProduct.retail_price,
+                sale_price: salePrice,
+                image_url: activeProduct.image_url,
+                is_new_arrival: activeProduct.is_new_arrival
+            });
         }
     };
 
@@ -411,6 +453,43 @@ export default function ProductDetailClient({ id }: { id: string }) {
         } catch (error) {
             console.error('Error deleting review:', error);
             alert(t.common?.error || 'Error');
+        }
+    };
+
+    const handleHelpful = async (reviewId: number) => {
+        if (!user) {
+            alert(t.reviews?.login_req || 'Vui lòng đăng nhập để thực hiện chức năng này');
+            return;
+        }
+
+        const isLiked = likedReviews.includes(reviewId);
+        const action = isLiked ? 'unlike' : 'like';
+
+        // Optimistic update
+        setReviews(prev => prev.map(r =>
+            r.id === reviewId ? {
+                ...r,
+                helpful_count: isLiked ? Math.max(0, r.helpful_count - 1) : r.helpful_count + 1
+            } : r
+        ));
+
+        // Update local state and localStorage
+        const newLikedReviews = isLiked
+            ? likedReviews.filter(id => id !== reviewId)
+            : [...likedReviews, reviewId];
+
+        setLikedReviews(newLikedReviews);
+        localStorage.setItem('liked_reviews', JSON.stringify(newLikedReviews));
+
+        try {
+            await fetch('/api/reviews/helpful', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ reviewId, action })
+            });
+        } catch (error) {
+            console.error('Failed to update helpful status:', error);
+            // Revert on error (optional, skipping for simplicity)
         }
     };
 
@@ -582,9 +661,17 @@ export default function ProductDetailClient({ id }: { id: string }) {
                                         </button>
                                     ))}
                                 </div>
-                                {selectedSize && (
-                                    <p className="mt-3 text-sm text-gray-600">Selected: <span className="font-medium">{selectedSize}</span></p>
-                                )}
+                                {selectedSize && (() => {
+                                    const sizeObj = sizes.find(s => s.size === selectedSize);
+                                    return (
+                                        <div className="mt-4 flex items-center justify-between text-sm text-gray-600">
+                                            <p>Selected: <span className="font-medium text-black">{selectedSize}</span></p>
+                                            {sizeObj?.sku && (
+                                                <p>SKU: <span className="font-mono text-gray-500">{sizeObj.sku}</span></p>
+                                            )}
+                                        </div>
+                                    );
+                                })()}
                             </div>
 
                             {activeProduct.description && (
@@ -616,17 +703,30 @@ export default function ProductDetailClient({ id }: { id: string }) {
                                     {t.product.add_to_cart}
                                 </AddToCartButton>
 
-                                <button
-                                    onClick={handleWishlist}
-                                    disabled={wishlistLoading}
-                                    className={`w-full py-4 px-6 rounded-full border-2 font-medium flex items-center justify-center gap-2 transition-all duration-300 ${inWishlist
-                                        ? 'border-black bg-black text-white hover:bg-gray-800'
-                                        : 'border-gray-200 hover:border-black text-black'
-                                        } hover:scale-[1.02] mb-4`}
-                                >
-                                    <Heart className={`w-5 h-5 ${inWishlist ? 'fill-current' : ''}`} />
-                                    {inWishlist ? t.product.in_wishlist : t.product.add_to_wishlist}
-                                </button>
+                                <div className="flex flex-col sm:flex-row gap-4 mb-4">
+                                    <button
+                                        onClick={handleWishlist}
+                                        disabled={wishlistLoading}
+                                        className={`flex-1 py-4 px-6 rounded-full border-2 font-medium flex items-center justify-center gap-2 transition-all duration-300 ${inWishlist
+                                            ? 'border-black bg-black text-white hover:bg-gray-800'
+                                            : 'border-gray-200 hover:border-black text-black'
+                                            } hover:scale-[1.02]`}
+                                    >
+                                        <Heart className={`w-5 h-5 ${inWishlist ? 'fill-current' : ''}`} />
+                                        {inWishlist ? t.product.in_wishlist : t.product.add_to_wishlist}
+                                    </button>
+
+                                    <button
+                                        onClick={handleCompare}
+                                        className={`flex-1 py-4 px-6 rounded-full border-2 font-medium flex items-center justify-center gap-2 transition-all duration-300 ${inCompare
+                                            ? 'border-black bg-black text-white hover:bg-gray-800'
+                                            : 'border-gray-200 hover:border-black text-black'
+                                            } hover:scale-[1.02]`}
+                                    >
+                                        <GitCompareArrows className="w-5 h-5" />
+                                        {inCompare ? 'Bỏ so sánh' : 'So sánh'}
+                                    </button>
+                                </div>
 
                                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 py-4 border-t border-b border-gray-100">
                                     <SocialShare productName={activeProduct.name} />
@@ -886,7 +986,7 @@ export default function ProductDetailClient({ id }: { id: string }) {
                                             <div className="flex justify-between items-start mb-2">
                                                 <div>
                                                     <div className="flex items-center gap-2 mb-1">
-                                                        <span className="font-medium">{review.user_name}</span>
+                                                        <span className="font-medium">{(review.user_name && review.user_name !== '0') ? review.user_name : 'Người dùng ẩn danh'}</span>
                                                         {review.is_verified_purchase && (
                                                             <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded">
                                                                 ✓ {t.reviews.verified_purchase}
@@ -963,7 +1063,27 @@ export default function ProductDetailClient({ id }: { id: string }) {
                                                 </div>
                                             )}
 
-                                            <button className="text-sm text-gray-600 hover:text-black">
+                                            <button
+                                                onClick={() => handleHelpful(review.id)}
+                                                className={`text-sm transition-colors flex items-center gap-1 ${likedReviews.includes(review.id)
+                                                    ? 'text-blue-600 font-medium'
+                                                    : 'text-gray-600 hover:text-black'
+                                                    }`}
+                                            >
+                                                <svg
+                                                    xmlns="http://www.w3.org/2000/svg"
+                                                    width="14"
+                                                    height="14"
+                                                    viewBox="0 0 24 24"
+                                                    fill={likedReviews.includes(review.id) ? "currentColor" : "none"}
+                                                    stroke="currentColor"
+                                                    strokeWidth="2"
+                                                    strokeLinecap="round"
+                                                    strokeLinejoin="round"
+                                                >
+                                                    <path d="M7 10v12" />
+                                                    <path d="M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.76a2 2 0 0 0 1.79-1.11L12 2h0a3.13 3.13 0 0 1 3 3.88Z" />
+                                                </svg>
                                                 Hữu ích ({review.helpful_count})
                                             </button>
                                         </>
@@ -1027,7 +1147,7 @@ function ProductPrintSection({ product, selectedSize }: { product: any; selected
             {/* Header */}
             <div className="flex justify-between items-center border-b-2 border-black pb-6 mb-8">
                 <div>
-                    <h1 className="text-4xl font-bold nike-heading tracking-tighter">NIKE CLONE</h1>
+                    <h1 className="text-4xl font-bold nike-heading tracking-tighter">TOAN Store</h1>
                     <p className="text-sm text-gray-500 italic mt-1 uppercase tracking-widest">Product Catalog / Spec Sheet</p>
                 </div>
                 <div className="text-right">
@@ -1094,7 +1214,7 @@ function ProductPrintSection({ product, selectedSize }: { product: any; selected
 
             {/* Footer info */}
             <div className="mt-20 pt-8 border-t border-gray-100 text-center space-y-2">
-                <p className="text-xs text-gray-400">© 2026 Nike Clone Store. Tất cả quyền được bảo lưu.</p>
+                <p className="text-xs text-gray-400">© 2026 TOAN Store. Tất cả quyền được bảo lưu.</p>
                 <p className="text-[10px] text-gray-400 italic">Lưu ý: Giá cả và thông số sản phẩm có thể thay đổi tùy theo thời điểm thực tế.</p>
             </div>
         </div>

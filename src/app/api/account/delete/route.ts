@@ -2,6 +2,12 @@ import { NextResponse } from 'next/server';
 import { verifyAuth } from '@/lib/auth';
 import { deleteUser } from '@/lib/db/repositories/user';
 
+/**
+ * API Xóa tài khoản (Account Deletion).
+ * Thực hiện:
+ * 1. Soft Delete: Đánh dấu tài khoản là đã xóa thay vì xóa cứng dòng dữ liệu.
+ * 2. Clear Auth Cookies: Xóa Access & Refresh Tokens ở trình duyệt để đăng xuất ngay lập tức.
+ */
 export async function DELETE(request: Request) {
     try {
         const session = await verifyAuth();

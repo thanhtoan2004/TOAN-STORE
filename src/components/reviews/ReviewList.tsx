@@ -25,10 +25,12 @@ interface Review {
 
 interface ReviewListProps {
     productId: number;
-    refreshTrigger?: number; // Used to trigger reload when new review added
+    refreshTrigger?: number;
+    filterRating: number | null;
+    onStatsLoaded?: (stats: any) => void;
 }
 
-export function ReviewList({ productId, refreshTrigger }: ReviewListProps) {
+export function ReviewList({ productId, refreshTrigger, filterRating, onStatsLoaded }: ReviewListProps) {
     const [reviews, setReviews] = useState<Review[]>([]);
     const [loading, setLoading] = useState(true);
     const [page, setPage] = useState(1);
@@ -36,24 +38,52 @@ export function ReviewList({ productId, refreshTrigger }: ReviewListProps) {
     const [sortBy, setSortBy] = useState<'newest' | 'highest' | 'lowest'>('newest');
 
     useEffect(() => {
+        setPage(1); // Reset page when filter changes
+    }, [filterRating, sortBy]);
+
+    useEffect(() => {
         fetchReviews();
-    }, [productId, page, sortBy, refreshTrigger]);
+    }, [productId, page, sortBy, refreshTrigger, filterRating]);
 
     const fetchReviews = async () => {
-        if (!productId || isNaN(productId)) return; // Don't fetch if invalid ID
+        if (!productId || isNaN(productId)) return;
         try {
             setLoading(true);
-            const res = await fetch(`/api/reviews?productId=${productId}&page=${page}&limit=5&sort=${sortBy}`);
+            let url = `/api/reviews?productId=${productId}&page=${page}&limit=5&sort=${sortBy}`;
+            if (filterRating) {
+                url += `&rating=${filterRating}`;
+            }
+
+            const res = await fetch(url);
             const data = await res.json();
 
             if (data.success) {
                 setReviews(data.data.reviews);
                 setTotalPages(data.data.pagination.totalPages);
+                if (data.data.statistics && onStatsLoaded) {
+                    onStatsLoaded(data.data.statistics);
+                }
             }
         } catch (error) {
             console.error('Failed to fetch reviews:', error);
         } finally {
             setLoading(false);
+        }
+    };
+
+    const handleHelpful = async (reviewId: number) => {
+        try {
+            await fetch('/api/reviews/helpful', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ reviewId })
+            });
+            // Optimistic update
+            setReviews(prev => prev.map(r =>
+                r.id === reviewId ? { ...r, helpful_count: r.helpful_count + 1 } : r
+            ));
+        } catch (error) {
+            console.error('Failed to mark helpful:', error);
         }
     };
 
@@ -121,7 +151,7 @@ export function ReviewList({ productId, refreshTrigger }: ReviewListProps) {
 
                         <div className="flex items-center justify-between text-xs text-gray-500 mt-2">
                             <div className="flex items-center gap-4">
-                                <span>{review.user_name || 'Người dùng ẩn danh'}</span>
+                                <span>{(review.user_name && review.user_name !== '0') ? review.user_name : 'Người dùng ẩn danh'}</span>
                                 {review.is_verified_purchase && (
                                     <div className="flex items-center gap-1 text-green-600">
                                         <CheckCircle size={12} />
@@ -129,11 +159,13 @@ export function ReviewList({ productId, refreshTrigger }: ReviewListProps) {
                                     </div>
                                 )}
                             </div>
-                            {/* Helpful button placeholder for future V2 */}
-                            {/* <button className="flex items-center gap-1 hover:text-black">
+                            <button
+                                onClick={() => handleHelpful(review.id)}
+                                className="flex items-center gap-1 hover:text-black transition-colors"
+                            >
                                 <ThumbsUp size={12} />
                                 <span>Hữu ích ({review.helpful_count})</span>
-                            </button> */}
+                            </button>
                         </div>
                     </div>
                 ))}

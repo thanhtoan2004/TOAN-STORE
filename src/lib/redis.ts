@@ -4,11 +4,19 @@ const REDIS_HOST = process.env.REDIS_HOST || '127.0.0.1';
 const REDIS_PORT = parseInt(process.env.REDIS_PORT || '6379');
 const REDIS_PASSWORD = process.env.REDIS_PASSWORD || undefined;
 
+/**
+ * Cấu hình kết nối Redis (Memory Cache Datastore).
+ * Redis ở trong dự án này đóng vai trò lõi cho việc:
+ * 1. Làm backend caching cho Next.js
+ * 2. Lưu trữ token session tạm thời
+ * 3. Chạy Background Queue (BullMQ) để gửi Email mà không làm lag server chính.
+ */
 const redisConfiguration: any = {
     host: REDIS_HOST,
     port: REDIS_PORT,
     password: REDIS_PASSWORD,
-    maxRetriesPerRequest: null, // Critical for BullMQ
+    maxRetriesPerRequest: null, // Critical requirement for BullMQ (Hệ thống hàng đợi)
+    // Thuật toán Backoff: Nếu Redis sập, server sẽ tự động kết nối lại chậm dần đều để không làm nghẽn CPU
     retryStrategy(times: number) {
         const delay = Math.min(times * 50, 2000);
         return delay;
@@ -22,9 +30,12 @@ const redisConfiguration: any = {
     }
 };
 
-// Singleton Redis instance
+// Áp dụng design pattern Singleton để đảm bảo toàn bộ dự án chỉ xài chung 1 cục Connection duy nhất
 let redisInstance: Redis | null = null;
 
+/**
+ * Hàm gọi Instance của Redis. Nếu chưa có thì tạo mới, nếu có rồi thì dùng lại bộ nhớ cũ.
+ */
 export const getRedisConnection = () => {
     if (!redisInstance) {
         console.log(`[SERVICE_INITIALIZATION] Creating singleton Redis connection to ${REDIS_HOST}:${REDIS_PORT}...`);

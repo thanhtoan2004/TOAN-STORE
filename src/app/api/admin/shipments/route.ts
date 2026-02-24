@@ -6,6 +6,11 @@ import { logAdminAction } from '@/lib/audit';
 /**
  * POST - Create a new shipment (Fulfillment)
  */
+/**
+ * API Tạo vận đơn / Lô hàng (Shipment / Fulfillment).
+ * Dùng khi Admin bắt đầu đóng gói và giao hàng cho đơn vị vận chuyển.
+ * Hệ thống sẽ lưu Mã vận đơn (Tracking Code) và Hãng vận chuyển (Carrier).
+ */
 export async function POST(request: NextRequest) {
     try {
         const admin = await checkAdminAuth();

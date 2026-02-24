@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { executeQuery } from '@/lib/db/mysql';
 import { checkAdminAuth } from '@/lib/auth';
 
+/**
+ * API Lấy danh sách thẻ quà tặng (Gift Cards).
+ * Tự động giải mã PIN để Admin có thể hỗ trợ khách hàng.
+ */
 export async function GET(request: NextRequest) {
   try {
     const admin = await checkAdminAuth();
@@ -38,6 +42,10 @@ export async function GET(request: NextRequest) {
   }
 }
 
+/**
+ * API Tạo mới thẻ quà tặng.
+ * Bao gồm: Mã hóa PIN bảo mật và khởi tạo lịch sử giao dịch.
+ */
 export async function POST(request: NextRequest) {
   try {
     const admin = await checkAdminAuth();

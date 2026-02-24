@@ -3,6 +3,10 @@ import { createSuccessResponse, withErrorHandling } from '@/lib/api-utils';
 import { executeQuery } from '@/lib/db/mysql';
 import { getCache, setCache } from '@/lib/cache';
 
+/**
+ * API Lấy danh sách các mã giảm giá (Coupons) công khai đang có hiệu lực.
+ * Kết quả được lưu vào Redis Cache trong 10 phút để tối ưu hiệu năng.
+ */
 async function listCouponsHandler(req: NextRequest): Promise<NextResponse> {
   const CACHE_KEY = 'promo-codes:available';
 
@@ -12,11 +16,14 @@ async function listCouponsHandler(req: NextRequest): Promise<NextResponse> {
     return createSuccessResponse(cachedData, 'Lấy danh sách voucher từ cache thành công');
   }
 
-  // Get all active coupons that still have available uses
+  // Get all active coupons — only return public-safe fields
   const coupons = await executeQuery<any[]>(
     `SELECT 
-      c.*,
-      (SELECT COUNT(*) FROM coupon_usage WHERE coupon_id = c.id) as times_used
+      c.code,
+      c.description,
+      c.discount_type,
+      c.starts_at,
+      c.ends_at
      FROM coupons c
      WHERE (c.ends_at IS NULL OR c.ends_at > NOW()) 
        AND (c.starts_at IS NULL OR c.starts_at <= NOW())

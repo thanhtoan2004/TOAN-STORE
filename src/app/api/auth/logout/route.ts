@@ -3,6 +3,12 @@ import { cookies } from 'next/headers';
 import { AUTH_TOKEN, REFRESH_TOKEN, verifyAuth, verifyRefreshToken } from '@/lib/auth';
 import { getRedisConnection } from '@/lib/redis';
 
+/**
+ * API Đăng xuất người dùng.
+ * Quy trình:
+ * 1. Thu hồi (revoke) Refresh Token trong Redis để ngăn chặn việc tái sử dụng.
+ * 2. Xóa các Cookie định danh (Access Token, Refresh Token, Admin Session).
+ */
 export async function POST(req: NextRequest) {
   try {
     const cookieStore = await cookies();

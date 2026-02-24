@@ -2,6 +2,13 @@ import { NextRequest, NextResponse } from 'next/server';
 import { executeQuery } from '@/lib/db/mysql';
 import { checkAdminAuth } from '@/lib/auth';
 
+/**
+ * API Xuất danh sách đơn hàng ra file CSV.
+ * Chức năng:
+ * 1. Truy vấn toàn bộ đơn hàng kèm thông tin khách hàng.
+ * 2. Chuyển đổi dữ liệu sang định dạng CSV.
+ * 3. Thêm BOM (\ufeff) để Excel hiển thị đúng font tiếng Việt (UTF-8).
+ */
 export async function GET(request: NextRequest) {
     try {
         // Check authentication

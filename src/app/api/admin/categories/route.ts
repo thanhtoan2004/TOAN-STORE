@@ -7,6 +7,10 @@ import { eq, sql, asc } from 'drizzle-orm';
 import { ResponseWrapper } from '@/lib/api-response';
 import { logger } from '@/lib/logger';
 
+/**
+ * API Lấy tất cả danh mục (bao gồm cả danh mục ẩn).
+ * Sắp xếp theo thứ tự ưu tiên hiển thị (position).
+ */
 export async function GET(request: NextRequest) {
   try {
     const admin = await checkAdminAuth();
@@ -24,6 +28,10 @@ export async function GET(request: NextRequest) {
   }
 }
 
+/**
+ * API Tạo danh mục sản phẩm mới.
+ * Có ghi lại Nhật ký hoạt động (Audit Log) để truy vết.
+ */
 export async function POST(request: NextRequest) {
   try {
     const admin = await checkAdminAuth();

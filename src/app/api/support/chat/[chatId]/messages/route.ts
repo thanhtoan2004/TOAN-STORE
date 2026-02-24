@@ -7,6 +7,10 @@ import {
 } from '@/lib/db/supportChat';
 import { verifyAuth } from '@/lib/auth';
 
+/**
+ * API Lấy danh sách tin nhắn trong phiên chat.
+ * Tính năng: Tự động đánh dấu các tin nhắn từ Admin là "Đã đọc" khi khách hàng truy xuất tin nhắn mới.
+ */
 export async function GET(
     request: NextRequest,
     { params }: { params: Promise<{ chatId: string }> }
@@ -65,6 +69,10 @@ export async function GET(
     }
 }
 
+/**
+ * API Gửi tin nhắn mới từ phía khách hàng lên hệ thống hỗ trợ.
+ * Hỗ trợ gửi văn bản kèm theo hình ảnh minh họa (imageUrl).
+ */
 export async function POST(
     request: NextRequest,
     { params }: { params: Promise<{ chatId: string }> }

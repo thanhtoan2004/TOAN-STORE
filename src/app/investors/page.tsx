@@ -11,7 +11,7 @@ export default function InvestorsPage() {
             <section>
               <h2 className="text-2xl font-helvetica-medium mb-4">Thông Tin Cho Nhà Đầu Tư</h2>
               <p className="text-gray-700 leading-relaxed">
-                TOAN là một công ty tư nhân, tập trung vào việc phát triển và phân phối các sản phẩm
+                TOAN Store là một công ty tư nhân, tập trung vào việc phát triển và phân phối các sản phẩm
                 thể thao chất lượng cao tại thị trường Việt Nam và khu vực.
               </p>
             </section>
@@ -27,7 +27,7 @@ export default function InvestorsPage() {
             <section>
               <h2 className="text-2xl font-helvetica-medium mb-4">Cơ Hội Đầu Tư</h2>
               <p className="text-gray-700 leading-relaxed mb-4">
-                Hiện tại, TOAN không có kế hoạch huy động vốn từ công chúng. Tuy nhiên, chúng tôi
+                Hiện tại, TOAN Store không có kế hoạch huy động vốn từ công chúng. Tuy nhiên, chúng tôi
                 luôn mở cửa cho các đối tác chiến lược và nhà đầu tư có cùng tầm nhìn.
               </p>
               <p className="text-gray-700">

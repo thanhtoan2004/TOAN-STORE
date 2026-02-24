@@ -21,7 +21,7 @@ const eslintConfig = [
       "@typescript-eslint/no-explicit-any": "off",
       "@typescript-eslint/no-empty-object-type": "off",
       "@typescript-eslint/ban-ts-comment": "off",
-      "prefer-const": "off",
+      "prefer-const": "warn",
       "react/no-unescaped-entities": "off",
       // Pre-existing: nhiều useEffect thiếu deps, admin dùng <img> thay <Image>
       "react-hooks/exhaustive-deps": "off",

@@ -26,6 +26,10 @@ async function ensureNewsTable() {
 }
 
 // GET - List all news (admin)
+/**
+ * API Lấy danh sách tin tức (Dành cho Admin).
+ * Hỗ trợ tìm kiếm theo tiêu đề/trích dẫn và lọc theo chuyên mục/trạng thái xuất bản.
+ */
 export async function GET(request: NextRequest) {
     const admin = await checkAdminAuth();
     if (!admin) {
@@ -101,6 +105,13 @@ export async function GET(request: NextRequest) {
 }
 
 // POST - Create news
+/**
+ * API Tạo tin tức mới.
+ * Chức năng:
+ * 1. Tự động chuẩn hóa Tiêu đề thành Slug (URL friendly).
+ * 2. Sanitize nội dung HTML để ngăn chặn tấn công XSS.
+ * 3. Ghi nhận thời gian xuất bản nếu đặt trạng thái là Published.
+ */
 export async function POST(request: NextRequest) {
     const admin = await checkAdminAuth();
     if (!admin) {

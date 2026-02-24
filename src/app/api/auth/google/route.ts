@@ -1,5 +1,9 @@
 import { NextResponse } from 'next/server';
 
+/**
+ * API Khởi tạo luồng đăng nhập bằng Google (OAuth2).
+ * Chức năng: Chuyển hướng người dùng đến trang xác thực của Google với các quyền (scopes) cần thiết.
+ */
 export async function GET() {
     const rootUrl = 'https://accounts.google.com/o/oauth2/v2/auth';
 

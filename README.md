@@ -1,8 +1,8 @@
-# TOAN E-commerce 👟
+# TOAN Store E-commerce 👟
 
 Dự án E-commerce Full-Stack chuyên nghiệp mô phỏng hệ thống Nike, được xây dựng với kiến trúc **enterprise-grade**, hiệu năng tối ưu và bảo mật đa tầng. Dự án không chỉ dừng lại ở giao diện mà còn tập trung sâu vào **logic kinh doanh phức tạp** như Flash Sales, quản lý kho đa kho (Multi-Warehouse Inventory), hệ thống Loyalty, thanh toán trực tuyến (VNPay/MoMo), và trí tuệ nhân tạo (AI Chatbot).
 
-> **105+ API Routes** · **Enterprise Grade (Level 3/3)** · **10/10 Security Score** · **Full Audit Passed ✅**
+> **105+ API Routes** · **100% Vietnamese JSDoc Documentation** · **Enterprise Grade (Level 3/3)** · **10/10 Security Score** · **Full Audit Passed ✅**
 
 ---
 
@@ -215,6 +215,9 @@ npm run build
 
 Import file `nike-clone-api.postman_collection.json` vào [Postman](https://www.postman.com/) để test toàn bộ **105+ API endpoints**.
 
+> [!TIP]
+> **Source-of-Truth Documentation**: Tất cả các API routes đều được tích hợp tài liệu **JSDoc tiếng Việt** trực tiếp trong mã nguồn (`route.ts`). Tài liệu này giải thích chi tiết về logic nghiệp vụ, các bước xử lý dữ liệu và cơ chế bảo mật cho từng endpoint.
+
 ### API Groups
 | Group | Routes | Description |
 |-------|--------|-------------|
@@ -261,4 +264,4 @@ Mỗi transition kích hoạt các side-effects tự động:
 
 ---
 
-© 2026 TOAN Development Team. Built for **Performance**, **Scalability**, and **Security**.
+© 2026 TOAN Store Development Team. Built for **Performance**, **Scalability**, and **Security**.

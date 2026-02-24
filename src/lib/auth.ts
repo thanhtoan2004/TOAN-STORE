@@ -2,14 +2,25 @@ import { cookies } from 'next/headers';
 import jwt from 'jsonwebtoken';
 import { executeQuery } from './db/mysql';
 
+/**
+ * Payload chứa thông tin nhúng bên trong chuỗi mã hóa JWT của mỗi người dùng.
+ * Các thông tin này sẽ được đính theo Session (Cookie) và gửi lên server mỗi request.
+ */
 export interface JWTPayload {
     userId: number;
     email: string;
     roleId?: number;
     role: string;
     is_admin: boolean | number | string;
-    tv: number; // Token Version (Security Stamp)
-    exp: number;
+
+    /**
+     * Dấu ấn bảo mật (Security Stamp / Token Version). 
+     * Dùng để 'đá' lập tức user khỏi mọi thiết bị khi họ Đổi Mật Khẩu,
+     * bằng cách update cột token_version ở database lệch đi so với số này.
+     */
+    tv: number;
+
+    exp: number; // Thời gian hết hạn JWT
 }
 
 // FIX L1: Throw error in production if JWT_SECRET is missing (lazy to avoid build-time crash)
@@ -68,7 +79,11 @@ export async function checkAdminAuth() {
 }
 
 /**
- * Basic JWT verification for general users
+ * Xác minh tính hợp lệ của Token JWT gửi lên từ Cookie người dùng phổ thông (Customer).
+ * Chức năng bảo mật quan trọng:
+ * 1. Giải mã JWT bằng Secret Key.
+ * 2. So sánh `token_version` (tv) trong JWT với `token_version` trong Database.
+ * => Ngăn chặn Token bị lộ lọt tiếp tục sử dụng sau khi chủ tài khoản đổi lại Mật Khẩu.
  */
 export async function verifyAuth() {
     try {

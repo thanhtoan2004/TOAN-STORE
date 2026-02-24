@@ -3,6 +3,10 @@ import { executeQuery } from '@/lib/db/mysql';
 import { checkAdminAuth } from '@/lib/auth';
 import { sendWishlistRestockEmail } from '@/lib/email-templates';
 
+/**
+ * API Cập nhật số lượng tồn kho cho một biến thể cụ thể.
+ * Tương tự API POST, nếu số lượng tăng từ 0 lên dương, sẽ kích hoạt gửi mail thông báo cho khách hàng.
+ */
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const admin = await checkAdminAuth();
   if (!admin) {

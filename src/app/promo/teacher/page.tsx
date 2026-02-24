@@ -127,7 +127,7 @@ export default function TeacherPromoPage() {
                   1
                 </span>
                 <div>
-                  <strong>Đăng ký tài khoản TOAN</strong>
+                  <strong>Đăng ký tài khoản TOAN Store</strong>
                   <p className="text-gray-600 mt-1">
                     Tạo tài khoản miễn phí nếu chưa có
                   </p>
@@ -182,7 +182,7 @@ export default function TeacherPromoPage() {
               <h3 className="text-lg md:text-xl font-medium">Lời Cảm Ơn</h3>
             </div>
             <p className="text-sm md:text-base text-gray-700 leading-relaxed">
-              TOAN xin gửi lời tri ân sâu sắc đến quý thầy cô - những người thầy đã cống hiến hết mình
+              TOAN Store xin gửi lời tri ân sâu sắc đến quý thầy cô - những người thầy đã cống hiến hết mình
               cho sự nghiệp giáo dục. Chương trình ưu đãi này là món quà nhỏ để tri ân công lao to lớn
               của thầy cô trong việc đào tạo thế hệ trẻ Việt Nam.
             </p>

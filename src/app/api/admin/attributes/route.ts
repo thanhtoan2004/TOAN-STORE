@@ -3,6 +3,9 @@ import { checkAdminAuth } from '@/lib/auth';
 import { getAllAttributes } from '@/lib/db/repositories/attribute';
 import { executeQuery } from '@/lib/db/mysql';
 
+/**
+ * API Lấy danh sách toàn bộ thuộc tính sản phẩm (Size, Color, Material, v.v.).
+ */
 export async function GET() {
     const admin = await checkAdminAuth();
     if (!admin) {
@@ -18,6 +21,9 @@ export async function GET() {
     }
 }
 
+/**
+ * API Tạo mới một loại thuộc tính.
+ */
 export async function POST(request: Request) {
     const admin = await checkAdminAuth();
     if (!admin) {

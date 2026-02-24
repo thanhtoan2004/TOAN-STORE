@@ -1,11 +1,16 @@
 
+/**
+ * Hệ thống Gửi Thư Điện Tử (SMTP Transport).
+ * Sử dụng thư viện `nodemailer` để kết nối với SMTP server (như Gmail, SendGrid, Amazon SES)
+ * Phụ trách hòm thư thông báo Đăng ký, Đặt hàng thành công, OTP Xác thực.
+ */
 import nodemailer from 'nodemailer';
 
 const SMTP_HOST = process.env.SMTP_HOST || 'smtp.gmail.com';
 const SMTP_PORT = parseInt(process.env.SMTP_PORT || '587');
 const SMTP_USER = process.env.SMTP_USER;
 const SMTP_PASS = process.env.SMTP_PASS;
-const SMTP_FROM = process.env.SMTP_FROM || '"TOAN" <no-reply@nikeclone.com>';
+const SMTP_FROM = process.env.SMTP_FROM || '"TOAN Store" <no-reply@nikeclone.com>';
 
 interface EmailOptions {
   to: string;
@@ -61,16 +66,21 @@ const BASE_STYLES = `
   .note-list li { margin-bottom: 4px; }
 `;
 
-const ICONS = {
-  user: `<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-8 h-8 text-black"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>`,
-  check: `<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-8 h-8 text-black"><polyline points="20 6 9 17 4 12"/></svg>`,
-  lock: `<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-8 h-8 text-black"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>`,
-  star: `<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-8 h-8 text-black"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>`,
-  truck: `<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-8 h-8 text-black"><rect x="1" y="3" width="15" height="13" rx="2" ry="2"/><polyline points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>`
+const ICON_URLS = {
+  user: 'https://img.icons8.com/ios-filled/100/ffffff/user.png',
+  check: 'https://img.icons8.com/ios-filled/100/ffffff/ok.png',
+  lock: 'https://img.icons8.com/ios-filled/100/ffffff/lock.png',
+  star: 'https://img.icons8.com/ios-filled/100/ffffff/star.png',
+  truck: 'https://img.icons8.com/ios-filled/100/ffffff/delivery.png'
 };
 
-function wrapEmailHtml(title: string, iconName: keyof typeof ICONS, bodyContent: string) {
-  const iconSvg = ICONS[iconName] || '';
+/**
+ * Trình bao bọc khung Giao diện HTML chung (Wrapper) cho tất cả Email.
+ * Đảm bảo mọi Email hệ thống gửi ra đều có Logo, Header, Footer theo CSS chuẩn của Brand.
+ * Sử dụng CSS Inline để không bị ứng dụng Gmail/Outlook trên điện thoại tự ý cắt mất style.
+ */
+export function wrapEmailHtml(title: string, iconName: keyof typeof ICON_URLS, bodyContent: string) {
+  const iconUrl = ICON_URLS[iconName] || ICON_URLS.user;
   return `
     <!DOCTYPE html>
     <html>
@@ -78,19 +88,21 @@ function wrapEmailHtml(title: string, iconName: keyof typeof ICONS, bodyContent:
       <meta charset="utf-8">
       <style>${BASE_STYLES}</style>
     </head>
-    <body>
+    <body style="margin: 0; padding: 0;">
       <div class="wrapper">
-        <div class="header">
-          <div class="mx-auto mb-4 w-8 h-8 text-black">
-            ${iconSvg}
-          </div>
-          <h1>${title}</h1>
-        </div>
+        <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color: #111;">
+          <tr>
+            <td align="center" style="padding: 32px 24px;">
+              <img src="${iconUrl}" width="48" height="48" alt="${iconName}" style="display: block; margin-bottom: 12px;">
+              <h1 style="margin: 0; color: white; font-size: 24px; font-weight: 600; font-family: Arial, sans-serif;">${title}</h1>
+            </td>
+          </tr>
+        </table>
         <div class="content">
           ${bodyContent}
         </div>
-        <div class="footer">
-          <p>&copy; 2026 TOAN Store. All rights reserved.</p>
+        <div class="footer" style="background-color: #f9f9f9; padding: 24px; text-align: center; font-size: 12px; color: #71717a; border-top: 1px solid #e4e4e7;">
+          <p>© 2026 TOAN Store. All rights reserved.</p>
         </div>
       </div>
     </body>
@@ -125,10 +137,10 @@ export async function sendEmail({ to, subject, html }: EmailOptions) {
 }
 
 export async function sendWelcomeEmail(to: string, name: string) {
-  const subject = 'Welcome to TOAN!';
+  const subject = 'Welcome to TOAN Store!';
   const body = `
     <h2 style="color: #111; font-size: 20px;">Xin chào ${name},</h2>
-    <p>Cảm ơn bạn đã đăng ký tài khoản tại TOAN. Chúng tôi rất vui mừng khi có bạn đồng hành.</p>
+    <p>Cảm ơn bạn đã đăng ký tài khoản tại TOAN Store. Chúng tôi rất vui mừng khi có bạn đồng hành.</p>
     
     <div class="box" style="text-align: left; padding: 20px;">
       <p style="text-transform: none; font-size: 16px; color: #333;">Hãy bắt đầu khám phá những bộ sưu tập mới nhất và tận hưởng các ưu đãi dành riêng cho thành viên.</p>
@@ -141,10 +153,10 @@ export async function sendWelcomeEmail(to: string, name: string) {
   return sendEmail({ to, subject, html: wrapEmailHtml('Chào mừng bạn mới', 'user', body) });
 }
 
-export async function sendOrderConfirmation(to: string, orderNumber: string, total: number) {
+export async function sendOrderConfirmation(to: string, name: string, orderNumber: string, total: number) {
   const subject = `Order Confirmation #${orderNumber}`;
   const body = `
-    <p>Chào bạn,</p>
+    <h2 style="color: #111; font-size: 20px;">Xin chào ${name},</h2>
     <p>Cảm ơn bạn đã đặt hàng! Đơn hàng <strong class="text-highlight">#${orderNumber}</strong> của bạn đã được ghi nhận thành công.</p>
     
     <div class="box">
@@ -161,11 +173,11 @@ export async function sendOrderConfirmation(to: string, orderNumber: string, tot
   return sendEmail({ to, subject, html: wrapEmailHtml('Xác nhận đơn hàng', 'check', body) });
 }
 
-export async function sendPasswordResetEmail(to: string, token: string) {
+export async function sendPasswordResetEmail(to: string, name: string, token: string) {
   const resetLink = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/reset-password?token=${token}`;
   const subject = 'Đặt lại mật khẩu - TOAN Store';
   const body = `
-    <p>Chào bạn,</p>
+    <h2 style="color: #111; font-size: 20px;">Xin chào ${name},</h2>
     <p>Chúng tôi nhận được yêu cầu đặt lại mật khẩu cho tài khoản của bạn.</p>
     
     <div class="btn-container">
@@ -188,12 +200,12 @@ export async function sendPasswordResetEmail(to: string, token: string) {
 }
 
 // Email thông báo nhận thanh toán
-export async function sendPaymentReceivedEmail(to: string, orderNumber: string, amount: number) {
+export async function sendPaymentReceivedEmail(to: string, name: string, orderNumber: string, amount: number) {
   const subject = `Xác nhận thanh toán thành công cho đơn hàng #${orderNumber}`;
   const formattedAmount = new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount);
 
   const body = `
-    <p>Chào bạn,</p>
+    <h2 style="color: #111; font-size: 20px;">Xin chào ${name},</h2>
     <p>Chúng tôi đã nhận được thanh toán cho đơn hàng <strong class="text-highlight">#${orderNumber}</strong> của bạn.</p>
     
     <div class="box">
@@ -210,12 +222,12 @@ export async function sendPaymentReceivedEmail(to: string, orderNumber: string, 
   return sendEmail({ to, subject, html: wrapEmailHtml('Thanh toán thành công', 'check', body) });
 }
 
-export async function sendVoucherReceivedEmail(to: string, code: string, value: number, discountType: string, minOrderValue: number | null) {
+export async function sendVoucherReceivedEmail(to: string, name: string, code: string, value: number, discountType: string, minOrderValue: number | null) {
   const subject = 'Bạn nhận được một Voucher mới từ TOAN Store';
   const formattedValue = discountType === 'percent' ? `${value}%` : new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(value);
 
   const body = `
-    <p>Chào bạn,</p>
+    <h2 style="color: #111; font-size: 20px;">Xin chào ${name},</h2>
     <p>TOAN Store xin gửi tặng bạn một mã giảm giá đặc biệt:</p>
     
     <div class="box" style="border: 1px dashed #ccc;">
@@ -235,10 +247,10 @@ export async function sendVoucherReceivedEmail(to: string, code: string, value: 
   return sendEmail({ to, subject, html: wrapEmailHtml('Quà tặng dành riêng cho bạn', 'star', body) });
 }
 
-export async function sendOrderShippedEmail(to: string, orderNumber: string) {
+export async function sendOrderShippedEmail(to: string, name: string, orderNumber: string) {
   const subject = `Đơn hàng #${orderNumber} đang được giao`;
   const body = `
-    <p>Chào bạn,</p>
+    <h2 style="color: #111; font-size: 20px;">Xin chào ${name},</h2>
     <p>Tin vui! Đơn hàng <strong class="text-highlight">#${orderNumber}</strong> của bạn đã được đóng gói và giao cho đơn vị vận chuyển.</p>
     
     <div class="box">
@@ -252,4 +264,33 @@ export async function sendOrderShippedEmail(to: string, orderNumber: string) {
   return sendEmail({ to, subject, html: wrapEmailHtml('Đơn hàng đang giao', 'truck', body) });
 }
 
+export async function sendTierUpgradeEmail(to: string, name: string, newTier: string, oldTier: string, totalPoints: number) {
+  const subject = `Chúc mừng bạn đã thăng hạng ${newTier.toUpperCase()} tại TOAN Store!`;
 
+  const tierNames = {
+    bronze: 'Bạc (Bronze)',
+    silver: 'Bạc Premium (Silver)',
+    gold: 'Vàng (Gold)',
+    platinum: 'Bạch Kim (Platinum)'
+  };
+
+  const displayNewTier = tierNames[newTier as keyof typeof tierNames] || newTier;
+
+  const body = `
+    <p>Chào <strong class="text-highlight">${name}</strong>,</p>
+    <p>Chúc mừng bạn! Nhờ sự ủng hộ nhiệt tình của bạn, mức thẻ hội viên của bạn vừa được thăng hạng thành công.</p>
+    
+    <div class="box" style="border: 1px solid #eab308; background-color: #fefce8;">
+      <h2 style="color: #ca8a04; font-size: 28px;">HẠNG ${displayNewTier.toUpperCase()}</h2>
+      <p>Tổng điểm tích luỹ: <strong>${new Intl.NumberFormat('vi-VN').format(totalPoints)} điểm</strong></p>
+    </div>
+
+    <p style="margin-top: 16px;">Với hạng thẻ mới, bạn sẽ nhận được nhiều đặc quyền, ưu đãi chiết khấu và quà tặng độc quyền từ TOAN Store.</p>
+    
+    <div class="btn-container">
+      <a href="${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/account/settings" class="btn">Khám phá Đặc quyền ngay</a>
+    </div>
+  `;
+
+  return sendEmail({ to, subject, html: wrapEmailHtml('Thăng Hạng Thành Viên', 'star', body) });
+}

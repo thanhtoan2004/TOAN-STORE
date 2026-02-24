@@ -1,16 +1,25 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { executeQuery } from '@/lib/db/mysql';
+import { verifyAuth } from '@/lib/auth';
 
 // GET - Check if user has purchased a product
 export async function GET(request: NextRequest) {
     try {
+        const session = await verifyAuth();
+        if (!session) {
+            return NextResponse.json(
+                { success: false, message: 'Unauthorized' },
+                { status: 401 }
+            );
+        }
+        const userId = Number(session.userId);
+
         const { searchParams } = new URL(request.url);
-        const userId = searchParams.get('userId');
         const productId = searchParams.get('productId');
 
-        if (!userId || !productId) {
+        if (!productId) {
             return NextResponse.json(
-                { success: false, message: 'Missing userId or productId' },
+                { success: false, message: 'Missing productId' },
                 { status: 400 }
             );
         }
@@ -25,7 +34,7 @@ export async function GET(request: NextRequest) {
          AND o.status NOT IN ('cancelled', 'failed')
        ORDER BY o.placed_at DESC
        LIMIT 1`,
-            [parseInt(userId), parseInt(productId)]
+            [userId, parseInt(productId)]
         );
 
         const hasPurchased = purchaseCheck && purchaseCheck.length > 0;

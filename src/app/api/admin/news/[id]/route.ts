@@ -4,6 +4,10 @@ import { checkAdminAuth } from '@/lib/auth';
 import { sanitizeRichContent } from '@/lib/sanitize';
 
 // PUT - Update news
+/**
+ * API Cập nhật nội dung bài viết tin tức.
+ * Tự động đồng bộ Slug nếu tiêu đề thay đổi.
+ */
 export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
     const admin = await checkAdminAuth();
     if (!admin) {
@@ -60,6 +64,9 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
 }
 
 // DELETE - Delete news
+/**
+ * API Xóa vĩnh viễn bài viết tin tức.
+ */
 export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
     const admin = await checkAdminAuth();
     if (!admin) {

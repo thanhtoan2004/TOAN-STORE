@@ -4,7 +4,7 @@
 |----------|---------|:------:|-------|
 | **🏗️ Infrastructure** | ORM Layer (Drizzle) | ✅ | Implemented Drizzle ORM for type-safety |
 | | Migration System | ✅ | drizzle-kit configured |
-| | Seed Management | ❌ | |
+| | Seed Management | ✅ | `scripts/seed.ts` — idempotent, 9 tables |
 | | Transaction Abstraction | ✅ | Centralized `withTransaction` helper |
 | **📝 DevOps & Obs** | Centralized Logging | ✅ | Pino implemented |
 | | Structured Logs | ✅ | High-performance JSON logging |
@@ -15,13 +15,14 @@
 | | Staging Environment | ❌ | CI validation only |
 | | Secrets Manager | ❌ | Environment variables used |
 | **🔗 API Patterns** | API Versioning | ❌ | |
-| | OpenAPI / Swagger Docs | ❌ | |
+| | OpenAPI / Swagger Docs | ✅ | `docs/openapi.yaml` — OpenAPI 3.0.3 spec |
+| | Source-code JSDoc | ✅ | 100% Vietnamese JSDoc for all 105+ routes |
 | | Contract Validation | ✅ | Schema validation established |
 | | Response Standardization | ✅ | `ResponseWrapper` implemented |
 | | Pagination Metadata | ✅ | Standardized via `ResponseWrapper` 4th arg |
-| **🔍 Search & Cache** | Synonyms Config | ❌ | Planned for Phase 40 optimization |
+| **🔍 Search & Cache** | Synonyms Config | ✅ | 50+ Vietnamese/English synonym pairs in `sync-meilisearch.ts` |
 | | Ranking Rules Custom | ✅ | Configured in `sync-meilisearch.ts` |
-| | Facet Analytics | ❌ | Planned |
+| | Facet Analytics | ✅ | `search_analytics` table + Admin API `/api/admin/search-analytics` |
 | | Cache Invalidation | ✅ | Implemented in `src/lib/cache.ts` |
 | | TTL Policy | ✅ | Implemented in `src/lib/cache.ts` |
 | | Layered Caching | ✅ | Redis + Meilisearch integration |
@@ -43,7 +44,7 @@
 | **💰 Analytics** | Revenue Aggregation | ✅ | Daily processing implemented |
 | | Metrics Table | ✅ | `daily_metrics` cache established |
 | | Sales Forecasting | ✅ | Basic Linear Regression implemented |
-| | Customer Segmentation | ❌ | |
+| | Customer Segmentation | ✅ | RFM model via `/api/admin/customer-segments` |
 | **🚀 Advanced Features**| AI Shopping Assistant | ✅ | Google Gemini Integration |
 | | Flash Sale Engine | ✅ | Time-limited & Per-user limits |
 | | Real-time Support Chat | ✅ | Socket.io with persistency |
@@ -52,4 +53,4 @@
 | | EAV Attribute System | ✅ | Flexible product variants |
 
 ---
-*Last Audit: 2026-02-16 (Phases 37-42 Integrated)*
+*Last Audit: 2026-02-24 (Phases 37-64 Integrated - 100% API JSDoc Complete)*

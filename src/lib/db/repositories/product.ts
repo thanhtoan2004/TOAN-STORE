@@ -9,7 +9,8 @@ export async function getProductSizes(productId: number) {
         i.reserved, 
         pv.price as price_adjustment,
         COALESCE(i.allow_backorder, 0) as allow_backorder,
-        i.expected_restock_date
+        i.expected_restock_date,
+        pv.sku
     FROM product_variants pv
     LEFT JOIN inventory i ON i.product_variant_id = pv.id
     WHERE pv.product_id = ?

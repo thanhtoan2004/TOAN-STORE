@@ -146,7 +146,7 @@ export default function GiftCardBalancePage() {
                 </div>
               )}
 
-              {showHistory && history.length > 0 && (
+              {showHistory && (
                 <div className="mt-6 border-t pt-6">
                   <h3 className="text-lg font-helvetica-medium mb-4">Lịch Sử Giao Dịch</h3>
                   <div className="space-y-3 max-h-96 overflow-y-auto">

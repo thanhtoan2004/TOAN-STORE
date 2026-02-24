@@ -11,7 +11,7 @@ export default function TermsPage() {
             <section>
               <h2 className="text-2xl font-helvetica-medium mb-4">1. Chấp Nhận Điều Khoản</h2>
               <p className="text-gray-700 leading-relaxed">
-                Bằng việc mua sắm tại TOAN, bạn đồng ý tuân thủ các điều khoản và điều kiện được nêu trong tài liệu này.
+                Bằng việc mua sắm tại TOAN Store, bạn đồng ý tuân thủ các điều khoản và điều kiện được nêu trong tài liệu này.
               </p>
             </section>
 
@@ -45,7 +45,7 @@ export default function TermsPage() {
               <h2 className="text-2xl font-helvetica-medium mb-4">5. Quyền Sở Hữu Trí Tuệ</h2>
               <p className="text-gray-700 leading-relaxed">
                 Tất cả nội dung trên website, bao gồm logo, hình ảnh, văn bản đều thuộc quyền sở hữu
-                của TOAN và được bảo vệ bởi luật bản quyền.
+                của TOAN Store và được bảo vệ bởi luật bản quyền.
               </p>
             </section>
 

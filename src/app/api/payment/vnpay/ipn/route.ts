@@ -2,6 +2,15 @@ import { NextResponse } from 'next/server';
 import { verifyReturnUrl } from '@/lib/payment/vnpay';
 import { executeQuery } from '@/lib/db/mysql';
 
+/**
+ * API Xử lý thông báo thanh toán tức thời (Instant Payment Notification - IPN).
+ * Đây là đầu cuối Server-to-Server từ VNPAY.
+ * Luồng bảo mật tối đa:
+ * 1. Verify Checksum: Chống giả mạo dữ liệu.
+ * 2. Database Transaction: Đảm bảo tính nhất quán (Atomicity).
+ * 3. Idempotency Check (FOR UPDATE): Chống việc xử lý trùng lặp giao dịch (Double spending).
+ * 4. State Machine: Cập nhật trạng thái đơn hàng và kích hoạt log hậu cần.
+ */
 export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const query = Object.fromEntries(searchParams.entries());

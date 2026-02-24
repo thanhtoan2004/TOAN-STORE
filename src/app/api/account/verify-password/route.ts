@@ -8,6 +8,11 @@ import { executeQuery } from '@/lib/db/mysql';
  * - GDPR Data Export
  * - Account Deletion
  */
+/**
+ * API Xác thực mật khẩu (Password Verification).
+ * Đóng vai trò lớp bảo mật bổ sung (Confirmation Step) trước khi người dùng
+ * thực hiện các hành động nhạy cảm như Xóa tài khoản hoặc Xuất dữ liệu cá nhân.
+ */
 export async function POST(req: Request) {
     try {
         const session = await verifyAuth();

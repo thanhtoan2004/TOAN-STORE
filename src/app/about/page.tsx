@@ -5,13 +5,13 @@ export default function AboutPage() {
     <div className="min-h-screen bg-gray-50">
       <div className="nike-container py-12">
         <div className="max-w-4xl mx-auto">
-          <h1 className="text-4xl font-bold mb-6">Về TOAN</h1>
+          <h1 className="text-4xl font-bold mb-6">Về TOAN STORE</h1>
 
           <div className="bg-white rounded-lg p-8 shadow-sm space-y-6">
             <section>
               <h2 className="text-2xl font-helvetica-medium mb-4">Câu Chuyện Của Chúng Tôi</h2>
               <p className="text-gray-700 leading-relaxed">
-                TOAN được thành lập với sứ mệnh mang đến những sản phẩm thể thao chất lượng cao,
+                TOAN Store được thành lập với sứ mệnh mang đến những sản phẩm thể thao chất lượng cao,
                 phù hợp với phong cách sống năng động của người Việt Nam. Chúng tôi tin rằng mọi người
                 đều xứng đáng có cơ hội trải nghiệm những sản phẩm tốt nhất.
               </p>

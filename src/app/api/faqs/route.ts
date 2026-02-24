@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { executeQuery } from '@/lib/db/mysql';
 
+/**
+ * API Lấy danh sách câu hỏi thường gặp (FAQs) và danh mục FAQ.
+ * Hỗ trợ lọc theo categoryId và tự động sắp xếp theo vị trí hiển thị đã cấu hình.
+ */
 export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
@@ -49,9 +53,9 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     console.error('Error fetching FAQs:', error);
     return NextResponse.json(
-      { 
-        success: false, 
-        message: 'Không thể tải danh sách câu hỏi' 
+      {
+        success: false,
+        message: 'Không thể tải danh sách câu hỏi'
       },
       { status: 500 }
     );

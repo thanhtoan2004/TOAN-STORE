@@ -1,3 +1,8 @@
+/**
+ * connection.ts: Trái tim của toàn bộ các tác vụ thao tác Cơ Sở Dữ Liệu MySQL.
+ * Khởi tạo Connection Pool thay vì Single Connection để tiết kiệm tài nguyên
+ * và xử lý hàng trăm request đồng thời một lúc mà không bị nghẽn (từ Next.js API Routes).
+ */
 import mysql from 'mysql2/promise';
 
 // Tạo pool kết nối MySQL
@@ -28,7 +33,9 @@ export const pool = mysql.createPool(poolConfig);
 
 console.log(`[SERVICE_INITIALIZATION] MySQL Pool created for database: ${poolConfig.database} on ${poolConfig.host}`);
 
-// Kiểm tra kết nối
+/**
+ * Kiểm tra kết nối nhanh để hiển thị log hoặc xem db có hoạt động không
+ */
 export async function testConnection() {
     try {
         const connection = await pool.getConnection();
@@ -41,7 +48,11 @@ export async function testConnection() {
     }
 }
 
-// Hàm thực thi truy vấn
+/**
+ * Thực thi một câu truy vấn MySQL tiêu chuẩn và tự động nhả kết nối ra cho Pool
+ * Mọi query string (SELECT/INSERT/UPDATE) đều chạy qua hàm này.
+ * Cú pháp: executeQuery<Product[]>('SELECT * FROM products WHERE id=?', [id])
+ */
 export async function executeQuery<T = unknown[]>(query: string, params: (string | number | null)[] = []): Promise<T> {
     try {
         const [rows] = await pool.query(query, params);
@@ -57,14 +68,20 @@ export async function getConnection() {
     return pool.getConnection();
 }
 
-// Export query helper
+/**
+ * Helper dự phòng, chức năng y hệt executeQuery
+ */
 export async function query<T = any>(sql: string, params?: any[]): Promise<T> {
     const [results] = await pool.execute(sql, params);
     return results as T;
 }
 
 /**
- * Executes a callback within a database transaction
+ * Hàm bao bọc chuyên dụng (Wrapper) cho DB Transaction (Giao dịch nguyên tử).
+ * Thường dùng trong thanh toán hoặc đặt hàng (chỉ Commit khi tất cả lệnh SQL đều chạy đúng,
+ * Nếu 1 lệnh Fail -> Tự động Rollback, không lưu để giữ Database không bị lệch).
+ * 
+ * @param callback Hàm chứa tập hợp nhiều câu query
  */
 export async function transaction<T>(callback: (connection: mysql.PoolConnection) => Promise<T>): Promise<T> {
     const connection = await pool.getConnection();

@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSupportChat, updateChatStatus } from '@/lib/db/supportChat';
 import { verifyAuth } from '@/lib/auth';
 
+/**
+ * API Kết thúc phiên hỗ trợ.
+ * Bảo mật: Chỉ chủ sở hữu phiên chat (khớp UserId hoặc Guest Token) mới có quyền đóng chat.
+ */
 export async function POST(
     request: NextRequest,
     { params }: { params: Promise<{ chatId: string }> }

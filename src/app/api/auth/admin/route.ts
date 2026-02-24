@@ -2,6 +2,12 @@ import { NextResponse } from 'next/server';
 import { executeQuery } from '@/lib/db/mysql';
 import { checkAdminAuth } from '@/lib/auth';
 
+/**
+ * API Lấy thông tin chi tiết của tài khoản Admin hiện tại.
+ * Quy trình:
+ * 1. Xác thực phiên đăng nhập của Admin (kiểm tra JWT cookie).
+ * 2. Truy vấn thông tin từ bảng `admin_users` dựa trên ID trong session.
+ */
 export async function GET() {
     try {
         const session = await checkAdminAuth();

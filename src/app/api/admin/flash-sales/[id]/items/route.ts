@@ -5,6 +5,12 @@ import { checkAdminAuth } from '@/lib/auth';
 /**
  * POST - Add product to flash sale
  */
+/**
+ * API Thêm sản phẩm vào đợt Flash Sale hiện tại.
+ * Ràng buộc bảo mật (Conflict Check):
+ * - Không cho phép 1 sản phẩm tham gia 2 đợt Flash Sale trùng khung giờ.
+ * - Giá Flash Sale phải thấp hơn giá bán lẻ hiện tại.
+ */
 export async function POST(
     request: NextRequest,
     { params }: { params: Promise<{ id: string }> }
@@ -113,6 +119,9 @@ export async function POST(
 
 /**
  * DELETE - Remove product from flash sale
+ */
+/**
+ * API Loại bỏ sản phẩm khỏi đợt Flash Sale.
  */
 export async function DELETE(
     request: NextRequest,

@@ -8,7 +8,7 @@ export default function CorporateSocialResponsibilityPage() {
         <div className="max-w-4xl mx-auto">
           <h1 className="text-4xl font-bold mb-6">Cam Kết Trách Nhiệm Xã Hội</h1>
           <p className="text-lg text-gray-600 mb-8">
-            TOAN cam kết phát triển bền vững thông qua các hoạt động kinh doanh có trách nhiệm với môi trường,
+            TOAN Store cam kết phát triển bền vững thông qua các hoạt động kinh doanh có trách nhiệm với môi trường,
             xã hội và cộng đồng.
           </p>
 
@@ -175,10 +175,10 @@ export default function CorporateSocialResponsibilityPage() {
                   Liên Hệ Ngay
                 </a>
                 <a
-                  href="mailto:csr@toan.vn"
+                  href="mailto:csr@toanstore.vn"
                   className="inline-block border-2 border-white px-6 py-3 rounded-full font-medium hover:bg-white hover:text-black transition-colors text-center"
                 >
-                  Email: csr@toan.vn
+                  Email: csr@toanstore.vn
                 </a>
               </div>
             </section>

@@ -3,6 +3,11 @@ import { executeQuery } from '@/lib/db/mysql';
 import { verifyAuth } from '@/lib/auth';
 import { decrypt } from '@/lib/encryption';
 
+/**
+ * API Lấy thông tin cá nhân của người dùng hiện tại.
+ * Dữ liệu bao gồm: Profile, Điểm tích lũy, Hạng thành viên và trạng thái 2FA.
+ * Tự động giải mã số điện thoại (PII) trước khi trả về frontend.
+ */
 export async function GET() {
   try {
     const session = await verifyAuth();
@@ -16,7 +21,7 @@ export async function GET() {
 
     // Lấy thông tin người dùng từ CSDL
     const users = await executeQuery(
-      'SELECT id, email, first_name, last_name, phone, date_of_birth, gender, is_active, is_verified, is_admin, accumulated_points, membership_tier FROM users WHERE id = ? AND deleted_at IS NULL',
+      'SELECT id, email, first_name, last_name, phone, date_of_birth, gender, is_active, is_verified, is_admin, accumulated_points, membership_tier, two_factor_enabled FROM users WHERE id = ? AND deleted_at IS NULL',
       [session.userId]
     ) as any[];
 
@@ -42,7 +47,8 @@ export async function GET() {
         isVerified: user.is_verified,
         is_admin: user.is_admin,
         accumulatedPoints: user.accumulated_points || 0,
-        membershipTier: user.membership_tier || 'bronze'
+        membershipTier: user.membership_tier || 'bronze',
+        two_factor_enabled: user.two_factor_enabled === 1 || user.two_factor_enabled === '1' || user.two_factor_enabled === true
       }
     });
   } catch (error) {

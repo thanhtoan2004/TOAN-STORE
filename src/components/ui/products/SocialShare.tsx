@@ -12,7 +12,7 @@ export default function SocialShare({ productName }: SocialShareProps) {
 
     const shareUrl = typeof window !== 'undefined' ? window.location.href : '';
     const encodedUrl = encodeURIComponent(shareUrl);
-    const encodedText = encodeURIComponent(`Xem ngay: ${productName} tại Nike Clone Store!`);
+    const encodedText = encodeURIComponent(`Xem ngay: ${productName} tại TOAN Store!`);
 
     const handleCopyLink = () => {
         navigator.clipboard.writeText(shareUrl);

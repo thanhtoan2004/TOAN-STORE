@@ -2,6 +2,14 @@ import { NextResponse } from 'next/server';
 import { getProducts } from '@/lib/db/mysql';
 import { getCache, setCache } from '@/lib/cache';
 
+/**
+ * API Lấy danh sách sản phẩm (Product Catalog).
+ * Hỗ trợ các tính năng nâng cao:
+ * 1. Filtering: Theo Giới tính, Category, Sport, Color, Khoảng giá.
+ * 2. Tìm kiếm: Tích hợp Full-Text Search từ MySQL.
+ * 3. Sorting: Theo giá, tên, độ giảm giá, hoặc mới nhất.
+ * 4. Caching: Sử dụng Redis/In-memory Cache (30 phút) để giảm tải cho Database.
+ */
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
 
@@ -25,7 +33,6 @@ export async function GET(request: Request) {
     const cacheKey = `products:list:${searchParams.toString() || 'default'}`;
     const cachedData = await getCache<any>(cacheKey);
     if (cachedData) {
-      console.log(`Cache HIT for product list: ${cacheKey}`);
       return NextResponse.json(cachedData);
     }
 

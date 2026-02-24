@@ -10,9 +10,9 @@ import { Button } from '@/components/ui/Button';
 // Validation wrapper
 function OrderResultContent() {
     const searchParams = useSearchParams();
-    const status = searchParams.get('status');
-    const orderId = searchParams.get('orderId');
-    const code = searchParams.get('code');
+    const status = searchParams?.get('status');
+    const orderId = searchParams?.get('orderId');
+    const code = searchParams?.get('code');
 
     const [loading, setLoading] = useState(true);
 

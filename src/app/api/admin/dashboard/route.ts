@@ -3,6 +3,15 @@ import { executeQuery } from '@/lib/db/mysql';
 import { checkAdminAuth } from '@/lib/auth';
 
 // GET - Comprehensive dashboard statistics
+/**
+ * API Tổng hợp Dữ liệu cho Dashboard Admin (Trang Quản Trị).
+ * Đây là Endpoint "Nặng" nhất hệ thống vì nó thực hiện Aggregate dữ liệu từ nhiều bảng SQL:
+ * 1. Thống kê cơ bản: Tổng User, Đơn hàng, Doanh thu, Lợi nhuận.
+ * 2. Xu hướng: Doanh thu theo ngày (Trends).
+ * 3. Tài chính: VAT, Phí vận chuyển, Giảm giá, Giá vốn (COGS).
+ * 4. Tồn kho: Cảnh báo hàng sắp hết (Low stock) và Hết hàng (Out of stock).
+ * 5. Khách hàng: Top 5 khách hàng chi tiêu nhiều nhất.
+ */
 export async function GET(request: NextRequest) {
   try {
     // Auth check

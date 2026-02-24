@@ -3,10 +3,15 @@ import { checkAdminAuth } from '@/lib/auth';
 import { ResponseWrapper } from '@/lib/api-response';
 import { processInventoryAlerts } from '@/lib/cron/inventory-alerts';
 
+/**
+ * API Kích hoạt quét cảnh báo tồn kho (Inventory Alerts).
+ * Dùng để kiểm tra các sản phẩm sắp hết hàng dựa trên ngưỡng cấu hình (Low stock threshold)
+ * và chuẩn bị dữ liệu cho Dashboard/Email cảnh báo.
+ */
 export async function GET(req: NextRequest) {
     try {
-        const auth = await checkAdminAuth(req);
-        if (!auth.isAuthenticated) {
+        const auth = await checkAdminAuth();
+        if (!auth) {
             return ResponseWrapper.unauthorized();
         }
 

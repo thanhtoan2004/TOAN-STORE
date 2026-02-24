@@ -61,8 +61,8 @@ export async function PUT(
       );
     }
 
-    // Cập nhật số lượng trong database
-    await updateCartItemQuantity(cartItemId, quantity);
+    // Cập nhật số lượng trong database - PASS userId for security check
+    await updateCartItemQuantity(cartItemId, quantity, Number(session.userId));
 
     return NextResponse.json({
       success: true,
@@ -112,8 +112,8 @@ export async function DELETE(
       return NextResponse.json({ success: false, message: 'Forbidden' }, { status: 403 });
     }
 
-    // Xóa item từ database
-    await removeFromCart(cartItemId);
+    // Xóa item từ database - PASS userId for security check
+    await removeFromCart(cartItemId, Number(session.userId));
 
     return NextResponse.json({
       success: true,

@@ -4,6 +4,13 @@ import { executeQuery } from '@/lib/db/mysql';
 import { buildPaymentUrl } from '@/lib/payment/vnpay';
 import { withRateLimit } from '@/lib/with-rate-limit';
 
+/**
+ * API Khởi tạo liên kết thanh toán VNPAY.
+ * Bảo mật:
+ * 1. Xác thực người sở hữu đơn hàng (Ownership check).
+ * 2. Rate Limiting: Giới hạn tối đa 10 lần tạo link/giờ để tránh tấn công từ chối dịch vụ (DDoS) vào cổng thanh toán.
+ * 3. Transactions Trace: Lưu lại vết giao dịch ở trạng thái `pending`.
+ */
 async function createVNPayUrlHandler(request: Request) {
     try {
         const auth = await verifyAuth();
@@ -35,7 +42,7 @@ async function createVNPayUrlHandler(request: Request) {
         );
 
         const ipAddr = request.headers.get('x-forwarded-for') || '127.0.0.1';
-        const paymentUrl = buildPaymentUrl(orderId, amount, `Thanh toan don hang #${orderId}`, ipAddr);
+        const paymentUrl = buildPaymentUrl(orderId, amount, `Thanh TOAN Store don hang #${orderId}`, ipAddr);
 
         return NextResponse.json({ paymentUrl });
 

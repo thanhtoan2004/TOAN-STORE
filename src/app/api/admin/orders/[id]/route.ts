@@ -7,6 +7,9 @@ import { decrypt } from '@/lib/encryption';
 import { createAuditLog } from '@/lib/db/repositories/audit';
 
 // GET - Lấy chi tiết đơn hàng (Admin)
+/**
+ * API Lấy chi tiết một đơn hàng kèm theo lịch sử lô hàng (Shipments).
+ */
 export async function GET(
     request: NextRequest,
     { params }: { params: Promise<{ id: string }> }
@@ -47,6 +50,14 @@ export async function GET(
 }
 
 // PATCH - Cập nhật trạng thái đơn hàng (Admin)
+/**
+ * API Cập nhật trạng thái đơn hàng (Order State Machine).
+ * Luồng xử lý:
+ * 1. Kiểm tra tính hợp lệ của bước chuyển trạng thái (Ví dụ: Không thể quay lại từ Delivered về Processing).
+ * 2. Cập nhật DB & Ghi log Audit.
+ * 3. Tự động gửi Email thông báo (Giao hàng, Hoàn tất, Hủy đơn) cho khách hàng.
+ * 4. Nếu Hủy đơn: Tự động hoàn trả (Restock) số lượng sản phẩm về kho.
+ */
 export async function PATCH(
     request: NextRequest,
     { params }: { params: Promise<{ id: string }> }

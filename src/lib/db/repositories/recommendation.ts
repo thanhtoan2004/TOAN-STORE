@@ -29,7 +29,7 @@ export async function getSimilarProducts(productId: number, limit: number = 6) {
         if (targetEmbedResult.length === 0) {
             // Fallback: If no embedding, return products in same category
             return executeQuery<any[]>(`
-        SELECT p.id, p.name, p.category_id, p.retail_price as price, p.base_price as sale_price, p.slug,
+        SELECT p.id, p.name, p.category_id, p.retail_price as price, p.base_price as sale_price, p.slug, p.is_new_arrival,
                (SELECT url FROM product_images WHERE product_id = p.id AND is_main = 1 LIMIT 1) as image_url,
                c.name as category
         FROM products p
@@ -46,7 +46,7 @@ export async function getSimilarProducts(productId: number, limit: number = 6) {
         // NOTE: For thousands of products, this should be optimized with a Vector DB or custom plugin
         // For this implementation, we use in-memory matching with cache potential.
         const allEmbeddings = await executeQuery<any[]>(`
-      SELECT pe.product_id, pe.embedding, p.name, p.retail_price as price, p.base_price as sale_price, p.slug,
+      SELECT pe.product_id, pe.embedding, p.name, p.retail_price as price, p.base_price as sale_price, p.slug, p.is_new_arrival,
              (SELECT url FROM product_images WHERE product_id = p.id AND is_main = 1 LIMIT 1) as image_url,
              c.name as category
       FROM product_embeddings pe
