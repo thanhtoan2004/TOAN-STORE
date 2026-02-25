@@ -8,6 +8,7 @@ import { Heart, Menu, ChevronDown } from 'lucide-react'
 import CartIcon from '@/components/ui/CartIcon'
 import SearchBar from '@/components/ui/SearchBar'
 import SearchOverlay from '@/components/search/SearchOverlay'
+import MobileMenuOverlay from '@/components/layout/MobileMenuOverlay'
 import { useWishlist } from "@/contexts/WishlistContext";
 import { useState } from 'react';
 import {
@@ -37,6 +38,9 @@ const Header = () => {
   // Quản lý trạng thái đóng/mở của màn hình tìm kiếm nổi (Search Overlay)
   const [isSearchOpen, setIsSearchOpen] = useState(false);
 
+  // Quản lý trạng thái đóng/mở của Mobile Menu
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
   // Mảng chứa các đường link điều hướng chính trên thanh Menu
   const mainNavigationLinks = [
     { name: t.nav.new, href: '/categories?sort=newest' },
@@ -50,8 +54,8 @@ const Header = () => {
 
   return (
     <header className="w-full bg-white">
-      {/* Top mini-nav: Thanh điều hướng phụ phía trên cùng (Màu xám nhạt) */}
-      <div className="bg-[#f5f5f5] py-2">
+      {/* Top mini-nav: Thanh điều hướng phụ phía trên cùng (Ẩn trên mobile vì đã có BottomNavBar) */}
+      <div className="bg-[#f5f5f5] py-2 hidden md:block">
         <div className="nike-container flex justify-between items-center text-xs">
 
           {/* Logo các thương hiệu con (Jordan, Converse) */}
@@ -149,33 +153,46 @@ const Header = () => {
             </div>
             <SearchOverlay isOpen={isSearchOpen} onClose={() => setIsSearchOpen(false)} />
 
-            {/* Nút Yêu thích (Wishlist) kèm số lượng (Badge) */}
-            <Link
-              href="/wishlist"
-              className="relative p-2 hover:bg-gray-100 rounded-lg transition-colors group text-black"
-              aria-label={t.common.wishlist}
-            >
-              <Heart className="w-6 h-6" />
-              {wishlist.length > 0 && (
-                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold rounded-full w-4.5 h-4.5 flex items-center justify-center border-2 border-white z-20 min-w-[18px] px-1">
-                  {wishlist.length}
-                </span>
-              )}
-            </Link>
+            {/* Các icon bên phải (Giấu trên mobile vì đã có Bottom Nav) */}
+            <div className="hidden md:flex items-center space-x-2">
+              {/* Nút Yêu thích (Wishlist) kèm số lượng (Badge) */}
+              <Link
+                href="/wishlist"
+                className="relative p-2 hover:bg-gray-100 rounded-lg transition-colors group text-black"
+                aria-label={t.common.wishlist}
+              >
+                <Heart className="w-6 h-6" />
+                {wishlist.length > 0 && (
+                  <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold rounded-full w-4.5 h-4.5 flex items-center justify-center border-2 border-white z-20 min-w-[18px] px-1">
+                    {wishlist.length}
+                  </span>
+                )}
+              </Link>
 
-            {/* Nút Giỏ hàng (Tách thành Component riêng để quản lý state) */}
-            <CartIcon />
+              {/* Nút Giỏ hàng (Tách thành Component riêng để quản lý state) */}
+              <CartIcon />
+            </div>
           </div>
         </div>
       </div>
 
       {/* Nút mở Menu trên nền tảng Mobile (Chỉ hiện trên màn hình nhỏ) */}
       <div className="md:hidden nike-container pb-2 text-black">
-        <button className="flex items-center space-x-1 text-sm">
+        <button
+          onClick={() => setIsMobileMenuOpen(true)}
+          className="flex items-center space-x-1 text-sm hover:opacity-70 transition-opacity"
+        >
           <span>{t.common.menu}</span>
           <Menu className="w-4 h-4" />
         </button>
       </div>
+
+      {/* Overlay Menu dành riêng cho Mobile */}
+      <MobileMenuOverlay
+        isOpen={isMobileMenuOpen}
+        onClose={() => setIsMobileMenuOpen(false)}
+        links={mainNavigationLinks}
+      />
     </header>
   )
 }

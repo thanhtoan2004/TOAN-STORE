@@ -103,6 +103,7 @@ export default async function FlashSalesPage() {
                         <ProductCard
                             key={product.product_id}
                             id={product.product_id.toString()}
+                            slug={product.slug}
                             name={product.name}
                             category={product.category_name || 'Giày'}
                             price={parseFloat(product.original_price)}

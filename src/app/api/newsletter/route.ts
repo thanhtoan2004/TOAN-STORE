@@ -27,7 +27,7 @@ async function newsletterHandler(request: NextRequest): Promise<NextResponse> {
     );
 
     if (existing.length > 0) {
-      if (existing[0].status === 'active') {
+      if (existing[0].status === 'subscribed') {
         return NextResponse.json(
           { success: false, message: 'Email này đã đăng ký nhận tin' },
           { status: 400 }
@@ -36,7 +36,7 @@ async function newsletterHandler(request: NextRequest): Promise<NextResponse> {
         // Reactive subscription
         await executeQuery(
           'UPDATE newsletter_subscriptions SET status = ?, unsubscribed_at = NULL WHERE email = ?',
-          ['active', email]
+          ['subscribed', email]
         );
         return NextResponse.json({
           success: true,
@@ -48,7 +48,7 @@ async function newsletterHandler(request: NextRequest): Promise<NextResponse> {
     // Thêm subscription mới
     await executeQuery(
       'INSERT INTO newsletter_subscriptions (email, name, status) VALUES (?, ?, ?)',
-      [email, name || null, 'active']
+      [email, name || null, 'subscribed']
     );
 
     return NextResponse.json({

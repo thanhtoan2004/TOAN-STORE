@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getProductVariants } from '@/lib/db/variants';
+import { executeQuery } from '@/lib/db/mysql';
 
 // GET /api/products/[id]/variants - Get all variants for a product
 /**
@@ -8,17 +9,30 @@ import { getProductVariants } from '@/lib/db/variants';
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ slug: string }> }
 ) {
   try {
-    const { id } = await params;
-    const productId = parseInt(id);
+    const { slug } = await params;
 
-    if (isNaN(productId)) {
-      return NextResponse.json(
-        { success: false, message: 'Product ID không hợp lệ' },
-        { status: 400 }
-      );
+    // Resolve product ID from slug or ID
+    const isNumericId = /^\d+$/.test(slug);
+    let productId: number;
+
+    if (isNumericId) {
+      productId = parseInt(slug);
+    } else {
+      const products = await executeQuery(
+        'SELECT id FROM products WHERE slug = ?',
+        [slug]
+      ) as any[];
+
+      if (products.length === 0) {
+        return NextResponse.json(
+          { success: false, message: 'Sản phẩm không tồn tại' },
+          { status: 404 }
+        );
+      }
+      productId = products[0].id;
     }
 
     const variants = await getProductVariants(productId);

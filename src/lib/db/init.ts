@@ -440,6 +440,12 @@ export async function initDb() {
       if (!columnNames.includes('email')) {
         await connection.query('ALTER TABLE orders ADD COLUMN email VARCHAR(255) AFTER phone');
       }
+      if (!columnNames.includes('has_gift_wrapping')) {
+        await connection.query('ALTER TABLE orders ADD COLUMN has_gift_wrapping TINYINT(1) DEFAULT 0');
+      }
+      if (!columnNames.includes('gift_wrap_cost')) {
+        await connection.query('ALTER TABLE orders ADD COLUMN gift_wrap_cost DECIMAL(12, 2) DEFAULT 0.00');
+      }
 
       // Migration cho status ENUM nếu thiếu các giá trị mới
       const statusCol = columns.find((c: any) => c.Field === 'status');

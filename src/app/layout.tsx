@@ -15,9 +15,12 @@ import { ComparisonProvider } from '@/contexts/ComparisonContext';
 import ChatWidget from "@/components/chat/ChatWidget";
 import Pixel from "@/components/analytics/Pixel";
 import ScrollToTop from '@/components/ui/ScrollToTop';
+import BottomNavBar from '@/components/ui/BottomNavBarWrapper';
 import CookieConsent from '@/components/ui/CookieConsent';
 import AccessibilityWidget from '@/components/ui/AccessibilityWidget';
 import ComparisonBar from '@/components/ui/ComparisonBar';
+import PushNotificationBanner from '@/components/ui/PushNotificationBanner';
+import AppInstallBanner from '@/components/ui/AppInstallBanner';
 
 /**
  * Định nghĩa Global Metadata cho SEO (Search Engine Optimization)
@@ -97,8 +100,11 @@ export default function RootLayout({
                     </Suspense>
 
                     <ScrollToTop />
+                    <BottomNavBar />
                     <CookieConsent />
                     <AccessibilityWidget />
+                    <PushNotificationBanner />
+                    <AppInstallBanner />
 
                     {/* Thanh nổi chức năng So sánh hiển thị ở cuối màn hình */}
                     <ComparisonBar />

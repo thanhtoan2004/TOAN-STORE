@@ -27,6 +27,14 @@ export async function getProductById(productId: number) {
     return product;
 }
 
+export async function getProductBySlug(slug: string) {
+    const [product] = await executeQuery<any[]>(`
+    SELECT * FROM products WHERE slug = ? AND is_active = 1 AND deleted_at IS NULL`,
+        [slug]
+    );
+    return product;
+}
+
 export async function getProducts(filters: {
     category?: string;
     sport?: string;
@@ -211,7 +219,7 @@ export async function formatProductsForChat(products: any[]) {
             originalPrice: originalPrice,
             image_url: p.image_url || '/images/placeholder.png',
             sizes: availableSizes || 'Hết hàng', // Vietnamese 'Out of stock'
-            link: `/products/${p.id}`
+            link: `/products/${p.slug || p.id}`
         };
     }));
     return result;

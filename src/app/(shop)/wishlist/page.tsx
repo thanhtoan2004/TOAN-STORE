@@ -65,6 +65,7 @@ export default function WishlistPage() {
           <ProductCard
             key={item.id}
             id={String(item.id)}
+            slug={item.slug}
             name={item.name}
             category={item.category}
             price={item.price}

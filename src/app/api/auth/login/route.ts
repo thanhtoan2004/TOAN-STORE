@@ -169,13 +169,45 @@ async function loginHandler(req: Request): Promise<NextResponse> {
   // Store Refresh Token in Redis (for revocation and blacklist)
   try {
     const redis = getRedisConnection();
-    // Key: refresh_token:user_id, Value: token
-    // Expires in 7 days (matching JWT expiration)
+    const userAgent = (req as any).headers?.get('user-agent') || 'Unknown';
+    const sessionId = crypto.randomUUID();
+
+    // Phân tích trình duyệt và hệ điều hành từ User-Agent
+    const isMobile = /Mobile|Android|iPhone|iPad/i.test(userAgent);
+    const browser = userAgent.match(/(Chrome|Firefox|Safari|Edge|Opera)\/[\d.]+/)?.[0] || 'Unknown Browser';
+    const os = userAgent.match(/(Windows NT|Mac OS X|Linux|Android|iOS)[\s\/]?[\d._]*/)?.[0] || 'Unknown OS';
+
+    // Key: refresh_token:user_id, Value: token — Expires in 7 days
     await redis.set(`refresh_token:${user.id}`, refreshToken, 'EX', 7 * 24 * 60 * 60);
+
+    // Lưu metadata phiên đăng nhập (Device Management)
+    const sessionData = JSON.stringify({
+      sessionId,
+      ip,
+      device: isMobile ? 'Mobile' : 'Desktop',
+      browser,
+      os,
+      loginAt: Date.now(),
+    });
+    const sessionsKey = `sessions:${user.id}`;
+    await redis.hset(sessionsKey, sessionId, sessionData);
+    await redis.expire(sessionsKey, 7 * 24 * 60 * 60); // 7 days
+
+    // Giới hạn tối đa 10 phiên, xóa phiên cũ nhất nếu vượt quá
+    const allSessions = await redis.hgetall(sessionsKey);
+    if (allSessions && Object.keys(allSessions).length > 10) {
+      const entries = Object.entries(allSessions).map(([id, val]) => ({
+        id,
+        loginAt: (() => { try { return JSON.parse(val as string).loginAt || 0; } catch { return 0; } })()
+      }));
+      entries.sort((a, b) => a.loginAt - b.loginAt);
+      await redis.hdel(sessionsKey, entries[0].id);
+    }
   } catch (error) {
-    console.error('Error storing refresh token in Redis:', error);
+    console.error('Error storing session in Redis:', error);
     // Continue even if Redis fails (fallback to stateless JWT)
   }
+
 
   // Set cookies
   const cookieStore = await cookies();

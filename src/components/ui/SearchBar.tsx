@@ -121,7 +121,7 @@ export default function SearchBar() {
                         {results.map((product) => (
                             <Link
                                 key={product.id}
-                                href={`/products/${product.id}`}
+                                href={`/products/${product.slug || product.id}`}
                                 onClick={() => {
                                     setIsOpen(false);
                                     setQuery("");

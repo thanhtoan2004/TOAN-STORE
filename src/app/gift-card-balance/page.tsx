@@ -30,6 +30,7 @@ export default function GiftCardBalancePage() {
     setLoading(true);
     setError('');
     setBalance(null);
+    setShowHistory(false);
 
     try {
       const response = await fetch('/api/gift-cards/verify', {
@@ -43,7 +44,12 @@ export default function GiftCardBalancePage() {
       const data = await response.json();
 
       if (!response.ok || !data.success) {
-        throw new Error(data.message || 'Không thể kiểm tra số dư');
+        if (response.status === 429) {
+          throw new Error(data.message || 'Bạn đã kiểm tra sai quá nhiều lần. Vui lòng thử lại sau 30 phút.');
+        } else if (response.status === 403) {
+          throw new Error(data.message || 'Thẻ quà tặng này đã bị khóa do nhập sai mã PIN nhiều lần.');
+        }
+        throw new Error(data.message || 'Không thể kiểm tra số dư. Vui lòng kiểm tra lại thông tin.');
       }
 
       if (data.data?.balance !== undefined) {

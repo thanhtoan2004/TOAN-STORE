@@ -10,6 +10,7 @@ import { imageService } from "@/lib/image-service";
 
 interface ProductCardProps {
   id: string;
+  slug?: string;
   name: string;
   category: string;
   price: number;
@@ -21,6 +22,7 @@ interface ProductCardProps {
 
 const ProductCard = ({
   id,
+  slug,
   name,
   category,
   price,
@@ -76,7 +78,7 @@ const ProductCard = ({
   };
 
   return (
-    <Link href={`/products/${id}`} className="block w-full group">
+    <Link href={`/products/${slug || id}`} className="block w-full group">
       <div className="relative cursor-pointer">
         {/* Hình ảnh sản phẩm */}
         <div className="relative mb-3 overflow-hidden aspect-square rounded-lg bg-gray-100">

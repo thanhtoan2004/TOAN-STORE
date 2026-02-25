@@ -129,7 +129,7 @@ export default function ComparePage() {
                                     >
                                         <X className="w-3.5 h-3.5 text-gray-500" />
                                     </button>
-                                    <Link href={`/products/${item.id}`}>
+                                    <Link href={`/products/${item.slug || item.id}`}>
                                         <div className="w-32 h-32 mx-auto mb-3 rounded-xl overflow-hidden bg-[#f5f5f5]">
                                             <Image
                                                 src={imageService.getUrl(item.image_url, { preset: 'PRODUCT_CARD' })}
@@ -188,7 +188,7 @@ export default function ComparePage() {
                             {items.map(item => (
                                 <div key={item.id} className="p-4 text-center">
                                     <Link
-                                        href={`/products/${item.id}`}
+                                        href={`/products/${item.slug || item.id}`}
                                         className="inline-block px-5 py-2.5 bg-black text-white rounded-full text-sm font-bold hover:bg-gray-800 transition-all active:scale-95"
                                     >
                                         {isVi ? 'Xem chi tiết' : 'View Details'}

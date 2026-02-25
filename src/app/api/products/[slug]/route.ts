@@ -11,38 +11,28 @@ import { getCache, setCache } from '@/lib/cache';
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ slug: string }> }
 ) {
   try {
-    const { id } = await params;
-    const productId = parseInt(id);
-
-    if (isNaN(productId)) {
-      return NextResponse.json(
-        { success: false, error: 'Invalid product ID' },
-        { status: 400 }
-      );
-    }
+    const { slug } = await params;
 
     // Attempt to get from cache
-    const cacheKey = `product:detail:${productId}`;
+    const cacheKey = `product:detail:slug:${slug}`;
     const cachedData = await getCache<any>(cacheKey);
     if (cachedData) {
       return NextResponse.json(cachedData);
     }
 
-    // Get product details from database
-    // Execute queries in parallel
-    const { getProductAttributes } = await import('@/lib/db/repositories/attribute');
-    const [product, sizes, images, attributes] = await Promise.all([
-      getProductById(productId),
-      getProductSizes(productId),
-      executeQuery<any[]>(
-        'SELECT id, url, alt_text, position, is_main, media_type FROM product_images WHERE product_id = ? ORDER BY position',
-        [productId]
-      ),
-      getProductAttributes(productId)
-    ]);
+    // Determine if slug is numeric (fallback for old ID-based links)
+    const isNumericId = /^\d+$/.test(slug);
+    let product;
+
+    if (isNumericId) {
+      product = await getProductById(parseInt(slug));
+    } else {
+      const { getProductBySlug } = await import('@/lib/db/repositories/product');
+      product = await getProductBySlug(slug);
+    }
 
     if (!product) {
       return NextResponse.json(
@@ -50,6 +40,20 @@ export async function GET(
         { status: 404 }
       );
     }
+
+    const productId = product.id;
+
+    // Get product details from database
+    // Execute queries in parallel
+    const { getProductAttributes } = await import('@/lib/db/repositories/attribute');
+    const [sizes, images, attributes] = await Promise.all([
+      getProductSizes(productId),
+      executeQuery<any[]>(
+        'SELECT id, url, alt_text, position, is_main, media_type FROM product_images WHERE product_id = ? ORDER BY position',
+        [productId]
+      ),
+      getProductAttributes(productId)
+    ]);
 
     // Calculate available stock
     const availableSizes = sizes.filter((s: any) => (s.stock - s.reserved) > 0 || s.allow_backorder === 1);

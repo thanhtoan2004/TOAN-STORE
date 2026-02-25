@@ -92,6 +92,18 @@ export async function middleware(req: NextRequest) {
   if (pathname.startsWith('/admin') && !pathname.startsWith('/admin/api') && isHtmlRequest) {
     const token = req.cookies.get('nike_admin_session')?.value;
 
+    // IP Whitelisting for Admin panel
+    const ipWhitelist = process.env.ADMIN_IP_WHITELIST;
+    if (ipWhitelist) {
+      const clientIp = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
+        || req.headers.get('x-real-ip')
+        || '127.0.0.1';
+      const allowedIps = ipWhitelist.split(',').map(ip => ip.trim());
+      if (!allowedIps.includes(clientIp) && clientIp !== '127.0.0.1' && clientIp !== '::1') {
+        return new NextResponse('Access Denied: Your IP is not whitelisted for admin access.', { status: 403 });
+      }
+    }
+
     // Verify the JWT rigidly with Issuers
     let isAdmin = false;
     if (token) {

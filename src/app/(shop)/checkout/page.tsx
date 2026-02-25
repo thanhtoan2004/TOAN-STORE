@@ -36,6 +36,10 @@ export default function CheckoutPage() {
   const [giftCardPin, setGiftCardPin] = useState('');
   const [appliedGiftCard, setAppliedGiftCard] = useState<any>(null);
 
+  // Gift Wrapping
+  const [giftWrapping, setGiftWrapping] = useState(false);
+  const GIFT_WRAP_FEE = 25000; // 25.000đ
+
   // Payment State
   const [showQR, setShowQR] = useState(false);
   const [isPaid, setIsPaid] = useState(false);
@@ -175,7 +179,8 @@ export default function CheckoutPage() {
   const tax = Math.round(subtotal * 0.1);
   const voucherDiscount = appliedVoucher?.discountAmount || 0;
   const giftCardDiscount = Math.min(appliedGiftCard?.balance || 0, subtotal + shippingFee + tax - voucherDiscount - membershipDiscountAmount);
-  const total = Math.max(0, subtotal + shippingFee + tax - voucherDiscount - membershipDiscountAmount - giftCardDiscount);
+  const giftWrapCost = giftWrapping ? GIFT_WRAP_FEE : 0;
+  const total = Math.max(0, subtotal + shippingFee + tax + giftWrapCost - voucherDiscount - membershipDiscountAmount - giftCardDiscount);
 
   // handleInputChange removed as react-hook-form handles it
 
@@ -230,7 +235,7 @@ export default function CheckoutPage() {
         });
         alert('Áp dụng thẻ quà tặng thành công!');
       } else {
-        alert(result.message);
+        alert(result.message || 'Thẻ quà tặng không hợp lệ hoặc sai thông tin');
       }
     } catch (error) {
       alert('Lỗi khi kiểm tra thẻ quà tặng');
@@ -290,7 +295,9 @@ export default function CheckoutPage() {
         giftcardNumber: appliedGiftCard?.cardNumber || null,
         giftcardDiscount: giftCardDiscount,
         notes: values.note,
-        paymentStatus: initialPaymentStatus
+        paymentStatus: initialPaymentStatus,
+        has_gift_wrapping: giftWrapping,
+        gift_wrap_cost: GIFT_WRAP_FEE
       };
 
       // 1. Create Order
@@ -398,7 +405,9 @@ export default function CheckoutPage() {
         giftcardNumber: appliedGiftCard?.cardNumber || null,
         giftcardDiscount: giftCardDiscount,
         notes: `${values.note} [Đã thanh toán chuyển khoản]`,
-        paymentStatus: 'paid'
+        paymentStatus: 'paid',
+        has_gift_wrapping: giftWrapping,
+        gift_wrap_cost: GIFT_WRAP_FEE
       };
       // 3. Create Order
       const orderResponse = await fetch('/api/orders', {
@@ -741,6 +750,26 @@ export default function CheckoutPage() {
                   )}
                 />
               </div>
+
+              {/* Gift Wrapping Option */}
+              <div className="bg-white rounded-lg shadow-sm border p-6">
+                <h2 className="text-xl font-helvetica-medium mb-4">Gói quà tặng</h2>
+                <label className="flex items-start gap-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={giftWrapping}
+                    onChange={(e) => setGiftWrapping(e.target.checked)}
+                    className="mt-1 w-4 h-4"
+                  />
+                  <div>
+                    <span className="font-medium">Gói quà tặng đặc biệt 🎁</span>
+                    <p className="text-sm text-gray-600 mt-1">
+                      Đơn hàng sẽ được gói trong hộp quà cao cấp kèm ribbon và thiệp chúc mừng.
+                    </p>
+                    <p className="text-sm font-medium text-black mt-1">+ {formatCurrency(GIFT_WRAP_FEE)}</p>
+                  </div>
+                </label>
+              </div>
             </div>
 
             <div>
@@ -834,6 +863,12 @@ export default function CheckoutPage() {
                     <div className="flex justify-between text-green-600">
                       <span>Thẻ quà tặng:</span>
                       <span>-{formatCurrency(giftCardDiscount)}</span>
+                    </div>
+                  )}
+                  {giftWrapping && (
+                    <div className="flex justify-between">
+                      <span>🎁 Gói quà tặng:</span>
+                      <span>+{formatCurrency(GIFT_WRAP_FEE)}</span>
                     </div>
                   )}
                   <hr />

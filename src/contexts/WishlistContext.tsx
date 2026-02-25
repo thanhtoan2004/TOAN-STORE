@@ -12,6 +12,7 @@ export interface WishlistItem {
   price: number;
   sale_price?: number;
   image_url: string;
+  slug?: string;
   is_new_arrival?: boolean;
 }
 

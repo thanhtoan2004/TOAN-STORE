@@ -99,7 +99,7 @@ async function createOrderHandler(request: NextRequest) {
     const userId = session?.userId || null;
 
     const body = await request.json();
-    const { items, shippingAddress, phone, email, paymentMethod, notes, shippingFee, discount, voucherCode, voucherDiscount, giftcardNumber, giftcardDiscount } = body;
+    const { items, shippingAddress, phone, email, paymentMethod, notes, shippingFee, discount, voucherCode, voucherDiscount, giftcardNumber, giftcardDiscount, has_gift_wrapping, gift_wrap_cost } = body;
 
     // Validate
     if (!items || items.length === 0) {
@@ -278,7 +278,7 @@ async function createOrderHandler(request: NextRequest) {
     // Recalculate Total (Before Gift Card)
     if (finalDiscount > subtotal) finalDiscount = subtotal;
 
-    let totalAmount = subtotal + finalShippingFee - finalDiscount;
+    let totalAmount = subtotal + finalShippingFee - finalDiscount + (has_gift_wrapping ? (gift_wrap_cost || 0) : 0);
     if (totalAmount < 0) totalAmount = 0;
 
     // 3. Gift Card Validation
@@ -404,6 +404,8 @@ async function createOrderHandler(request: NextRequest) {
       email,
       paymentMethod: paymentMethod || 'cod',
       paymentStatus: body.paymentStatus || 'pending',
+      has_gift_wrapping: has_gift_wrapping || false,
+      giftWrapCost: gift_wrap_cost || 0,
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       items: validatedItems.map((item: any) => ({
         productId: item.productId,
@@ -413,7 +415,7 @@ async function createOrderHandler(request: NextRequest) {
         quantity: item.quantity,
         price: item.price // Verified Price
       })),
-      notes: notes ? `${notes} (Membership Discount: ${formatCurrency(membershipDiscount)})` : `Membership Discount: ${formatCurrency(membershipDiscount)}`
+      notes: notes || null
     });
 
     // Update Flash Sale Stock

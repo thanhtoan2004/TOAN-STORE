@@ -6,6 +6,7 @@ import Pagination from './Pagination';
 
 interface ProductType {
   id: number;
+  slug?: string;
   name: string;
   category: string;
   price: number;

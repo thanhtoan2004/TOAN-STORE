@@ -53,6 +53,12 @@
   * {
     @apply border-border;
   }
+
+  html,
+  body {
+    overflow-x: hidden;
+  }
+
   body {
     @apply bg-background text-foreground;
     font-feature-settings: "rlig" 1, "calt" 1;
@@ -125,3 +131,99 @@ html.reduce-motion *::after {
   scroll-behavior: auto !important;
 }
 
+/* ===== High Contrast Mode ===== */
+html.high-contrast {
+  --foreground: 0 0% 0%;
+  --border: 0 0% 30%;
+}
+
+html.high-contrast body:not(.bg-black):not(.bg-gray-900) {
+  color: #000 !important;
+}
+
+html.high-contrast p:not(.text-white),
+html.high-contrast span:not(.text-white):not(.text-gray-400),
+html.high-contrast a:not(.text-white),
+html.high-contrast h1:not(.text-white),
+html.high-contrast h2:not(.text-white),
+html.high-contrast h3:not(.text-white),
+html.high-contrast h4:not(.text-white),
+html.high-contrast h5:not(.text-white),
+html.high-contrast h6:not(.text-white),
+html.high-contrast label:not(.text-white),
+html.high-contrast li:not(.text-white) {
+  color: #000 !important;
+}
+
+html.high-contrast .text-gray-400:not(.bg-black .text-gray-400):not(footer .text-gray-400),
+html.high-contrast .text-gray-500:not(.bg-black .text-gray-500):not(footer .text-gray-500),
+html.high-contrast .text-gray-600:not(.bg-black .text-gray-600):not(footer .text-gray-600) {
+  color: #333 !important;
+}
+
+/* Ensure gray text inside dark backgrounds stays visible in high-contrast mode */
+html.high-contrast .bg-black .text-gray-400,
+html.high-contrast .bg-black .text-gray-500,
+html.high-contrast .bg-black .text-gray-600,
+html.high-contrast footer h1,
+html.high-contrast footer h2,
+html.high-contrast footer h3,
+html.high-contrast footer h4,
+html.high-contrast footer h5,
+html.high-contrast footer h6,
+html.high-contrast footer .text-gray-400,
+html.high-contrast footer .text-gray-500,
+html.high-contrast footer .text-gray-600 {
+  color: #fff !important;
+}
+
+html.high-contrast input,
+html.high-contrast select,
+html.high-contrast textarea,
+html.high-contrast button {
+  border-color: #333 !important;
+}
+
+html.high-contrast .border,
+html.high-contrast [class*="border-"] {
+  border-color: #555 !important;
+}
+
+/* ===== Color Blind Friendly Mode (Deuteranopia) ===== */
+html.color-blind-friendly {
+  filter: url('#colorblind-filter');
+}
+
+html.color-blind-friendly .text-red-500,
+html.color-blind-friendly .text-red-600,
+html.color-blind-friendly .text-red-700 {
+  color: #d55e00 !important;
+  /* Orange instead of red */
+}
+
+html.color-blind-friendly .bg-red-500,
+html.color-blind-friendly .bg-red-600 {
+  background-color: #d55e00 !important;
+}
+
+html.color-blind-friendly .text-green-500,
+html.color-blind-friendly .text-green-600,
+html.color-blind-friendly .text-green-700 {
+  color: #009e73 !important;
+  /* Teal instead of green */
+}
+
+html.color-blind-friendly .bg-green-500,
+html.color-blind-friendly .bg-green-600 {
+  background-color: #009e73 !important;
+}
+
+html.color-blind-friendly .border-red-200,
+html.color-blind-friendly .border-red-500 {
+  border-color: #d55e00 !important;
+}
+
+html.color-blind-friendly .border-green-200,
+html.color-blind-friendly .border-green-500 {
+  border-color: #009e73 !important;
+}

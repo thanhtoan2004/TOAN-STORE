@@ -7,7 +7,7 @@ import { notFound } from 'next/navigation';
 import { ProductReviews } from '@/components/reviews/ProductReviews';
 
 interface Props {
-  params: Promise<{ id: string }>;
+  params: Promise<{ slug: string }>;
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }
 
@@ -15,13 +15,16 @@ export async function generateMetadata(
   { params, searchParams }: Props,
   parent: ResolvingMetadata
 ): Promise<Metadata> {
-  const id = (await params).id;
-  const productId = parseInt(id);
+  const slug = (await params).slug;
+
+  const isNumericId = /^\d+$/.test(slug);
+  const condition = isNumericId ? 'id = ?' : 'slug = ?';
+  const paramValue = isNumericId ? parseInt(slug) : slug;
 
   // 1. Fetch default product data
   const products = await executeQuery(
-    'SELECT name, description, category_id, retail_price, base_price, (SELECT url FROM product_images WHERE product_id = products.id AND is_main = 1 LIMIT 1) as image_url FROM products WHERE id = ?',
-    [productId]
+    `SELECT id, name, description, category_id, retail_price, base_price, (SELECT url FROM product_images WHERE product_id = products.id AND is_main = 1 LIMIT 1) as image_url FROM products WHERE ${condition}`,
+    [paramValue]
   ) as any[];
 
   if (products.length === 0) {
@@ -29,6 +32,7 @@ export async function generateMetadata(
   }
 
   const product = products[0];
+  const productId = product.id;
 
   // 2. Fetch Dynamic SEO Metadata from repository
   const { getSeoMetadata } = await import('@/lib/db/repositories/seo');
@@ -64,7 +68,11 @@ export async function generateMetadata(
 }
 
 export default async function Page({ params }: Props) {
-  const { id } = await params;
+  const { slug } = await params;
+
+  const isNumericId = /^\d+$/.test(slug);
+  const condition = isNumericId ? 'p.id = ?' : 'p.slug = ?';
+  const paramValue = isNumericId ? parseInt(slug) : slug;
 
   // fetch data
   const products = await executeQuery(
@@ -75,13 +83,14 @@ export default async function Page({ params }: Props) {
       p.retail_price, 
       p.base_price, 
       p.id,
+      p.slug,
       (SELECT url FROM product_images WHERE product_id = p.id AND is_main = 1 LIMIT 1) as image_url,
       c.name as category_name,
       c.slug as category_slug
     FROM products p
     LEFT JOIN categories c ON p.category_id = c.id
-    WHERE p.id = ?`,
-    [id]
+    WHERE ${condition}`,
+    [paramValue]
   ) as any[];
 
   if (products.length === 0) {
@@ -105,7 +114,7 @@ export default async function Page({ params }: Props) {
           priceCurrency: 'VND',
           price: product.base_price,
           availability: 'https://schema.org/InStock',
-          url: `${process.env.NEXT_PUBLIC_APP_URL}/products/${product.id}`,
+          url: `${process.env.NEXT_PUBLIC_APP_URL}/products/${product.slug || product.id}`,
         },
       },
       {
@@ -127,7 +136,7 @@ export default async function Page({ params }: Props) {
             '@type': 'ListItem',
             position: 3,
             name: product.name,
-            item: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/products/${product.id}`,
+            item: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/products/${product.slug || product.id}`,
           },
         ],
       }
@@ -140,10 +149,10 @@ export default async function Page({ params }: Props) {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
-      <ProductDetailClient id={id} />
+      <ProductDetailClient slug={slug} initialProductId={product.id} />
 
       {/* Product Reviews Section - Rendered inside ProductDetailClient */}
-      {/* <ProductReviews productId={parseInt(id)} /> */}
+      {/* <ProductReviews productId={product.id} /> */}
     </div>
   );
 }

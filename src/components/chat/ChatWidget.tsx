@@ -241,7 +241,7 @@ export default function ChatWidget() {
                         animate={{ opacity: 1, y: 0, scale: 1 }}
                         exit={{ opacity: 0, y: 20, scale: 0.95 }}
                         transition={{ duration: 0.2 }}
-                        className="fixed bottom-24 right-6 w-[340px] h-[480px] bg-white rounded-3xl shadow-2xl border border-gray-100 flex flex-col z-50 overflow-hidden"
+                        className="fixed bottom-36 md:bottom-24 right-6 w-[340px] h-[480px] bg-white rounded-3xl shadow-2xl border border-gray-100 flex flex-col z-50 overflow-hidden"
                     >
                         {/* Header */}
                         <div className="bg-black text-white p-3.5 flex justify-between items-center">
@@ -405,7 +405,7 @@ export default function ChatWidget() {
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
                 onClick={() => setIsOpen(!isOpen)}
-                className="fixed bottom-6 right-6 w-16 h-16 bg-black text-white rounded-full shadow-2xl flex items-center justify-center z-50 hover:bg-gray-900 transition-all group"
+                className="fixed bottom-20 md:bottom-6 right-6 w-16 h-16 bg-black text-white rounded-full shadow-2xl flex items-center justify-center z-50 hover:bg-gray-900 transition-all group"
             >
                 <div className="absolute inset-0 bg-black rounded-full animate-ping opacity-20 group-hover:hidden" />
                 <AnimatePresence mode="wait">

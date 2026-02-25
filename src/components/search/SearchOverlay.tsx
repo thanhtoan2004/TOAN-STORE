@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { Search, X, Loader2, ArrowRight } from 'lucide-react';
+import { Search, X, Loader2, ArrowRight, Mic } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -27,8 +27,50 @@ export default function SearchOverlay({ isOpen, onClose }: SearchOverlayProps) {
     const [query, setQuery] = useState('');
     const [results, setResults] = useState<SearchResult[]>([]);
     const [isLoading, setIsLoading] = useState(false);
+    const [isListening, setIsListening] = useState(false);
+    const [speechSupported, setSpeechSupported] = useState(false);
     const inputRef = useRef<HTMLInputElement>(null);
+    const recognitionRef = useRef<any>(null);
     const router = useRouter();
+
+    // Voice Search — Web Speech API setup
+    useEffect(() => {
+        const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+        if (SpeechRecognition) {
+            setSpeechSupported(true);
+            const recognition = new SpeechRecognition();
+            recognition.lang = 'vi-VN'; // Hỗ trợ tiếng Việt
+            recognition.continuous = false;
+            recognition.interimResults = true;
+
+            recognition.onresult = (event: any) => {
+                const transcript = Array.from(event.results)
+                    .map((result: any) => result[0].transcript)
+                    .join('');
+                setQuery(transcript);
+            };
+
+            recognition.onend = () => setIsListening(false);
+            recognition.onerror = () => setIsListening(false);
+
+            recognitionRef.current = recognition;
+        }
+        return () => {
+            recognitionRef.current?.abort();
+        };
+    }, []);
+
+    const toggleVoiceSearch = () => {
+        if (!recognitionRef.current) return;
+        if (isListening) {
+            recognitionRef.current.stop();
+            setIsListening(false);
+        } else {
+            setQuery('');
+            recognitionRef.current.start();
+            setIsListening(true);
+        }
+    };
 
     useEffect(() => {
         if (isOpen) {
@@ -128,9 +170,22 @@ export default function SearchOverlay({ isOpen, onClose }: SearchOverlayProps) {
                                         <button
                                             type="button"
                                             onClick={() => setQuery('')}
-                                            className="absolute inset-y-0 right-4 flex items-center p-2 hover:bg-gray-200 rounded-full transition-colors"
+                                            className="absolute inset-y-0 right-14 flex items-center p-2 hover:bg-gray-200 rounded-full transition-colors"
                                         >
                                             <X className="w-5 h-5 text-gray-500" />
+                                        </button>
+                                    )}
+                                    {speechSupported && (
+                                        <button
+                                            type="button"
+                                            onClick={toggleVoiceSearch}
+                                            className={`absolute inset-y-0 right-4 flex items-center p-2 rounded-full transition-all ${isListening
+                                                ? 'bg-red-100 text-red-600 animate-pulse'
+                                                : 'hover:bg-gray-200 text-gray-400 hover:text-black'
+                                                }`}
+                                            title={isListening ? 'Đang nghe... Nhấn để dừng' : 'Tìm kiếm bằng giọng nói'}
+                                        >
+                                            <Mic className={`w-5 h-5 ${isListening ? 'text-red-600' : ''}`} />
                                         </button>
                                     )}
                                 </form>
@@ -178,7 +233,7 @@ export default function SearchOverlay({ isOpen, onClose }: SearchOverlayProps) {
                                             {results.map((product) => (
                                                 <Link
                                                     key={product.id}
-                                                    href={`/products/${product.id}`}
+                                                    href={`/products/${product.slug || product.id}`}
                                                     onClick={onClose}
                                                     className="group"
                                                 >
@@ -218,7 +273,19 @@ export default function SearchOverlay({ isOpen, onClose }: SearchOverlayProps) {
                                             <Search className="w-8 h-8 text-gray-400" />
                                         </div>
                                         <h3 className="text-xl font-medium mb-2 text-black">Nhập từ khóa tìm kiếm</h3>
-                                        <p className="text-gray-500">Bắt đầu nhập để xem kết quả ngay lập tức.</p>
+                                        <p className="text-gray-500 mb-4">Bắt đầu nhập để xem kết quả ngay lập tức.</p>
+                                        {speechSupported && (
+                                            <button
+                                                onClick={toggleVoiceSearch}
+                                                className={`inline-flex items-center gap-2 px-5 py-2.5 rounded-full font-medium text-sm transition-all ${isListening
+                                                    ? 'bg-red-100 text-red-700 animate-pulse'
+                                                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                                                    }`}
+                                            >
+                                                <Mic className="w-4 h-4" />
+                                                {isListening ? 'Đang nghe... 🎙️' : 'Hoặc tìm kiếm bằng giọng nói'}
+                                            </button>
+                                        )}
                                     </div>
                                 )}
                             </div>

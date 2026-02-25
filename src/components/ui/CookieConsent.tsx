@@ -61,7 +61,7 @@ export default function CookieConsent() {
                     animate={{ y: 0, opacity: 1 }}
                     exit={{ y: 100, opacity: 0 }}
                     transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-                    className="fixed bottom-0 left-0 right-0 z-[9999] p-4 md:p-6"
+                    className="fixed bottom-16 md:bottom-0 left-0 right-0 z-[9999] p-4 md:p-6"
                 >
                     <div className="max-w-4xl mx-auto bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden">
                         {/* Header */}
@@ -72,7 +72,7 @@ export default function CookieConsent() {
                                 </div>
                                 <div className="flex-1 min-w-0">
                                     <h3 className="text-lg font-bold text-gray-900 mb-1">
-                                        {isVi ? 'Chúng tôi sử dụng Cookie 🍪' : 'We use Cookies 🍪'}
+                                        {isVi ? 'Chúng tôi sử dụng Cookie' : 'We use Cookies'}
                                     </h3>
                                     <p className="text-sm text-gray-600 leading-relaxed">
                                         {isVi

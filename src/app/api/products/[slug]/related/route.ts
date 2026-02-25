@@ -8,16 +8,30 @@ import { executeQuery } from '@/lib/db/mysql';
  */
 export async function GET(
     request: NextRequest,
-    { params }: { params: Promise<{ id: string }> }
+    { params }: { params: Promise<{ slug: string }> }
 ) {
     try {
-        const { id } = await params;
-        const productId = parseInt(id);
-        if (isNaN(productId)) {
-            return NextResponse.json(
-                { success: false, message: 'Invalid product ID' },
-                { status: 400 }
-            );
+        const { slug } = await params;
+
+        // Resolve product ID from slug or ID
+        const isNumericId = /^\d+$/.test(slug);
+        let productId: number;
+
+        if (isNumericId) {
+            productId = parseInt(slug);
+        } else {
+            const products = await executeQuery(
+                'SELECT id FROM products WHERE slug = ?',
+                [slug]
+            ) as any[];
+
+            if (products.length === 0) {
+                return NextResponse.json(
+                    { success: false, message: 'Sản phẩm không tồn tại' },
+                    { status: 404 }
+                );
+            }
+            productId = products[0].id;
         }
 
         // 1. Get current product's category

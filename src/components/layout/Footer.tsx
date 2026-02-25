@@ -169,7 +169,7 @@ const Footer = () => {
 
           {/* Cột 2: Trợ giúp (GET HELP) */}
           <div className="space-y-4">
-            <h3 className="font-helvetica-medium text-sm">{t.footer.get_help}</h3>
+            <h3 className="font-helvetica-medium text-sm text-white">{t.footer.get_help}</h3>
             <nav className="flex flex-col space-y-2">
               {footerLinks.help.map((link) => (
                 <Link
@@ -185,7 +185,7 @@ const Footer = () => {
 
           {/* Cột 3: Về công ty (ABOUT COMPANY) */}
           <div className="space-y-4">
-            <h3 className="font-helvetica-medium text-sm">{t.footer.about_nike}</h3>
+            <h3 className="font-helvetica-medium text-sm text-white">{t.footer.about_nike}</h3>
             <nav className="flex flex-col space-y-2">
               {footerLinks.company.map((link) => (
                 <Link
@@ -201,7 +201,7 @@ const Footer = () => {
 
           {/* Cột 4: Khuyến mãi và Đăng ký bản tin (PROMOTIONS & NEWSLETTER) */}
           <div className="space-y-4">
-            <h3 className="font-helvetica-medium text-sm">{t.footer.promotions}</h3>
+            <h3 className="font-helvetica-medium text-sm text-white">{t.footer.promotions}</h3>
             <nav className="flex flex-col space-y-2">
               {footerLinks.promotions.map((link) => (
                 <Link
@@ -216,7 +216,7 @@ const Footer = () => {
 
             {/* Newsletter Form Box */}
             <div className="pt-4 border-t border-gray-700 mt-6">
-              <h4 className="font-helvetica-medium text-xs mb-2">{t.footer.signup_news}</h4>
+              <h4 className="font-helvetica-medium text-xs mb-2 text-white">{t.footer.signup_news}</h4>
               <p className="text-gray-400 text-xs mb-3">
                 Nhận thông tin về sản phẩm mới, ưu đãi độc quyền
               </p>
@@ -279,15 +279,15 @@ const Footer = () => {
         <div className="py-6 border-t border-gray-700 flex flex-col md:flex-row justify-between text-gray-400 text-[10px]">
           <div className="flex items-center space-x-2 mb-4 md:mb-0">
             <div className="flex items-center gap-4">
-              <span className="flex items-center">
+              <span className="flex items-center text-white">
                 <MapPin className="w-4 h-4" />
                 <span className="ml-1">{t.footer.location}</span>
               </span>
 
               {/* Nút Đổi Ngôn Ngữ (VI/EN) */}
-              <LanguageSwitcher />
+              <LanguageSwitcher theme="dark" />
 
-              <span>{t.footer.rights}</span>
+              <span className="text-white">{t.footer.rights}</span>
             </div>
           </div>
 

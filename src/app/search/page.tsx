@@ -72,6 +72,7 @@ function SearchContent() {
                     <ProductCard
                       key={product.id}
                       id={String(product.id)}
+                      slug={product.slug}
                       name={product.name}
                       category={product.category || ''}
                       price={product.retail_price || product.base_price || 0}

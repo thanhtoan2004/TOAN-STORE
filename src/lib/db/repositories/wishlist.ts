@@ -41,6 +41,7 @@ export async function getWishlist(userId: number) {
       wi.id as wishlist_item_id,
       p.id,
       p.name,
+      p.slug,
       p.base_price as price,
       p.retail_price as sale_price,
       (SELECT url FROM product_images WHERE product_id = p.id AND is_main = 1 LIMIT 1) as image_url,

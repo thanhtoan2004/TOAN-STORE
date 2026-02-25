@@ -9,6 +9,7 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 export interface CompareProduct {
     id: number | string;
     name: string;
+    slug?: string;
     image_url: string;
     price?: number;
     retail_price?: number;
@@ -85,6 +86,7 @@ export function ComparisonProvider({ children }: { children: ReactNode }) {
             const newCompareItem: CompareProduct = {
                 id: product.id,
                 name: product.name,
+                slug: product.slug,
                 image_url: product.image_url || product.image || (product.images?.[0]?.url) || '',
                 price: product.price || product.base_price,
                 sale_price: product.sale_price,

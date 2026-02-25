@@ -21,6 +21,8 @@ export async function createOrder(orderData: {
     paymentMethod?: string;
     paymentStatus?: string;
     notes?: string;
+    has_gift_wrapping?: boolean;
+    giftWrapCost?: number;
     items: Array<{
         productId: number;
         productName: string;
@@ -82,8 +84,8 @@ export async function createOrder(orderData: {
 
         // Tạo order
         const [orderResult]: any = await connection.execute(
-            `INSERT INTO orders (user_id, order_number, subtotal, shipping_fee, discount, voucher_code, voucher_discount, giftcard_number, giftcard_discount, tax, total, shipping_address_id, shipping_address_snapshot, status, payment_method, payment_status, phone, email, placed_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?, ?, NOW())`,
+            `INSERT INTO orders (user_id, order_number, subtotal, shipping_fee, discount, voucher_code, voucher_discount, giftcard_number, giftcard_discount, tax, total, shipping_address_id, shipping_address_snapshot, status, payment_method, payment_status, phone, email, notes, has_gift_wrapping, gift_wrap_cost, placed_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?, ?, ?, ?, ?, NOW())`,
             [
                 orderData.userId || null,
                 orderData.orderNumber,
@@ -95,7 +97,7 @@ export async function createOrder(orderData: {
                 orderData.giftcardNumber || null,
                 orderData.giftcardDiscount || 0,
                 tax,
-                subtotal + shippingFee - discount + tax,
+                subtotal + shippingFee - discount + tax + (orderData.giftWrapCost || 0),
                 shippingAddressId,
                 JSON.stringify({
                     ...shippingAddr,
@@ -106,7 +108,10 @@ export async function createOrder(orderData: {
                 orderData.paymentMethod || 'cod',
                 orderData.paymentStatus || 'pending',
                 encrypt(orderData.phone),
-                encrypt(orderData.email)
+                encrypt(orderData.email),
+                orderData.notes || null,
+                orderData.has_gift_wrapping ? 1 : 0,
+                orderData.giftWrapCost || 0
             ]
         );
 

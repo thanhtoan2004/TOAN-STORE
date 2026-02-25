@@ -10,7 +10,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     let products: any[] = [];
     try {
         products = await executeQuery<any[]>(
-            'SELECT id, updated_at FROM products WHERE is_active = 1'
+            'SELECT id, slug, updated_at FROM products WHERE is_active = 1'
         );
     } catch (error) {
         console.error('Sitemap Products Error:', error);
@@ -27,7 +27,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     }
 
     const productEntries: MetadataRoute.Sitemap = products.map((product) => ({
-        url: `${baseUrl}/products/${product.id}`,
+        url: `${baseUrl}/products/${product.slug || product.id}`,
         lastModified: product.updated_at ? new Date(product.updated_at) : new Date(),
         changeFrequency: 'weekly',
         priority: 0.7,

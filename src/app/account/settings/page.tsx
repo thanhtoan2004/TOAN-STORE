@@ -6,7 +6,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { User, Lock, MapPin, Package, Heart, Bell, CreditCard, Shield, Palette, Star, Award, Building2, Wallet, Ticket } from 'lucide-react';
+import { User, Lock, MapPin, Package, Heart, Bell, CreditCard, Shield, Palette, Star, Award, Building2, Wallet, Ticket, Monitor, Smartphone } from 'lucide-react';
 
 export default function AccountSettings() {
   const { t, language: currentLang, setLanguage } = useLanguage();
@@ -37,6 +37,22 @@ export default function AccountSettings() {
   const [pendingAction, setPendingAction] = useState<'export' | 'delete' | 'toggle2fa' | null>(null);
   const [passwordError, setPasswordError] = useState('');
   const [verifyingPassword, setVerifyingPassword] = useState(false);
+
+  // Device Management state
+  const [sessions, setSessions] = useState<any[]>([]);
+  const [loadingSessions, setLoadingSessions] = useState(false);
+  const [revokingSession, setRevokingSession] = useState<string | null>(null);
+
+  // General Confirmation Modal state
+  const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
+  const [confirmConfig, setConfirmConfig] = useState({
+    title: '',
+    message: '',
+    confirmText: 'Xác nhận',
+    cancelText: 'Hủy',
+    danger: false,
+    onConfirm: () => { }
+  });
 
   // Address state
   const [addresses, setAddresses] = useState<any[]>([]);
@@ -119,6 +135,62 @@ export default function AccountSettings() {
       loadAddresses();
     }
   }, [activeTab, user]);
+
+  // 4. Hook tải danh sách phiên đăng nhập khi mở tab security
+  useEffect(() => {
+    if (user && activeTab === 'security') {
+      loadSessions();
+    }
+  }, [activeTab, user]);
+
+  const loadSessions = async () => {
+    setLoadingSessions(true);
+    try {
+      const res = await fetch('/api/account/sessions');
+      const data = await res.json();
+      if (data.success) setSessions(data.sessions || []);
+    } catch (e) {
+      console.error('Failed to load sessions:', e);
+    } finally {
+      setLoadingSessions(false);
+    }
+  };
+
+  const revokeSession = async (sessionId: string) => {
+    setConfirmConfig({
+      title: sessionId === 'all' ? 'Đăng xuất khỏi tất cả thiết bị' : 'Thu hồi phiên đăng nhập',
+      message: sessionId === 'all'
+        ? 'Bạn có chắc chắn muốn đăng xuất khỏi tất cả các thiết bị? Điều này sẽ yêu cầu bạn đăng nhập lại trên mọi thiết bị hiện đang hoạt động.'
+        : 'Bạn có chắc chắn muốn thu hồi phiên đăng nhập này? Thiết bị sẽ bị đăng xuất ngay lập tức.',
+      confirmText: sessionId === 'all' ? 'Đăng xuất tất cả' : 'Thu hồi',
+      cancelText: 'Hủy',
+      danger: true,
+      onConfirm: async () => {
+        setIsConfirmModalOpen(false);
+        setRevokingSession(sessionId);
+        try {
+          const res = await fetch('/api/account/sessions', {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ sessionId }),
+          });
+          const data = await res.json();
+          if (data.success) {
+            if (sessionId === 'all') {
+              window.location.href = '/sign-in';
+            } else {
+              setSessions(prev => prev.filter((s: any) => s.id !== sessionId));
+            }
+          }
+        } catch (e) {
+          console.error('Revoke session error:', e);
+        } finally {
+          setRevokingSession(null);
+        }
+      }
+    });
+    setIsConfirmModalOpen(true);
+  };
 
   const loadAddresses = async () => {
     if (!user) return;
@@ -734,6 +806,52 @@ export default function AccountSettings() {
                       <Link href="/account/change-password"><button className="px-6 py-2 border-2 border-black rounded-full font-medium hover:bg-black hover:text-white transition-colors">Đổi mật khẩu</button></Link>
                     </div>
 
+                    <div className="p-4 border rounded-lg">
+                      <div className="flex items-center justify-between mb-4">
+                        <div>
+                          <h3 className="font-medium">Thiết bị đang đăng nhập</h3>
+                          <p className="text-sm text-gray-600 mt-1">Quản lý tất cả thiết bị đang truy cập tài khoản của bạn.</p>
+                        </div>
+                        <button onClick={loadSessions} className="text-sm text-gray-500 hover:text-black transition-colors underline">
+                          Làm mới
+                        </button>
+                      </div>
+
+                      {loadingSessions ? (
+                        <div className="space-y-3">
+                          {[1, 2].map(i => (
+                            <div key={i} className="h-16 bg-gray-100 rounded-lg animate-pulse" />
+                          ))}
+                        </div>
+                      ) : sessions.length === 0 ? (
+                        <p className="text-sm text-gray-500 italic py-4 text-center">Không có dữ liệu phiên đăng nhập. Đăng nhập lại để ghi nhận thiết bị.</p>
+                      ) : (
+                        <div className="space-y-3">
+                          {sessions.map((s: any) => (
+                            <div key={s.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border">
+                              <div className="flex items-center gap-3">
+                                <div className="w-9 h-9 bg-black text-white rounded-full flex items-center justify-center">
+                                  {s.device === 'Mobile' ? <Smartphone className="w-4 h-4" /> : <Monitor className="w-4 h-4" />}
+                                </div>
+                                <div>
+                                  <p className="text-sm font-medium">{s.os || 'Unknown OS'}</p>
+                                  <p className="text-xs text-gray-500">{s.browser} · IP: {s.ip}</p>
+                                  <p className="text-xs text-gray-400">{s.loginAt ? new Date(s.loginAt).toLocaleString('vi-VN') : '-'}</p>
+                                </div>
+                              </div>
+                              <button
+                                onClick={() => revokeSession(s.id)}
+                                disabled={revokingSession === s.id}
+                                className="text-sm text-red-600 hover:text-red-800 font-medium disabled:opacity-50 transition-colors px-3 py-1 border border-red-200 rounded-full hover:bg-red-50"
+                              >
+                                {revokingSession === s.id ? '...' : 'Thu hồi'}
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
                     <div className="p-4 border border-red-200 rounded-lg bg-red-50">
                       <h3 className="font-medium mb-2 text-red-700">Đăng xuất khỏi tất cả các thiết bị</h3>
                       <p className="text-sm text-red-600 mb-4">
@@ -741,22 +859,32 @@ export default function AccountSettings() {
                       </p>
                       <button
                         onClick={async () => {
-                          if (!confirm('Bạn có chắc chắn muốn đăng xuất khỏi tất cả các thiết bị? Điều này sẽ yêu cầu bạn đăng nhập lại trên mọi thiết bị hiện đang hoạt động.')) return;
-                          try {
-                            setLoading(true);
-                            const res = await fetch('/api/auth/logout-all', { method: 'POST' });
-                            const data = await res.json();
-                            if (data.success) {
-                              alert(data.message);
-                              window.location.href = '/login';
-                            } else {
-                              alert(data.message || 'Lỗi khi đăng xuất');
+                          setConfirmConfig({
+                            title: 'Đăng xuất khỏi tất cả thiết bị',
+                            message: 'Bạn có chắc chắn muốn đăng xuất khỏi tất cả các thiết bị? Điều này sẽ yêu cầu bạn đăng nhập lại trên mọi thiết bị hiện đang hoạt động.',
+                            confirmText: 'Đăng xuất tất cả',
+                            cancelText: 'Hủy',
+                            danger: true,
+                            onConfirm: async () => {
+                              setIsConfirmModalOpen(false);
+                              try {
+                                setLoading(true);
+                                const res = await fetch('/api/auth/logout-all', { method: 'POST' });
+                                const data = await res.json();
+                                if (data.success) {
+                                  window.location.href = '/login?message=Thành công đăng xuất khỏi tất cả thiết bị';
+                                } else {
+                                  setMessage(data.message || 'Lỗi khi đăng xuất');
+                                }
+                              } catch (e) {
+                                console.error(e);
+                                setMessage('Có lỗi xảy ra. Vui lòng thử lại sau.');
+                              } finally {
+                                setLoading(false);
+                              }
                             }
-                          } catch (e) {
-                            alert('Đã xảy ra lỗi kết nối');
-                          } finally {
-                            setLoading(false);
-                          }
+                          });
+                          setIsConfirmModalOpen(true);
                         }}
                         disabled={loading}
                         className="px-6 py-2 bg-red-600 text-white rounded-full font-medium hover:bg-red-700 transition-colors disabled:opacity-50"
@@ -1174,6 +1302,39 @@ export default function AccountSettings() {
                       </label>
                     </div>
                     <div className="p-4 border rounded-lg">
+                      <h3 className="font-medium mb-3">Trợ năng (Accessibility)</h3>
+                      <label className="flex items-center gap-2 cursor-pointer mb-3">
+                        <input
+                          type="checkbox"
+                          defaultChecked={typeof window !== 'undefined' && localStorage.getItem('highContrast') === 'true'}
+                          onChange={(e) => {
+                            document.documentElement.classList.toggle('high-contrast', e.target.checked);
+                            localStorage.setItem('highContrast', String(e.target.checked));
+                          }}
+                          className="w-4 h-4"
+                        />
+                        <div>
+                          <span className="text-sm font-medium">Chế độ tương phản cao</span>
+                          <p className="text-xs text-gray-500">Tăng độ tương phản cho văn bản và viền để dễ đọc hơn</p>
+                        </div>
+                      </label>
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          defaultChecked={typeof window !== 'undefined' && localStorage.getItem('colorBlindFriendly') === 'true'}
+                          onChange={(e) => {
+                            document.documentElement.classList.toggle('color-blind-friendly', e.target.checked);
+                            localStorage.setItem('colorBlindFriendly', String(e.target.checked));
+                          }}
+                          className="w-4 h-4"
+                        />
+                        <div>
+                          <span className="text-sm font-medium">Chế độ thân thiện người mù màu</span>
+                          <p className="text-xs text-gray-500">Điều chỉnh bảng màu phù hợp hơn cho người khó phân biệt Đỏ-Xanh (Deuteranopia)</p>
+                        </div>
+                      </label>
+                    </div>
+                    <div className="p-4 border rounded-lg">
                       <h3 className="font-medium mb-2">Xóa tài khoản</h3>
                       <p className="text-sm text-gray-600 mb-3">Xóa vĩnh viễn tài khoản và dữ liệu của bạn</p>
                       <button
@@ -1194,15 +1355,45 @@ export default function AccountSettings() {
           </div>
         </div>
       </div>
+
+      {/* General Confirmation Modal */}
+      {isConfirmModalOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-xl animate-in fade-in zoom-in duration-200">
+            <h2 className="text-xl font-bold mb-4">{confirmConfig.title}</h2>
+            <p className="text-gray-600 mb-6 text-sm">
+              {confirmConfig.message}
+            </p>
+
+            <div className="flex gap-3 mt-6">
+              <button
+                type="button"
+                onClick={() => setIsConfirmModalOpen(false)}
+                className="flex-1 py-3 border border-gray-200 rounded-full font-medium hover:bg-gray-50 transition-colors"
+                autoFocus
+              >
+                {confirmConfig.cancelText}
+              </button>
+              <button
+                onClick={confirmConfig.onConfirm}
+                className={`flex-1 py-3 text-white rounded-full font-medium transition-colors ${confirmConfig.danger ? 'bg-red-600 hover:bg-red-700' : 'bg-black hover:bg-gray-800'}`}
+              >
+                {confirmConfig.confirmText}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Password Verification Modal */}
       {isPasswordModalOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-xl animate-in fade-in zoom-in duration-200">
             <h2 className="text-xl font-bold mb-4">
-              {pendingAction === 'export' ? 'Xác nhận thông tin' : 'Xác nhận xóa tài khoản'}
+              {pendingAction === 'export' ? 'Xác nhận thông tin' : pendingAction === 'toggle2fa' ? 'Xác thực 2 bước (2FA)' : 'Xác nhận xóa tài khoản'}
             </h2>
             <p className="text-gray-600 mb-6 text-sm">
-              Vì lý do bảo mật, vui lòng nhập mật khẩu của bạn để {pendingAction === 'export' ? 'tải xuống dữ liệu cá nhân' : 'xóa tài khoản vĩnh viễn'}.
+              Vì lý do bảo mật, vui lòng nhập mật khẩu của bạn để {pendingAction === 'export' ? 'tải xuống dữ liệu cá nhân' : pendingAction === 'toggle2fa' ? 'bật/tắt Xác thực 2 bước' : 'xóa tài khoản vĩnh viễn'}.
             </p>
 
             <form onSubmit={handleVerifyPassword}>

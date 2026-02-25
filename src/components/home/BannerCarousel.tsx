@@ -135,22 +135,27 @@ export default function BannerCarousel({
           className={`absolute inset-0 transition-opacity duration-700 ${index === currentIndex ? 'opacity-100' : 'opacity-0'
             }`}
         >
-          <img
-            src={banner.image_url}
-            alt={banner.title}
-            className="w-full h-full object-cover"
-            onError={(e) => {
-              console.error(`Failed to load image for banner "${banner.title}":`, banner.image_url);
-              // Remove from valid banners
-              setValidBannerIds(prev => {
-                const newSet = new Set(prev);
-                newSet.delete(banner.id);
-                return newSet;
-              });
-              // Hide failed image
-              (e.target as HTMLImageElement).style.display = 'none';
-            }}
-          />
+          <picture>
+            {banner.mobile_image_url && (
+              <source media="(max-width: 768px)" srcSet={banner.mobile_image_url} />
+            )}
+            <img
+              src={banner.image_url}
+              alt={banner.title}
+              className="w-full h-full object-cover"
+              onError={(e) => {
+                console.error(`Failed to load image for banner "${banner.title}":`, banner.image_url);
+                // Remove from valid banners
+                setValidBannerIds(prev => {
+                  const newSet = new Set(prev);
+                  newSet.delete(banner.id);
+                  return newSet;
+                });
+                // Hide failed image
+                (e.target as HTMLImageElement).style.display = 'none';
+              }}
+            />
+          </picture>
 
           {/* Overlay */}
           <div className="absolute inset-0 bg-gradient-to-r from-black/50 to-transparent">

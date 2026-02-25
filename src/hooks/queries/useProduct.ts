@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 interface Product {
     id: string | number;
     name: string;
+    slug: string;
     category: string;
     price: number;
     sale_price?: number;

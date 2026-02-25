@@ -31,6 +31,7 @@ interface ProductSize {
 interface Product {
     id: string | number;
     name: string;
+    slug: string;
     category: string;
     price: number;
     sale_price?: number;
@@ -83,7 +84,7 @@ interface ReviewStats {
     one_star: number;
 }
 
-export default function ProductDetailClient({ id }: { id: string }) {
+export default function ProductDetailClient({ slug, initialProductId }: { slug: string, initialProductId: number }) {
     const queryClient = useQueryClient();
     const { user } = useAuth();
     const { t } = useLanguage();
@@ -100,8 +101,8 @@ export default function ProductDetailClient({ id }: { id: string }) {
     const { addToCart } = useCart();
     const { addToWishlist, removeFromWishlist, isInWishlist } = useWishlist();
     const { addToCompare, removeFromCompare, isInCompare } = useComparison();
-    const inCompare = isInCompare(id);
-    const inWishlist = isInWishlist(id);
+    const inCompare = isInCompare(initialProductId);
+    const inWishlist = isInWishlist(initialProductId);
     const [wishlistLoading, setWishlistLoading] = useState(false);
 
     const [reviewMediaFiles, setReviewMediaFiles] = useState<File[]>([]);
@@ -110,9 +111,9 @@ export default function ProductDetailClient({ id }: { id: string }) {
     const [currentImageIndex, setCurrentImageIndex] = useState(0);
     const [productImages, setProductImages] = useState<{ url: string; type: 'image' | 'video' }[]>([]);
 
-    const { data: productData, isLoading: productLoading, error: productError } = useProduct(id);
-    const { data: reviewsData, isLoading: reviewsLoading } = useReviews(id);
-    const { data: purchaseData, isLoading: purchaseLoading } = useCheckPurchase(user?.id, id);
+    const { data: productData, isLoading: productLoading, error: productError } = useProduct(slug);
+    const { data: reviewsData, isLoading: reviewsLoading } = useReviews(String(initialProductId));
+    const { data: purchaseData, isLoading: purchaseLoading } = useCheckPurchase(user?.id, String(initialProductId));
 
     // Dynamic states that might need local management (for optimistic updates or form sync)
     const [reviews, setReviews] = useState<Review[]>([]);
@@ -204,6 +205,7 @@ export default function ProductDetailClient({ id }: { id: string }) {
             try {
                 const viewedItem = {
                     id: product.id,
+                    slug: (product as any).slug || String(product.id),
                     name: product.name,
                     category: product.category,
                     price: product.retail_price || product.price,
@@ -291,7 +293,7 @@ export default function ProductDetailClient({ id }: { id: string }) {
         setWishlistLoading(true);
         try {
             if (inWishlist) {
-                await removeFromWishlist(id);
+                await removeFromWishlist(initialProductId);
             } else {
                 await addToWishlist({
                     id: String(activeProduct.id),
@@ -352,7 +354,7 @@ export default function ProductDetailClient({ id }: { id: string }) {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     userId: user.id,
-                    productId: id,
+                    productId: initialProductId,
                     rating: reviewForm.rating,
                     title: reviewForm.title,
                     comment: reviewForm.comment
@@ -381,7 +383,7 @@ export default function ProductDetailClient({ id }: { id: string }) {
                 setReviewForm({ rating: 5, title: '', comment: '' });
                 setReviewMediaFiles([]);
                 // Invalidate reviews to refetch
-                queryClient.invalidateQueries({ queryKey: ['reviews', id] });
+                queryClient.invalidateQueries({ queryKey: ['reviews', initialProductId] });
             } else {
                 alert(result.message || t.common?.error || 'Error');
             }
@@ -417,7 +419,7 @@ export default function ProductDetailClient({ id }: { id: string }) {
                 alert(result.message || t.common?.success || 'Success');
                 setEditingReviewId(null);
                 // Invalidate reviews to refetch
-                queryClient.invalidateQueries({ queryKey: ['reviews', id] });
+                queryClient.invalidateQueries({ queryKey: ['reviews', initialProductId] });
             } else {
                 alert(result.message || t.common?.error || 'Error');
             }
@@ -446,7 +448,7 @@ export default function ProductDetailClient({ id }: { id: string }) {
             if (result.success) {
                 alert(result.message || t.common?.success || 'Success');
                 // Invalidate reviews to refetch
-                queryClient.invalidateQueries({ queryKey: ['reviews', id] });
+                queryClient.invalidateQueries({ queryKey: ['reviews', initialProductId] });
             } else {
                 alert(result.message || t.common?.error || 'Error');
             }

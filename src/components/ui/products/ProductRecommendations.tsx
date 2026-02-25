@@ -67,6 +67,7 @@ export default function ProductRecommendations({ currentProductId }: ProductReco
                     <ProductCard
                         key={product.id}
                         id={String(product.id)}
+                        slug={product.slug}
                         name={product.name}
                         category={product.category}
                         price={Number(product.price)}

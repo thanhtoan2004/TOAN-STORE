@@ -87,6 +87,24 @@ export default function TransactionsPage() {
         }
     };
 
+    const handleExportCSV = async () => {
+        try {
+            const res = await fetch('/api/transactions/export');
+            if (!res.ok) throw new Error('Export failed');
+
+            const blob = await res.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `transactions_${Date.now()}.csv`;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+        } catch (err) {
+            alert(isVi ? 'Không thể xuất file CSV' : 'Failed to export CSV');
+        }
+    };
+
     const getTypeIcon = (type: string) => {
         switch (type) {
             case 'payment': return <CreditCard className="w-4 h-4" />;
@@ -169,9 +187,18 @@ export default function TransactionsPage() {
                                 {isVi ? 'Xem tất cả giao dịch thanh toán, hoàn tiền, điểm thưởng và gift card' : 'View all payments, refunds, points and gift card transactions'}
                             </p>
                         </div>
-                        <Link href="/orders" className="text-sm text-gray-500 hover:text-black transition-colors">
-                            ← {isVi ? 'Đơn hàng' : 'Orders'}
-                        </Link>
+                        <div className="flex items-center gap-4">
+                            <button
+                                onClick={handleExportCSV}
+                                className="flex items-center gap-2 px-4 py-2 border border-gray-200 rounded-full text-sm font-medium hover:bg-gray-50 transition-colors"
+                            >
+                                <ArrowDownLeft className="w-4 h-4" />
+                                {isVi ? 'Xuất CSV' : 'Export CSV'}
+                            </button>
+                            <Link href="/orders" className="text-sm text-gray-500 hover:text-black transition-colors">
+                                ← {isVi ? 'Đơn hàng' : 'Orders'}
+                            </Link>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -187,8 +214,8 @@ export default function TransactionsPage() {
                                 key={tab.key}
                                 onClick={() => handleTabChange(tab.key)}
                                 className={`flex items-center gap-2 px-4 py-2.5 rounded-full text-sm font-medium whitespace-nowrap transition-all ${isActive
-                                        ? 'bg-black text-white'
-                                        : 'bg-white text-gray-600 border border-gray-200 hover:border-gray-400'
+                                    ? 'bg-black text-white'
+                                    : 'bg-white text-gray-600 border border-gray-200 hover:border-gray-400'
                                     }`}
                             >
                                 <Icon className="w-4 h-4" />
@@ -258,9 +285,9 @@ export default function TransactionsPage() {
                                     <div className="flex items-center gap-4">
                                         {/* Icon */}
                                         <div className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center ${tx.transaction_type === 'refund' ? 'bg-green-100 text-green-600' :
-                                                tx.transaction_type === 'points' ? 'bg-blue-100 text-blue-600' :
-                                                    tx.transaction_type === 'gift_card' ? 'bg-purple-100 text-purple-600' :
-                                                        'bg-gray-100 text-gray-600'
+                                            tx.transaction_type === 'points' ? 'bg-blue-100 text-blue-600' :
+                                                tx.transaction_type === 'gift_card' ? 'bg-purple-100 text-purple-600' :
+                                                    'bg-gray-100 text-gray-600'
                                             }`}>
                                             {getTypeIcon(tx.transaction_type)}
                                         </div>

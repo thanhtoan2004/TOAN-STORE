@@ -79,6 +79,7 @@ export async function getCart(userId: number) {
       ci.id,
       ci.cart_id,
       p.id as product_id,
+      p.slug,
       p.name,
       p.base_price as price,
       p.retail_price as sale_price,

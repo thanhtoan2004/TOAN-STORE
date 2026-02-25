@@ -71,7 +71,13 @@ const ICON_URLS = {
   check: 'https://img.icons8.com/ios-filled/100/ffffff/ok.png',
   lock: 'https://img.icons8.com/ios-filled/100/ffffff/lock.png',
   star: 'https://img.icons8.com/ios-filled/100/ffffff/star.png',
-  truck: 'https://img.icons8.com/ios-filled/100/ffffff/delivery.png'
+  truck: 'https://img.icons8.com/ios-filled/100/ffffff/delivery.png',
+  alert: 'https://img.icons8.com/ios-filled/100/ffffff/shield.png',
+  cart: 'https://img.icons8.com/ios-filled/100/ffffff/shopping-cart.png',
+  cancel: 'https://img.icons8.com/ios-filled/100/ffffff/cancel.png',
+  fire: 'https://img.icons8.com/ios-filled/100/ffffff/fire-element.png',
+  box: 'https://img.icons8.com/ios-filled/100/ffffff/box.png',
+  bell: 'https://img.icons8.com/ios-filled/100/ffffff/appointment-reminders.png',
 };
 
 /**

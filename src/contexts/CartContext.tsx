@@ -9,6 +9,7 @@ import { useAuth } from './AuthContext';
 interface CartItem {
   id: number;           // ID của bản ghi trong bảng `cart_items` ở Database
   productId: number;    // ID của sản phẩm gốc
+  slug?: string;
   name: string;
   image: string;
   price: number;

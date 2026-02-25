@@ -11,6 +11,7 @@ interface ViewedProduct {
     price: number;
     sale_price?: number;
     image_url: string;
+    slug?: string;
     is_new_arrival?: boolean;
 }
 
@@ -47,6 +48,7 @@ export default function RecentlyViewed() {
                     <ProductCard
                         key={product.id}
                         id={String(product.id)}
+                        slug={product.slug}
                         name={product.name}
                         category={product.category}
                         price={product.price}

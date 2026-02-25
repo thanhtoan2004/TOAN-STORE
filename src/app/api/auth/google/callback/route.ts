@@ -81,11 +81,14 @@ export async function GET(req: NextRequest) {
         }
 
         // 4. Generate JWT session
-        const jwtSecret = process.env.JWT_SECRET || 'fallback_secret';
+        const jwtSecret = process.env.JWT_SECRET;
+        if (!jwtSecret) {
+            throw new Error('JWT_SECRET is not configured');
+        }
         const token = jwt.sign(
-            { userId, email: googleUser.email, is_admin: isAdmin },
+            { userId, email: googleUser.email, is_admin: isAdmin, role: isAdmin ? 'admin' : 'user', tv: 0 },
             jwtSecret,
-            { expiresIn: '7d' }
+            { expiresIn: '15m' }
         );
 
         // 5. Set session cookie
