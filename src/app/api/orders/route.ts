@@ -286,14 +286,83 @@ async function createOrderHandler(request: NextRequest) {
     let appliedGiftCardDiscount = 0;
 
     if (giftcardNumber) {
+      // Security: Check IP Lockout before trying to validate
+      const clientIp = request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || 'unknown';
+      const ipTarget = clientIp.includes(',') ? clientIp.split(',')[0].trim() : clientIp;
+
+      const ipLockouts = await executeQuery<any[]>(
+        `SELECT attempt_count, locked_until, id FROM gift_card_lockouts 
+         WHERE ip_address = ? AND (locked_until IS NULL OR locked_until > NOW()) 
+         AND last_attempt >= NOW() - INTERVAL 30 MINUTE`,
+        [ipTarget]
+      );
+
+      let currentIpAttempts = 0;
+      let lockoutId = null;
+
+      if (ipLockouts && ipLockouts.length > 0) {
+        const lockout = ipLockouts[0];
+        if (lockout.locked_until && new Date(lockout.locked_until) > new Date()) {
+          return NextResponse.json({ success: false, message: 'Bạn đã nhập thẻ quá nhiều lần. Thử lại sau 30 phút.' }, { status: 429 });
+        }
+        currentIpAttempts = lockout.attempt_count;
+        lockoutId = lockout.id;
+      }
+
       const cardsArr = await executeQuery<any[]>(
-        `SELECT id, current_balance, status, expires_at FROM gift_cards WHERE card_number = ?`,
+        `SELECT id, current_balance, status, failed_attempts, expires_at, pin as encrypted_pin FROM gift_cards WHERE card_number = ?`,
         [giftcardNumber]
       );
 
       if (cardsArr && cardsArr.length > 0) {
         const card = cardsArr[0];
+
+        // Anti Brute Force Check
+        if (card.status === 'locked' || card.failed_attempts >= 5) {
+          return NextResponse.json({ success: false, message: 'Thẻ đã bị khóa do nhập sai nhiều lần.' }, { status: 403 });
+        }
+
+        // Must verify PIN if provided in the checkout flow (Assume body.giftcardPin exists or we just rely on Card Number?? Wait, original logic didn't ask for PIN during checkout? If no PIN, anyone can use the card number!)
+        // SECURITY FIX: Checkout MUST provide PIN.
+        const providedPin = body.giftcardPin;
+        if (!providedPin) {
+          return NextResponse.json({ success: false, message: 'Vui lòng cung cấp mã PIN của thẻ quà tặng' }, { status: 400 });
+        }
+
+        const { decrypt } = await import('@/lib/encryption');
+        if (decrypt(card.encrypted_pin) !== providedPin) {
+          // Penalty IP
+          const newAttempts = currentIpAttempts + 1;
+          let lockedUntil = null;
+          if (newAttempts >= 8) {
+            lockedUntil = new Date(Date.now() + 30 * 60000); // 30 mins
+          }
+          if (lockoutId) {
+            await executeQuery('UPDATE gift_card_lockouts SET attempt_count = ?, locked_until = ?, last_attempt = NOW() WHERE id = ?',
+              [newAttempts, lockedUntil ? lockedUntil.toISOString().slice(0, 19).replace('T', ' ') : null, lockoutId]
+            );
+          } else {
+            await executeQuery('INSERT INTO gift_card_lockouts (ip_address, attempt_count, locked_until) VALUES (?, ?, ?)',
+              [ipTarget, newAttempts, lockedUntil ? lockedUntil.toISOString().slice(0, 19).replace('T', ' ') : null]
+            );
+          }
+
+          // Penalty Card
+          const newFailed = (card.failed_attempts || 0) + 1;
+          if (newFailed >= 5) {
+            await executeQuery('UPDATE gift_cards SET failed_attempts = ?, status = ? WHERE id = ?', [newFailed, 'locked', card.id]);
+            return NextResponse.json({ success: false, message: 'Thẻ đã bị khóa do nhập sai mã PIN quá 5 lần.' }, { status: 403 });
+          } else {
+            await executeQuery('UPDATE gift_cards SET failed_attempts = ? WHERE id = ?', [newFailed, card.id]);
+            return NextResponse.json({ success: false, message: 'Mã PIN thẻ quà tặng không chính xác.' }, { status: 400 });
+          }
+        }
+
         if (card.status === 'active' && (!card.expires_at || new Date(card.expires_at) > new Date())) {
+          // Success Path - Reset attempts
+          if (lockoutId) await executeQuery('DELETE FROM gift_card_lockouts WHERE id = ?', [lockoutId]);
+          if (card.failed_attempts > 0) await executeQuery('UPDATE gift_cards SET failed_attempts = 0 WHERE id = ?', [card.id]);
+
           const balance = parseFloat(card.current_balance);
           const deduction = Math.min(balance, totalAmount);
 
@@ -301,7 +370,20 @@ async function createOrderHandler(request: NextRequest) {
             appliedGiftCardNumber = giftcardNumber;
             appliedGiftCardDiscount = deduction;
           }
+        } else {
+          return NextResponse.json({ success: false, message: 'Thẻ quà tặng không hợp lệ hoặc đã hết hạn.' }, { status: 400 });
         }
+      } else {
+        // Did not even find the card -> Penalty IP
+        const newAttempts = currentIpAttempts + 1;
+        let lockedUntil = null;
+        if (newAttempts >= 8) lockedUntil = new Date(Date.now() + 30 * 60000);
+        if (lockoutId) {
+          await executeQuery('UPDATE gift_card_lockouts SET attempt_count = ?, locked_until = ?, last_attempt = NOW() WHERE id = ?', [newAttempts, lockedUntil ? lockedUntil.toISOString().slice(0, 19).replace('T', ' ') : null, lockoutId]);
+        } else {
+          await executeQuery('INSERT INTO gift_card_lockouts (ip_address, attempt_count, locked_until) VALUES (?, ?, ?)', [ipTarget, newAttempts, lockedUntil ? lockedUntil.toISOString().slice(0, 19).replace('T', ' ') : null]);
+        }
+        return NextResponse.json({ success: false, message: 'Thẻ quà tặng không tồn tại.' }, { status: 404 });
       }
     }
 

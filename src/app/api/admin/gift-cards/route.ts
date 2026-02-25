@@ -20,7 +20,7 @@ export async function GET(request: NextRequest) {
 
     const { decrypt } = await import('@/lib/encryption');
     const data = (await executeQuery(
-      `SELECT id, card_number, pin, initial_balance, current_balance, status, expires_at, created_at 
+      `SELECT id, card_number, pin, initial_balance, current_balance, status, failed_attempts, expires_at, created_at 
        FROM gift_cards ORDER BY created_at DESC LIMIT ? OFFSET ?`,
       [limit, offset]
     ) as any[]).map(card => ({

@@ -491,3 +491,131 @@ export async function sendAbandonedCartEmail(
     html
   });
 }
+
+/**
+ * Send new login security alert email
+ */
+export async function sendNewLoginEmail(
+  customerEmail: string,
+  customerName: string,
+  time: string,
+  ipAddress: string,
+  location: string,
+  device: string
+) {
+  const html = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+    </head>
+    <body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f5f5f5;">
+      <div style="max-width: 600px; margin: 0 auto; background-color: white;">
+        <div style="background-color: #111; color: white; padding: 30px 20px; text-align: center;">
+          <h1 style="margin: 0;">Cảnh báo Đăng nhập Mới 🛡️</h1>
+        </div>
+        
+        <div style="padding: 40px 20px;">
+          <p style="color: #666; line-height: 1.6;">
+            Xin chào ${customerName},<br>
+            Chúng tôi phát hiện một phiên đăng nhập mới vào tài khoản của bạn tại TOAN Store.
+          </p>
+
+          <div style="background-color: #f9f9f9; padding: 20px; border-left: 4px solid #111; margin: 20px 0;">
+            <p style="margin: 5px 0; color: #333;"><strong>Thời gian:</strong> ${time}</p>
+            <p style="margin: 5px 0; color: #333;"><strong>Địa chỉ IP:</strong> ${ipAddress}</p>
+            <p style="margin: 5px 0; color: #333;"><strong>Vị trí (Dự đoán):</strong> ${location}</p>
+            <p style="margin: 5px 0; color: #333;"><strong>Thiết bị/Trình duyệt:</strong> ${device}</p>
+          </div>
+
+          <p style="color: #666; line-height: 1.6; font-size: 14px;">
+            Nếu đây là bạn, bạn không cần làm gì cả và có thể bỏ qua email này.
+          </p>
+          <p style="color: #d32f2f; line-height: 1.6; font-size: 14px; font-weight: bold;">
+            Nếu không phải bạn, vui lòng đổi mật khẩu ngay lập tức để bảo vệ tài khoản!
+          </p>
+
+          <div style="text-align: center; margin: 30px 0;">
+            <a href="${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/account/change-password" 
+               style="display: inline-block; background-color: #111; color: white; padding: 14px 40px; text-decoration: none; border-radius: 4px; font-weight: 600;">
+              Kiểm tra tài khoản
+            </a>
+          </div>
+        </div>
+
+        <div style="background-color: #f5f5f5; padding: 20px; text-align: center; color: #666; font-size: 12px;">
+          <p style="margin: 5px 0;">© 2026 TOAN Store. All rights reserved.</p>
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+
+  return sendEmail({
+    to: customerEmail,
+    subject: `Cảnh báo: Đăng nhập mới vào tài khoản TOAN Store`,
+    html
+  });
+}
+
+/**
+ * Send password changed confirmation email
+ */
+export async function sendPasswordChangedEmail(
+  customerEmail: string,
+  customerName: string,
+  time: string,
+  ipAddress: string
+) {
+  const html = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+    </head>
+    <body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f5f5f5;">
+      <div style="max-width: 600px; margin: 0 auto; background-color: white;">
+        <div style="background-color: #20bf6b; color: white; padding: 30px 20px; text-align: center;">
+          <h1 style="margin: 0;">Đổi Mật Khẩu Thành Công 🔒</h1>
+        </div>
+        
+        <div style="padding: 40px 20px;">
+          <p style="color: #666; line-height: 1.6;">
+            Xin chào ${customerName},<br>
+            Mật khẩu tài khoản TOAN Store của bạn vừa được thay đổi thành công.
+          </p>
+
+          <div style="background-color: #f9f9f9; padding: 20px; border-left: 4px solid #20bf6b; margin: 20px 0;">
+            <p style="margin: 5px 0; color: #333;"><strong>Thời gian:</strong> ${time}</p>
+            <p style="margin: 5px 0; color: #333;"><strong>Từ địa chỉ IP:</strong> ${ipAddress}</p>
+          </div>
+
+          <p style="color: #666; line-height: 1.6; font-size: 14px;">
+            Nếu bạn thực hiện thay đổi này, bạn có thể an tâm bỏ qua email này.
+          </p>
+          <p style="color: #d32f2f; line-height: 1.6; font-size: 14px; font-weight: bold;">
+            Nếu bạn KHÔNG thực hiện thay đổi này, hãy liên hệ ngay với bộ phận hỗ trợ của chúng tôi!
+          </p>
+
+          <div style="text-align: center; margin: 30px 0;">
+            <a href="${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/account/change-password" 
+               style="display: inline-block; background-color: #111; color: white; padding: 14px 40px; text-decoration: none; border-radius: 4px; font-weight: 600;">
+              Đặt lại mật khẩu
+            </a>
+          </div>
+        </div>
+
+        <div style="background-color: #f5f5f5; padding: 20px; text-align: center; color: #666; font-size: 12px;">
+          <p style="margin: 5px 0;">© 2026 TOAN Store. All rights reserved.</p>
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+
+  return sendEmail({
+    to: customerEmail,
+    subject: `🔒 Mật khẩu tài khoản của bạn đã được thay đổi`,
+    html
+  });
+}

@@ -39,38 +39,35 @@ export const eventWorker = new Worker<AppEvent>(
 // Event Handlers
 
 async function handleOrderCreated(order: any) {
-    const { email, orderNumber, totalAmount, shippingAddress } = order;
-    const customerName = shippingAddress?.name || 'Quý khách';
+    const { email, orderNumber, totalAmount, shippingAddress, items, subtotal, shipping, tax } = order;
+    const customerName = shippingAddress?.name || shippingAddress?.fullName || 'Quý khách';
 
     // 1. Send Order Confirmation Email
-    // We delegate this to the Email Queue to keep workers specialized
-    const subject = `Order Confirmation #${orderNumber}`;
-    const totalFormatted = new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(totalAmount);
+    const { sendOrderConfirmationEmail } = await import('@/lib/email-templates');
 
-    // Simple HTML Template (Can be moved to a template engine later)
-    const html = `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #eee; border-radius: 8px; overflow: hidden;">
-        <div style="background-color: #111; color: #fff; padding: 30px; text-align: center;">
-            <h1 style="margin: 0; font-size: 24px;">Cảm ơn bạn!</h1>
-        </div>
-        <div style="padding: 30px;">
-            <h2 style="color: #111; font-size: 20px; margin-top: 0;">Xin chào ${customerName},</h2>
-            <p>Đơn hàng <strong>#${orderNumber}</strong> của bạn đã được đặt thành công.</p>
-        <p style="font-size: 18px;">Total: <strong>${totalFormatted}</strong></p>
-        <p>We will notify you when your order is shipped.</p>
-        <div style="margin-top: 20px;">
-           <a href="${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/account/orders" style="background-color: #111; color: #fff; padding: 10px 20px; text-decoration: none; border-radius: 4px;">View Order</a>
-        </div>
-      </div>
-    `;
+    // Convert to OrderDetails format expected by the template
+    const details = {
+        orderNumber,
+        customerName,
+        customerEmail: email,
+        items: items.map((item: any) => ({
+            name: item.productName || item.name,
+            quantity: item.quantity,
+            price: item.price,
+            size: item.size
+        })),
+        subtotal: subtotal || totalAmount,
+        shipping: shipping || 0,
+        tax: tax || 0,
+        total: totalAmount,
+        shippingAddress: typeof shippingAddress === 'object' ? shippingAddress : { fullName: customerName, address: '', phone: '', city: '', district: '', ward: '' }
+    };
 
-    await emailQueue.add('order-confirmation', {
-        to: email,
-        subject,
-        html
-    });
+    // Note: We bypass emailQueue here for simplicity, or we can use emailQueue if we extract HTML generation.
+    // Given the worker is already async, calling sendEmail directly is fine.
+    await sendOrderConfirmationEmail(details);
 
-    console.log(`✅ [OrderCreated] Email job queued for Order #${orderNumber}`);
+    console.log(`✅ [OrderCreated] Confirmation Email sent for Order #${orderNumber}`);
 
     // 2. (Optional) Update Inventory Stats, Analytics, etc.
 }
@@ -80,16 +77,33 @@ async function handleOrderUpdated(payload: any) {
     console.log(`🔄 Processing Order Update: ${orderNumber} -> ${newStatus}`);
 
     if (newStatus === 'shipped') {
-        // Fetch order to get email
         const { getOrderById } = await import('@/lib/db/repositories/order');
         const order = await getOrderById(orderId);
 
         if (order && order.email) {
-            const { sendOrderShippedEmail } = await import('@/lib/mail');
-            await sendOrderShippedEmail(order.email, order.customer_name || 'bạn', orderNumber);
-            console.log(`✅ [OrderShipped] Email sent to ${order.email} for order ${orderNumber}`);
+            const { sendShippingNotificationEmail } = await import('@/lib/email-templates');
+            await sendShippingNotificationEmail(order.email, order.customer_name || 'bạn', orderNumber, 'Chưa có', 'Giao hàng Tiêu chuẩn');
+            console.log(`✅ [OrderShipped] Shipping Email sent to ${order.email} for order ${orderNumber}`);
         } else {
             console.warn(`⚠️ Could not find order or email for order ${orderId}`);
+        }
+    } else if (newStatus === 'delivered') {
+        const { getOrderById } = await import('@/lib/db/repositories/order');
+        const order = await getOrderById(orderId);
+
+        if (order && order.email) {
+            const { sendDeliveryConfirmationEmail } = await import('@/lib/email-templates');
+            await sendDeliveryConfirmationEmail(order.email, order.customer_name || 'bạn', orderNumber);
+            console.log(`✅ [OrderDelivered] Delivery Email sent to ${order.email} for order ${orderNumber}`);
+        }
+    } else if (newStatus === 'cancelled') {
+        const { getOrderById } = await import('@/lib/db/repositories/order');
+        const order = await getOrderById(orderId);
+
+        if (order && order.email) {
+            const { sendOrderCancelledEmail } = await import('@/lib/email-templates');
+            await sendOrderCancelledEmail(order.email, order.customer_name || 'bạn', orderNumber);
+            console.log(`✅ [OrderCancelled] Cancellation Email sent to ${order.email} for order ${orderNumber}`);
         }
     }
 }

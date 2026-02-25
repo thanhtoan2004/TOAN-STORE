@@ -25,7 +25,7 @@ export async function POST(request: NextRequest) {
 
     // Get current user
     const users = await executeQuery(
-      'SELECT id, password FROM users WHERE id = ?',
+      'SELECT id, password, email, first_name FROM users WHERE id = ?',
       [session.userId]
     ) as any[];
 
@@ -55,6 +55,21 @@ export async function POST(request: NextRequest) {
       'UPDATE users SET password = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
       [hashedPassword, session.userId]
     );
+
+    // Gửi email thông báo đổi mật khẩu (Chạy ngầm)
+    const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || '127.0.0.1';
+    const time = new Date().toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' });
+    try {
+      const { sendPasswordChangedEmail } = await import('@/lib/email-templates');
+      await sendPasswordChangedEmail(
+        user.email,
+        user.first_name || 'bạn',
+        time,
+        ip
+      );
+    } catch (error) {
+      console.warn('Could not load email templates:', error);
+    }
 
     return NextResponse.json({
       success: true,

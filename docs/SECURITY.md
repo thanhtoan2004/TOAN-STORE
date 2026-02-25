@@ -11,13 +11,12 @@ Tài liệu bảo mật cho TOAN Store E-commerce. Dự án đã đạt chứng 
 ┌─────────────┐      ┌──────────────┐      ┌────────────┐
 │   Client    │──────▶│  Auth API    │──────▶│  MySQL DB  │
 │  (Browser)  │      │              │      │            │
-│             │◀─────│  JWT Tokens  │◀─────│  Verify    │
-│  Cookies:   │      │              │      │  User      │
+│  Cookies:   │      │              │      │  Verify    │
 │  - auth     │      └──────┬───────┘      └────────────┘
-│  - admin    │             │
-│  - refresh  │      ┌──────▼───────┐
-│             │      │    Redis     │
-│             │      │  Refresh     │
+│  - admin    │             │              (JWT is verified centrally 
+│  - refresh  │      ┌──────▼───────┐       at Edge Middleware for Admin
+│             │      │    Redis     │       with maxTokenAge, issuer,
+│             │      │  Refresh     │       audience, and strict fallbacks)
 │             │      │  Token Store │
 │             │      └──────────────┘
 └─────────────┘
@@ -102,10 +101,10 @@ Tài liệu bảo mật cho TOAN Store E-commerce. Dự án đã đạt chứng 
 
 ## 🔒 Request Security
 
-### CSRF Protection
-- Stateless CSRF via custom header `X-Requested-With: XMLHttpRequest`
-- Origin/Host matching cho mutating requests (POST, PUT, PATCH, DELETE)
-- Active trong **production** environment
+### CSRF Protection (Enterprise Target Strict Match)
+- Origin/Host matching tuyệt đối 100% (`===`) cho mutating requests (POST, PUT, PATCH, DELETE)
+- Loại bỏ các ngoại lệ lách luật bằng Header `X-Requested-With`. Origin phải trùng khớp hoàn toàn trên Production.
+- Đi kèm bảo mật SameSite Cookie.
 
 ### Rate Limiting
 | Endpoint Group | Limit | Window |
@@ -122,14 +121,17 @@ Implementation: Redis-backed sliding window.
 - **Fail-Closed**: Với các tag nhạy cảm (`auth`, `admin`, `payment`), hệ thống sẽ **chặn** request nếu Redis lỗi.
 - **Fail-Open**: Với các API thông thường (GET products), hệ thống sẽ cho phép đi qua.
 
-### Security Headers
-```
-Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline';
+### Security Headers (Anti-Spectre & XSS Hardened)
+```http
+Content-Security-Policy: default-src 'self'; script-src 'self' https://maps.googleapis.com; connect-src 'self' https://maps.googleapis.com https://api.toanstore.com; object-src 'none'; frame-ancestors 'none'; ...
 X-Content-Type-Options: nosniff
 X-Frame-Options: DENY
 X-XSS-Protection: 1; mode=block
 Referrer-Policy: strict-origin-when-cross-origin
 Permissions-Policy: camera=(), microphone=(), geolocation=(self)
+Cross-Origin-Opener-Policy: same-origin
+Cross-Origin-Embedder-Policy: credentialless
+Cross-Origin-Resource-Policy: same-origin
 Strict-Transport-Security: max-age=31536000; includeSubDomains; preload (prod only)
 ```
 

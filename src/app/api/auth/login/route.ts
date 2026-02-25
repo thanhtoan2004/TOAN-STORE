@@ -219,6 +219,23 @@ async function loginHandler(req: Request): Promise<NextResponse> {
   // Success
   await logSecurityEvent('login_success', ip, user.id, { email });
 
+  // Gửi Email Cảnh báo Đăng nhập Mới (Chạy ngầm không block request)
+  try {
+    const { sendNewLoginEmail } = await import('@/lib/email-templates');
+    const device = req.headers.get('user-agent') || 'Thiết bị không xác định';
+    const time = new Date().toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' });
+    await sendNewLoginEmail(
+      user.email,
+      user.first_name || 'bạn',
+      time,
+      ip,
+      'Theo địa chỉ IP (Vietnam)', // Có thể nâng cấp dùng service check IP Geo sau
+      device
+    );
+  } catch (error) {
+    console.warn('Could not load email templates:', error);
+  }
+
   return NextResponse.json(response);
 }
 

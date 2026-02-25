@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
+import { Info } from 'lucide-react';
 
 export default function ForgotPasswordPage() {
     const [email, setEmail] = useState('');
@@ -97,11 +98,14 @@ export default function ForgotPasswordPage() {
                 </form>
 
                 <div className="mt-6 p-4 bg-gray-50 rounded">
-                    <h3 className="font-medium text-sm mb-2">💡 Lưu ý:</h3>
-                    <ul className="text-xs text-gray-600 space-y-1">
-                        <li>• Kiểm tra cả hộp thư spam/junk nếu không thấy email</li>
-                        <li>• Link đặt lại mật khẩu có hiệu lực trong 1 giờ</li>
-                        <li>• Liên hệ hỗ trợ nếu bạn không nhận được email</li>
+                    <div className="flex items-center gap-2 mb-2 text-gray-700">
+                        <Info className="w-5 h-5 text-gray-500" />
+                        <h3 className="font-medium text-sm">Lưu ý:</h3>
+                    </div>
+                    <ul className="text-xs text-gray-600 space-y-1.5 list-disc list-inside ml-1">
+                        <li>Kiểm tra cả hộp thư spam/junk nếu không thấy email</li>
+                        <li>Link đặt lại mật khẩu có hiệu lực trong 1 giờ</li>
+                        <li>Liên hệ hỗ trợ nếu bạn không nhận được email</li>
                     </ul>
                 </div>
             </div>

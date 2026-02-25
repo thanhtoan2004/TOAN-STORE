@@ -4,6 +4,7 @@
  * Chạy Độc Lập ở server Edge Vercel TRƯỚC khi Request chạm vào Code API hay DB.
  */
 import { NextResponse, NextRequest } from 'next/server';
+import { jwtVerify } from 'jose';
 
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
@@ -11,16 +12,17 @@ export async function middleware(req: NextRequest) {
   const response = NextResponse.next();
 
   /**
-   * 1. Content-Security-Policy (CSP)
-   * Ngăn chặn mã độc XSS (Cross-Site Scripting).
-   * Cấm gọi script/ảnh/font từ các nguồn lạ ngoại trừ Google Fonts, Maps và CDN hợp lệ.
+   * 1. Content-Security-Policy (CSP) - Enterprise Hardened
+   * Loại bỏ unsafe-eval ở Production để chống XSS tuyệt đối.
+   * Chỉ cho phép unsafe-inline ở Next.js dev mode hoặc style.
    */
   const cspHeader = `
     default-src 'self';
-    script-src 'self' 'unsafe-inline' 'unsafe-eval' https://maps.googleapis.com;
+    script-src 'self' ${isProd ? '' : "'unsafe-inline' 'unsafe-eval'"} https://maps.googleapis.com;
     style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
     img-src 'self' data: https: blob:;
     font-src 'self' https://fonts.gstatic.com;
+    connect-src 'self' https://maps.googleapis.com https://api.toanstore.com;
     object-src 'none';
     base-uri 'self';
     form-action 'self';
@@ -35,52 +37,85 @@ export async function middleware(req: NextRequest) {
   response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
   response.headers.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=(self)');
 
+  // Anti Spectre-type attacks
+  response.headers.set('Cross-Origin-Opener-Policy', 'same-origin');
+  response.headers.set('Cross-Origin-Embedder-Policy', 'credentialless'); // Dùng credentialless thay vì require-corp để Next.js load ảnh ngoài bình thường
+  response.headers.set('Cross-Origin-Resource-Policy', 'same-origin');
+
   if (isProd) {
     response.headers.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains; preload');
   }
 
+  // --- IP Logging System (Edge) ---
+  // @ts-ignore: req.ip is available in Vercel Edge environment even if TS misses it
+  const clientIp = req.ip || req.headers.get('x-forwarded-for')?.split(',')[0] || 'Unknown IP';
+  if (pathname.startsWith('/api/') && !isProd) {
+    // Chỉ log ở Dev để tránh tràn RAM Edge ở Production
+    // console.log(`[Edge] Request IP: ${clientIp} -> ${req.method} ${pathname}`);
+  }
+
   /**
-   * 2. CSRF (Cross-Site Request Forgery) Protection cho các tác vụ thay đổi CSDL (POST, PUT, DELETE)
-   * Sử dụng kĩ thuật Stateless: Bắt buộc request phải có Header `X-Requested-With: XMLHttpRequest`
-   * hoặc Origin/Referer phải khớp chuẩn với Domain trang web. Các domain giả thư mục sẽ bị chặn đứng (Status 403).
+   * 2. CSRF (Cross-Site Request Forgery) Protection - Strict Target
+   * Chặn tuyệt đối các domain giả mạo chữ ký. (Ví dụ: evil-toanstore.com)
    */
   if (pathname.startsWith('/api')) {
     const mutatingMethods = ['POST', 'PUT', 'PATCH', 'DELETE'];
     if (mutatingMethods.includes(req.method)) {
       const requestedWith = req.headers.get('x-requested-with');
       const origin = req.headers.get('origin');
-      const host = req.headers.get('host');
 
-      // Simple check: Must have X-Requested-With OR Origin must match Host
-      const isSafe = requestedWith === 'XMLHttpRequest' || (origin && origin.includes(host || ''));
+      // Lấy domain gốc chuẩn từ biến môi trường
+      const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
 
-      if (!isSafe && isProd) {
-        return new NextResponse(
-          JSON.stringify({ success: false, message: 'Potential CSRF attack detected' }),
-          { status: 403, headers: { 'Content-Type': 'application/json' } }
-        );
+      // So sánh Tuyệt Đối (===) thay vì includes() để tránh lách luật bằng tên miền phụ
+      const isOriginSafe = origin === appUrl;
+
+      // CSRF Enterprise Hardened: Chỉ dựa vào Origin + SameSite cookie ở Production
+      // BỎ bypass bằng X-Requested-With (isAjaxCheck) vì header này dễ bị fake
+      if (isProd) {
+        if (!origin || origin !== appUrl) {
+          return new NextResponse(
+            JSON.stringify({ success: false, message: 'Strict CSRF protection triggered' }),
+            { status: 403, headers: { 'Content-Type': 'application/json' } }
+          );
+        }
       }
     }
   }
 
   // --- 3. Admin Authentication Logic ---
-  if (pathname.startsWith('/admin')) {
+  // Rất quan trọng: Bỏ qua các route /admin/api để tránh gây lỗi Redirect loop trên API trả về JSON
+  // Trick tối ưu Edge CPU: Chỉ Parse/Verify JWT nếu request yêu cầu nhận HTML (Người dùng duyệt web).
+  // Các file ảnh, css, js tĩnh bên trong /admin sẽ không kích hoạt hàm bảo mật nặng nề này.
+  const acceptHeader = req.headers.get('accept') || '';
+  const isHtmlRequest = req.method === 'GET' && acceptHeader.includes('text/html');
+  if (pathname.startsWith('/admin') && !pathname.startsWith('/admin/api') && isHtmlRequest) {
     const token = req.cookies.get('nike_admin_session')?.value;
 
-    // FIX H2: Actually verify the JWT instead of just checking existence
+    // Verify the JWT rigidly with Issuers
     let isAdmin = false;
     if (token) {
       try {
-        console.log('[Middleware] Checking Admin Token...');
-        const { jwtVerify } = await import('jose');
-        const JWT_SECRET = process.env.JWT_SECRET || 'dev_fallback_secret_not_for_production';
+        const secretKey = process.env.JWT_SECRET;
+        if (!secretKey && isProd) {
+          throw new Error('JWT_SECRET is missing in production');
+        }
+
+        const JWT_SECRET = secretKey || 'dev_fallback_secret_not_for_production';
         const secret = new TextEncoder().encode(JWT_SECRET);
 
-        await jwtVerify(token, secret);
-        console.log('[Middleware] Admin Token Verified ✅');
+        await jwtVerify(token, secret, {
+          issuer: 'toan-store',
+          audience: 'admin',
+          maxTokenAge: '1d'
+        });
+
         isAdmin = true;
       } catch (e) {
-        console.error('[Middleware] JWT Verify Error:', e);
+        // Tắt console.log lỗi ở Edge server production để tiết kiệm CPU/RAM
+        if (!isProd) {
+          console.error('[Middleware] Admin JWT Verify Error:', e);
+        }
         isAdmin = false;
       }
     }
@@ -98,6 +133,32 @@ export async function middleware(req: NextRequest) {
       url.pathname = '/admin/login';
       return NextResponse.redirect(url);
     }
+  }
+
+  // --- 4. User Authentication Logic ---
+  // A. Chặn người dùng đã đăng nhập truy cập lại các trang Auth
+  const authRoutes = ['/sign-in', '/sign-up', '/forgot-password', '/reset-password'];
+  const isAuthRoute = authRoutes.some(route => pathname.startsWith(route));
+  const userSession = req.cookies.get('nike_auth_session')?.value;
+
+  if (isAuthRoute && userSession) {
+    // Đã có cookie đăng nhập -> Cưỡng chế đá về trang chủ
+    const url = req.nextUrl.clone();
+    url.pathname = '/';
+    return NextResponse.redirect(url);
+  }
+
+  // B. Bảo vệ các trang Cá nhân (Private Routes) - Yêu cầu phải đăng nhập
+  const privateRoutes = ['/account', '/checkout', '/orders', '/wishlist'];
+  const isPrivateRoute = privateRoutes.some(route => pathname.startsWith(route));
+
+  if (isPrivateRoute && !userSession) {
+    // Chưa đăng nhập mà cố vào trang cá nhân -> Đá ra trang login
+    const url = req.nextUrl.clone();
+    url.pathname = '/sign-in';
+    // Lưu lại trang đích để sau khi login xong quay lại (tuỳ chọn)
+    url.searchParams.set('returnUrl', pathname);
+    return NextResponse.redirect(url);
   }
 
   return response;

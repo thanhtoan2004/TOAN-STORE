@@ -12,6 +12,7 @@ interface GiftCard {
   initial_balance: number;
   current_balance: number;
   status: string;
+  failed_attempts: number;
   expires_at: string;
   created_at: string;
 }
@@ -67,6 +68,27 @@ export default function AdminGiftCardsPage() {
     }
   };
 
+  const handleUnlock = async (id: number) => {
+    if (!confirm('Khôi phục và mở khóa thẻ quà tặng này?')) return;
+
+    try {
+      const response = await fetch(`/api/admin/gift-cards/${id}/unlock`, {
+        method: 'PATCH'
+      });
+
+      if (response.ok) {
+        alert('Đã mở khóa thẻ quà tặng!');
+        fetchGiftCards();
+      } else {
+        const data = await response.json();
+        alert(data.message || 'Lỗi khi mở khóa');
+      }
+    } catch (error) {
+      console.error('Error unlocking gift card:', error);
+      alert('Lỗi khi mở khóa thẻ');
+    }
+  };
+
   return (
     <AdminLayout>
       <div className="space-y-6">
@@ -114,6 +136,7 @@ export default function AdminGiftCardsPage() {
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Số dư</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Trạng thái</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Hết hạn</th>
+                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase">Lần thử sai</th>
                   <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Hành động</th>
                 </tr>
               </thead>
@@ -133,7 +156,8 @@ export default function AdminGiftCardsPage() {
                     <td className="px-6 py-4 whitespace-nowrap text-sm">
                       <span className={`px-2 py-1 rounded-full text-xs font-semibold ${card.status === 'active' ? 'bg-green-100 text-green-800' :
                         card.status === 'used' ? 'bg-blue-100 text-blue-800' :
-                          'bg-red-100 text-red-800'
+                          card.status === 'locked' ? 'bg-orange-100 text-orange-800' :
+                            'bg-red-100 text-red-800'
                         }`}>
                         {card.status}
                       </span>
@@ -141,7 +165,20 @@ export default function AdminGiftCardsPage() {
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                       {formatDate(card.expires_at)}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm space-x-2">
+                    <td className="px-6 py-4 whitespace-nowrap text-center text-sm">
+                      <span className={`font-medium ${card.failed_attempts >= 5 ? 'text-red-600' : 'text-gray-500'}`}>
+                        {card.failed_attempts || 0}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm space-x-4">
+                      {card.status === 'locked' && (
+                        <button
+                          onClick={() => handleUnlock(card.id)}
+                          className="text-orange-600 hover:text-orange-900 font-medium"
+                        >
+                          Mở khóa
+                        </button>
+                      )}
                       <button
                         onClick={() => handleDelete(card.id)}
                         className="text-red-600 hover:text-red-900"

@@ -34,7 +34,7 @@ export default function AccountSettings() {
   // Sensitive action states
   const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
   const [passwordValue, setPasswordValue] = useState('');
-  const [pendingAction, setPendingAction] = useState<'export' | 'delete' | null>(null);
+  const [pendingAction, setPendingAction] = useState<'export' | 'delete' | 'toggle2fa' | null>(null);
   const [passwordError, setPasswordError] = useState('');
   const [verifyingPassword, setVerifyingPassword] = useState(false);
 
@@ -63,46 +63,35 @@ export default function AccountSettings() {
     gender: ''
   });
 
+  // 1. Hook kiểm tra Auth & URL Params (chạy 1 lần trên client mount và khi auth thay đổi)
   useEffect(() => {
-    // Chỉ redirect khi auth check hoàn tất
     if (!authLoading && !isAuthenticated) {
-      // Clear form data khi logout
       setFormData({
-        firstName: '',
-        lastName: '',
-        email: '',
-        phone: '',
-        dateOfBirth: '',
-        gender: ''
+        firstName: '', lastName: '', email: '', phone: '', dateOfBirth: '', gender: ''
       });
       setAddresses([]);
       router.push('/sign-in');
       return;
     }
 
-    // Check for URL params
     const params = new URLSearchParams(window.location.search);
     const tab = params.get('tab');
     const returnUrlParam = params.get('returnUrl');
 
-    if (tab) {
-      setActiveTab(tab);
-    }
-    if (returnUrlParam) {
-      setReturnUrl(returnUrlParam);
-    }
+    if (tab) setActiveTab(tab);
+    if (returnUrlParam) setReturnUrl(returnUrlParam);
+  }, [isAuthenticated, authLoading, router]);
 
+  // 2. Hook khởi tạo form data từ user (chỉ chạy khi thông tin user từ AuthContext thay đổi)
+  useEffect(() => {
     const formatDateForInput = (dateStr: string | undefined) => {
       if (!dateStr) return '';
       try {
         const date = new Date(dateStr);
         if (isNaN(date.getTime())) return '';
-
-        // Sử dụng local date components để tránh lệch múi giờ
         const year = date.getFullYear();
         const month = String(date.getMonth() + 1).padStart(2, '0');
         const day = String(date.getDate()).padStart(2, '0');
-
         return `${year}-${month}-${day}`;
       } catch (e) {
         return '';
@@ -110,21 +99,26 @@ export default function AccountSettings() {
     };
 
     if (user) {
-      setFormData({
-        firstName: user.firstName || '',
-        lastName: user.lastName || '',
-        email: user.email || '',
-        phone: user.phone || '',
-        dateOfBirth: formatDateForInput(user.dateOfBirth),
-        gender: user.gender || ''
+      setFormData(prev => {
+        // Tránh reset nếu user đang gõ (chỉ cập nhật nếu form đang rỗng hoặc được tải lại sau khi save)
+        return {
+          firstName: user.firstName || prev.firstName || '',
+          lastName: user.lastName || prev.lastName || '',
+          email: user.email || prev.email || '',
+          phone: user.phone || prev.phone || '',
+          dateOfBirth: formatDateForInput(user.dateOfBirth) || prev.dateOfBirth || '',
+          gender: user.gender || prev.gender || ''
+        };
       });
-
-      // Load addresses
-      if (activeTab === 'addresses') {
-        loadAddresses();
-      }
     }
-  }, [user, isAuthenticated, authLoading, router, activeTab]);
+  }, [user]);
+
+  // 3. Hook tải địa chỉ khi mở tab addresses
+  useEffect(() => {
+    if (user && activeTab === 'addresses') {
+      loadAddresses();
+    }
+  }, [activeTab, user]);
 
   const loadAddresses = async () => {
     if (!user) return;
@@ -284,7 +278,11 @@ export default function AccountSettings() {
 
       if (response.ok) {
         setMessage('Cập nhật thông tin thành công!');
-        setTimeout(() => setMessage(''), 3000);
+        // Refresh trang để lấy data mới cho AuthContext
+        setTimeout(() => {
+          setMessage('');
+          window.location.reload();
+        }, 1500);
       } else {
         setMessage(data.message || 'Có lỗi xảy ra');
       }
@@ -387,6 +385,8 @@ export default function AccountSettings() {
           handleExportData();
         } else if (pendingAction === 'delete') {
           handleDeleteAccount();
+        } else if (pendingAction === 'toggle2fa') {
+          handleToggle2FA();
         }
       } else {
         setPasswordError(data.message || 'Mật khẩu không chính xác');
@@ -395,6 +395,33 @@ export default function AccountSettings() {
       setPasswordError('Lỗi kết nối server');
     } finally {
       setVerifyingPassword(false);
+    }
+  };
+
+  const handleToggle2FA = async () => {
+    try {
+      setLoading(true);
+      const res = await fetch('/api/auth/2fa/toggle', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          enabled: !(user as any)?.two_factor_enabled,
+          password: passwordValue
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        setMessage(data.message);
+        setIsPasswordModalOpen(false);
+        setPendingAction(null);
+        window.location.reload();
+      } else {
+        setPasswordError(data.message || 'Lỗi khi cập nhật 2FA');
+      }
+    } catch (e) {
+      setPasswordError('Lỗi kết nối server');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -679,26 +706,12 @@ export default function AccountSettings() {
                         Bảo vệ tài khoản của bạn bằng cách yêu cầu mã xác thực gửi qua email mỗi khi đăng nhập.
                       </p>
                       <button
-                        onClick={async () => {
-                          try {
-                            setLoading(true);
-                            const res = await fetch('/api/auth/2fa/toggle', {
-                              method: 'POST',
-                              headers: { 'Content-Type': 'application/json' },
-                              body: JSON.stringify({ enabled: !(user as any)?.two_factor_enabled })
-                            });
-                            const data = await res.json();
-                            if (data.success) {
-                              setMessage(data.message);
-                              // Force reload to update user context
-                              window.location.reload();
-                            } else {
-                              setMessage(data.message || 'Lỗi khi cập nhật 2FA');
-                            }
-                          } catch (e) {
-                            setMessage('Lỗi kết nối server');
-                          } finally {
-                            setLoading(false);
+                        onClick={() => {
+                          if (!isPasswordModalOpen || pendingAction !== 'toggle2fa') {
+                            setPendingAction('toggle2fa');
+                            setPasswordValue('');
+                            setPasswordError('');
+                            setIsPasswordModalOpen(true);
                           }
                         }}
                         disabled={loading}

@@ -176,6 +176,93 @@
                                     ]
                                 }
                             }
+                        },
+                        {
+                            "name": "Gửi mã 2FA (Send OTP)",
+                            "request": {
+                                "method": "POST",
+                                "body": {
+                                    "mode": "raw",
+                                    "raw": "{\n    \"email\": \"user@example.com\"\n}",
+                                    "options": {
+                                        "raw": {
+                                            "language": "json"
+                                        }
+                                    }
+                                },
+                                "url": {
+                                    "raw": "{{baseUrl}}/api/auth/2fa/send",
+                                    "host": [
+                                        "{{baseUrl}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "auth",
+                                        "2fa",
+                                        "send"
+                                    ]
+                                }
+                            }
+                        },
+                        {
+                            "name": "Xác thực 2FA (Verify OTP)",
+                            "request": {
+                                "method": "POST",
+                                "body": {
+                                    "mode": "raw",
+                                    "raw": "{\n    \"email\": \"user@example.com\",\n    \"code\": \"123456\"\n}",
+                                    "options": {
+                                        "raw": {
+                                            "language": "json"
+                                        }
+                                    }
+                                },
+                                "url": {
+                                    "raw": "{{baseUrl}}/api/auth/2fa/verify",
+                                    "host": [
+                                        "{{baseUrl}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "auth",
+                                        "2fa",
+                                        "verify"
+                                    ]
+                                }
+                            }
+                        },
+                        {
+                            "name": "Bật/Tắt 2FA (Toggle)",
+                            "request": {
+                                "method": "POST",
+                                "header": [
+                                    {
+                                        "key": "Authorization",
+                                        "value": "Bearer {{token}}"
+                                    }
+                                ],
+                                "body": {
+                                    "mode": "raw",
+                                    "raw": "{\n    \"enable\": true\n}",
+                                    "options": {
+                                        "raw": {
+                                            "language": "json"
+                                        }
+                                    }
+                                },
+                                "url": {
+                                    "raw": "{{baseUrl}}/api/auth/2fa/toggle",
+                                    "host": [
+                                        "{{baseUrl}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "auth",
+                                        "2fa",
+                                        "toggle"
+                                    ]
+                                }
+                            }
                         }
                     ]
                 },
@@ -230,6 +317,29 @@
                                         "api",
                                         "account",
                                         "change-password"
+                                    ]
+                                }
+                            }
+                        },
+                        {
+                            "name": "Lịch sử giao dịch (Transactions)",
+                            "request": {
+                                "method": "GET",
+                                "header": [
+                                    {
+                                        "key": "Authorization",
+                                        "value": "Bearer {{token}}"
+                                    }
+                                ],
+                                "url": {
+                                    "raw": "{{baseUrl}}/api/account/transactions",
+                                    "host": [
+                                        "{{baseUrl}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "account",
+                                        "transactions"
                                     ]
                                 }
                             }
@@ -1338,6 +1448,34 @@
                             }
                         }
                     ]
+                },
+                {
+                    "name": "Users & Segments",
+                    "item": [
+                        {
+                            "name": "Lấy Customer Segments",
+                            "request": {
+                                "method": "GET",
+                                "header": [
+                                    {
+                                        "key": "Authorization",
+                                        "value": "Bearer {{admin_token}}"
+                                    }
+                                ],
+                                "url": {
+                                    "raw": "{{baseUrl}}/api/admin/customer-segments",
+                                    "host": [
+                                        "{{baseUrl}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "admin",
+                                        "customer-segments"
+                                    ]
+                                }
+                            }
+                        }
+                    ]
                 }
             ]
         },
@@ -1407,6 +1545,57 @@
                             ]
                         }
                     }
+                },
+                {
+                    "name": "CRON Jobs",
+                    "item": [
+                        {
+                            "name": "Cron: Tier Upgrade",
+                            "request": {
+                                "method": "GET",
+                                "header": [
+                                    {
+                                        "key": "Authorization",
+                                        "value": "Bearer CRON_SECRET"
+                                    }
+                                ],
+                                "url": {
+                                    "raw": "{{baseUrl}}/api/cron/tier-upgrade",
+                                    "host": [
+                                        "{{baseUrl}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "cron",
+                                        "tier-upgrade"
+                                    ]
+                                }
+                            }
+                        },
+                        {
+                            "name": "Cron: Abandoned Cart",
+                            "request": {
+                                "method": "GET",
+                                "header": [
+                                    {
+                                        "key": "Authorization",
+                                        "value": "Bearer CRON_SECRET"
+                                    }
+                                ],
+                                "url": {
+                                    "raw": "{{baseUrl}}/api/cron/abandoned-cart",
+                                    "host": [
+                                        "{{baseUrl}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "cron",
+                                        "abandoned-cart"
+                                    ]
+                                }
+                            }
+                        }
+                    ]
                 }
             ]
         }

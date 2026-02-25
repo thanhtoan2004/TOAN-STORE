@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { executeQuery } from '@/lib/db/mysql';
 import { verifyAuth } from '@/lib/auth';
+import bcrypt from 'bcrypt';
 
 /**
  * API Kiểm tra trạng thái bảo mật 2 lớp (2FA).
@@ -13,15 +14,6 @@ export async function GET() {
             return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
         }
 
-        // Ensure column exists (auto-migrate)
-        try {
-            await executeQuery('ALTER TABLE users ADD COLUMN two_factor_enabled TINYINT(1) DEFAULT 0');
-        } catch (e: any) {
-            // Ignore error if column already exists (ER_DUP_FIELDNAME / 1060)
-            if (e.errno !== 1060) {
-                console.error('Column check error:', e);
-            }
-        }
 
         const [user] = await executeQuery<any[]>(
             'SELECT COALESCE(two_factor_enabled, 0) as two_factor_enabled FROM users WHERE id = ?',
@@ -48,16 +40,24 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
         }
 
-        const { enabled } = await request.json();
+        const { enabled, password } = await request.json();
 
-        // Ensure column exists (auto-migrate)
-        try {
-            await executeQuery('ALTER TABLE users ADD COLUMN two_factor_enabled TINYINT(1) DEFAULT 0');
-        } catch (e: any) {
-            // Ignore error if column already exists
-            if (e.errno !== 1060) {
-                console.error('Column check error:', e);
-            }
+        if (!password) {
+            return NextResponse.json({ success: false, message: 'Vui lòng nhập mật khẩu để xác nhận' }, { status: 400 });
+        }
+
+        const users = await executeQuery<any[]>(
+            'SELECT password FROM users WHERE id = ?',
+            [session.userId]
+        );
+
+        if (!users || users.length === 0) {
+            return NextResponse.json({ success: false, message: 'Không tìm thấy người dùng' }, { status: 404 });
+        }
+
+        const isValid = await bcrypt.compare(password, users[0].password);
+        if (!isValid) {
+            return NextResponse.json({ success: false, message: 'Mật khẩu không chính xác' }, { status: 400 });
         }
 
         await executeQuery(

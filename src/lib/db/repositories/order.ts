@@ -343,9 +343,12 @@ export async function createOrder(orderData: {
             orderNumber: orderData.orderNumber,
             userId: orderData.userId,
             email: orderData.email,
-            totalAmount: finalTotal, // Use the final verified total
+            shippingAddress: shippingAddr,
             items: orderData.items,
-            shippingAddress: shippingAddr
+            subtotal: finalSubtotal,
+            shipping: shippingFee,
+            tax: tax,
+            totalAmount: finalTotal
         });
 
         return orderId;
