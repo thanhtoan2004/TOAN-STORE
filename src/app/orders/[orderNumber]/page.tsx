@@ -60,6 +60,7 @@ interface OrderData {
 
 
 import RefundModal from '@/components/refunds/RefundModal';
+import EditShippingAddressModal from '@/components/orders/EditShippingAddressModal';
 
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -75,6 +76,7 @@ export default function OrderDetailPage() {
   const [cancelling, setCancelling] = useState(false);
   const [reordering, setReordering] = useState(false);
   const [showRefundModal, setShowRefundModal] = useState(false);
+  const [showEditAddressModal, setShowEditAddressModal] = useState(false);
   const [refundStatus, setRefundStatus] = useState<string | null>(null);
 
   useEffect(() => {
@@ -413,7 +415,18 @@ export default function OrderDetailPage() {
               </div>
 
               <div className="bg-white rounded-lg shadow-sm border p-6">
-                <h2 className="text-xl font-helvetica-medium mb-6">Thông tin giao hàng</h2>
+                <div className="flex justify-between items-center mb-6">
+                  <h2 className="text-xl font-helvetica-medium">Thông tin giao hàng</h2>
+                  {(orderData.status === 'pending' || orderData.status === 'pending_payment' || orderData.status === 'paid' || orderData.status === 'confirmed') && (
+                    <button
+                      onClick={() => setShowEditAddressModal(true)}
+                      className="text-sm font-medium text-blue-600 hover:text-blue-800 underline disabled:opacity-50"
+                      disabled={loading}
+                    >
+                      Sửa địa chỉ
+                    </button>
+                  )}
+                </div>
                 <div className="space-y-2">
                   <p><span className="font-medium">Người nhận:</span> {orderData.shippingAddress.name}</p>
                   <p><span className="font-medium">Số điện thoại:</span> {orderData.shippingAddress.phone}</p>
@@ -573,6 +586,18 @@ export default function OrderDetailPage() {
             onSuccess={() => {
               setRefundStatus('pending');
               // Could re-fetch data here if needed
+            }}
+          />
+        )}
+
+        {orderData && (
+          <EditShippingAddressModal
+            isOpen={showEditAddressModal}
+            onClose={() => setShowEditAddressModal(false)}
+            orderNumber={orderData.orderNumber}
+            currentAddress={orderData.shippingAddress}
+            onSuccess={() => {
+              window.location.reload();
             }}
           />
         )}

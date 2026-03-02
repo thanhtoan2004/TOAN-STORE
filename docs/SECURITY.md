@@ -65,8 +65,8 @@ Tài liệu bảo mật cho TOAN Store E-commerce. Dự án đã đạt chứng 
 |------|--------|---------|
 | Passwords | **Bcrypt** (salt rounds: 10) | One-way hash |
 | Gift Card PINs | **Bcrypt** | One-way hash |
-| Email addresses | **AES-256-GCM** | Two-way encryption |
-| Phone numbers | **AES-256-GCM** | Two-way encryption |
+| Email addresses | **AES-256-GCM** | Two-way encryption (stored in `email_encrypted` columns, raw columns masked `***`) |
+| Phone numbers | **AES-256-GCM** | Two-way encryption (stored in `phone_encrypted` columns, raw columns masked `***`) |
 
 ### Encryption Error Handling
 - `encrypt()` → **Throw error** nếu thất bại (không bao giờ lưu plaintext)
@@ -83,11 +83,12 @@ Tài liệu bảo mật cho TOAN Store E-commerce. Dự án đã đạt chứng 
 | password | Required, min 6 characters | ✅ Fixed |
 | firstName/lastName | Strip HTML tags (XSS prevention) | ✅ Fixed |
 
-### API-level Validations
-- **Numeric ranges**: Giá không âm, quantity > 0
-- **Status whitelists**: Order status, Review status chỉ chấp nhận giá trị hợp lệ
-- **Ownership checks**: Mỗi resource kiểm tra thuộc về user hiện tại (IDOR prevention)
-- **SQL Parameterization**: 100% queries sử dụng parameterized statements
+### API-level & Database-level Validations
+- **Numeric ranges**: Giá không âm.
+- **Strict Negative Inventory Protection**: Database schema thực thi cứng `CHECK (quantity >= 0)` trên bảng `inventory` để ngăn chặn chênh lệch giữa các Race Conditions mua hàng.
+- **Status whitelists**: Order status, Review status chỉ chấp nhận giá trị hợp lệ.
+- **Ownership checks**: Mỗi resource kiểm tra thuộc về user hiện tại (IDOR prevention).
+- **SQL Parameterization**: 100% queries sử dụng parameterized statements.
 
 ### IDOR Prevention (Phase 63.2)
 | Resource | Protection |
@@ -117,7 +118,7 @@ Tài liệu bảo mật cho TOAN Store E-commerce. Dự án đã đạt chứng 
 | Gift Card Check Balance | 10 requests | 1 minute |
 | Cart Gift Card Check | Rate limited | Per IP |
 
-Implementation: Redis-backed sliding window.  
+Implementation: **100% Redis-backed sliding window**. Không còn phụ thuộc vào bảng `rate_limits` của MySQL để đạt tốc độ xử lý lớn nhất.
 - **Fail-Closed**: Với các tag nhạy cảm (`auth`, `admin`, `payment`), hệ thống sẽ **chặn** request nếu Redis lỗi.
 - **Fail-Open**: Với các API thông thường (GET products), hệ thống sẽ cho phép đi qua.
 

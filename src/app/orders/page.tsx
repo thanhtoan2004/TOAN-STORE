@@ -30,7 +30,7 @@ export default function OrdersPage() {
   const [totalPages, setTotalPages] = useState(1);
   const limit = 5; // Show 5 orders per page
 
-  const { user: authUser, isLoading: isAuthLoading } = useAuth();
+  const { user: authUser, loading: isAuthLoading } = useAuth();
 
   useEffect(() => {
     const fetchOrders = async () => {

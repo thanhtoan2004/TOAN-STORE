@@ -9,13 +9,14 @@ import { InventoryRepository } from '@/lib/db/repositories/inventory';
  */
 export async function PATCH(
     req: NextRequest,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
     try {
         const auth = await checkAdminAuth();
         if (!auth) return ResponseWrapper.unauthorized();
 
-        const transferId = parseInt(params.id);
+        const { id: paramId } = await params;
+        const transferId = parseInt(paramId);
         const body = await req.json();
         const { status } = body;
 

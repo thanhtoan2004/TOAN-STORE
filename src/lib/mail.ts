@@ -145,7 +145,7 @@ export async function sendEmail({ to, subject, html }: EmailOptions) {
 export async function sendWelcomeEmail(to: string, name: string) {
   const subject = 'Welcome to TOAN Store!';
   const body = `
-    <h2 style="color: #111; font-size: 20px;">Xin chào ${name},</h2>
+    <p>Xin chào&nbsp;<strong class="text-highlight">${name},</strong></p>
     <p>Cảm ơn bạn đã đăng ký tài khoản tại TOAN Store. Chúng tôi rất vui mừng khi có bạn đồng hành.</p>
     
     <div class="box" style="text-align: left; padding: 20px;">
@@ -162,7 +162,7 @@ export async function sendWelcomeEmail(to: string, name: string) {
 export async function sendOrderConfirmation(to: string, name: string, orderNumber: string, total: number) {
   const subject = `Order Confirmation #${orderNumber}`;
   const body = `
-    <h2 style="color: #111; font-size: 20px;">Xin chào ${name},</h2>
+    <p>Xin chào&nbsp;<strong class="text-highlight">${name},</strong></p>
     <p>Cảm ơn bạn đã đặt hàng! Đơn hàng <strong class="text-highlight">#${orderNumber}</strong> của bạn đã được ghi nhận thành công.</p>
     
     <div class="box">
@@ -183,7 +183,7 @@ export async function sendPasswordResetEmail(to: string, name: string, token: st
   const resetLink = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/reset-password?token=${token}`;
   const subject = 'Đặt lại mật khẩu - TOAN Store';
   const body = `
-    <h2 style="color: #111; font-size: 20px;">Xin chào ${name},</h2>
+    <p>Xin chào&nbsp;<strong class="text-highlight">${name},</strong></p>
     <p>Chúng tôi nhận được yêu cầu đặt lại mật khẩu cho tài khoản của bạn.</p>
     
     <div class="btn-container">
@@ -211,7 +211,7 @@ export async function sendPaymentReceivedEmail(to: string, name: string, orderNu
   const formattedAmount = new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount);
 
   const body = `
-    <h2 style="color: #111; font-size: 20px;">Xin chào ${name},</h2>
+    <p>Xin chào&nbsp;<strong class="text-highlight">${name},</strong></p>
     <p>Chúng tôi đã nhận được thanh toán cho đơn hàng <strong class="text-highlight">#${orderNumber}</strong> của bạn.</p>
     
     <div class="box">
@@ -233,7 +233,7 @@ export async function sendVoucherReceivedEmail(to: string, name: string, code: s
   const formattedValue = discountType === 'percent' ? `${value}%` : new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(value);
 
   const body = `
-    <h2 style="color: #111; font-size: 20px;">Xin chào ${name},</h2>
+    <p>Xin chào&nbsp;<strong class="text-highlight">${name},</strong></p>
     <p>TOAN Store xin gửi tặng bạn một mã giảm giá đặc biệt:</p>
     
     <div class="box" style="border: 1px dashed #ccc;">
@@ -256,7 +256,7 @@ export async function sendVoucherReceivedEmail(to: string, name: string, code: s
 export async function sendOrderShippedEmail(to: string, name: string, orderNumber: string) {
   const subject = `Đơn hàng #${orderNumber} đang được giao`;
   const body = `
-    <h2 style="color: #111; font-size: 20px;">Xin chào ${name},</h2>
+    <p>Xin chào&nbsp;<strong class="text-highlight">${name},</strong></p>
     <p>Tin vui! Đơn hàng <strong class="text-highlight">#${orderNumber}</strong> của bạn đã được đóng gói và giao cho đơn vị vận chuyển.</p>
     
     <div class="box">
@@ -283,7 +283,7 @@ export async function sendTierUpgradeEmail(to: string, name: string, newTier: st
   const displayNewTier = tierNames[newTier as keyof typeof tierNames] || newTier;
 
   const body = `
-    <p>Chào <strong class="text-highlight">${name}</strong>,</p>
+    <p>Xin chào&nbsp;<strong class="text-highlight">${name},</strong></p>
     <p>Chúc mừng bạn! Nhờ sự ủng hộ nhiệt tình của bạn, mức thẻ hội viên của bạn vừa được thăng hạng thành công.</p>
     
     <div class="box" style="border: 1px solid #eab308; background-color: #fefce8;">

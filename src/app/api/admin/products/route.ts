@@ -144,6 +144,7 @@ export async function POST(request: NextRequest) {
 
     // Invalidate & Sync
     await invalidateCachePattern('products:list:*');
+    await invalidateCachePattern('search:query:*');
     await syncProductToMeilisearch(productId);
 
     // Audit Logging
@@ -189,6 +190,7 @@ export async function PUT(request: NextRequest) {
 
     await invalidateCache(`product:detail:${id}`);
     await invalidateCachePattern('products:list:*');
+    await invalidateCachePattern('search:query:*');
     await syncProductToMeilisearch(id);
 
     return ResponseWrapper.success(null, 'Product updated successfully');
@@ -217,6 +219,7 @@ export async function DELETE(request: NextRequest) {
 
     await invalidateCache(`product:detail:${id}`);
     await invalidateCachePattern('products:list:*');
+    await invalidateCachePattern('search:query:*');
     await deleteProductFromMeilisearch(id);
 
     return ResponseWrapper.success(null, 'Product deleted successfully');

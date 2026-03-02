@@ -9,7 +9,7 @@ import { checkAdminAuth } from '@/lib/auth';
  */
 export async function PUT(
     request: NextRequest,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
     try {
         const admin = await checkAdminAuth();
@@ -17,7 +17,8 @@ export async function PUT(
             return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
         }
 
-        const id = params.id;
+        const { id: paramId } = await params;
+        const id = paramId;
         const body = await request.json();
         const { name, location, is_active } = body;
 
@@ -73,7 +74,7 @@ export async function PUT(
  */
 export async function DELETE(
     request: NextRequest,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
     try {
         const admin = await checkAdminAuth();
@@ -81,7 +82,8 @@ export async function DELETE(
             return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
         }
 
-        const id = params.id;
+        const { id: paramId } = await params;
+        const id = paramId;
 
         // Check if warehouse has inventory
         const [inv] = await executeQuery<any[]>(

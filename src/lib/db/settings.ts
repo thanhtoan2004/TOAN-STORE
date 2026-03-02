@@ -1,5 +1,7 @@
-
 import { executeQuery } from './mysql';
+import { invalidateCache } from '@/lib/cache';
+
+const MAINTENANCE_CACHE_KEY = 'settings:maintenance_mode';
 
 export interface StoreSettings {
     store_name: string;
@@ -68,4 +70,9 @@ export async function updateSetting(key: string, value: any): Promise<void> {
         "INSERT INTO settings (`key`, value) VALUES (?, ?) ON DUPLICATE KEY UPDATE value = VALUES(value)",
         [key, String(value)]
     );
+
+    // Invalidate cache if maintenance mode is changed
+    if (key === 'maintenance_mode') {
+        await invalidateCache(MAINTENANCE_CACHE_KEY);
+    }
 }

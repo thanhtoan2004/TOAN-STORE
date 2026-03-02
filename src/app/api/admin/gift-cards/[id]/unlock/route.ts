@@ -7,13 +7,14 @@ import { withErrorHandling, createSuccessResponse, createErrorResponse } from '@
  * API Mở khóa thẻ quà tặng đã bị khóa do nhập sai PIN quá số lần.
  * Quyền: Admin
  */
-async function unlockGiftCardHandler(req: NextRequest, { params }: { params: { id: string } }): Promise<NextResponse> {
+async function unlockGiftCardHandler(req: NextRequest, { params }: { params: Promise<{ id: string }> }): Promise<NextResponse> {
     const admin = await checkAdminAuth();
     if (!admin) {
         return createErrorResponse('Unauthorized', 401);
     }
 
-    const id = parseInt(params.id);
+    const { id: paramId } = await params;
+    const id = parseInt(paramId);
     if (isNaN(id)) {
         return createErrorResponse('Invalid ID', 400);
     }

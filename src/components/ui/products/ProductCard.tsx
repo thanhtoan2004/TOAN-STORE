@@ -56,7 +56,7 @@ const ProductCard = ({
     if (inWishlist) {
       removeFromWishlist(id);
     } else {
-      addToWishlist({ id, name, category, price, sale_price, image_url, is_new_arrival });
+      addToWishlist({ id, slug, name, category, price, sale_price, image_url, is_new_arrival });
     }
   };
 
@@ -73,7 +73,7 @@ const ProductCard = ({
     if (inCompare) {
       removeFromCompare(id);
     } else {
-      addToCompare({ id, name, category, price, sale_price, image_url, is_new_arrival });
+      addToCompare({ id, slug, name, category, price, sale_price, image_url, is_new_arrival });
     }
   };
 

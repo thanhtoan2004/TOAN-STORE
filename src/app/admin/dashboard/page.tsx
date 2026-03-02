@@ -52,6 +52,34 @@ export default function AdminDashboardPage() {
     fetchDashboardStats(selectedDays);
   }, [selectedDays]);
 
+  const calculateForecast = (trend: any[]) => {
+    if (!trend || trend.length < 5) return null;
+
+    // Simple linear regression for forecasting
+    const n = trend.length;
+    let sumX = 0, sumY = 0, sumXY = 0, sumX2 = 0;
+
+    trend.forEach((d, i) => {
+      sumX += i;
+      sumY += d.revenue;
+      sumXY += i * d.revenue;
+      sumX2 += i * i;
+    });
+
+    const slope = (n * sumXY - sumX * sumY) / (n * sumX2 - sumX * sumX);
+    const intercept = (sumY - slope * sumX) / n;
+
+    const nextDay = slope * n + intercept;
+    const nextWeek = Array.from({ length: 7 }, (_, i) => slope * (n + i) + intercept).reduce((a, b) => a + b, 0);
+
+    return {
+      nextDayRevenue: Math.max(0, nextDay),
+      nextWeekRevenue: Math.max(0, nextWeek),
+      confidence: Math.min(95, 70 + (n * 2)), // Mock confidence based on data points
+      trend: slope > 1000 ? 'up' : slope < -1000 ? 'down' : 'stable'
+    };
+  };
+
   const fetchDashboardStats = async (days: number) => {
     try {
       const [dashboardResponse, wishlistResponse] = await Promise.all([
@@ -111,33 +139,6 @@ export default function AdminDashboardPage() {
     }
   };
 
-  const calculateForecast = (trend: any[]) => {
-    if (!trend || trend.length < 5) return null;
-
-    // Simple linear regression for forecasting
-    const n = trend.length;
-    let sumX = 0, sumY = 0, sumXY = 0, sumX2 = 0;
-
-    trend.forEach((d, i) => {
-      sumX += i;
-      sumY += d.revenue;
-      sumXY += i * d.revenue;
-      sumX2 += i * i;
-    });
-
-    const slope = (n * sumXY - sumX * sumY) / (n * sumX2 - sumX * sumX);
-    const intercept = (sumY - slope * sumX) / n;
-
-    const nextDay = slope * n + intercept;
-    const nextWeek = Array.from({ length: 7 }, (_, i) => slope * (n + i) + intercept).reduce((a, b) => a + b, 0);
-
-    return {
-      nextDayRevenue: Math.max(0, nextDay),
-      nextWeekRevenue: Math.max(0, nextWeek),
-      confidence: Math.min(95, 70 + (n * 2)), // Mock confidence based on data points
-      trend: slope > 1000 ? 'up' : slope < -1000 ? 'down' : 'stable'
-    };
-  };
 
   return (
     <AdminLayout>

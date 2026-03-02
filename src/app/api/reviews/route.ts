@@ -29,7 +29,7 @@ export async function GET(request: NextRequest) {
 
       const status = statusParam || 'pending';
       const reviews = await executeQuery<any[]>(
-        `SELECT r.*, u.full_name as user_name, p.name as product_name,
+        `SELECT r.*, u.full_name as user_name, u.avatar_url as user_avatar, p.name as product_name,
          (SELECT url FROM product_images WHERE product_id = p.id AND is_main = 1 LIMIT 1) as product_image
          FROM product_reviews r
          LEFT JOIN users u ON r.user_id = u.id
@@ -88,7 +88,7 @@ export async function GET(request: NextRequest) {
       `SELECT 
          r.id, r.product_id, r.user_id, r.rating, r.title, r.comment, 
          r.admin_reply, r.created_at, r.is_verified_purchase, r.helpful_count,
-         u.full_name as user_name, u.email as user_email
+         u.full_name as user_name, u.email as user_email, u.avatar_url as user_avatar
        FROM product_reviews r
        LEFT JOIN users u ON r.user_id = u.id
        WHERE r.product_id = ? AND r.status = 'approved'
@@ -98,8 +98,8 @@ export async function GET(request: NextRequest) {
       [productId, limit, offset]
     );
 
-    // Get media for each review
-    for (const review of reviews) {
+    // Get media for each review concurrently to avoid N+1 queries blocking
+    const mediaPromises = reviews.map(async (review) => {
       const media = await executeQuery<any[]>(
         `SELECT id, media_type, media_url, thumbnail_url, file_size
          FROM review_media
@@ -108,7 +108,8 @@ export async function GET(request: NextRequest) {
         [review.id]
       );
       review.media = media || [];
-    }
+    });
+    await Promise.all(mediaPromises);
 
     // Get total count
     const countResult = await executeQuery<any[]>(

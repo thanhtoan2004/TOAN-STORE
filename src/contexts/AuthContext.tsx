@@ -20,6 +20,15 @@ type User = {
   membershipTier?: string;   // Hạng thẻ (Bạc, Vàng, Kim Cương...)
   accumulatedPoints?: number; // Điểm tích lũy mua hàng
   two_factor_enabled?: boolean; // Tùy chọn 2FA (Xác thực 2 bước) có đang bật hay không
+  avatarUrl?: string; // Đường dẫn ảnh đại diện
+  email_notifications?: boolean;
+  sms_notifications?: boolean;
+  sms_order_notifications?: boolean;
+  push_notifications?: boolean;
+  promo_notifications?: boolean;
+  order_notifications?: boolean;
+  data_persistence?: boolean;
+  public_profile?: boolean;
 } | null;
 
 /**

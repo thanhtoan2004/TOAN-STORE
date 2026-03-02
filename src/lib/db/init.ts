@@ -49,6 +49,30 @@ export async function initDb() {
       if (!columnNames.includes('avatar_url')) {
         await connection.query('ALTER TABLE users ADD COLUMN avatar_url VARCHAR(1000) DEFAULT NULL');
       }
+      if (!columnNames.includes('email_notifications')) {
+        await connection.query('ALTER TABLE users ADD COLUMN email_notifications TINYINT(1) DEFAULT 1');
+      }
+      if (!columnNames.includes('sms_notifications')) {
+        await connection.query('ALTER TABLE users ADD COLUMN sms_notifications TINYINT(1) DEFAULT 0');
+      }
+      if (!columnNames.includes('sms_order_notifications')) {
+        await connection.query('ALTER TABLE users ADD COLUMN sms_order_notifications TINYINT(1) DEFAULT 0');
+      }
+      if (!columnNames.includes('push_notifications')) {
+        await connection.query('ALTER TABLE users ADD COLUMN push_notifications TINYINT(1) DEFAULT 1');
+      }
+      if (!columnNames.includes('promo_notifications')) {
+        await connection.query('ALTER TABLE users ADD COLUMN promo_notifications TINYINT(1) DEFAULT 0');
+      }
+      if (!columnNames.includes('order_notifications')) {
+        await connection.query('ALTER TABLE users ADD COLUMN order_notifications TINYINT(1) DEFAULT 1');
+      }
+      if (!columnNames.includes('data_persistence')) {
+        await connection.query('ALTER TABLE users ADD COLUMN data_persistence TINYINT(1) DEFAULT 1');
+      }
+      if (!columnNames.includes('public_profile')) {
+        await connection.query('ALTER TABLE users ADD COLUMN public_profile TINYINT(1) DEFAULT 1');
+      }
 
       // Migration: Modify password to be nullable
       try {
@@ -175,8 +199,8 @@ export async function initDb() {
         category_id BIGINT UNSIGNED,
         collection_id BIGINT UNSIGNED,
         sport_id BIGINT UNSIGNED,
-        base_price DECIMAL(12,2) NOT NULL DEFAULT 0,
-        retail_price DECIMAL(12,2) DEFAULT NULL,
+        base_price DECIMAL(12,2) NOT NULL DEFAULT 0 CHECK (base_price >= 0),
+        retail_price DECIMAL(12,2) DEFAULT NULL CHECK (retail_price >= 0 OR retail_price IS NULL),
         is_active TINYINT(1) DEFAULT 1,
         is_featured TINYINT(1) DEFAULT 0,
         is_new_arrival TINYINT(1) DEFAULT 1,
@@ -208,7 +232,7 @@ export async function initDb() {
         color VARCHAR(100),
         barcode VARCHAR(100),
         attributes JSON,
-        price DECIMAL(12,2) NOT NULL DEFAULT 0,
+        price DECIMAL(12,2) NOT NULL DEFAULT 0 CHECK (price >= 0),
         weight DECIMAL(10,3) DEFAULT 0,
         height DECIMAL(10,3) DEFAULT 0,
         width DECIMAL(10,3) DEFAULT 0,
@@ -226,8 +250,8 @@ export async function initDb() {
         id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
         product_variant_id BIGINT UNSIGNED NOT NULL,
         warehouse_id BIGINT UNSIGNED NULL,
-        quantity INT NOT NULL DEFAULT 0,
-        reserved INT NOT NULL DEFAULT 0,
+        quantity INT NOT NULL DEFAULT 0 CHECK (quantity >= 0),
+        reserved INT NOT NULL DEFAULT 0 CHECK (reserved >= 0),
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
         FOREIGN KEY (product_variant_id) REFERENCES product_variants(id) ON DELETE CASCADE,
         INDEX idx_variant (product_variant_id)
@@ -286,8 +310,8 @@ export async function initDb() {
         product_id BIGINT UNSIGNED NOT NULL,
         product_variant_id BIGINT UNSIGNED NULL,
         size VARCHAR(10) NOT NULL,
-        quantity INT NOT NULL DEFAULT 1,
-        price DECIMAL(12, 2) NOT NULL,
+        quantity INT NOT NULL DEFAULT 1 CHECK (quantity > 0),
+        price DECIMAL(12, 2) NOT NULL CHECK (price >= 0),
         added_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
         FOREIGN KEY (cart_id) REFERENCES carts(id) ON DELETE CASCADE,
@@ -318,6 +342,7 @@ export async function initDb() {
         id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
         wishlist_id BIGINT UNSIGNED NOT NULL,
         product_id BIGINT UNSIGNED NOT NULL,
+        price_when_added DECIMAL(12, 2) NULL,
         added_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (wishlist_id) REFERENCES wishlists(id) ON DELETE CASCADE,
         FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE,
@@ -325,6 +350,25 @@ export async function initDb() {
         INDEX idx_wishlist_id (wishlist_id)
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
     `);
+
+    // Migration for wishlist_items
+    try {
+      const [columns]: any = await connection.query('SHOW COLUMNS FROM wishlist_items');
+      const columnNames = columns.map((col: any) => col.Field);
+
+      if (!columnNames.includes('price_when_added')) {
+        await connection.query('ALTER TABLE wishlist_items ADD COLUMN price_when_added DECIMAL(12, 2) NULL AFTER product_id');
+        // Seed price_when_added for existing items
+        await connection.query(`
+          UPDATE wishlist_items wi
+          JOIN products p ON p.id = wi.product_id
+          SET wi.price_when_added = COALESCE(p.retail_price, p.base_price)
+          WHERE wi.price_when_added IS NULL
+        `);
+      }
+    } catch (e) {
+      console.log('Error adding columns to wishlist_items:', e);
+    }
 
     // Tạo bảng orders
     await connection.query(`
@@ -377,9 +421,11 @@ export async function initDb() {
         product_name VARCHAR(500) NOT NULL,
         product_image VARCHAR(1000),
         size VARCHAR(10) NOT NULL,
-        quantity INT NOT NULL,
-        price DECIMAL(12, 2) NOT NULL,
-        total DECIMAL(12, 2) NOT NULL,
+        quantity INT NOT NULL CHECK (quantity > 0),
+        unit_price DECIMAL(12, 2) NOT NULL CHECK (unit_price >= 0),
+        total_price DECIMAL(12, 2) NOT NULL CHECK (total_price >= 0),
+        price DECIMAL(12, 2) NOT NULL CHECK (price >= 0),
+        total DECIMAL(12, 2) NOT NULL CHECK (total >= 0),
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE,
         FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE SET NULL,
@@ -482,8 +528,8 @@ export async function initDb() {
         id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
         card_number VARCHAR(16) NOT NULL UNIQUE,
         pin VARCHAR(4) NOT NULL,
-        initial_balance DECIMAL(12,2) NOT NULL DEFAULT 0,
-        current_balance DECIMAL(12,2) NOT NULL DEFAULT 0,
+        initial_balance DECIMAL(12,2) NOT NULL DEFAULT 0 CHECK (initial_balance >= 0),
+        current_balance DECIMAL(12,2) NOT NULL DEFAULT 0 CHECK (current_balance >= 0),
         currency VARCHAR(10) DEFAULT 'VND',
         status ENUM('active', 'inactive', 'expired', 'used') DEFAULT 'active',
         purchased_by BIGINT UNSIGNED NULL,
@@ -518,7 +564,10 @@ export async function initDb() {
         user_id BIGINT UNSIGNED NOT NULL,
         recipient_name VARCHAR(255) NOT NULL,
         phone VARCHAR(20) NOT NULL,
+        phone_encrypted TEXT,
         address_line VARCHAR(500) NOT NULL,
+        address_encrypted TEXT,
+        is_encrypted TINYINT(1) DEFAULT 0,
         ward VARCHAR(100),
         district VARCHAR(100),
         city VARCHAR(100) NOT NULL,
@@ -642,8 +691,8 @@ export async function initDb() {
         code VARCHAR(100) NOT NULL UNIQUE,
         description VARCHAR(255),
         discount_type ENUM('fixed', 'percent') DEFAULT 'fixed',
-        discount_value DECIMAL(12, 2) NOT NULL,
-        min_order_amount DECIMAL(12, 2),
+        discount_value DECIMAL(12, 2) NOT NULL CHECK (discount_value >= 0),
+        min_order_amount DECIMAL(12, 2) CHECK (min_order_amount >= 0 OR min_order_amount IS NULL),
         max_discount_amount DECIMAL(12, 2),
         starts_at TIMESTAMP NULL,
         ends_at TIMESTAMP NULL,
@@ -675,7 +724,7 @@ export async function initDb() {
       CREATE TABLE IF NOT EXISTS vouchers (
         id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
         code VARCHAR(100) NOT NULL UNIQUE,
-        value DECIMAL(12, 2) NOT NULL,
+        value DECIMAL(12, 2) NOT NULL CHECK (value >= 0),
         discount_type ENUM('fixed', 'percent') DEFAULT 'fixed',
         description VARCHAR(255),
         issued_by_user_id BIGINT UNSIGNED,
@@ -714,7 +763,7 @@ export async function initDb() {
         id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
         flash_sale_id BIGINT UNSIGNED NOT NULL,
         product_id BIGINT UNSIGNED NOT NULL,
-        sale_price DECIMAL(12, 2) NOT NULL,
+        sale_price DECIMAL(12, 2) NOT NULL CHECK (sale_price >= 0),
         limit_per_customer INT DEFAULT 1,
         total_quantity INT NOT NULL,
         sold_quantity INT DEFAULT 0,
@@ -793,6 +842,64 @@ export async function initDb() {
                 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4
                   `);
 
+    // Tạo bảng news_comments
+    await connection.query(`
+      CREATE TABLE IF NOT EXISTS news_comments (
+        id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+        news_id BIGINT UNSIGNED NOT NULL,
+        user_id BIGINT UNSIGNED NOT NULL,
+        parent_id BIGINT UNSIGNED NULL,
+        comment TEXT NOT NULL,
+        status ENUM('pending', 'approved', 'rejected') DEFAULT 'approved',
+        likes_count INT DEFAULT 0,
+        is_edited TINYINT(1) DEFAULT 0,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        FOREIGN KEY (news_id) REFERENCES news(id) ON DELETE CASCADE,
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+        FOREIGN KEY (parent_id) REFERENCES news_comments(id) ON DELETE CASCADE,
+        INDEX idx_news_id (news_id),
+        INDEX idx_status (status),
+        INDEX idx_parent_id (parent_id)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    `);
+
+    // Migration cho news_comments nếu đã tồn tại nhưng thiếu cột mới
+    try {
+      const [columns]: any = await connection.query('SHOW COLUMNS FROM news_comments');
+      const columnNames = columns.map((col: any) => col.Field);
+
+      if (!columnNames.includes('parent_id')) {
+        await connection.query('ALTER TABLE news_comments ADD COLUMN parent_id BIGINT UNSIGNED NULL AFTER user_id');
+        await connection.query('ALTER TABLE news_comments ADD CONSTRAINT fk_news_comments_parent FOREIGN KEY (parent_id) REFERENCES news_comments(id) ON DELETE CASCADE');
+        await connection.query('ALTER TABLE news_comments ADD INDEX idx_parent_id (parent_id)');
+      }
+      if (!columnNames.includes('likes_count')) {
+        await connection.query('ALTER TABLE news_comments ADD COLUMN likes_count INT DEFAULT 0 AFTER status');
+      }
+      if (!columnNames.includes('updated_at')) {
+        await connection.query('ALTER TABLE news_comments ADD COLUMN updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP');
+      }
+      if (!columnNames.includes('is_edited')) {
+        await connection.query('ALTER TABLE news_comments ADD COLUMN is_edited TINYINT(1) DEFAULT 0 AFTER likes_count');
+      }
+    } catch (e) {
+      console.log('Error migrating news_comments table:', e);
+    }
+
+    // Tạo bảng news_comment_likes
+    await connection.query(`
+      CREATE TABLE IF NOT EXISTS news_comment_likes (
+        id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+        comment_id BIGINT UNSIGNED NOT NULL,
+        user_id BIGINT UNSIGNED NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE KEY uk_comment_user (comment_id, user_id),
+        FOREIGN KEY (comment_id) REFERENCES news_comments(id) ON DELETE CASCADE,
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    `);
+
     // Tạo bảng stores
     await connection.query(`
       CREATE TABLE IF NOT EXISTS stores(
@@ -864,7 +971,7 @@ export async function initDb() {
       CREATE TABLE IF NOT EXISTS refunds (
         id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
         order_id BIGINT UNSIGNED NOT NULL,
-        refund_amount DECIMAL(12,2) NOT NULL,
+        refund_amount DECIMAL(12,2) NOT NULL CHECK (refund_amount >= 0),
         status VARCHAR(50) DEFAULT 'completed',
         reason TEXT,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -1276,6 +1383,23 @@ export async function initDb() {
         FOREIGN KEY (option_id) REFERENCES attribute_options(id) ON DELETE SET NULL,
         INDEX idx_product (product_id),
         INDEX idx_attribute (attribute_id)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    `);
+
+    // 3. Notifications Table
+    await connection.query(`
+      CREATE TABLE IF NOT EXISTS notifications (
+        id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+        user_id BIGINT UNSIGNED NOT NULL,
+        type ENUM('order', 'social', 'promo', 'system') NOT NULL,
+        title VARCHAR(255) NOT NULL,
+        message TEXT NOT NULL,
+        link VARCHAR(255),
+        is_read TINYINT(1) DEFAULT 0,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+        INDEX idx_user_read (user_id, is_read),
+        INDEX idx_created_at (created_at)
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
     `);
 

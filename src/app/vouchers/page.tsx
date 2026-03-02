@@ -165,7 +165,6 @@ export default function VouchersPage() {
                       <div className="mb-4">
                         <div className="flex items-center justify-between mb-2">
                           <span className="text-sm text-gray-600">Mã voucher:</span>
-                          <span className="text-sm text-gray-600">Mã voucher:</span>
                           <Button
                             variant="ghost"
                             size="sm"

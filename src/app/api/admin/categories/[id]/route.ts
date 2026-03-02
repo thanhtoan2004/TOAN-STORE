@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { executeQuery } from '@/lib/db/mysql';
 import { checkAdminAuth } from '@/lib/auth';
 import { logAdminAction } from '@/lib/audit';
+import { invalidateCache } from '@/lib/cache';
+
+const CATEGORIES_CACHE_KEY = 'global:categories';
 
 /**
  * API Cập nhật thông tin danh mục.
@@ -28,6 +31,9 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
       'UPDATE categories SET name = ?, slug = ?, description = ?, image_url = ?, position = ? WHERE id = ?',
       [name, slug, description, image_url || null, position, id]
     );
+
+    // Invalidate public categories cache
+    await invalidateCache(CATEGORIES_CACHE_KEY);
 
     // Filter changes for audit log
     const updates = { name, slug, description, image_url, position };
@@ -68,6 +74,9 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
 
   try {
     await executeQuery('UPDATE categories SET deleted_at = NOW() WHERE id = ?', [id]);
+
+    // Invalidate public categories cache
+    await invalidateCache(CATEGORIES_CACHE_KEY);
 
     // Log audit
     await logAdminAction(admin.userId, 'DELETE_CATEGORY', 'categories', id, { is_active: 1 }, { is_active: 0 }, request);

@@ -18,6 +18,7 @@ const FONT_SIZES = [
 ];
 
 export default function AccessibilityWidget() {
+    const [mounted, setMounted] = useState(false);
     const [isOpen, setIsOpen] = useState(false);
     const [fontSizeIndex, setFontSizeIndex] = useState(1); // default M
     const [reduceMotion, setReduceMotion] = useState(false);
@@ -28,6 +29,7 @@ export default function AccessibilityWidget() {
 
     // Load preferences
     useEffect(() => {
+        setMounted(true);
         const savedSize = localStorage.getItem(FONT_SIZE_KEY);
         const savedMotion = localStorage.getItem(REDUCE_MOTION_KEY);
         const savedContrast = localStorage.getItem(HIGH_CONTRAST_KEY);
@@ -98,11 +100,14 @@ export default function AccessibilityWidget() {
         });
     }, []);
 
+    if (!mounted) return null;
+
     return (
         <>
             {/* Toggle Button - Fixed on left side */}
             <button
                 onClick={() => setIsOpen(!isOpen)}
+                suppressHydrationWarning
                 className="fixed left-4 bottom-36 md:bottom-24 z-[9998] w-10 h-10 bg-white border border-gray-200 rounded-full shadow-lg flex items-center justify-center hover:bg-gray-50 transition-all active:scale-95"
                 aria-label={isVi ? 'Cài đặt trợ năng' : 'Accessibility settings'}
                 title={isVi ? 'Trợ năng' : 'Accessibility'}

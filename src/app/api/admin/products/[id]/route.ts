@@ -5,6 +5,7 @@ import { checkAdminAuth } from '@/lib/auth';
 import { sendWishlistSaleEmail } from '@/lib/email-templates';
 import { syncProductToMeilisearch, deleteProductFromMeilisearch } from '@/lib/meilisearch';
 import { logAdminAction } from '@/lib/audit';
+import { invalidateCachePattern } from '@/lib/cache';
 
 // ... (GET method unchanged)
 // GET - Lấy chi tiết sản phẩm
@@ -176,6 +177,9 @@ export async function PUT(
         // Sync to Meilisearch
         await syncProductToMeilisearch(id);
 
+        // Invalidate search query cache
+        await invalidateCachePattern('search:query:*');
+
         // Audit Logging
         if (currentProduct) {
             const oldValues: any = {};
@@ -237,6 +241,9 @@ export async function DELETE(
 
         // Delete from Meilisearch
         await deleteProductFromMeilisearch(id);
+
+        // Invalidate search query cache
+        await invalidateCachePattern('search:query:*');
 
         // Audit Logging
         await logAdminAction(

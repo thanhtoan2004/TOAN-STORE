@@ -23,10 +23,12 @@ export async function addToWishlist(userId: number, productId: number) {
         wishlistId = wishlists[0].id;
     }
 
-    // Thêm sản phẩm vào wishlist (IGNORE nếu đã tồn tại)
+    // Thêm sản phẩm vào wishlist (IGNORE nếu đã tồn tại) kèm theo giá gốc tại thời điểm thêm
     await executeQuery(
-        `INSERT IGNORE INTO wishlist_items (wishlist_id, product_id) VALUES (?, ?)`,
-        [wishlistId, productId]
+        `INSERT IGNORE INTO wishlist_items (wishlist_id, product_id, price_when_added) 
+         SELECT ?, ?, COALESCE(retail_price, base_price) 
+         FROM products WHERE id = ?`,
+        [wishlistId, productId, productId]
     );
 }
 
@@ -64,4 +66,34 @@ export async function removeFromWishlist(userId: number, productId: number) {
      WHERE w.user_id = ? AND wi.product_id = ?`,
         [userId, productId]
     );
+}
+
+/**
+ * Lấy ra các sản phẩm trong wishlist của tất cả mọi người có giá hiện tại RẺ HƠN giá lúc họ thêm vào.
+ * Dùng cho CronJob gửi email thông báo Price Drop.
+ */
+export async function getWishlistItemsWithPriceDrop() {
+    const query = `
+    SELECT 
+      u.id as user_id,
+      u.email,
+      u.first_name,
+      p.id as product_id,
+      p.name as product_name,
+      p.slug as product_slug,
+      wi.price_when_added,
+      p.base_price as current_price,
+      (SELECT url FROM product_images WHERE product_id = p.id AND is_main = 1 LIMIT 1) as image_url
+    FROM wishlist_items wi
+    JOIN wishlists w ON wi.wishlist_id = w.id
+    JOIN users u ON w.user_id = u.id
+    JOIN products p ON wi.product_id = p.id
+    WHERE 
+      wi.price_when_added IS NOT NULL 
+      AND p.base_price < wi.price_when_added
+      AND p.is_active = 1
+    ORDER BY u.id ASC
+    `;
+
+    return executeQuery<any[]>(query, []);
 }

@@ -21,7 +21,12 @@ export async function GET() {
 
     // Lấy thông tin người dùng từ CSDL
     const users = await executeQuery(
-      'SELECT id, email, first_name, last_name, phone, date_of_birth, gender, is_active, is_verified, is_admin, accumulated_points, membership_tier, two_factor_enabled FROM users WHERE id = ? AND deleted_at IS NULL',
+      `SELECT id, email, first_name, last_name, phone, date_of_birth, gender, 
+              is_active, is_verified, is_admin, accumulated_points, membership_tier, 
+              two_factor_enabled, avatar_url, email_notifications, sms_notifications, 
+              sms_order_notifications, push_notifications, promo_notifications, 
+              order_notifications, data_persistence, public_profile 
+       FROM users WHERE id = ? AND deleted_at IS NULL`,
       [session.userId]
     ) as any[];
 
@@ -48,7 +53,16 @@ export async function GET() {
         is_admin: user.is_admin,
         accumulatedPoints: user.accumulated_points || 0,
         membershipTier: user.membership_tier || 'bronze',
-        two_factor_enabled: user.two_factor_enabled === 1 || user.two_factor_enabled === '1' || user.two_factor_enabled === true
+        two_factor_enabled: user.two_factor_enabled === 1 || user.two_factor_enabled === '1' || user.two_factor_enabled === true,
+        avatarUrl: user.avatar_url,
+        email_notifications: !!user.email_notifications,
+        sms_notifications: !!user.sms_notifications,
+        sms_order_notifications: !!user.sms_order_notifications,
+        push_notifications: !!user.push_notifications,
+        promo_notifications: !!user.promo_notifications,
+        order_notifications: !!user.order_notifications,
+        data_persistence: !!user.data_persistence,
+        public_profile: !!user.public_profile
       }
     });
   } catch (error) {

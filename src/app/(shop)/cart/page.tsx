@@ -6,6 +6,7 @@ import Image from 'next/image';
 import { useCart } from '@/contexts/CartContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { useModal } from '@/contexts/ModalContext';
 import { Button } from '@/components/ui/Button';
 import { ShoppingCart, Truck, ShieldCheck, PartyPopper, Lightbulb } from 'lucide-react';
 import { formatCurrency } from '@/lib/date-utils';
@@ -19,6 +20,7 @@ export default function CartPage() {
     removeItem,
     clearCart
   } = useCart();
+  const { showAlert } = useModal();
   const { user } = useAuth();
   const [updating, setUpdating] = useState<number | null>(null);
 
@@ -48,12 +50,18 @@ export default function CartPage() {
   };
 
   const handleClearCart = async () => {
-    if (!confirm('Bạn có chắc muốn xóa tất cả sản phẩm trong giỏ hàng?')) return;
-
-    const success = await clearCart();
-    if (!success) {
-      // Error được handle trong context
-    }
+    showAlert({
+      title: 'Xác nhận xóa giỏ hàng',
+      message: 'Bạn có chắc chắn muốn xóa tất cả sản phẩm trong giỏ hàng không?',
+      confirmText: 'Xác nhận xóa',
+      cancelText: 'Hủy',
+      onConfirm: async () => {
+        const success = await clearCart();
+        if (!success) {
+          // Error được handle trong context
+        }
+      }
+    });
   };
 
   // local formatPrice removed, using import from @/lib/date-utils

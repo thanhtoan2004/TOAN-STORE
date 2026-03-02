@@ -4,11 +4,12 @@ import { useEffect } from 'react';
 // import React from 'react';
 import Link from 'next/link'
 import Image from 'next/image'
-import { Heart, Menu, ChevronDown } from 'lucide-react'
+import { Heart, Menu, ChevronDown, User, Star, Zap, Crown, ShieldCheck } from 'lucide-react'
 import CartIcon from '@/components/ui/CartIcon'
 import SearchBar from '@/components/ui/SearchBar'
 import SearchOverlay from '@/components/search/SearchOverlay'
 import MobileMenuOverlay from '@/components/layout/MobileMenuOverlay'
+import NotificationBell from '@/components/notifications/NotificationBell'
 import { useWishlist } from "@/contexts/WishlistContext";
 import { useState } from 'react';
 import {
@@ -83,9 +84,34 @@ const Header = () => {
             {isAuthenticated ? (
               <>
                 <DropdownMenu>
-                  <DropdownMenuTrigger className="hover:text-black text-[#757575] flex items-center gap-1">
-                    {/* Ưu tiên hiển thị Tên + Họ, nếu không có thì hiển thị email */}
-                    {t.common.hello}, {(user as any)?.firstName && (user as any)?.lastName ? `${(user as any).firstName} ${(user as any).lastName}` : user?.email}
+                  <DropdownMenuTrigger className="hover:text-black text-[#757575] flex items-center gap-2 group">
+                    {/* Avatar Image or Fallback */}
+                    <div className="w-6 h-6 rounded-full overflow-hidden bg-gray-200 flex items-center justify-center border border-gray-300 group-hover:border-black transition-colors">
+                      {user?.avatarUrl ? (
+                        <img
+                          src={user.avatarUrl}
+                          alt="Avatar"
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <User className="w-3.5 h-3.5 text-gray-500" />
+                      )}
+                    </div>
+                    <span className="max-w-[120px] truncate">
+                      {(user as any)?.firstName && (user as any)?.lastName ? `${(user as any).firstName} ${(user as any).lastName}` : user?.email}
+                    </span>
+                    {user?.membershipTier && (
+                      <div className={`p-0.5 rounded-sm ${user.membershipTier === 'platinum' ? 'text-indigo-600' :
+                        user.membershipTier === 'gold' ? 'text-yellow-600' :
+                          user.membershipTier === 'silver' ? 'text-gray-500' :
+                            'text-amber-700'
+                        }`}>
+                        {user.membershipTier === 'platinum' && <ShieldCheck className="w-3 h-3" />}
+                        {user.membershipTier === 'gold' && <Crown className="w-3 h-3" />}
+                        {user.membershipTier === 'silver' && <Zap className="w-3 h-3" />}
+                        {user.membershipTier === 'bronze' && <Star className="w-3 h-3" />}
+                      </div>
+                    )}
                     <ChevronDown className="w-3 h-3" />
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="w-48">
@@ -169,6 +195,9 @@ const Header = () => {
                 )}
               </Link>
 
+              {/* Notification Bell */}
+              <NotificationBell />
+
               {/* Nút Giỏ hàng (Tách thành Component riêng để quản lý state) */}
               <CartIcon />
             </div>
@@ -177,7 +206,7 @@ const Header = () => {
       </div>
 
       {/* Nút mở Menu trên nền tảng Mobile (Chỉ hiện trên màn hình nhỏ) */}
-      <div className="md:hidden nike-container pb-2 text-black">
+      <div className="md:hidden nike-container pb-2 flex items-center justify-between text-black">
         <button
           onClick={() => setIsMobileMenuOpen(true)}
           className="flex items-center space-x-1 text-sm hover:opacity-70 transition-opacity"
@@ -185,6 +214,11 @@ const Header = () => {
           <span>{t.common.menu}</span>
           <Menu className="w-4 h-4" />
         </button>
+
+        {/* Mobile Notification Bell */}
+        <div className="flex items-center">
+          <NotificationBell />
+        </div>
       </div>
 
       {/* Overlay Menu dành riêng cho Mobile */}

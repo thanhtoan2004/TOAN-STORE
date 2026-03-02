@@ -50,7 +50,7 @@ export default function AdminChatDetailPage() {
     const params = useParams();
     const router = useRouter();
     const { user } = useAuth();
-    const chatId = params.chatId as string;
+    const chatId = params?.chatId as string;
 
     const [chat, setChat] = useState<ChatDetails | null>(null);
     const [messages, setMessages] = useState<Message[]>([]);

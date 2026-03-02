@@ -33,6 +33,7 @@ export async function getAddresses(userId: number) {
  * database chỉ lưu chuỗi mã hóa không đọc được.
  */
 export async function getUserAddresses(userId: number) {
+    console.log(`DEBUG: Getting addresses for userId: ${userId}`);
     const addresses = await executeQuery<any[]>(
         `SELECT * FROM user_addresses 
      WHERE user_id = ? 
@@ -40,11 +41,16 @@ export async function getUserAddresses(userId: number) {
         [userId]
     );
 
-    return addresses.map(addr => ({
+    console.log(`DEBUG: Found ${addresses.length} addresses in DB`);
+
+    const mapped = addresses.map(addr => ({
         ...addr,
-        phone: decrypt(addr.phone),
-        address_line: decrypt(addr.address_line)
+        phone: addr.is_encrypted ? decrypt(addr.phone_encrypted) : addr.phone,
+        address_line: addr.is_encrypted ? decrypt(addr.address_encrypted) : addr.address_line
     }));
+
+    console.log(`DEBUG: Returning ${mapped.length} mapped addresses`);
+    return mapped;
 }
 
 /**
@@ -73,8 +79,8 @@ export async function addUserAddress(userId: number, address: {
 
     const result = await executeQuery(
         `INSERT INTO user_addresses 
-     (user_id, label, recipient_name, phone, address_line, city, state, postal_code, country, is_default)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+     (user_id, label, recipient_name, phone, phone_encrypted, address_line, address_encrypted, city, state, postal_code, country, is_default, is_encrypted)
+     VALUES (?, ?, ?, '***', ?, '***', ?, ?, ?, ?, ?, TRUE)`,
         [
             userId,
             address.label || null,
@@ -134,11 +140,11 @@ export async function updateUserAddress(addressId: number, userId: number, addre
         values.push(address.recipient_name);
     }
     if (address.phone !== undefined) {
-        fields.push('phone = ?');
+        fields.push('phone_encrypted = ?, phone = "***", is_encrypted = TRUE');
         values.push(encrypt(address.phone));
     }
     if (address.address_line !== undefined) {
-        fields.push('address_line = ?');
+        fields.push('address_encrypted = ?, address_line = "***", is_encrypted = TRUE');
         values.push(encrypt(address.address_line));
     }
     if (address.city !== undefined) {

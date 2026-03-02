@@ -279,6 +279,7 @@ const ProductsGrid = ({
                 <ProductCard
                   key={`${product.id}-${index}`}
                   id={product.id.toString()}
+                  slug={product.slug}
                   name={product.name}
                   category={product.category}
                   price={originalPrice}

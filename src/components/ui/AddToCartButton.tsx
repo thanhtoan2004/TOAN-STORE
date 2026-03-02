@@ -3,6 +3,8 @@
 import React, { useState } from 'react';
 import { useCart } from '@/contexts/CartContext';
 import { useAuth } from '@/contexts/AuthContext';
+import { useModal } from '@/contexts/ModalContext';
+import { useRouter } from 'next/navigation';
 
 interface AddToCartButtonProps {
   productId: number;
@@ -26,10 +28,17 @@ export default function AddToCartButton({
   const [loading, setLoading] = useState(false);
   const { addToCart } = useCart();
   const { user } = useAuth();
+  const { showAlert } = useModal();
+  const router = useRouter();
 
   const handleAddToCart = async () => {
     if (!user) {
-      alert('Vui lòng đăng nhập để thêm sản phẩm vào giỏ hàng');
+      showAlert({
+        title: 'Xác nhận thông tin',
+        message: 'Vui lòng đăng nhập để thêm sản phẩm vào giỏ hàng.',
+        type: 'auth',
+        onConfirm: () => router.push('/sign-in')
+      });
       return;
     }
 

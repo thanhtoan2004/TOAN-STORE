@@ -3,6 +3,7 @@ import { getCart, addToCart, clearCart } from '@/lib/db/mysql';
 import { findVariantBySize, checkStock } from '@/lib/db/variants';
 import { verifyAuth } from '@/lib/auth';
 import { withRateLimit } from '@/lib/with-rate-limit';
+import { getCache, setCache, invalidateCache } from '@/lib/cache';
 
 // GET - Lấy giỏ hàng của user
 /**
@@ -20,6 +21,17 @@ export async function GET(request: NextRequest) {
       );
     }
     const userId = session.userId;
+    const cacheKey = `user:cart:${userId}`;
+
+    // Try to get from cache
+    const cachedCart = await getCache<any[]>(cacheKey);
+    if (cachedCart) {
+      return NextResponse.json({
+        success: true,
+        data: cachedCart,
+        cached: true
+      });
+    }
 
     // Lấy giỏ hàng từ database
     const cartItems = await getCart(userId);
@@ -36,6 +48,9 @@ export async function GET(request: NextRequest) {
       quantity: item.quantity,
       stock: item.available || 0
     }));
+
+    // Set cache (5 minutes)
+    await setCache(cacheKey, formattedItems, 300);
 
     return NextResponse.json({
       success: true,
@@ -149,6 +164,10 @@ async function postHandler_Legacy(request: NextRequest) {
         addedCount++;
       }
 
+      if (addedCount > 0) {
+        await invalidateCache(`user:cart:${userId}`);
+      }
+
       if (addedCount === 0 && items.length > 0) {
         return NextResponse.json({
           success: false,
@@ -201,6 +220,9 @@ async function postHandler_Legacy(request: NextRequest) {
 
     await addToCart(userId, parseInt(productId), size, quantity);
 
+    // Invalidate cache
+    await invalidateCache(`user:cart:${userId}`);
+
     return NextResponse.json({
       success: true,
       message: 'Đã thêm vào giỏ hàng'
@@ -228,6 +250,9 @@ export async function DELETE(request: NextRequest) {
 
     // Xóa giỏ hàng từ database
     await clearCart(userId);
+
+    // Invalidate cache
+    await invalidateCache(`user:cart:${userId}`);
 
     return NextResponse.json({
       success: true,
@@ -334,6 +359,10 @@ export const POST = withRateLimit(async function postHandler(request: NextReques
         addedCount++;
       }
 
+      if (addedCount > 0) {
+        await invalidateCache(`user:cart:${userId}`);
+      }
+
       if (addedCount === 0 && items.length > 0) {
         return NextResponse.json({
           success: false,
@@ -385,6 +414,9 @@ export const POST = withRateLimit(async function postHandler(request: NextReques
     }
 
     await addToCart(userId, parseInt(productId), size, quantity);
+
+    // Invalidate cache
+    await invalidateCache(`user:cart:${userId}`);
 
     return NextResponse.json({
       success: true,

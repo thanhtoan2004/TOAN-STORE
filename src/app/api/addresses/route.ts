@@ -16,6 +16,7 @@ export async function GET(request: Request) {
 
 
         const addresses = await getAddresses(userId);
+        console.log(`DEBUG: API GET /api/addresses - Found ${addresses.length} addresses`);
         return NextResponse.json(addresses);
     } catch (error: any) {
         console.error('DEBUG: Error details:', error.message, error.stack);
@@ -51,6 +52,53 @@ export async function POST(request: Request) {
         console.error('Error adding address:', error);
         return NextResponse.json(
             { message: 'Internal Server Error' },
+            { status: 500 }
+        );
+    }
+}
+
+// PUT: Update address or set default
+/**
+ * API Cập nhật địa chỉ hoặc đặt làm mặc định.
+ */
+export async function PUT(request: Request) {
+    try {
+        const session = await verifyAuth();
+        if (!session) {
+            return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
+        }
+        const userId = Number(session.userId);
+
+        const body = await request.json();
+        const { addressId, action, ...addressData } = body;
+
+        if (!addressId) {
+            return NextResponse.json(
+                { success: false, message: 'Address ID is required' },
+                { status: 400 }
+            );
+        }
+
+        const { updateAddress, setDefaultAddress } = await import('@/lib/db/mysql');
+
+        if (action === 'setDefault') {
+            await setDefaultAddress(parseInt(addressId), userId);
+            return NextResponse.json({
+                success: true,
+                message: 'Address set as default successfully'
+            });
+        } else {
+            // Default action is update
+            await updateAddress(userId, parseInt(addressId), addressData);
+            return NextResponse.json({
+                success: true,
+                message: 'Address updated successfully'
+            });
+        }
+    } catch (error: any) {
+        console.error('Error updating address:', error);
+        return NextResponse.json(
+            { success: false, message: 'Internal Server Error', error: error.message },
             { status: 500 }
         );
     }

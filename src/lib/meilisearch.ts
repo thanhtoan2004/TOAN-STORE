@@ -82,7 +82,8 @@ export async function syncProductToMeilisearch(productId: number | string) {
         }
 
         const p = products[0];
-        const price = Number(p.retail_price || p.base_price);
+        // Base price is the actual selling price, retail price is the MSRP (original price)
+        const price = Number(p.base_price || p.retail_price);
 
         const document: ProductDocument = {
             id: p.id,

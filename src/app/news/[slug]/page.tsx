@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
 import { formatDate } from '@/lib/date-utils';
+import NewsComments from '@/components/news/NewsComments';
 
 interface NewsDetail {
     id: number;
@@ -22,7 +23,7 @@ interface NewsDetail {
 export default function NewsDetailPage() {
     const params = useParams();
     const router = useRouter();
-    const slug = params.slug as string;
+    const slug = params?.slug as string;
 
     const [news, setNews] = useState<NewsDetail | null>(null);
     const [loading, setLoading] = useState(true);
@@ -160,6 +161,9 @@ export default function NewsDetailPage() {
                             </div>
                         </div>
                     </article>
+
+                    {/* News Comments Section */}
+                    <NewsComments slug={slug} />
 
                     {/* Back to News */}
                     <div className="mt-8 text-center">

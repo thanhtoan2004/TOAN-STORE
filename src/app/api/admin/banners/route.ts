@@ -1,7 +1,9 @@
-
 import { NextRequest, NextResponse } from 'next/server';
 import { executeQuery } from '@/lib/db/mysql';
 import { checkAdminAuth } from '@/lib/auth';
+import { invalidateCachePattern } from '@/lib/cache';
+
+const BANNERS_CACHE_PATTERN = 'global:banners:*';
 
 // GET - Lấy tất cả banners (Admin)
 /**
@@ -89,6 +91,9 @@ export async function POST(request: NextRequest) {
             ]
         );
 
+        // Invalidate all banner caches
+        await invalidateCachePattern(BANNERS_CACHE_PATTERN);
+
         return NextResponse.json({ success: true, message: 'Banner created successfully' });
     } catch (error) {
         console.error('Error creating banner:', error);
@@ -146,6 +151,9 @@ export async function PUT(request: NextRequest) {
             updateValues
         );
 
+        // Invalidate all banner caches
+        await invalidateCachePattern(BANNERS_CACHE_PATTERN);
+
         return NextResponse.json({ success: true, message: 'Banner updated successfully' });
     } catch (error) {
         console.error('Error updating banner:', error);
@@ -172,6 +180,9 @@ export async function DELETE(request: NextRequest) {
         }
 
         await executeQuery('DELETE FROM banners WHERE id = ?', [id]);
+
+        // Invalidate all banner caches
+        await invalidateCachePattern(BANNERS_CACHE_PATTERN);
 
         return NextResponse.json({ success: true, message: 'Banner deleted successfully' });
     } catch (error) {

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getMeiliClient, PRODUCT_INDEX } from '@/lib/meilisearch';
 import { executeQuery } from '@/lib/db/mysql';
+import { getCache, setCache } from '@/lib/cache';
 
 /**
  * API Tìm kiếm sản phẩm thông minh (Full-text Search).
@@ -32,6 +33,19 @@ export async function GET(request: NextRequest) {
       filters.push(`category_name = "${category}"`);
     }
 
+    // --- Redis Caching Logic ---
+    const cacheKey = `search:query:${q}:${category || 'all'}:${limit}:${offset}`;
+    const cachedResults = await getCache<any>(cacheKey);
+    if (cachedResults) {
+      return NextResponse.json({
+        success: true,
+        data: {
+          ...cachedResults,
+          cached: true
+        }
+      });
+    }
+
     // Perform search
     const searchResults = await index.search(q, {
       limit,
@@ -42,7 +56,22 @@ export async function GET(request: NextRequest) {
       highlightPostTag: '</mark>',
     });
 
-    // Log search query (fire-and-forget, don't block response)
+    const responseData = {
+      products: searchResults.hits,
+      pagination: {
+        total: searchResults.estimatedTotalHits || 0,
+        limit: searchResults.limit,
+        offset: searchResults.offset,
+        hasMore: (searchResults.offset || 0) + (searchResults.limit || 0) < (searchResults.estimatedTotalHits || 0)
+      },
+      query: q,
+      processingTimeMs: searchResults.processingTimeMs
+    };
+
+    // Save to cache (30 mins)
+    await setCache(cacheKey, responseData, 1800);
+
+    // Log search query (fire-and-forget)
     const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
       || request.headers.get('x-real-ip')
       || '127.0.0.1';
@@ -53,17 +82,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      data: {
-        products: searchResults.hits,
-        pagination: {
-          total: searchResults.estimatedTotalHits || 0,
-          limit: searchResults.limit,
-          offset: searchResults.offset,
-          hasMore: (searchResults.offset || 0) + (searchResults.limit || 0) < (searchResults.estimatedTotalHits || 0)
-        },
-        query: q,
-        processingTimeMs: searchResults.processingTimeMs
-      }
+      data: responseData
     });
 
   } catch (error: any) {

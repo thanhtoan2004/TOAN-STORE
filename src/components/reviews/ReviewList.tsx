@@ -10,6 +10,7 @@ import { ThumbsUp, CheckCircle, MoreVertical } from 'lucide-react';
 interface Review {
     id: number;
     user_name: string;
+    user_avatar?: string;
     rating: number;
     title: string;
     comment: string;
@@ -149,22 +150,41 @@ export function ReviewList({ productId, refreshTrigger, filterRating, onStatsLoa
                             </div>
                         )}
 
-                        <div className="flex items-center justify-between text-xs text-gray-500 mt-2">
-                            <div className="flex items-center gap-4">
-                                <span>{(review.user_name && review.user_name !== '0') ? review.user_name : 'Người dùng ẩn danh'}</span>
-                                {review.is_verified_purchase && (
-                                    <div className="flex items-center gap-1 text-green-600">
-                                        <CheckCircle size={12} />
-                                        <span>Đã mua hàng</span>
-                                    </div>
-                                )}
+                        <div className="flex items-center justify-between text-xs text-gray-500 mt-4 bg-gray-50/50 p-3 rounded-2xl">
+                            <div className="flex items-center gap-3">
+                                <div className="w-8 h-8 rounded-full overflow-hidden bg-gray-200 border border-white shadow-sm flex-shrink-0">
+                                    {review.user_avatar ? (
+                                        <Image
+                                            src={review.user_avatar}
+                                            alt={review.user_name}
+                                            width={32}
+                                            height={32}
+                                            className="w-full h-full object-cover"
+                                        />
+                                    ) : (
+                                        <div className="w-full h-full flex items-center justify-center bg-black text-white text-[10px] font-bold">
+                                            {(review.user_name || 'U').charAt(0).toUpperCase()}
+                                        </div>
+                                    )}
+                                </div>
+                                <div className="flex flex-col gap-0.5">
+                                    <span className="font-bold text-gray-900 leading-none">
+                                        {(review.user_name && review.user_name !== '0') ? review.user_name : 'Người dùng ẩn danh'}
+                                    </span>
+                                    {review.is_verified_purchase && (
+                                        <div className="flex items-center gap-1 text-green-600 text-[10px] font-medium">
+                                            <CheckCircle size={10} />
+                                            <span>Đã xác thực mua hàng</span>
+                                        </div>
+                                    )}
+                                </div>
                             </div>
                             <button
                                 onClick={() => handleHelpful(review.id)}
-                                className="flex items-center gap-1 hover:text-black transition-colors"
+                                className="flex items-center gap-1.5 hover:text-black transition-colors bg-white px-3 py-1.5 rounded-full border border-gray-100 shadow-sm active:scale-95"
                             >
-                                <ThumbsUp size={12} />
-                                <span>Hữu ích ({review.helpful_count})</span>
+                                <ThumbsUp size={12} className="text-gray-400" />
+                                <span className="font-helvetica-bold">Hữu ích ({review.helpful_count})</span>
                             </button>
                         </div>
                     </div>

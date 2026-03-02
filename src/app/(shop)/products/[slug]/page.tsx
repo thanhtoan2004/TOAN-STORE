@@ -32,6 +32,13 @@ export async function generateMetadata(
   }
 
   const product = products[0];
+
+  // 3. Auto-redirect to Slug if accessed via ID
+  if (isNumericId && product.slug) {
+    const { redirect } = await import('next/navigation');
+    return redirect(`/products/${product.slug}`);
+  }
+
   const productId = product.id;
 
   // 2. Fetch Dynamic SEO Metadata from repository
@@ -98,6 +105,12 @@ export default async function Page({ params }: Props) {
   }
 
   const product = products[0];
+
+  // 1. Auto-redirect to Slug if accessed via ID
+  if (isNumericId && product.slug) {
+    const { redirect } = await import('next/navigation');
+    return redirect(`/products/${product.slug}`);
+  }
 
   // Schema.org Structured Data
   const jsonLd = {

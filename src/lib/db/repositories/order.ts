@@ -84,8 +84,8 @@ export async function createOrder(orderData: {
 
         // Tạo order
         const [orderResult]: any = await connection.execute(
-            `INSERT INTO orders (user_id, order_number, subtotal, shipping_fee, discount, voucher_code, voucher_discount, giftcard_number, giftcard_discount, tax, total, shipping_address_id, shipping_address_snapshot, status, payment_method, payment_status, phone, email, notes, has_gift_wrapping, gift_wrap_cost, placed_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?, ?, ?, ?, ?, NOW())`,
+            `INSERT INTO orders (user_id, order_number, subtotal, shipping_fee, discount, voucher_code, voucher_discount, giftcard_number, giftcard_discount, tax, total, shipping_address_id, shipping_address_snapshot, status, payment_method, payment_status, phone, phone_encrypted, email, email_encrypted, is_encrypted, notes, has_gift_wrapping, gift_wrap_cost, placed_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, '***', ?, '***', ?, TRUE, ?, ?, ?, NOW())`,
             [
                 orderData.userId || null,
                 orderData.orderNumber,
@@ -376,7 +376,12 @@ export async function getOrdersByUserId(userId: number) {
     GROUP BY o.id
     ORDER BY o.placed_at DESC`;
 
-    return executeQuery(query, [userId]);
+    const orders = await executeQuery<any[]>(query, [userId]);
+    return orders.map(o => ({
+        ...o,
+        phone: o.is_encrypted ? decrypt(o.phone_encrypted) : o.phone,
+        email: o.is_encrypted ? decrypt(o.email_encrypted) : o.email
+    }));
 }
 
 export async function getOrderByNumber(orderNumber: string) {
@@ -385,7 +390,10 @@ export async function getOrderByNumber(orderNumber: string) {
       o.*,
       ua.recipient_name as delivery_name,
       ua.phone as delivery_phone,
+      ua.phone_encrypted as delivery_phone_encrypted,
       ua.address_line as delivery_address,
+      ua.address_encrypted as delivery_address_encrypted,
+      ua.is_encrypted as ua_is_encrypted,
       ua.ward as delivery_ward,
       ua.district as delivery_district,
       ua.city as delivery_city,
@@ -427,10 +435,10 @@ export async function getOrderByNumber(orderNumber: string) {
     );
 
     // Decrypt PII data
-    order.phone = decrypt(order.phone);
-    order.email = decrypt(order.email);
-    order.delivery_phone = decrypt(order.delivery_phone);
-    order.delivery_address = decrypt(order.delivery_address);
+    order.phone = order.is_encrypted ? decrypt(order.phone_encrypted) : order.phone;
+    order.email = order.is_encrypted ? decrypt(order.email_encrypted) : order.email;
+    order.delivery_phone = order.ua_is_encrypted ? decrypt(order.delivery_phone_encrypted) : decrypt(order.delivery_phone);
+    order.delivery_address = order.ua_is_encrypted ? decrypt(order.delivery_address_encrypted) : decrypt(order.delivery_address);
 
     // Map payment_confirmed_at to confirmed_at for the frontend timeline if needed
     order.confirmed_at = order.payment_confirmed_at;
@@ -447,7 +455,10 @@ export async function getOrderById(id: number) {
       o.*,
       ua.recipient_name as delivery_name,
       ua.phone as delivery_phone,
+      ua.phone_encrypted as delivery_phone_encrypted,
       ua.address_line as delivery_address,
+      ua.address_encrypted as delivery_address_encrypted,
+      ua.is_encrypted as ua_is_encrypted,
       ua.city as delivery_city,
       ua.state as delivery_district,
       ua.postal_code as delivery_postal_code,
@@ -472,10 +483,10 @@ export async function getOrderById(id: number) {
     const order = orders[0];
 
     // Decrypt PII data
-    order.phone = decrypt(order.phone);
-    order.email = decrypt(order.email);
-    order.delivery_phone = decrypt(order.delivery_phone);
-    order.delivery_address = decrypt(order.delivery_address);
+    order.phone = order.is_encrypted ? decrypt(order.phone_encrypted) : order.phone;
+    order.email = order.is_encrypted ? decrypt(order.email_encrypted) : order.email;
+    order.delivery_phone = order.ua_is_encrypted ? decrypt(order.delivery_phone_encrypted) : decrypt(order.delivery_phone);
+    order.delivery_address = order.ua_is_encrypted ? decrypt(order.delivery_address_encrypted) : decrypt(order.delivery_address);
 
     return {
         ...order,

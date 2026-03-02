@@ -6,13 +6,14 @@ import { checkAdminAuth } from '@/lib/auth';
 /**
  * API Xóa vĩnh viễn thẻ quà tặng khỏi hệ thống.
  */
-export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const admin = await checkAdminAuth();
     if (!admin) {
       return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
     }
-    const id = parseInt(params.id);
+    const { id: paramId } = await params;
+    const id = parseInt(paramId);
 
     await executeQuery('DELETE FROM gift_cards WHERE id = ?', [id]);
 

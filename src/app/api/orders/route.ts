@@ -139,7 +139,8 @@ async function createOrderHandler(request: NextRequest) {
     const validatedItems: any[] = [];
     const flashSaleUpdates: { id: number; quantity: number }[] = [];
 
-    for (const item of items) {
+    // TỐI ƯU HÓA: Validate các items song song (Promise.all) thay vì tuần tự (N+1 queries)
+    const validationPromises = items.map(async (item: any) => {
       const productId = parseInt(item.productId || item.product_id);
       const size = item.size;
       const quantity = parseInt(item.quantity) || 1;
@@ -147,37 +148,52 @@ async function createOrderHandler(request: NextRequest) {
       // 1. Find Variant
       const variant = await findVariantBySize(productId, size);
       if (!variant) {
-        return NextResponse.json({ success: false, message: `Sản phẩm ${item.productName || productId} size ${size} không tồn tại` }, { status: 400 });
+        throw new Error(`Sản phẩm ${item.productName || productId} size ${size} không tồn tại`);
       }
 
       // 2. Check Inventory
       const hasStock = await checkStock(variant.id, quantity);
       if (!hasStock) {
-        return NextResponse.json({ success: false, message: `Sản phẩm ${item.productName} hết hàng` }, { status: 400 });
+        throw new Error(`Sản phẩm ${item.productName || variant.product_name || 'này'} hết hàng`);
       }
 
       // 3. Determine Price (Base vs Flash Sale)
       let finalPrice = parseFloat(variant.price.toString());
       const flashSaleItem = await getActiveFlashSaleItem(productId);
+      let fsUpdate: { id: number; quantity: number } | null = null;
 
       if (flashSaleItem) {
         // Check flash sale stock
-        // Note: This is an optimistic check. Concurrency might be an issue but acceptable for now.
         if (flashSaleItem.sold_quantity + quantity <= flashSaleItem.total_quantity) {
           finalPrice = parseFloat(flashSaleItem.sale_price.toString());
-          flashSaleUpdates.push({ id: flashSaleItem.id, quantity });
+          fsUpdate = { id: flashSaleItem.id, quantity };
         }
       }
 
-      validatedItems.push({
-        productId,
-        productName: variant.product_name || item.productName || item.name, // Use DB name preferrably
-        productImage: item.productImage || item.image || item.image_url,
-        size,
-        quantity,
-        price: finalPrice,
-        productVariantId: variant.id
-      });
+      return {
+        item: {
+          productId,
+          productName: variant.product_name || item.productName || item.name,
+          productImage: item.productImage || item.image || item.image_url,
+          size,
+          quantity,
+          price: finalPrice,
+          productVariantId: variant.id
+        },
+        fsUpdate
+      };
+    });
+
+    try {
+      const results = await Promise.all(validationPromises);
+      for (const res of results) {
+        validatedItems.push(res.item);
+        if (res.fsUpdate) {
+          flashSaleUpdates.push(res.fsUpdate);
+        }
+      }
+    } catch (e: any) {
+      return NextResponse.json({ success: false, message: e.message }, { status: 400 });
     }
 
     // Generate secure order number (Prefix + Timestamp + Random suffix)
@@ -409,6 +425,7 @@ async function createOrderHandler(request: NextRequest) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       items: validatedItems.map((item: any) => ({
         productId: item.productId,
+        productVariantId: item.productVariantId, // Đã thêm vào để truyền sang DB function update nhanh hơn
         productName: item.productName,
         productImage: item.productImage,
         size: item.size,
@@ -418,10 +435,9 @@ async function createOrderHandler(request: NextRequest) {
       notes: notes || null
     });
 
-    // Update Flash Sale Stock
-    for (const update of flashSaleUpdates) {
-      await updateFlashSaleSoldQuantity(update.id, update.quantity);
-    }
+    // BUGS FIXED: Flash Sale Stock Update is ALREADY handled SECURELY inside `createOrder` (src/lib/db/repositories/order.ts) with `FOR UPDATE` transaction and Redis Lock.
+    // The previous code here caused a double-decrement bug and delayed response times by doing redundant queries.
+    // Removed the `for (const update of flashSaleUpdates)` loop.
 
     // Email sending is now handled by Event Worker listening to 'order.created'
 

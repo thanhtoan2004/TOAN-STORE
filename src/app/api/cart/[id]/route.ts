@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { removeFromCart, updateCartItemQuantity, executeQuery } from '@/lib/db/mysql';
 import { verifyAuth } from '@/lib/auth';
+import { invalidateCache } from '@/lib/cache';
 
 // Interface cho Cart Item
 interface CartItem {
@@ -64,6 +65,9 @@ export async function PUT(
     // Cập nhật số lượng trong database - PASS userId for security check
     await updateCartItemQuantity(cartItemId, quantity, Number(session.userId));
 
+    // Invalidate cache
+    await invalidateCache(`user:cart:${session.userId}`);
+
     return NextResponse.json({
       success: true,
       message: quantity === 0 ? 'Đã xóa sản phẩm khỏi giỏ hàng' : 'Đã cập nhật số lượng'
@@ -114,6 +118,9 @@ export async function DELETE(
 
     // Xóa item từ database - PASS userId for security check
     await removeFromCart(cartItemId, Number(session.userId));
+
+    // Invalidate cache
+    await invalidateCache(`user:cart:${session.userId}`);
 
     return NextResponse.json({
       success: true,

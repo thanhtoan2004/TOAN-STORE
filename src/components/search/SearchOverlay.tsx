@@ -13,8 +13,11 @@ interface SearchResult {
     name: string;
     slug: string;
     category_name: string;
+    base_price: number;
+    retail_price: number;
     current_price: number;
     image_url: string;
+    is_new_arrival: boolean;
     _highlightResult?: any;
 }
 
@@ -185,7 +188,11 @@ export default function SearchOverlay({ isOpen, onClose }: SearchOverlayProps) {
                                                 }`}
                                             title={isListening ? 'Đang nghe... Nhấn để dừng' : 'Tìm kiếm bằng giọng nói'}
                                         >
-                                            <Mic className={`w-5 h-5 ${isListening ? 'text-red-600' : ''}`} />
+                                            <svg className={`w-5 h-5 ${isListening ? 'text-red-600' : ''}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                                <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z" />
+                                                <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+                                                <line x1="12" x2="12" y1="19" y2="22" />
+                                            </svg>
                                         </button>
                                     )}
                                 </form>
@@ -244,14 +251,34 @@ export default function SearchOverlay({ isOpen, onClose }: SearchOverlayProps) {
                                                             fill
                                                             className="object-cover group-hover:scale-105 transition-transform duration-500"
                                                         />
+                                                        {/* Badges */}
+                                                        <div className="absolute top-2 left-2 flex flex-col gap-1">
+                                                            {product.is_new_arrival && (
+                                                                <span className="bg-white text-black text-[10px] font-bold px-2 py-1 uppercase tracking-tighter">
+                                                                    Mới
+                                                                </span>
+                                                            )}
+                                                            {product.base_price > 0 && product.retail_price > 0 && product.base_price < product.retail_price && (
+                                                                <span className="bg-[#E50010] text-white text-[10px] font-bold px-2 py-1 uppercase tracking-tighter">
+                                                                    Giảm {Math.round((1 - product.base_price / product.retail_price) * 100)}%
+                                                                </span>
+                                                            )}
+                                                        </div>
                                                     </div>
                                                     <h4 className="font-medium text-sm text-black line-clamp-1 group-hover:underline decoration-1 underline-offset-4">
                                                         {product.name}
                                                     </h4>
                                                     <p className="text-sm text-gray-500">{product.category_name}</p>
-                                                    <p className="font-medium text-sm mt-1 text-black">
-                                                        {formatPrice(product.current_price)}
-                                                    </p>
+                                                    <div className="flex items-center gap-2 mt-1">
+                                                        <p className="font-medium text-sm text-black">
+                                                            {formatPrice(product.current_price)}
+                                                        </p>
+                                                        {product.base_price > 0 && product.retail_price > 0 && product.base_price < product.retail_price && (
+                                                            <p className="text-sm text-gray-500 line-through">
+                                                                {formatPrice(product.retail_price)}
+                                                            </p>
+                                                        )}
+                                                    </div>
                                                 </Link>
                                             ))}
                                         </div>
@@ -277,13 +304,17 @@ export default function SearchOverlay({ isOpen, onClose }: SearchOverlayProps) {
                                         {speechSupported && (
                                             <button
                                                 onClick={toggleVoiceSearch}
-                                                className={`inline-flex items-center gap-2 px-5 py-2.5 rounded-full font-medium text-sm transition-all ${isListening
-                                                    ? 'bg-red-100 text-red-700 animate-pulse'
-                                                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                                                className={`inline-flex items-center gap-2 px-6 py-3 rounded-full font-bold text-sm transition-all shadow-sm ${isListening
+                                                    ? 'bg-red-500 text-white animate-pulse scale-105 shadow-red-200'
+                                                    : 'bg-black text-white hover:bg-gray-800'
                                                     }`}
                                             >
-                                                <Mic className="w-4 h-4" />
-                                                {isListening ? 'Đang nghe... 🎙️' : 'Hoặc tìm kiếm bằng giọng nói'}
+                                                <svg className={`w-4 h-4 ${isListening ? 'animate-bounce' : ''}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                                    <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z" />
+                                                    <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+                                                    <line x1="12" x2="12" y1="19" y2="22" />
+                                                </svg>
+                                                {isListening ? 'Đang nghe... Hào hứng quá!' : 'Tìm bằng giọng nói'}
                                             </button>
                                         )}
                                     </div>

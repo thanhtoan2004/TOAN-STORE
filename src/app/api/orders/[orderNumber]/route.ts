@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getOrderByNumber, updateOrderStatus } from '@/lib/db/mysql';
 import { verifyAuth } from '@/lib/auth';
 import { sendOrderCancelledEmail } from '@/lib/email-templates';
+import { createNotification } from '@/lib/notifications';
 
 // ... (GET method unchanged)
 // GET - Lấy chi tiết đơn hàng theo orderNumber
@@ -123,6 +124,15 @@ export async function PUT(
     if (userSession.email) {
       sendOrderCancelledEmail(userSession.email, userSession.name || 'Bạn', orderNumber).catch(console.error);
     }
+
+    // Notification Bell
+    await createNotification(
+      session.userId,
+      'order',
+      'Đơn hàng đã hủy',
+      `Bạn đã hủy đơn hàng #${orderNumber}.`,
+      `/orders/${orderNumber}`
+    );
 
 
 

@@ -10,6 +10,8 @@ import { WishlistProvider } from "@/contexts/WishlistContext";
 import { LanguageProvider } from "@/contexts/LanguageContext";
 import QueryProvider from "@/components/providers/QueryProvider";
 import { ComparisonProvider } from '@/contexts/ComparisonContext';
+import { ModalProvider } from "@/contexts/ModalContext";
+import { Toaster } from 'react-hot-toast';
 
 // Import các Widgets và Component dùng chung toàn trang (Global Ui)
 import ChatWidget from "@/components/chat/ChatWidget";
@@ -74,46 +76,52 @@ export default function RootLayout({
       <body className="overflow-x-hidden" suppressHydrationWarning>
         {/* Lớp bọc bảo mật và quản lý thông tin User */}
         <AuthProvider>
-          {/* Lớp bọc quản lý Fetching/Caching data của React Query */}
-          <QueryProvider>
-            {/* Lớp bọc quản lý trạng thái Giỏ Hàng (Cart) */}
-            <CartProvider>
-              {/* Lớp bọc quản lý Yêu thích (Wishlist) */}
-              <WishlistProvider>
-                {/* Lớp bọc Đa Ngôn Ngữ (VI/EN) */}
-                <LanguageProvider>
-                  {/* Lớp bọc tính năng So sánh sản phẩm (Tối đa 4 sản phẩm) */}
-                  <ComparisonProvider>
+          {/* Lớp bọc quản lý Modal toàn cục */}
+          <ModalProvider>
+            {/* Lớp bọc quản lý Fetching/Caching data của React Query */}
+            <QueryProvider>
+              {/* Lớp bọc quản lý trạng thái Giỏ Hàng (Cart) */}
+              <CartProvider>
+                {/* Lớp bọc quản lý Yêu thích (Wishlist) */}
+                <WishlistProvider>
+                  {/* Lớp bọc Đa Ngôn Ngữ (VI/EN) */}
+                  <LanguageProvider>
+                    {/* Lớp bọc tính năng So sánh sản phẩm (Tối đa 4 sản phẩm) */}
+                    <ComparisonProvider>
 
-                    {/* Shell Component chứa Header và Footer chung */}
-                    <RootLayoutWrapper>
-                      {/* Vị trí render của các pages con (VD: Trang chủ, Sản phẩm...) */}
-                      {children}
-                    </RootLayoutWrapper>
+                      {/* Shell Component chứa Header và Footer chung */}
+                      <RootLayoutWrapper>
+                        {/* Vị trí render của các pages con (VD: Trang chủ, Sản phẩm...) */}
+                        {children}
+                      </RootLayoutWrapper>
 
-                    {/* Các công cụ / UI gắn fixed (Toàn cục) */}
-                    <ChatWidget />
+                      {/* Các công cụ / UI gắn fixed (Toàn cục) */}
+                      <ChatWidget />
 
-                    {/* Lazy-load logic đo lường Analytics (Meta Pixel / Google) */}
-                    <Suspense fallback={null}>
-                      <Pixel />
-                    </Suspense>
+                      {/* Lazy-load logic đo lường Analytics (Meta Pixel / Google) */}
+                      <Suspense fallback={null}>
+                        <Pixel />
+                      </Suspense>
 
-                    <ScrollToTop />
-                    <BottomNavBar />
-                    <CookieConsent />
-                    <AccessibilityWidget />
-                    <PushNotificationBanner />
-                    <AppInstallBanner />
+                      <ScrollToTop />
+                      <BottomNavBar />
+                      <CookieConsent />
+                      <AccessibilityWidget />
+                      <PushNotificationBanner />
+                      <AppInstallBanner />
 
-                    {/* Thanh nổi chức năng So sánh hiển thị ở cuối màn hình */}
-                    <ComparisonBar />
+                      {/* Thanh nổi chức năng So sánh hiển thị ở cuối màn hình */}
+                      <ComparisonBar />
 
-                  </ComparisonProvider>
-                </LanguageProvider>
-              </WishlistProvider>
-            </CartProvider>
-          </QueryProvider>
+                      {/* Toaster cho các thông báo popup */}
+                      <Toaster position="top-right" reverseOrder={false} />
+
+                    </ComparisonProvider>
+                  </LanguageProvider>
+                </WishlistProvider>
+              </CartProvider>
+            </QueryProvider>
+          </ModalProvider>
         </AuthProvider>
       </body>
     </html>

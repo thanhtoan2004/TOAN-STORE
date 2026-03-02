@@ -119,7 +119,7 @@ export async function middleware(req: NextRequest) {
         await jwtVerify(token, secret, {
           issuer: 'toan-store',
           audience: 'admin',
-          maxTokenAge: '1d'
+          maxTokenAge: '7d'
         });
 
         isAdmin = true;

@@ -124,9 +124,13 @@ async function confirmPaymentHandler(req: NextRequest): Promise<NextResponse> {
     );
 
     // Send payment received email
-    // Check if order has email attached
     if (order.email) {
-      sendPaymentReceivedEmail(order.email, orderNumber, paymentAmount).catch(console.error);
+      // Fetch authentic name for the email greeting
+      const userDetails = await executeQuery('SELECT full_name FROM users WHERE id = ?', [order.user_id]) as any[];
+      const customerName = userDetails[0]?.full_name?.trim().split(' ')[0]
+        || order.email.split('@')[0];
+
+      sendPaymentReceivedEmail(order.email, customerName, orderNumber, paymentAmount).catch(console.error);
     }
 
     return createSuccessResponse(

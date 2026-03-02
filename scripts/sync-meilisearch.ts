@@ -1,11 +1,10 @@
 
-import dotenv from 'dotenv';
+import 'dotenv/config';
 import path from 'path';
 import { executeQuery } from '../src/lib/db/mysql';
-import { meiliClient, PRODUCT_INDEX, ProductDocument } from '../src/lib/meilisearch';
+import { getMeiliClient, PRODUCT_INDEX, ProductDocument } from '../src/lib/meilisearch';
 
-// Load env vars from root
-dotenv.config({ path: path.resolve(process.cwd(), '.env') });
+// Env vars loaded via import 'dotenv/config' at top
 
 async function syncProducts() {
     console.log('🔄 Starting Meilisearch sync...');
@@ -42,7 +41,8 @@ async function syncProducts() {
 
         // 2. Format documents
         const documents: ProductDocument[] = products.map(p => {
-            const price = Number(p.retail_price || p.base_price);
+            // In this project: base_price is the actual selling price, retail_price is MSRP (original)
+            const price = Number(p.base_price || p.retail_price);
             return {
                 id: p.id,
                 name: p.name,
@@ -63,11 +63,12 @@ async function syncProducts() {
 
         // 3. Configure Index
         console.log('⚙️ Configuring index settings...');
-        const index = meiliClient.index(PRODUCT_INDEX);
+        const meili = getMeiliClient();
+        const index = meili.index(PRODUCT_INDEX);
 
         // Introspection
         console.log('Index methods:', Object.getOwnPropertyNames(Object.getPrototypeOf(index)));
-        console.log('Client methods:', Object.getOwnPropertyNames(Object.getPrototypeOf(meiliClient)));
+        console.log('Client methods:', Object.getOwnPropertyNames(Object.getPrototypeOf(meili)));
 
         await index.updateSettings({
             searchableAttributes: [
@@ -172,9 +173,9 @@ async function syncProducts() {
         if (typeof (index as any).waitForTask === 'function') {
             console.log('Using index.waitForTask');
             await (index as any).waitForTask(taskUid);
-        } else if (typeof (meiliClient as any).waitForTask === 'function') {
+        } else if (typeof (meili as any).waitForTask === 'function') {
             console.log('Using client.waitForTask');
-            await (meiliClient as any).waitForTask(taskUid);
+            await (meili as any).waitForTask(taskUid);
         } else {
             console.log('Falling back to manual polling');
             let status = 'enqueued';
@@ -183,8 +184,8 @@ async function syncProducts() {
                 let taskInfo;
                 if (typeof (index as any).getTask === 'function') {
                     taskInfo = await (index as any).getTask(taskUid);
-                } else if (typeof (meiliClient as any).getTask === 'function') {
-                    taskInfo = await (meiliClient as any).getTask(taskUid);
+                } else if (typeof (meili as any).getTask === 'function') {
+                    taskInfo = await (meili as any).getTask(taskUid);
                 } else {
                     console.log('❌ Neither getTask nor waitForTask found on Index or Client');
                     break;

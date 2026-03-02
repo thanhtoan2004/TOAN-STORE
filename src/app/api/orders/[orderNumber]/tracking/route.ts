@@ -8,10 +8,10 @@ import { sendShippingNotificationEmail } from '@/lib/email-templates';
  */
 export async function PATCH(
     request: NextRequest,
-    { params }: { params: { orderNumber: string } }
+    { params }: { params: Promise<{ orderNumber: string }> }
 ) {
     try {
-        const { orderNumber } = params;
+        const { orderNumber } = await params;
         const body = await request.json();
         const { trackingNumber, carrier, status } = body;
 
@@ -93,10 +93,10 @@ export async function PATCH(
  */
 export async function GET(
     request: NextRequest,
-    { params }: { params: { orderNumber: string } }
+    { params }: { params: Promise<{ orderNumber: string }> }
 ) {
     try {
-        const { orderNumber } = params;
+        const { orderNumber } = await params;
 
         const [order] = await query(
             `SELECT order_number, status, tracking_number, carrier, 

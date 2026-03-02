@@ -249,24 +249,27 @@ async function loginHandler(req: Request): Promise<NextResponse> {
   };
 
   // Success
-  await logSecurityEvent('login_success', ip, user.id, { email });
+  // Fire and forget security event logging (non-blocking)
+  logSecurityEvent('login_success', ip, user.id, { email }).catch(err => console.error('Failed to log login success:', err));
 
-  // Gửi Email Cảnh báo Đăng nhập Mới (Chạy ngầm không block request)
-  try {
-    const { sendNewLoginEmail } = await import('@/lib/email-templates');
-    const device = req.headers.get('user-agent') || 'Thiết bị không xác định';
-    const time = new Date().toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' });
-    await sendNewLoginEmail(
-      user.email,
-      user.first_name || 'bạn',
-      time,
-      ip,
-      'Theo địa chỉ IP (Vietnam)', // Có thể nâng cấp dùng service check IP Geo sau
-      device
-    );
-  } catch (error) {
-    console.warn('Could not load email templates:', error);
-  }
+  // Gửi Email Cảnh báo Đăng nhập Mới (Chạy ngầm hoàn toàn không block request)
+  (async () => {
+    try {
+      const { sendNewLoginEmail } = await import('@/lib/email-templates');
+      const device = req.headers.get('user-agent') || 'Thiết bị không xác định';
+      const time = new Date().toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' });
+      await sendNewLoginEmail(
+        user.email,
+        user.first_name || 'bạn',
+        time,
+        ip,
+        'Theo địa chỉ IP (Vietnam)',
+        device
+      );
+    } catch (error) {
+      console.warn('Could not send login alert email:', error);
+    }
+  })();
 
   return NextResponse.json(response);
 }

@@ -10,6 +10,8 @@ import { Heart, Video, Play, Printer, GitCompareArrows } from "lucide-react";
 import { formatCurrency } from "@/lib/date-utils";
 import { useWishlist } from "@/contexts/WishlistContext";
 import { useComparison } from "@/contexts/ComparisonContext";
+import { useModal } from "@/contexts/ModalContext";
+import { useRouter } from "next/navigation";
 import ReviewMediaUpload from "@/components/reviews/ReviewMediaUpload";
 import ProductRecommendations from "@/components/ui/products/ProductRecommendations";
 import RecentlyViewed from "@/components/ui/products/RecentlyViewed";
@@ -88,6 +90,8 @@ export default function ProductDetailClient({ slug, initialProductId }: { slug: 
     const queryClient = useQueryClient();
     const { user } = useAuth();
     const { t } = useLanguage();
+    const { showAlert } = useModal();
+    const router = useRouter();
     const [product, setProduct] = useState<Product | null>(null);
 
     // ... (keep existing state)
@@ -284,7 +288,12 @@ export default function ProductDetailClient({ slug, initialProductId }: { slug: 
 
     const handleWishlist = async () => {
         if (!user) {
-            alert(t.common?.login || 'Vui lòng đăng nhập để xem hoặc thêm vào danh sách yêu thích');
+            showAlert({
+                title: 'Xác nhận thông tin',
+                message: t.common?.login || 'Vui lòng đăng nhập để xem hoặc thêm vào danh sách yêu thích',
+                type: 'auth',
+                onConfirm: () => router.push('/sign-in')
+            });
             return;
         }
 
@@ -297,6 +306,7 @@ export default function ProductDetailClient({ slug, initialProductId }: { slug: 
             } else {
                 await addToWishlist({
                     id: String(activeProduct.id),
+                    slug: activeProduct.slug,
                     name: activeProduct.name,
                     category: activeProduct.category,
                     price: activeProduct.retail_price || activeProduct.price,
@@ -322,6 +332,7 @@ export default function ProductDetailClient({ slug, initialProductId }: { slug: 
         } else {
             addToCompare({
                 id: String(activeProduct.id),
+                slug: activeProduct.slug,
                 name: activeProduct.name,
                 category: activeProduct.category,
                 price: activeProduct.retail_price || activeProduct.price,
@@ -337,12 +348,21 @@ export default function ProductDetailClient({ slug, initialProductId }: { slug: 
         e.preventDefault();
 
         if (!user) {
-            alert(t.reviews.login_req);
+            showAlert({
+                title: 'Xác nhận thông tin',
+                message: t.reviews.login_req,
+                type: 'auth',
+                onConfirm: () => router.push('/sign-in')
+            });
             return;
         }
 
         if (!reviewForm.comment.trim()) {
-            alert(t.reviews.content_placeholder); // Using placeholder as error for now or generic input req
+            showAlert({
+                title: 'Thông báo',
+                message: t.reviews.content_placeholder,
+                type: 'info'
+            });
             return;
         }
 
@@ -378,7 +398,11 @@ export default function ProductDetailClient({ slug, initialProductId }: { slug: 
                     });
                 }
 
-                alert(t.reviews.success);
+                showAlert({
+                    title: 'Thành công',
+                    message: t.reviews.success,
+                    type: 'success'
+                });
                 setShowReviewForm(false);
                 setReviewForm({ rating: 5, title: '', comment: '' });
                 setReviewMediaFiles([]);
@@ -416,16 +440,28 @@ export default function ProductDetailClient({ slug, initialProductId }: { slug: 
             const result = await response.json();
 
             if (result.success) {
-                alert(result.message || t.common?.success || 'Success');
+                showAlert({
+                    title: 'Thành công',
+                    message: result.message || t.common?.success || 'Cập nhật thành công',
+                    type: 'success'
+                });
                 setEditingReviewId(null);
                 // Invalidate reviews to refetch
                 queryClient.invalidateQueries({ queryKey: ['reviews', initialProductId] });
             } else {
-                alert(result.message || t.common?.error || 'Error');
+                showAlert({
+                    title: 'Lỗi',
+                    message: result.message || t.common?.error || 'Đã xảy ra lỗi',
+                    type: 'error'
+                });
             }
         } catch (error) {
             console.error('Error updating review:', error);
-            alert(t.common?.error || 'Error');
+            showAlert({
+                title: 'Lỗi',
+                message: t.common?.error || 'Đã xảy ra lỗi',
+                type: 'error'
+            });
         } finally {
             setSubmittingReview(false);
         }
@@ -434,33 +470,54 @@ export default function ProductDetailClient({ slug, initialProductId }: { slug: 
     const handleDeleteReview = async (reviewId: number) => {
         if (!user) return;
 
-        if (!confirm(t.reviews.delete_confirm)) {
-            return;
-        }
+        showAlert({
+            title: 'Xác nhận xóa',
+            message: t.reviews.delete_confirm || 'Bạn có chắc chắn muốn xóa đánh giá này?',
+            confirmText: 'Xóa',
+            cancelText: 'Hủy',
+            onConfirm: async () => {
+                try {
+                    const response = await fetch(`/api/reviews?reviewId=${reviewId}&userId=${user.id}`, {
+                        method: 'DELETE'
+                    });
 
-        try {
-            const response = await fetch(`/api/reviews?reviewId=${reviewId}&userId=${user.id}`, {
-                method: 'DELETE'
-            });
+                    const result = await response.json();
 
-            const result = await response.json();
-
-            if (result.success) {
-                alert(result.message || t.common?.success || 'Success');
-                // Invalidate reviews to refetch
-                queryClient.invalidateQueries({ queryKey: ['reviews', initialProductId] });
-            } else {
-                alert(result.message || t.common?.error || 'Error');
+                    if (result.success) {
+                        showAlert({
+                            title: 'Thành công',
+                            message: result.message || t.common?.success || 'Xóa thành công',
+                            type: 'success'
+                        });
+                        // Invalidate reviews to refetch
+                        queryClient.invalidateQueries({ queryKey: ['reviews', initialProductId] });
+                    } else {
+                        showAlert({
+                            title: 'Lỗi',
+                            message: result.message || t.common?.error || 'Đã xảy ra lỗi',
+                            type: 'error'
+                        });
+                    }
+                } catch (error) {
+                    console.error('Error deleting review:', error);
+                    showAlert({
+                        title: 'Lỗi',
+                        message: t.common?.error || 'Đã xảy ra lỗi',
+                        type: 'error'
+                    });
+                }
             }
-        } catch (error) {
-            console.error('Error deleting review:', error);
-            alert(t.common?.error || 'Error');
-        }
+        });
     };
 
     const handleHelpful = async (reviewId: number) => {
         if (!user) {
-            alert(t.reviews?.login_req || 'Vui lòng đăng nhập để thực hiện chức năng này');
+            showAlert({
+                title: 'Xác nhận thông tin',
+                message: t.reviews?.login_req || 'Vui lòng đăng nhập để thực hiện chức năng này',
+                type: 'auth',
+                onConfirm: () => router.push('/sign-in')
+            });
             return;
         }
 

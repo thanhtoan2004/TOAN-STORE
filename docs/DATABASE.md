@@ -13,6 +13,8 @@ erDiagram
     users ||--o{ cart_items : "owns"
     users ||--o{ product_reviews : "writes"
     users ||--o{ wishlists : "saves"
+    users ||--o{ user_consents : "agrees"
+    users ||--o{ data_requests : "requests"
     orders ||--o{ order_items : "contains"
     orders ||--o{ transactions : "pays"
     orders ||--o{ shipments : "ships"
@@ -56,6 +58,20 @@ erDiagram
 | created_at | TIMESTAMP | — |
 | updated_at | TIMESTAMP | — |
 | deleted_at | TIMESTAMP NULL | Soft delete |
+
+### `user_addresses`
+| Column | Type | Description |
+|--------|------|-------------|
+| id | BIGINT PK | — |
+| user_id | BIGINT FK→users | — |
+| receiver_name | VARCHAR(200) | — |
+| phone | VARCHAR(50) | Legacy (Masked ***) |
+| phone_encrypted | TEXT | AES-256-GCM Encrypted |
+| address_line | TEXT | Legacy (Masked ***) |
+| address_encrypted | TEXT | AES-256-GCM Encrypted |
+| city | VARCHAR(100) | — |
+| is_default | TINYINT(1) DEFAULT 0 | — |
+| is_encrypted | TINYINT(1) DEFAULT 1 | Has been migrated |
 
 ### `admin_users`
 | Column | Type | Description |
@@ -142,6 +158,11 @@ erDiagram
 | id | BIGINT PK | — |
 | order_number | VARCHAR(50) UNIQUE | e.g., "NK-20260213-XXXXX" |
 | user_id | BIGINT FK→users | — |
+| email | VARCHAR(255) | Legacy (Masked ***) |
+| email_encrypted | TEXT | AES-256-GCM Encrypted |
+| phone | VARCHAR(50) | Legacy (Masked ***) |
+| phone_encrypted | TEXT | AES-256-GCM Encrypted |
+| is_encrypted | TINYINT(1) DEFAULT 1 | Has been migrated |
 | status | VARCHAR(50) | State Machine status |
 | total | DECIMAL(12,2) | Final amount paid |
 | subtotal | DECIMAL(12,2) | Before discounts |
@@ -250,6 +271,39 @@ Banner quảng cáo với tracking click count.
 
 ### `newsletters`
 Đăng ký nhận tin tức qua email.
+
+---
+
+## GDPR & Privacy Compliance Tables
+
+### `user_consents`
+| Column | Type | Description |
+|--------|------|-------------|
+| id | BIGINT PK | — |
+| user_id | BIGINT FK→users | — |
+| purpose | VARCHAR(100) | marketing, analytics |
+| is_granted | TINYINT(1) | Bật/Tắt |
+| ip_address | VARCHAR(45) | Lưu vết IP lúc đồng ý |
+| granted_at | TIMESTAMP | — |
+
+### `cookie_consents`
+| Column | Type | Description |
+|--------|------|-------------|
+| id | BIGINT PK | — |
+| session_id | VARCHAR(255) | Phiên ẩn danh |
+| user_id | BIGINT FK→users NULL | Khi khách đã đăng nhập |
+| preferences | JSON | { essential: true, analytics: false } |
+| updated_at | TIMESTAMP | — |
+
+### `data_requests`
+Quản lý yêu cầu (Right to Access, Right to be Forgotten)
+| Column | Type | Description |
+|--------|------|-------------|
+| id | BIGINT PK | — |
+| user_id | BIGINT FK→users | Người yêu cầu |
+| request_type | ENUM('export','delete') | — |
+| status | VARCHAR(50) | pending, processing, completed |
+| created_at | TIMESTAMP | — |
 
 ---
 

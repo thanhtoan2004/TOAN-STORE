@@ -28,9 +28,11 @@ function CategoriesContent() {
   // Initialize filters from URL on mount
   useEffect(() => {
     const params: FilterParams = {};
-    searchParams.forEach((value, key) => {
-      params[key] = value;
-    });
+    if (searchParams) {
+      searchParams.forEach((value, key) => {
+        params[key] = value;
+      });
+    }
     setFilterParams(params);
   }, [searchParams]);
 

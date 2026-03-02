@@ -25,8 +25,8 @@ async function verifyEnterpriseSetup() {
 
         logger.info('✅ Enterprise Infrastructure Verification Complete.');
         process.exit(0);
-    } catch (error) {
-        logger.error('❌ Verification Failed:', error);
+    } catch (error: any) {
+        logger.error({ err: error }, '❌ Verification Failed');
         process.exit(1);
     }
 }

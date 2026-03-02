@@ -313,8 +313,8 @@ export default function CheckoutPage() {
       const orderId = result.data.orderId;
       const orderNumber = result.data.orderNumber;
 
-      // 2. Clear Cart immediately
-      await clearCart();
+      // 2. Clear Cart asynchronously (Fire and Forget) to avoid blocking the redirect
+      clearCart().catch(console.error);
 
       // 3. Handle Payment Redirection
       if (values.paymentMethod === 'vnpay') {
@@ -427,8 +427,8 @@ export default function CheckoutPage() {
       // For now, we rely on the order saving the address snapshot.
       // IF existing logic was here to save address, REMOVE it or wrap in if (saveAddress) check.
 
-      // ... existing success handling ...
-      clearCart();
+      // Clear cart asynchronously
+      clearCart().catch(console.error);
       router.push(`/order-success?orderId=${orderResult.data.orderNumber}`);
     } catch (error) {
       console.error('Lỗi khi đặt hàng:', error);

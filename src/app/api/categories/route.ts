@@ -1,5 +1,9 @@
 import { NextResponse } from 'next/server';
 import { executeQuery } from '@/lib/db/mysql';
+import { getCache, setCache } from '@/lib/cache';
+
+const CATEGORIES_CACHE_KEY = 'global:categories';
+const CACHE_TTL = 3600; // 1 hour
 
 /**
  * API Lấy danh sách danh mục sản phẩm đang hoạt động.
@@ -7,6 +11,17 @@ import { executeQuery } from '@/lib/db/mysql';
  */
 export async function GET() {
   try {
+    // 1. Try to get from cache first
+    const cachedData = await getCache<any[]>(CATEGORIES_CACHE_KEY);
+    if (cachedData) {
+      return NextResponse.json({
+        success: true,
+        data: cachedData,
+        cached: true
+      });
+    }
+
+    // 2. Fallback to Database
     const result = await executeQuery(
       `SELECT 
         c.id, c.name, c.slug, c.description, c.position, 
@@ -19,13 +34,17 @@ export async function GET() {
           LIMIT 1
         )) as image_url 
       FROM categories c 
-      WHERE c.is_active = 1 
+      WHERE c.is_active = 1 AND c.deleted_at IS NULL
       ORDER BY c.position ASC`
     );
 
+    // 3. Save to cache
+    await setCache(CATEGORIES_CACHE_KEY, result, CACHE_TTL);
+
     return NextResponse.json({
       success: true,
-      data: result
+      data: result,
+      cached: false
     });
   } catch (error) {
     console.error('Error fetching categories:', error);

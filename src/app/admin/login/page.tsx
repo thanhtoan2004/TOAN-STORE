@@ -17,7 +17,7 @@ function AdminLoginContent() {
   const { login } = useAuth();
 
   useEffect(() => {
-    if (searchParams.get('registered') === 'true') {
+    if (searchParams?.get('registered') === 'true') {
       setSuccessMessage('Đăng ký thành công! Vui lòng đăng nhập để tiếp tục.');
     }
   }, [searchParams]);

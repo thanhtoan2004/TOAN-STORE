@@ -19,11 +19,15 @@ async function listCouponsHandler(req: NextRequest): Promise<NextResponse> {
   // Get all active coupons — only return public-safe fields
   const coupons = await executeQuery<any[]>(
     `SELECT 
+      c.id,
       c.code,
       c.description,
       c.discount_type,
+      c.discount_value,
       c.starts_at,
-      c.ends_at
+      c.ends_at,
+      c.usage_limit,
+      (SELECT COUNT(*) FROM coupon_usage WHERE coupon_id = c.id) as times_used
      FROM coupons c
      WHERE (c.ends_at IS NULL OR c.ends_at > NOW()) 
        AND (c.starts_at IS NULL OR c.starts_at <= NOW())

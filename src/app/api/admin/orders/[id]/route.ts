@@ -5,6 +5,7 @@ import { sendDeliveryConfirmationEmail, sendOrderCancelledEmail, sendShippingNot
 import { getShipmentsByOrderId } from '@/lib/db/repositories/shipment';
 import { decrypt } from '@/lib/encryption';
 import { createAuditLog } from '@/lib/db/repositories/audit';
+import { createNotification } from '@/lib/notifications';
 
 // GET - Lấy chi tiết đơn hàng (Admin)
 /**
@@ -151,9 +152,19 @@ export async function PATCH(
         if (status === 'cancelled') {
             await cancelOrder(order.order_number, true); // true = force (admin)
 
-            // Send Cancelled Email
             if (targetEmail) {
                 sendOrderCancelledEmail(targetEmail, targetName, order.order_number).catch(console.error);
+            }
+
+            // Notification Bell
+            if (order.user_id) {
+                await createNotification(
+                    order.user_id,
+                    'order',
+                    'Đơn hàng đã hủy',
+                    `Đơn hàng #${order.order_number} của bạn đã bị hủy.`,
+                    `/orders/${order.order_number}`
+                );
             }
 
         } else {
@@ -178,35 +189,49 @@ export async function PATCH(
                 );
             }
 
-            // Send Email based on status
-            if (targetEmail) {
-                if (status === 'shipped') {
-                    sendShippingNotificationEmail(
-                        targetEmail,
-                        targetName,
-                        order.order_number,
-                        order.tracking_number || 'Đang cập nhật',
-                        order.carrier || 'Giao hàng nhanh'
-                    ).catch(console.error);
-                } else if (status === 'delivered') {
-                    sendDeliveryConfirmationEmail(
-                        targetEmail,
-                        targetName,
-                        order.order_number
-                    ).catch(console.error);
-                }
+        }
+
+        // Notification Bell for other status changes
+        if (order.user_id && status !== 'cancelled') {
+            let title = '';
+            let message = '';
+
+            switch (status) {
+                case 'processing':
+                case 'confirmed':
+                    title = 'Đơn hàng đã xác nhận';
+                    message = `Đơn hàng #${order.order_number} của bạn đã được xác nhận và đang xử lý.`;
+                    break;
+                case 'shipped':
+                    title = 'Đơn hàng đang giao';
+                    message = `Đơn hàng #${order.order_number} đang trên đường đến với bạn.`;
+                    break;
+                case 'delivered':
+                    title = 'Giao hàng thành công';
+                    message = `Đơn hàng #${order.order_number} đã được giao thành công. Cảm ơn bạn!`;
+                    break;
             }
 
-            // Log Admin Action
-            await createAuditLog({
-                adminId: admin.userId,
-                action: 'UPDATE_ORDER_STATUS',
-                targetType: 'order',
-                targetId: id,
-                details: { oldStatus: currentStatus, newStatus: status, orderNumber: order.order_number },
-                ipAddress: request.headers.get('x-forwarded-for') || 'unknown'
-            });
+            if (title) {
+                await createNotification(
+                    order.user_id,
+                    'order',
+                    title,
+                    message,
+                    `/orders/${order.order_number}`
+                );
+            }
         }
+
+        // Log Admin Action
+        await createAuditLog({
+            adminId: admin.userId,
+            action: 'UPDATE_ORDER_STATUS',
+            targetType: 'order',
+            targetId: id,
+            details: { oldStatus: currentStatus, newStatus: status, orderNumber: order.order_number },
+            ipAddress: request.headers.get('x-forwarded-for') || 'unknown'
+        });
 
         // FIX C3: Gift Card deduction is now handled by updateOrderStatus (when status = 'delivered')
         // Removed duplicate gift card logic that was here previously

@@ -43,7 +43,11 @@ export async function POST(req: Request) {
     const token = jwt.sign(
       { userId: user.id, email: user.email, is_admin: 1 },
       getJwtSecret(),
-      { expiresIn: '7d' }
+      {
+        expiresIn: '7d',
+        issuer: 'toan-store',
+        audience: 'admin'
+      }
     );
 
     // Lưu token vào cookie

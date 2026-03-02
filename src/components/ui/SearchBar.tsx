@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { Search, X, Loader2 } from "lucide-react";
+import { Search, X, Loader2, Mic } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
 
@@ -20,9 +20,49 @@ export default function SearchBar() {
     const [results, setResults] = useState<SearchResult[]>([]);
     const [isOpen, setIsOpen] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
+    const [isListening, setIsListening] = useState(false);
+    const [speechSupported, setSpeechSupported] = useState(false);
     const searchRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLInputElement>(null);
+    const recognitionRef = useRef<any>(null);
     const router = useRouter();
+
+    // Voice Search Setup
+    useEffect(() => {
+        const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+        if (SpeechRecognition) {
+            setSpeechSupported(true);
+            const recognition = new SpeechRecognition();
+            recognition.lang = 'vi-VN';
+            recognition.continuous = false;
+            recognition.interimResults = true;
+
+            recognition.onresult = (event: any) => {
+                const transcript = Array.from(event.results)
+                    .map((result: any) => result[0].transcript)
+                    .join('');
+                setQuery(transcript);
+            };
+
+            recognition.onend = () => setIsListening(false);
+            recognition.onerror = () => setIsListening(false);
+
+            recognitionRef.current = recognition;
+        }
+    }, []);
+
+    const toggleVoiceSearch = (e: React.MouseEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (!recognitionRef.current) return;
+        if (isListening) {
+            recognitionRef.current.stop();
+        } else {
+            setQuery("");
+            recognitionRef.current.start();
+            setIsListening(true);
+        }
+    };
 
     // Debounce search
     useEffect(() => {
@@ -94,23 +134,41 @@ export default function SearchBar() {
                         value={query}
                         onChange={(e) => setQuery(e.target.value)}
                         onFocus={() => query.length >= 2 && results.length > 0 && setIsOpen(true)}
-                        placeholder="Tìm kiếm sản phẩm..."
-                        className="w-full pl-10 pr-10 py-2 border border-gray-300 rounded-full focus:outline-none focus:border-black transition-colors"
+                        placeholder={isListening ? "Đang nghe..." : "Tìm kiếm sản phẩm..."}
+                        className={`w-full pl-10 pr-20 py-2 border ${isListening ? 'border-red-500 bg-red-50' : 'border-gray-300'} rounded-full focus:outline-none focus:border-black transition-all`}
                     />
-                    {query && (
-                        <button
-                            type="button"
-                            onClick={handleClear}
-                            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                        >
-                            <X size={20} />
-                        </button>
-                    )}
-                    {isLoading && (
-                        <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                            <Loader2 className="animate-spin text-gray-400" size={20} />
-                        </div>
-                    )}
+                    <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
+                        {isLoading && (
+                            <div className="p-1">
+                                <Loader2 className="animate-spin text-gray-400" size={18} />
+                            </div>
+                        ) || query && (
+                            <button
+                                type="button"
+                                onClick={handleClear}
+                                className="p-1 text-gray-400 hover:text-gray-600 rounded-full hover:bg-gray-100 transition-colors"
+                            >
+                                <X size={18} />
+                            </button>
+                        )}
+                        {speechSupported && (
+                            <button
+                                type="button"
+                                onClick={toggleVoiceSearch}
+                                className={`p-2 rounded-full transition-all ${isListening
+                                    ? 'bg-red-500 text-white animate-pulse'
+                                    : 'text-gray-400 hover:text-black hover:bg-gray-100'
+                                    }`}
+                                title={isListening ? 'Dừng nghe' : 'Tìm kiếm bằng giọng nói'}
+                            >
+                                <svg className="w-[18px] h-[18px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                    <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z" />
+                                    <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+                                    <line x1="12" x2="12" y1="19" y2="22" />
+                                </svg>
+                            </button>
+                        )}
+                    </div>
                 </div>
             </form>
 

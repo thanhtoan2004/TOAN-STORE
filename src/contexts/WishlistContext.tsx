@@ -1,6 +1,8 @@
 "use client";
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { useAuth } from './AuthContext';
+import { useModal } from './ModalContext';
+import { useRouter } from 'next/navigation';
 
 /**
  * WishlistItem: Đại diện cho 1 sản phẩm mà người dùng đã bấm thả tim (Yêu thích).
@@ -40,6 +42,8 @@ export const WishlistProvider = ({ children }: { children: ReactNode }) => {
   const [wishlist, setWishlist] = useState<WishlistItem[]>([]);
   const [loading, setLoading] = useState(true);
   const { user, isAuthenticated } = useAuth();
+  const { showAlert } = useModal();
+  const router = useRouter();
 
   // Helper to map and sanitize wishlist data
   const mapWishlistData = (data: any[]): WishlistItem[] => {
@@ -91,7 +95,12 @@ export const WishlistProvider = ({ children }: { children: ReactNode }) => {
 
   const addToWishlist = async (item: WishlistItem) => {
     if (!isAuthenticated || !user) {
-      alert('Vui lòng đăng nhập để thêm vào yêu thích');
+      showAlert({
+        title: 'Xác nhận thông tin',
+        message: 'Vui lòng đăng nhập để thêm sản phẩm vào danh sách yêu thích của bạn.',
+        type: 'auth',
+        onConfirm: () => router.push('/sign-in')
+      });
       return;
     }
 
@@ -113,7 +122,11 @@ export const WishlistProvider = ({ children }: { children: ReactNode }) => {
       }
     } catch (error) {
       console.error('Lỗi khi thêm vào wishlist:', error);
-      alert('Có lỗi xảy ra khi thêm vào yêu thích');
+      showAlert({
+        title: 'Thông báo',
+        message: 'Có lỗi xảy ra khi thêm vào yêu thích. Vui lòng thử lại sau.',
+        type: 'error'
+      });
     }
   };
 
@@ -139,7 +152,11 @@ export const WishlistProvider = ({ children }: { children: ReactNode }) => {
       }
     } catch (error) {
       console.error('Lỗi khi xóa khỏi wishlist:', error);
-      alert('Có lỗi xảy ra khi xóa khỏi yêu thích');
+      showAlert({
+        title: 'Thông báo',
+        message: 'Có lỗi xảy ra khi xóa khỏi yêu thích. Vui lòng thử lại sau.',
+        type: 'error'
+      });
     }
   };
 

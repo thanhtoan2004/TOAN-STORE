@@ -2,6 +2,8 @@
 
 import { useState, useEffect, createContext, useContext, useCallback } from 'react';
 import { useAuth } from './AuthContext';
+import { useModal } from './ModalContext';
+import { useRouter } from 'next/navigation';
 
 /**
  * Interface định nghĩa cấu trúc dữ liệu của 1 sản phẩm trong Giỏ hàng
@@ -46,6 +48,8 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [loading, setLoading] = useState(false);
   const { user } = useAuth(); // Lấy thông tin user hiện tại để gán giỏ hàng cho đúng người
+  const { showAlert } = useModal();
+  const router = useRouter();
 
   // Computed value: Tính tổng số lượng hàng có trong giỏ
   const cartCount = cartItems.reduce((sum, item) => sum + item.quantity, 0);
@@ -92,7 +96,12 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     color?: string
   ): Promise<boolean> => {
     if (!user) {
-      alert('Vui lòng đăng nhập để thêm sản phẩm vào giỏ hàng');
+      showAlert({
+        title: 'Xác nhận thông tin',
+        message: 'Vui lòng đăng nhập để thêm sản phẩm vào giỏ hàng.',
+        type: 'auth',
+        onConfirm: () => router.push('/sign-in')
+      });
       return false;
     }
 
@@ -117,12 +126,20 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         await refreshCart(); // Gọi DB lấy cục data mới sau khi Add thành công
         return true;
       } else {
-        alert(data.message || 'Lỗi khi thêm vào giỏ hàng');
+        showAlert({
+          title: 'Thông báo',
+          message: data.message || 'Lỗi khi thêm vào giỏ hàng. Vui lòng thử lại sau.',
+          type: 'error'
+        });
         return false;
       }
     } catch (error) {
       console.error('Lỗi khi thêm vào giỏ hàng:', error);
-      alert('Lỗi khi thêm vào giỏ hàng');
+      showAlert({
+        title: 'Thông báo',
+        message: 'Lỗi khi thêm vào giỏ hàng. Vui lòng thử lại sau.',
+        type: 'error'
+      });
       return false;
     }
   }, [user, refreshCart]);
@@ -134,7 +151,12 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     items: { productId: number; quantity: number; size: string }[]
   ): Promise<boolean> => {
     if (!user) {
-      alert('Vui lòng đăng nhập để thực hiện');
+      showAlert({
+        title: 'Xác nhận thông tin',
+        message: 'Vui lòng đăng nhập để thực hiện chức năng này.',
+        type: 'auth',
+        onConfirm: () => router.push('/sign-in')
+      });
       return false;
     }
 
@@ -153,7 +175,11 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         await refreshCart();
         return true;
       } else {
-        alert(data.message || 'Lỗi khi đặt lại đơn hàng');
+        showAlert({
+          title: 'Thông báo',
+          message: data.message || 'Lỗi khi đặt lại đơn hàng. Vui lòng thử lại sau.',
+          type: 'error'
+        });
         return false;
       }
     } catch (error) {

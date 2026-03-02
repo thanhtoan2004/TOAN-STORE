@@ -43,7 +43,7 @@ Profile Management
 
 44: ✅ Xem thông tin cá nhân
 45: ✅ Cập nhật thông tin: Họ tên, SĐT, Email
-46: Cập nhật ảnh đại diện
+46: ✅ Cập nhật ảnh đại diện
 47: ✅ Cập nhật ngày sinh
 48: ✅ Cập nhật giới tính
 49: ✅ Xem lịch sử đơn hàng
@@ -60,15 +60,15 @@ Address Management
 60: ✅ Xóa địa chỉ giao hàng
 61: ✅ Đặt địa chỉ mặc định
 62: ✅ Hỗ trợ nhiều địa chỉ (tối đa 10)
-63: ✅ Autocomplete địa chỉ (Google Places API)
+63: [ ] Google Places API integration (Auto-complete địa chỉ)
 64: ✅ Validate địa chỉ tồn tại
 
 Account Settings
 
 68: ✅ Cài đặt nhận thông báo email
-69: Cài đặt nhận thông báo SMS
-70: Cài đặt nhận thông báo push
-71: Cài đặt nhận email marketing
+69: ✅ Cài đặt nhận thông báo SMS
+70: ✅ Cài đặt nhận thông báo push
+71: ✅ Cài đặt nhận email marketing
 72: ✅ Chọn ngôn ngữ (Tiếng Việt/English)
 73: ✅ Xuất dữ liệu cá nhân (GDPR compliance)
 74: ✅ Xóa tài khoản vĩnh viễn
@@ -240,8 +240,8 @@ Cart Management
 💳 CHECKOUT (40 yêu cầu)
 Checkout Flow
 
-243: ✅ Multi-step checkout (3 bước: Shipping → Payment → Review)
-244: Single-page checkout option
+243: [ ] Multi-step checkout (3 bước: Shipping → Payment → Review)
+244: ✅ Single-page checkout option
 245: ✅ Guest checkout (không cần đăng ký)
 246: ✅ Express checkout (1-click buy)
 247: ✅ Hiển thị order summary
@@ -272,16 +272,16 @@ Payment Methods
 272: ✅ Chuyển khoản ngân hàng
 273: ✅ VNPay QR Code
 274: ✅ MoMo E-wallet
-275: ✅ ZaloPay
-276: ✅ Thẻ tín dụng/ghi nợ (Stripe)
-277: ✅ PayPal
-278: ✅ Apple Pay
-279: ✅ Google Pay
+275: [ ] ZaloPay
+276: [ ] Thẻ tín dụng/ghi nợ (Stripe)
+277: [ ] PayPal
+278: [ ] Apple Pay
+279: [ ] Google Pay
 280: ✅ Installment payment (trả góp 0%)
 281: ✅ Buy Now Pay Later (Atome, FundIn)
 282: ✅ Gift card payment
 283: ✅ Loyalty points payment (đổi điểm)
-284: Mixed payment (nhiều phương thức)
+284: ✅ Mixed payment (nhiều phương thức)
 
 Order Review & Confirmation
 
@@ -342,7 +342,7 @@ Order Actions
 342: ✅ Rate & review order
 343: ✅ Reorder (add all items to cart)
 344: ✅ Track order (realtime)
-345: Update shipping address (trước khi ship)
+345: ✅ Update shipping address (trước khi ship)
 346: ✅ Add note to order
 
 Order Tracking
@@ -540,7 +540,7 @@ Blog/News
 540: ✅ Blog search
 541: ✅ Blog tags
 542: Blog author profile
-543: Blog comments
+543: ✅ Blog comments
 544: ✅ Blog social sharing
 545: ✅ Related blog posts
 546: ✅ Newsletter signup from blog
@@ -573,7 +573,7 @@ Email Notifications
 573: ✅ Review reminder email
 574: ✅ Abandoned cart email (24h, 48h, 72h)
 575: ✅ Back in stock email
-576: Price drop alert email
+576: ✅ Price drop alert email
 577: ✅ Birthday email (with voucher)
 578: Newsletter emails
 579: Promotional emails
@@ -616,7 +616,7 @@ Ticket reply notifications
 ✅ Ticket history
 Attach files to ticket
 ✅ Admin ticket management
-SLA tracking
+[ ] SLA tracking
 Ticket analytics
 
 
@@ -626,7 +626,7 @@ Ticket analytics
 ✅ Touch-optimized UI
 ✅ Swipe gestures (product images, carousel)
 ✅ Mobile navigation menu
-✅ Bottom navigation bar
+629: ✅ Bottom navigation bar
 ✅ Pull-to-refresh
 ✅ Mobile checkout optimization
 Mobile payment methods (Apple Pay, Google Pay)
@@ -719,8 +719,8 @@ Product Management
 719: ✅ Add new product
 720: ✅ Edit product
 721: ✅ Delete product (soft delete)
-722: ✅ Bulk import products (CSV/Excel)
-723: ✅ Bulk export products
+722: [ ] Bulk import sản phẩm qua CSV/Excel
+723: [ ] Bulk export sản phẩm ra CSV/Excel
 724: ✅ Duplicate product
 725: ✅ Product variants management
 726: ✅ Product images upload (multiple)

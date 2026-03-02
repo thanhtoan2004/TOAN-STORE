@@ -6,6 +6,9 @@ import { categories as categoriesSchema } from '@/lib/db/schema';
 import { eq, sql, asc } from 'drizzle-orm';
 import { ResponseWrapper } from '@/lib/api-response';
 import { logger } from '@/lib/logger';
+import { invalidateCache } from '@/lib/cache';
+
+const CATEGORIES_CACHE_KEY = 'global:categories';
 
 /**
  * API Lấy tất cả danh mục (bao gồm cả danh mục ẩn).
@@ -49,6 +52,9 @@ export async function POST(request: NextRequest) {
     });
 
     const insertId = (result as any).insertId;
+
+    // Invalidate public categories cache
+    await invalidateCache(CATEGORIES_CACHE_KEY);
 
     // Log audit
     await logAdminAction(admin.userId, 'CREATE_CATEGORY', 'categories', String(insertId), null, { name, slug, position }, request);
