@@ -16,9 +16,8 @@ interface SupportChat {
     last_message?: string;
     last_message_at: string;
     unread_count: number;
-    assigned_admin_id?: number;
-    admin_first_name?: string;
     admin_last_name?: string;
+    first_response_at?: string;
 }
 
 export default function AdminSupportPage() {
@@ -125,7 +124,7 @@ export default function AdminSupportPage() {
                                     Thời gian
                                 </th>
                                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    Admin
+                                    Phản hồi đầu
                                 </th>
                                 <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                                     Hành động
@@ -169,9 +168,14 @@ export default function AdminSupportPage() {
                                         {formatDateTime(chat.last_message_at)}
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                        {chat.admin_first_name
-                                            ? `${chat.admin_first_name} ${chat.admin_last_name}`
-                                            : '-'}
+                                        {chat.first_response_at ? (
+                                            <div className="flex flex-col">
+                                                <span className="text-green-600 font-medium">Đã phản hồi</span>
+                                                <span className="text-[10px]">{formatDateTime(chat.first_response_at)}</span>
+                                            </div>
+                                        ) : (
+                                            <span className="text-red-500 animate-pulse font-medium">Chưa phản hồi</span>
+                                        )}
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                         <Link

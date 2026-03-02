@@ -333,48 +333,25 @@ export const POST = withRateLimit(async function postHandler(request: NextReques
 
     // Trường hợp 1: Thêm hàng loạt (Bulk Add - Dùng cho Reorder)
     if (items && Array.isArray(items)) {
-      let addedCount = 0;
-      const skippedItems = [];
+      const { bulkAddToCart } = await import('@/lib/db/repositories/cart');
+      const results = await bulkAddToCart(userId, items);
 
-      for (const item of items) {
-        const { productId: pId, quantity: qty = 1, size: s } = item;
-
-        if (!pId || !s) {
-          continue;
-        }
-
-        const variant = await findVariantBySize(parseInt(pId), s);
-        if (!variant) {
-          skippedItems.push({ productId: pId, size: s, reason: 'Size không tồn tại' });
-          continue;
-        }
-
-        const hasAvailable = await checkStock(variant.id, qty);
-        if (!hasAvailable) {
-          skippedItems.push({ productId: pId, size: s, reason: 'Hết hàng' });
-          continue;
-        }
-
-        await addToCart(userId, parseInt(pId), s, qty);
-        addedCount++;
-      }
-
-      if (addedCount > 0) {
+      if (results.addedCount > 0) {
         await invalidateCache(`user:cart:${userId}`);
       }
 
-      if (addedCount === 0 && items.length > 0) {
+      if (results.addedCount === 0 && items.length > 0) {
         return NextResponse.json({
           success: false,
           message: 'Không có sản phẩm nào khả dụng để đặt lại (có thể do hết hàng hoặc size không còn tồn tại).',
-          skipped: skippedItems
+          skipped: results.skippedItems
         }, { status: 400 });
       }
 
       return NextResponse.json({
         success: true,
-        message: `Đã thêm ${addedCount} sản phẩm vào giỏ hàng.`,
-        skipped: skippedItems
+        message: `Đã thêm ${results.addedCount} sản phẩm vào giỏ hàng.`,
+        skipped: results.skippedItems
       });
     }
 

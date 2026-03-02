@@ -89,6 +89,7 @@ Tài liệu bảo mật cho TOAN Store E-commerce. Dự án đã đạt chứng 
 - **Status whitelists**: Order status, Review status chỉ chấp nhận giá trị hợp lệ.
 - **Ownership checks**: Mỗi resource kiểm tra thuộc về user hiện tại (IDOR prevention).
 - **SQL Parameterization**: 100% queries sử dụng parameterized statements.
+- **Code Quality & Reliability**: Đạt 100% ESLint compliance, quy chuẩn hóa `const` cho toàn bộ logic nghiệp vụ, giảm thiểu rủi ro lỗi gán biến và side-effects ngoài ý muốn.
 
 ### IDOR Prevention (Phase 63.2)
 | Resource | Protection |

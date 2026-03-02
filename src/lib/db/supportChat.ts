@@ -136,10 +136,13 @@ export async function createSupportMessage(data: {
             [data.chatId]
         );
 
-        // If admin sends message, set status to active
+        // If admin sends message, set status to active and update first_response_at
         if (data.senderType === 'admin') {
             await connection.execute(
-                `UPDATE support_chats SET status = 'active' WHERE id = ? AND status = 'waiting'`,
+                `UPDATE support_chats 
+                 SET status = 'active', 
+                     first_response_at = COALESCE(first_response_at, NOW()) 
+                 WHERE id = ? AND status = 'waiting'`,
                 [data.chatId]
             );
         }

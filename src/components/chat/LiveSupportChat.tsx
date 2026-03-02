@@ -8,6 +8,7 @@ interface Message {
     sender_type: 'customer' | 'admin';
     message: string;
     image_url?: string;
+    is_read: boolean;
     created_at: string;
     sender_first_name?: string;
     sender_last_name?: string;
@@ -26,6 +27,8 @@ export default function LiveSupportChat({ userId, guestEmail, guestName }: LiveS
     const [isLoading, setIsLoading] = useState(false);
     const [chatStatus, setChatStatus] = useState<'waiting' | 'active' | 'resolved' | 'closed'>('waiting');
     const [isInitializing, setIsInitializing] = useState(true);
+    const [isAgentTyping, setIsAgentTyping] = useState(false);
+    const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -35,8 +38,8 @@ export default function LiveSupportChat({ userId, guestEmail, guestName }: LiveS
     const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files && e.target.files[0]) {
             const file = e.target.files[0];
-            if (file.size > 5 * 1024 * 1024) { // 5MB limit
-                alert('File quá lớn. Vui lòng chọn file nhỏ hơn 5MB.');
+            if (file.size > 20 * 1024 * 1024) { // 20MB limit for general files
+                alert('File quá lớn. Vui lòng chọn file nhỏ hơn 20MB.');
                 return;
             }
             setSelectedFile(file);
@@ -157,6 +160,34 @@ export default function LiveSupportChat({ userId, guestEmail, guestName }: LiveS
                     if (prev.some(m => m.id === data.id)) return prev;
                     return [...prev, data];
                 });
+
+                // If it's an admin message, emit read event if window is likely focused
+                if (data.sender_type === 'admin') {
+                    // Call API to persist read status
+                    fetch(`/api/support/chat/${chatId}/read`, {
+                        method: 'PATCH',
+                        headers: { 'x-chat-token': localStorage.getItem(`chat_token_${chatId}`) || '' }
+                    });
+                    socketRef.current.emit('mark-read', { chatId });
+                }
+            });
+
+            socketRef.current.on('user-typing', (data: any) => {
+                if (data.senderType === 'admin') {
+                    setIsAgentTyping(true);
+                }
+            });
+
+            socketRef.current.on('user-stop-typing', (data: any) => {
+                if (data.senderType === 'admin') {
+                    setIsAgentTyping(false);
+                }
+            });
+
+            socketRef.current.on('messages-read', () => {
+                setMessages(prev => prev.map(m =>
+                    m.sender_type === 'customer' ? { ...m, is_read: true } : m
+                ));
             });
 
             socketRef.current.on('disconnect', () => {
@@ -222,6 +253,7 @@ export default function LiveSupportChat({ userId, guestEmail, guestName }: LiveS
                     sender_type: 'customer',
                     message: messageText,
                     image_url: imageUrl,
+                    is_read: false,
                     created_at: new Date().toISOString()
                 };
                 setMessages(prev => [...prev, newMessage]);
@@ -240,8 +272,28 @@ export default function LiveSupportChat({ userId, guestEmail, guestName }: LiveS
             setSelectedFile(fileToSend);
         } finally {
             setIsLoading(false);
+            if (socketRef.current) {
+                socketRef.current.emit('stop-typing', { chatId, senderType: 'customer' });
+            }
         }
     };
+
+    // Typing emission
+    useEffect(() => {
+        if (!chatId || !inputValue.trim() || !socketRef.current) return;
+
+        socketRef.current.emit('typing', { chatId, senderType: 'customer' });
+
+        if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+
+        typingTimeoutRef.current = setTimeout(() => {
+            socketRef.current.emit('stop-typing', { chatId, senderType: 'customer' });
+        }, 3000);
+
+        return () => {
+            if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+        };
+    }, [inputValue, chatId]);
 
     const handleGuestSubmit = (e: React.FormEvent) => {
         e.preventDefault();
@@ -358,22 +410,55 @@ export default function LiveSupportChat({ userId, guestEmail, guestName }: LiveS
                             )}
                             {msg.image_url && (
                                 <div className="mb-2">
-                                    <img
-                                        src={msg.image_url}
-                                        alt="Attachment"
-                                        className="max-w-full rounded-lg max-h-48 object-cover border border-gray-200"
-                                    />
+                                    {(msg.image_url.match(/\.(jpeg|jpg|gif|png|webp|svg)/i)) ? (
+                                        <img
+                                            src={msg.image_url}
+                                            alt="Attachment"
+                                            className="max-w-full rounded-lg max-h-48 object-cover border border-gray-200 cursor-pointer hover:opacity-90 transition-opacity"
+                                            onClick={() => window.open(msg.image_url, '_blank')}
+                                        />
+                                    ) : (
+                                        <a
+                                            href={msg.image_url}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="flex items-center gap-2 p-2 bg-gray-100/10 rounded-lg hover:bg-gray-100/20 transition-colors border border-white/10"
+                                        >
+                                            <Paperclip size={16} />
+                                            <span className="underline text-xs truncate max-w-[150px]">Xem tệp đính kèm</span>
+                                        </a>
+                                    )}
                                 </div>
                             )}
                             <div>{msg.message}</div>
                             {msg.sender_type === 'customer' && (
-                                <div className="text-[10px] text-white/70 text-right mt-1">
-                                    {new Date(msg.created_at).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
+                                <div className="flex items-center justify-end gap-1 mt-1">
+                                    <div className="text-[10px] text-white/70">
+                                        {new Date(msg.created_at).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
+                                    </div>
+                                    {msg.is_read ? (
+                                        <div className="flex -space-x-1">
+                                            <CheckCircle2 size={10} className="text-blue-400 fill-blue-400/20" />
+                                            <CheckCircle2 size={10} className="text-blue-400 fill-blue-400/20" />
+                                        </div>
+                                    ) : (
+                                        <CheckCircle2 size={10} className="text-white/40" />
+                                    )}
                                 </div>
                             )}
                         </div>
                     </div>
                 ))}
+                {isAgentTyping && (
+                    <div className="flex justify-start">
+                        <div className="bg-white border border-gray-200 px-4 py-2 rounded-2xl rounded-tl-sm shadow-sm flex items-center gap-1">
+                            <div className="w-1 h-1 bg-gray-400 rounded-full animate-bounce" />
+                            <div className="w-1 h-1 bg-gray-400 rounded-full animate-bounce [animation-delay:0.2s]" />
+                            <div className="w-1 h-1 bg-gray-400 rounded-full animate-bounce [animation-delay:0.4s]" />
+                            <span className="text-[10px] text-gray-400 ml-1 font-medium">Đội ngũ Nike đang soạn tin...</span>
+                        </div>
+                    </div>
+                )}
                 {messages.length === 0 && (
                     <div className="text-center text-gray-400 text-sm py-8">
                         Bắt đầu cuộc trò chuyện với đội ngũ hỗ trợ của chúng tôi
@@ -383,7 +468,7 @@ export default function LiveSupportChat({ userId, guestEmail, guestName }: LiveS
             </div>
 
             {/* Input */}
-            <form onSubmit={handleSubmit} className="p-4 bg-white border-t border-gray-100">
+            < form onSubmit={handleSubmit} className="p-4 bg-white border-t border-gray-100" >
                 {selectedFile && (
                     <div className="flex items-center gap-2 mb-2 p-2 bg-gray-50 rounded-lg text-xs w-fit">
                         <span className="truncate max-w-[200px]">{selectedFile.name}</span>
@@ -401,7 +486,7 @@ export default function LiveSupportChat({ userId, guestEmail, guestName }: LiveS
                         type="file"
                         ref={fileInputRef}
                         className="hidden"
-                        accept="image/*"
+                        accept="image/*,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
                         onChange={handleFileSelect}
                         disabled={isLoading || chatStatus === 'closed' || chatStatus === 'resolved'}
                     />

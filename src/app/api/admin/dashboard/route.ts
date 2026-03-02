@@ -22,151 +22,96 @@ export async function GET(request: NextRequest) {
         { status: 401 }
       );
     }
-
-    // Basic statistics
-    const basicStats = await executeQuery<any[]>(`
-      SELECT 
-        (SELECT COUNT(*) FROM users) as total_users,
-        (SELECT COUNT(*) FROM orders) as total_orders,
-        (SELECT COUNT(*) FROM products WHERE is_active = 1) as total_products,
-        (SELECT COALESCE(SUM(total), 0) FROM orders WHERE status != 'cancelled' AND status != 'refunded') as total_revenue,
-        (SELECT COALESCE(AVG(total), 0) FROM orders WHERE status = 'delivered') as average_order_value,
-        (SELECT COUNT(*) FROM gift_cards WHERE status = 'active' AND current_balance > 0) as active_gift_cards
-    `);
-
-    // Revenue by status
-    const revenueByStatus = await executeQuery<any[]>(`
-      SELECT 
-        status,
-        COUNT(*) as count,
-        COALESCE(SUM(total), 0) as revenue
-      FROM orders
-      GROUP BY status
-    `);
-
-    // Revenue trend (configurable days)
     const searchParams = new URL(request.url).searchParams;
     const days = parseInt(searchParams.get('days') || '7');
 
-    const revenueTrend = await executeQuery<any[]>(`
-      SELECT 
-        date,
-        CAST(revenue AS DOUBLE) as revenue,
-        CAST(net_profit AS DOUBLE) as profit,
-        orders_count as order_count
-      FROM daily_metrics
-      WHERE date >= DATE_SUB(CURDATE(), INTERVAL ? DAY)
-      ORDER BY date ASC
-    `, [days]);
-
-    // Financial metrics
-    const financialStats = await executeQuery<any[]>(`
-      SELECT 
-        COALESCE(SUM(tax), 0) as total_vat,
-        COALESCE(SUM(discount + voucher_discount + giftcard_discount), 0) as total_discounts,
-        COALESCE(SUM(shipping_fee), 0) as total_shipping,
-        COALESCE(SUM(subtotal) - SUM(discount + voucher_discount + giftcard_discount), 0) as net_revenue,
-        (SELECT COALESCE(SUM(oi.cost_price * oi.quantity), 0) 
-         FROM order_items oi 
-         JOIN orders o ON oi.order_id = o.id 
-         WHERE o.status = 'delivered') as total_cost
-      FROM orders
-      WHERE status = 'delivered'
-    `);
-
-    // Inventory alerts
-    const inventoryStats = await executeQuery<any[]>(`
-      SELECT 
-        (SELECT COUNT(DISTINCT pv.product_id) 
-         FROM product_variants pv
-         JOIN inventory i ON pv.id = i.product_variant_id
-         WHERE (i.quantity - i.reserved) > 0 AND (i.quantity - i.reserved) < 10) as low_stock_count,
-        (SELECT COUNT(DISTINCT pv.product_id) 
-         FROM product_variants pv
-         JOIN inventory i ON pv.id = i.product_variant_id
-         WHERE (i.quantity - i.reserved) = 0) as out_of_stock_count
-    `);
-
-    // Low stock products
-    const lowStockProducts = await executeQuery<any[]>(`
-      SELECT 
-        p.id,
-        p.name,
-        SUM(i.quantity - i.reserved) as total_quantity,
-        (SELECT url FROM product_images WHERE product_id = p.id AND is_main = 1 LIMIT 1) as image_url
-      FROM inventory i
-      JOIN product_variants pv ON i.product_variant_id = pv.id
-      JOIN products p ON pv.product_id = p.id
-      WHERE (i.quantity - i.reserved) > 0 AND (i.quantity - i.reserved) < 10
-      GROUP BY p.id, p.name
-      ORDER BY total_quantity ASC
-      LIMIT 5
-    `);
-
-    // Customer insights
-    const customerStats = await executeQuery<any[]>(`
-      SELECT 
-        (SELECT COUNT(*) FROM users WHERE created_at >= DATE_FORMAT(NOW(), '%Y-%m-01')) as new_customers_month,
-        (SELECT COUNT(DISTINCT user_id) FROM orders WHERE user_id IN (
-          SELECT user_id FROM orders GROUP BY user_id HAVING COUNT(*) > 1
-        )) as returning_customers
-    `);
-
-    // Top customers by spending
-    const topCustomers = await executeQuery<any[]>(`
-      SELECT 
-        u.id,
-        u.email,
-        u.membership_tier,
-        CONCAT(u.first_name, ' ', u.last_name) as full_name,
-        COALESCE(SUM(o.total), 0) as total_spent,
-        COUNT(o.id) as order_count
-      FROM users u
-      JOIN orders o ON u.id = o.user_id
-      WHERE o.status = 'delivered'
-      GROUP BY u.id, u.email, u.membership_tier, u.first_name, u.last_name
-      ORDER BY total_spent DESC
-      LIMIT 5
-    `);
-
-    // Recent orders
-    const recentOrders = await executeQuery<any[]>(`
-      SELECT o.*, 
-        CONCAT(u.first_name, ' ', u.last_name) as customer_name,
-        u.email as customer_email
-      FROM orders o
-      LEFT JOIN users u ON o.user_id = u.id
-      ORDER BY o.placed_at DESC
-      LIMIT 10
-    `);
-
-    // Top selling products
-    const topProducts = await executeQuery<any[]>(`
-      SELECT 
-        p.id,
-        p.name,
-        (SELECT url FROM product_images WHERE product_id = p.id AND is_main = 1 LIMIT 1) as primary_image,
-        p.base_price as price,
-        SUM(oi.quantity) as sold
-      FROM order_items oi
-      JOIN products p ON oi.product_id = p.id
-      GROUP BY p.id, p.name, p.base_price
-      ORDER BY sold DESC
-      LIMIT 10
-    `);
-
-    // Today vs Yesterday revenue
-    const todayRevenue = await executeQuery<any[]>(`
-      SELECT COALESCE(SUM(total), 0) as revenue
-      FROM orders
-      WHERE DATE(placed_at) = CURDATE()
-    `);
-
-    const yesterdayRevenue = await executeQuery<any[]>(`
-      SELECT COALESCE(SUM(total), 0) as revenue
-      FROM orders
-      WHERE DATE(placed_at) = DATE_SUB(CURDATE(), INTERVAL 1 DAY)
-    `);
+    const [
+      basicStats,
+      revenueByStatus,
+      revenueTrend,
+      financialStats,
+      inventoryStats,
+      lowStockProducts,
+      customerStats,
+      topCustomers,
+      recentOrders,
+      topProducts,
+      todayRevenue,
+      yesterdayRevenue
+    ] = await Promise.all([
+      // 1. Basic statistics
+      executeQuery<any[]>(`
+        SELECT 
+          (SELECT COUNT(*) FROM users) as total_users,
+          (SELECT COUNT(*) FROM orders) as total_orders,
+          (SELECT COUNT(*) FROM products WHERE is_active = 1) as total_products,
+          (SELECT COALESCE(SUM(total), 0) FROM orders WHERE status != 'cancelled' AND status != 'refunded') as total_revenue,
+          (SELECT COALESCE(AVG(total), 0) FROM orders WHERE status = 'delivered') as average_order_value,
+          (SELECT COUNT(*) FROM gift_cards WHERE status = 'active' AND current_balance > 0) as active_gift_cards
+      `),
+      // 2. Revenue by status
+      executeQuery<any[]>(`
+        SELECT status, COUNT(*) as count, COALESCE(SUM(total), 0) as revenue
+        FROM orders GROUP BY status
+      `),
+      // 3. Revenue trend
+      executeQuery<any[]>(`
+        SELECT date, CAST(revenue AS DOUBLE) as revenue, CAST(net_profit AS DOUBLE) as profit, orders_count as order_count
+        FROM daily_metrics WHERE date >= DATE_SUB(CURDATE(), INTERVAL ? DAY) ORDER BY date ASC
+      `, [days]),
+      // 4. Financial metrics
+      executeQuery<any[]>(`
+        SELECT 
+          COALESCE(SUM(tax), 0) as total_vat,
+          COALESCE(SUM(discount + voucher_discount + giftcard_discount), 0) as total_discounts,
+          COALESCE(SUM(shipping_fee), 0) as total_shipping,
+          COALESCE(SUM(subtotal) - SUM(discount + voucher_discount + giftcard_discount), 0) as net_revenue,
+          (SELECT COALESCE(SUM(oi.cost_price * oi.quantity), 0) FROM order_items oi JOIN orders o ON oi.order_id = o.id WHERE o.status = 'delivered') as total_cost
+        FROM orders WHERE status = 'delivered'
+      `),
+      // 5. Inventory alerts
+      executeQuery<any[]>(`
+        SELECT 
+          (SELECT COUNT(DISTINCT pv.product_id) FROM product_variants pv JOIN inventory i ON pv.id = i.product_variant_id WHERE (i.quantity - i.reserved) > 0 AND (i.quantity - i.reserved) < 10) as low_stock_count,
+          (SELECT COUNT(DISTINCT pv.product_id) FROM product_variants pv JOIN inventory i ON pv.id = i.product_variant_id WHERE (i.quantity - i.reserved) = 0) as out_of_stock_count
+      `),
+      // 6. Low stock products
+      executeQuery<any[]>(`
+        SELECT p.id, p.name, SUM(i.quantity - i.reserved) as total_quantity,
+          (SELECT url FROM product_images WHERE product_id = p.id AND is_main = 1 LIMIT 1) as image_url
+        FROM inventory i JOIN product_variants pv ON i.product_variant_id = pv.id JOIN products p ON pv.product_id = p.id
+        WHERE (i.quantity - i.reserved) > 0 AND (i.quantity - i.reserved) < 10
+        GROUP BY p.id, p.name ORDER BY total_quantity ASC LIMIT 5
+      `),
+      // 7. Customer insights
+      executeQuery<any[]>(`
+        SELECT 
+          (SELECT COUNT(*) FROM users WHERE created_at >= DATE_FORMAT(NOW(), '%Y-%m-01')) as new_customers_month,
+          (SELECT COUNT(DISTINCT user_id) FROM orders WHERE user_id IN (SELECT user_id FROM orders GROUP BY user_id HAVING COUNT(*) > 1)) as returning_customers
+      `),
+      // 8. Top customers
+      executeQuery<any[]>(`
+        SELECT u.id, u.email, u.membership_tier, CONCAT(u.first_name, ' ', u.last_name) as full_name,
+          COALESCE(SUM(o.total), 0) as total_spent, COUNT(o.id) as order_count
+        FROM users u JOIN orders o ON u.id = o.user_id WHERE o.status = 'delivered'
+        GROUP BY u.id, u.email, u.membership_tier, u.first_name, u.last_name ORDER BY total_spent DESC LIMIT 5
+      `),
+      // 9. Recent orders
+      executeQuery<any[]>(`
+        SELECT o.*, CONCAT(u.first_name, ' ', u.last_name) as customer_name, u.email as customer_email
+        FROM orders o LEFT JOIN users u ON o.user_id = u.id ORDER BY o.placed_at DESC LIMIT 10
+      `),
+      // 10. Top selling products
+      executeQuery<any[]>(`
+        SELECT p.id, p.name, (SELECT url FROM product_images WHERE product_id = p.id AND is_main = 1 LIMIT 1) as primary_image,
+          p.base_price as price, SUM(oi.quantity) as sold
+        FROM order_items oi JOIN products p ON oi.product_id = p.id GROUP BY p.id, p.name, p.base_price ORDER BY sold DESC LIMIT 10
+      `),
+      // 11. Today Revenue
+      executeQuery<any[]>(`SELECT COALESCE(SUM(total), 0) as revenue FROM orders WHERE DATE(placed_at) = CURDATE()`),
+      // 12. Yesterday Revenue
+      executeQuery<any[]>(`SELECT COALESCE(SUM(total), 0) as revenue FROM orders WHERE DATE(placed_at) = DATE_SUB(CURDATE(), INTERVAL 1 DAY)`)
+    ]);
 
     return NextResponse.json({
       // Basic stats

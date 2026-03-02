@@ -27,8 +27,21 @@ const ioHandler = (req: NextApiRequest, res: any) => {
             });
 
             socket.on('send-message', (data) => {
-                // Broadcast to everyone in the room except sender (optionally)
+                // Broadcast to everyone in the room
                 io.to(`chat:${data.chatId}`).emit('new-message', data);
+            });
+
+            socket.on('typing', (data) => {
+                // Broadcast typing status to room (except sender)
+                socket.to(`chat:${data.chatId}`).emit('user-typing', data);
+            });
+
+            socket.on('stop-typing', (data) => {
+                socket.to(`chat:${data.chatId}`).emit('user-stop-typing', data);
+            });
+
+            socket.on('mark-read', (data) => {
+                socket.to(`chat:${data.chatId}`).emit('messages-read', data);
             });
 
             socket.on('disconnect', () => {

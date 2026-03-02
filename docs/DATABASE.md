@@ -53,8 +53,10 @@ erDiagram
 | is_active | TINYINT(1) DEFAULT 1 | — |
 | is_verified | TINYINT(1) DEFAULT 0 | Email verified |
 | is_banned | TINYINT(1) DEFAULT 0 | Ban status |
+| failed_login_attempts | INT DEFAULT 0 | Anti-brute-force |
+| locked_until | TIMESTAMP NULL | Account lockout |
 | token_version | INT DEFAULT 1 | Remote logout logic |
-| two_fa_enabled | TINYINT(1) DEFAULT 1 | 2FA Status |
+| two_factor_enabled | TINYINT(1) DEFAULT 0 | 2FA Status (Standard: 0) |
 | created_at | TIMESTAMP | — |
 | updated_at | TIMESTAMP | — |
 | deleted_at | TIMESTAMP NULL | Soft delete |
@@ -253,6 +255,15 @@ erDiagram
 | address | TEXT | — |
 | is_active | TINYINT(1) DEFAULT 1 | — |
 
+### `inventory_transfers`
+| Column | Type | Description |
+|--------|------|-------------|
+| from_warehouse_id | BIGINT | — |
+| to_warehouse_id | BIGINT | — |
+| product_variant_id | BIGINT | — |
+| quantity | INT | — |
+| status | VARCHAR(50) | pending, completed |
+
 ---
 
 ## Marketing Tables
@@ -266,11 +277,53 @@ Hệ thống mã giảm giá đa tầng với giới hạn sử dụng, thời h
 ### `gift_cards`
 Thẻ quà tặng với số dư, PIN (Bcrypt hash), có thể áp dụng vào đơn hàng.
 
+### `gift_card_lockouts`
+| Column | Type | Description |
+|--------|------|-------------|
+| ip_address | VARCHAR(45) | Anti-Brute-Force lock on IP |
+| card_number | VARCHAR(100) | Anti-Brute-Force lock on Card |
+| failed_attempts | INT | — |
+| locked_until | TIMESTAMP | — |
+
 ### `banners`
 Banner quảng cáo với tracking click count.
 
 ### `newsletters`
-Đăng ký nhận tin tức qua email.
+Đăng ký nhận tin tức qua email (`newsletter_subscriptions`).
+
+---
+
+## 📊 Analytics & Reporting
+
+### `daily_metrics`
+Thống kê hiệu năng và kinh doanh hàng ngày.
+
+### `search_analytics`
+| Column | Type | Description |
+|--------|------|-------------|
+| query | VARCHAR(255) | Search query |
+| results_count | INT | — |
+| processing_time_ms | INT | performance tracking |
+| user_id | BIGINT NULL | — |
+| ip_address | VARCHAR(45) | — |
+
+### `point_transactions`
+Lịch sử biến động điểm thưởng.
+| Column | Type | Description |
+|--------|------|-------------|
+| user_id | BIGINT | — |
+| points | INT | +/- |
+| type | ENUM | earn, spend, expire |
+| description | TEXT | — |
+
+### `system_logs`
+Lưu vết lỗi hệ thống tập trung.
+| Column | Type | Description |
+|--------|------|-------------|
+| level | ENUM | error, warn, info |
+| message | TEXT | — |
+| stack | TEXT | Stack trace |
+| path | VARCHAR(255) | Endpoint/File |
 
 ---
 
@@ -313,10 +366,31 @@ Quản lý yêu cầu (Right to Access, Right to be Forgotten)
 Đánh giá sản phẩm với rating (1-5), tiêu đề, nội dung, trạng thái duyệt.
 
 ### `contact_submissions`
-Form liên hệ từ khách hàng.
+Form liên hệ từ khách hàng (`contact_messages`).
+
+### `news` / `news_comments` / `news_comment_likes`
+Hệ thống Tin tức & Blog với bình luận lồng nhau.
+| Table | Purpose |
+|-------|---------|
+| `news` | Bài viết news/blog |
+| `news_comments` | Bình luận (support parent_id cho nested) |
+| `news_comment_likes` | Theo dõi lượt thích bình luận |
 
 ### `support_chats` / `support_messages`
 Hệ thống chat support real-time.
+
+### `notifications`
+Hệ thống thông báo nội bộ (In-app Notifications).
+| Column | Type | Description |
+|--------|------|-------------|
+| id | BIGINT PK | — |
+| user_id | BIGINT FK→users | — |
+| type | ENUM | 'order', 'social', 'promo', 'system' |
+| title | VARCHAR(255) | Tiêu đề thông báo |
+| message | TEXT | Nội dung chi tiết |
+| link | VARCHAR(255) | Đường dẫn điều hướng (Deep-link) |
+| is_read | TINYINT(1) | Trạng thái đã đọc |
+| created_at | TIMESTAMP | — |
 
 ### `admin_audit_logs`
 Audit log cho mọi hành động admin nhạy cảm.

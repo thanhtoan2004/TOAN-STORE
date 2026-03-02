@@ -4,6 +4,21 @@ Tất cả thay đổi quan trọng được ghi nhận tại đây theo format 
 
 ---
 
+## [2.10.0] - 2026-03-02
+
+### ✨ New Experience & Smart Automation
+- **Voice Search (Speech-to-Text)** — Tích hợp Web Speech API (tương thích đa trình duyệt) trực tiếp vào `SearchBar` và `SearchOverlay`. Giao diện "Listening" hiện đại với micro-animations và bộ icon chuyên nghiệp (no emojis).
+- **Voucher "Smart Restore"** — Hệ thống tự động phát hiện và khôi phục (restore) các voucher đã bị xóa mềm (soft-deleted) khi tạo mã mới trùng lặp, tối ưu hóa tái sử dụng tài nguyên DB.
+- **Automated In-app Notifications** — Tự động gửi thông báo thời gian thực khi User nhận được Voucher mới, tích hợp sâu với `react-hot-toast` và hệ thống thông báo đẩy tại Header.
+- **Mobile Notification Indicator** — Bổ sung chuông thông báo (Notification Bell) trực tiếp vào Mobile Header, đảm bảo khách hàng không bỏ lỡ ưu đãi trên mọi thiết bị.
+
+### 🛠️ Technical Excellence & Quality (Priority 1)
+- **100% ESLint Compliance** — Hoàn tất việc dọn dẹp toàn bộ lỗi và cảnh báo Lint trên toàn project. Quy chuẩn hóa `prefer-const`, loại bỏ `require()` imports trong Client-side/Library code.
+- **Accessibility (A11y) Hardening** — Đạt chuẩn accessibility cho thành phần hình ảnh tập trung qua `OptimizedImage`, bắt buộc thuộc tính `alt` và tối ưu hóa SEO.
+- **API Data Enrichment** — Mở rộng dữ liệu trả về cho `/api/promo-codes/available` bao gồm: `discount_value`, `usage_limit`, giúp Frontend hiển thị thông tin khuyến mãi chính xác mà không cần gọi thêm API phụ.
+
+---
+
 ## [2.9.0] - 2026-02-28
 
 ### 🚀 Production Readiness & Performance Optimization

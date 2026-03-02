@@ -46,6 +46,50 @@ export async function getProducts(filters: {
     limit?: number;
     offset?: number;
 }) {
+    let whereClause = `WHERE p.is_active = 1 AND p.deleted_at IS NULL`;
+    const params: any[] = [];
+    let joinClause = '';
+
+    if (filters.search) {
+        whereClause += ' AND MATCH(p.name, p.sku, p.description) AGAINST(?)';
+        params.push(filters.search);
+    }
+
+    if (filters.category) {
+        whereClause += ' AND p.category_id = (SELECT id FROM categories WHERE slug = ? OR name = ? LIMIT 1)';
+        params.push(filters.category, filters.category);
+    }
+
+    if (filters.sport) {
+        whereClause += ' AND p.sport_id = (SELECT id FROM sports WHERE slug = ? OR name = ? LIMIT 1)';
+        params.push(filters.sport, filters.sport);
+    }
+
+    if (filters.gender) {
+        whereClause += ' AND EXISTS (SELECT 1 FROM product_gender_categories pgc WHERE pgc.product_id = p.id AND pgc.gender = ?)';
+        params.push(filters.gender);
+    }
+
+    if (filters.minPrice !== undefined) {
+        whereClause += ' AND (p.retail_price >= ? OR (p.retail_price IS NULL AND p.base_price >= ?))';
+        params.push(filters.minPrice, filters.minPrice);
+    }
+
+    if (filters.maxPrice !== undefined) {
+        whereClause += ' AND (p.retail_price <= ? OR (p.retail_price IS NULL AND p.base_price <= ?))';
+        params.push(filters.maxPrice, filters.maxPrice);
+    }
+
+    if (filters.isNewArrival) {
+        whereClause += ' AND p.created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)';
+    }
+
+    // 1. Get Total Count
+    const countQuery = `SELECT COUNT(*) as total FROM products p ${whereClause}`;
+    const [countResult]: any = await executeQuery(countQuery, params);
+    const total = countResult?.total || 0;
+
+    // 2. Get Products
     let query = `
     SELECT 
       p.*,
@@ -55,42 +99,9 @@ export async function getProducts(filters: {
       (SELECT name FROM categories WHERE id = p.category_id) as category
       ${filters.search ? `, MATCH(p.name, p.sku, p.description) AGAINST(?) as relevance` : ''}
     FROM products p
-    WHERE p.is_active = 1 AND p.deleted_at IS NULL`;
-    const params: any[] = [];
+    ${whereClause}`;
 
-    if (filters.search) {
-        query += ' AND MATCH(p.name, p.sku, p.description) AGAINST(?)';
-        params.push(filters.search, filters.search);
-    }
-
-    if (filters.category) {
-        query += ' AND p.category_id = (SELECT id FROM categories WHERE slug = ? OR name = ? LIMIT 1)';
-        params.push(filters.category, filters.category);
-    }
-
-    if (filters.sport) {
-        query += ' AND p.sport_id = (SELECT id FROM sports WHERE slug = ? OR name = ? LIMIT 1)';
-        params.push(filters.sport, filters.sport);
-    }
-
-    if (filters.gender) {
-        query += ' AND EXISTS (SELECT 1 FROM product_gender_categories pgc WHERE pgc.product_id = p.id AND pgc.gender = ?)';
-        params.push(filters.gender);
-    }
-
-    if (filters.minPrice !== undefined) {
-        query += ' AND (p.retail_price >= ? OR (p.retail_price IS NULL AND p.base_price >= ?))';
-        params.push(filters.minPrice, filters.minPrice);
-    }
-
-    if (filters.maxPrice !== undefined) {
-        query += ' AND (p.retail_price <= ? OR (p.retail_price IS NULL AND p.base_price <= ?))';
-        params.push(filters.maxPrice, filters.maxPrice);
-    }
-
-    if (filters.isNewArrival) {
-        query += ' AND p.created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)';
-    }
+    if (filters.search) params.push(filters.search);
 
     if (filters.search) {
         query += ' ORDER BY relevance DESC, p.created_at DESC';
@@ -100,13 +111,13 @@ export async function getProducts(filters: {
 
     if (filters.limit) {
         query += ` LIMIT ${filters.limit}`;
-
-        if (filters.offset) {
+        if (filters.offset !== undefined) {
             query += ` OFFSET ${filters.offset}`;
         }
     }
 
-    return executeQuery(query, params);
+    const items = await executeQuery<any[]>(query, params);
+    return { items, total };
 }
 
 // Chatbot Search Function
@@ -195,20 +206,31 @@ export async function getProductsByCategoryForChat(categorySlug: string) {
     }
 }
 
-// Helper to format products consistently for chat
+// Helper to format products consistently for chat (Optimized to avoid N+1)
 export async function formatProductsForChat(products: any[]) {
-    // For each product, fetch available sizes
-    const result = await Promise.all(products.map(async (p) => {
-        const sizes = await executeQuery<any[]>(
-            `SELECT pv.size, (COALESCE(i.quantity, 0) - COALESCE(i.reserved, 0)) as stock 
+    if (products.length === 0) return [];
+
+    const productIds = products.map(p => p.id);
+
+    // Batch fetch available sizes for all products
+    const allSizes = await executeQuery<any[]>(
+        `SELECT pv.product_id, pv.size, (COALESCE(i.quantity, 0) - COALESCE(i.reserved, 0)) as stock 
          FROM product_variants pv 
          LEFT JOIN inventory i ON i.product_variant_id = pv.id
-         WHERE pv.product_id = ? AND (COALESCE(i.quantity, 0) - COALESCE(i.reserved, 0)) > 0
+         WHERE pv.product_id IN (?) AND (COALESCE(i.quantity, 0) - COALESCE(i.reserved, 0)) > 0
          ORDER BY CAST(pv.size AS DECIMAL(10,1))`,
-            [p.id]
-        );
+        [productIds as any]
+    );
 
-        const availableSizes = sizes.map(s => s.size).join(', ');
+    // Group sizes by product_id
+    const sizesByProduct: Record<string, string[]> = {};
+    allSizes.forEach(s => {
+        if (!sizesByProduct[s.product_id]) sizesByProduct[s.product_id] = [];
+        sizesByProduct[s.product_id].push(s.size);
+    });
+
+    return products.map(p => {
+        const availableSizes = (sizesByProduct[p.id] || []).join(', ');
         const price = p.retail_price || p.base_price;
         const originalPrice = p.retail_price ? p.base_price : null;
 
@@ -218,11 +240,10 @@ export async function formatProductsForChat(products: any[]) {
             price: price,
             originalPrice: originalPrice,
             image_url: p.image_url || '/images/placeholder.png',
-            sizes: availableSizes || 'Hết hàng', // Vietnamese 'Out of stock'
+            sizes: availableSizes || 'Hết hàng',
             link: `/products/${p.slug || p.id}`
         };
-    }));
-    return result;
+    });
 }
 
 export async function softDeleteProduct(productId: number) {

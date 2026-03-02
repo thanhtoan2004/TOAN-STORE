@@ -369,7 +369,11 @@ export async function getOrdersByUserId(userId: number) {
     const query = `
     SELECT 
       o.*,
-      COUNT(oi.id) as item_count
+      COUNT(DISTINCT oi.id) as item_count,
+      (SELECT url FROM product_images pi 
+       JOIN order_items oi2 ON pi.product_id = oi2.product_id 
+       WHERE oi2.order_id = o.id AND pi.is_main = 1 
+       LIMIT 1) as preview_image
     FROM orders o
     LEFT JOIN order_items oi ON o.id = oi.order_id
     WHERE o.user_id = ?

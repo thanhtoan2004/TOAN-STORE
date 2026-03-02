@@ -29,11 +29,17 @@ export async function POST(request: NextRequest) {
         // 2. Strict Type & Size Validation
         const ALLOWED_MIME_TYPES = [
             'image/jpeg', 'image/png', 'image/webp', 'image/gif',
-            'video/mp4', 'video/webm', 'video/quicktime'
+            'video/mp4', 'video/webm', 'video/quicktime',
+            'application/pdf',
+            'application/msword',
+            'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            'application/vnd.ms-excel',
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'text/plain'
         ];
 
         if (!ALLOWED_MIME_TYPES.includes(file.type)) {
-            return NextResponse.json({ success: false, error: 'File type not allowed (Images & Videos only)' }, { status: 400 });
+            return NextResponse.json({ success: false, error: 'File type not allowed' }, { status: 400 });
         }
 
         if (file.size > MAX_FILE_SIZE) {

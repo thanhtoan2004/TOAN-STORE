@@ -47,6 +47,19 @@ export async function GET(request: NextRequest) {
 
       const total = countResult[0]?.total || 0;
 
+      // Get media for each review concurrently
+      const mediaPromises = reviews.map(async (review) => {
+        const media = await executeQuery<any[]>(
+          `SELECT id, media_type, media_url, thumbnail_url, file_size
+           FROM review_media
+           WHERE review_id = ?
+           ORDER BY position ASC`,
+          [review.id]
+        );
+        review.media = media || [];
+      });
+      await Promise.all(mediaPromises);
+
       return NextResponse.json({
         success: true,
         data: reviews,

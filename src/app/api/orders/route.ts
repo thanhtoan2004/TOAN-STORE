@@ -29,7 +29,7 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get('limit') || '10');
     const userId = session.userId;
 
-    // Lấy orders từ database
+    // Lấy orders từ database (Đã được tối ưu N+1 trong repository)
     let orders = await getOrdersByUserId(Number(userId)) as any[];
 
     // Filter by status nếu có
@@ -37,32 +37,11 @@ export async function GET(request: NextRequest) {
       orders = orders.filter(o => o.status === status);
     }
 
-    // Enrich orders with item count and preview image
-    const enrichedOrders = await Promise.all(orders.map(async (order: any) => {
-      // Get order items to count and get preview image
-      const { pool } = await import('@/lib/db/mysql');
-      const [items]: any = await pool.execute(
-        `SELECT 
-          oi.*,
-          (SELECT url FROM product_images WHERE product_id = oi.product_id AND is_main = 1 LIMIT 1) as image_url
-         FROM order_items oi
-         WHERE oi.order_id = ?
-         LIMIT 1`,
-        [order.id]
-      );
-
-      return {
-        ...order,
-        item_count: order.item_count || 0,
-        preview_image: items[0]?.image_url || null
-      };
-    }));
-
     // Pagination
-    const total = enrichedOrders.length;
+    const total = orders.length;
     const totalPages = Math.ceil(total / limit);
     const offset = (page - 1) * limit;
-    const paginatedOrders = enrichedOrders.slice(offset, offset + limit);
+    const paginatedOrders = orders.slice(offset, offset + limit);
 
     return NextResponse.json({
       success: true,

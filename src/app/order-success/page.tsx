@@ -97,6 +97,59 @@ function OrderSuccessContent() {
     );
   }
 
+  // Social Sharing Logic
+  const shareToSocial = (platform: 'facebook' | 'twitter') => {
+    const url = window.location.origin;
+    const text = `Tôi vừa đặt hàng thành công tại Nike! Mã đơn hàng: #${orderData.orderNumber}`;
+
+    let shareUrl = '';
+    if (platform === 'facebook') {
+      shareUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}&quote=${encodeURIComponent(text)}`;
+    } else if (platform === 'twitter') {
+      shareUrl = `https://twitter.com/intent/tweet?url=${encodeURIComponent(url)}&text=${encodeURIComponent(text)}`;
+    }
+
+    if (shareUrl) {
+      window.open(shareUrl, '_blank', 'width=600,height=400');
+    }
+  };
+
+  // Add to Calendar Logic (ICS Format)
+  const addToCalendar = () => {
+    const startTime = new Date();
+    // Estimate delivery in 3 days
+    const deliveryDate = new Date();
+    deliveryDate.setDate(deliveryDate.getDate() + 3);
+
+    const title = `Giao hàng Nike #${orderData.orderNumber}`;
+    const description = `Đơn hàng Nike #${orderData.orderNumber} dự kiến sẽ được giao tới bạn.`;
+
+    const formatDateICS = (date: Date) => {
+      return date.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
+    };
+
+    const icsContent = [
+      'BEGIN:VCALENDAR',
+      'VERSION:2.0',
+      'BEGIN:VEVENT',
+      `URL:${window.location.origin}/orders/${orderData.orderNumber}`,
+      `DTSTART:${formatDateICS(deliveryDate)}`,
+      `DTEND:${formatDateICS(new Date(deliveryDate.getTime() + 60 * 60000))}`,
+      `SUMMARY:${title}`,
+      `DESCRIPTION:${description}`,
+      'END:VEVENT',
+      'END:VCALENDAR'
+    ].join('\r\n');
+
+    const blob = new Blob([icsContent], { type: 'text/calendar;charset=utf-8' });
+    const link = document.createElement('a');
+    link.href = window.URL.createObjectURL(blob);
+    link.setAttribute('download', `nike-order-${orderData.orderNumber}.ics`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="nike-container py-16">
@@ -132,6 +185,18 @@ function OrderSuccessContent() {
                   <p>• Chuẩn bị nhận hàng trong 2-3 ngày tới</p>
                 </div>
               </div>
+            </div>
+
+            {/* Add to Calendar Button */}
+            <div className="mt-6 pt-6 border-t text-left">
+              <Button
+                variant="outline"
+                size="sm"
+                className="rounded-full text-xs"
+                onClick={addToCalendar}
+              >
+                Nhắc nhở ngày giao hàng (Lịch)
+              </Button>
             </div>
           </div>
 
@@ -192,10 +257,20 @@ function OrderSuccessContent() {
           <div className="mt-8 pt-8 border-t">
             <p className="text-sm text-gray-600 mb-4">Chia sẻ niềm vui với bạn bè:</p>
             <div className="flex justify-center space-x-4">
-              <Button variant="ghost" size="icon" className="p-2 bg-blue-600 text-white rounded-full hover:bg-blue-700 hover:text-white transition-colors">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="p-2 bg-blue-600 text-white rounded-full hover:bg-blue-700 hover:text-white transition-colors"
+                onClick={() => shareToSocial('facebook')}
+              >
                 <Facebook className="w-5 h-5" />
               </Button>
-              <Button variant="ghost" size="icon" className="p-2 bg-blue-800 text-white rounded-full hover:bg-blue-900 hover:text-white transition-colors">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="p-2 bg-blue-800 text-white rounded-full hover:bg-blue-900 hover:text-white transition-colors"
+                onClick={() => shareToSocial('twitter')}
+              >
                 <Twitter className="w-5 h-5" />
               </Button>
             </div>

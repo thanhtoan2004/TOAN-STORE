@@ -86,17 +86,15 @@ export async function GET(request: Request) {
       filters.isNewArrival = true;
     }
 
-    // Get products from database (Now handles search via FTS)
-    let products = await getProducts(filters) as any[];
+    // Get products and total count from database (Optimized)
+    const { items: productsData, total: totalCount } = await getProducts(filters);
 
     // Convert string prices to numbers
-    products = products.map(p => ({
+    let products = productsData.map(p => ({
       ...p,
       base_price: p.base_price ? parseFloat(p.base_price) : 0,
       retail_price: p.retail_price ? parseFloat(p.retail_price) : 0
     }));
-
-    // Apply sorting (Now skip manual search filter as it's handled in DB)
 
     // Apply sorting
     products.sort((a, b) => {
@@ -117,7 +115,7 @@ export async function GET(request: Request) {
       }
     });
 
-    const total = products.length;
+    const total = totalCount;
     const totalPages = Math.ceil(total / limit);
 
     const responseData = {

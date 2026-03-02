@@ -14,16 +14,39 @@ export async function initDb() {
         first_name VARCHAR(100),
         last_name VARCHAR(100),
         phone VARCHAR(50),
+        phone_encrypted TEXT,
         date_of_birth DATE,
+        date_of_birth_encrypted TEXT,
         gender ENUM('male', 'female', 'other'),
         is_active TINYINT(1) DEFAULT 1,
         is_verified TINYINT(1) DEFAULT 0,
+        is_encrypted TINYINT(1) DEFAULT 0,
+        membership_tier ENUM('bronze', 'silver', 'gold', 'platinum') DEFAULT 'bronze',
+        accumulated_points INT DEFAULT 0,
+        avatar_url VARCHAR(1000) NULL,
+        google_id VARCHAR(255) NULL UNIQUE,
+        facebook_id VARCHAR(255) NULL UNIQUE,
+        two_factor_enabled TINYINT(1) DEFAULT 0,
+        two_factor_secret VARCHAR(255) NULL,
+        is_banned TINYINT(1) DEFAULT 0,
+        failed_login_attempts INT DEFAULT 0,
+        locked_until TIMESTAMP NULL,
+        email_notifications TINYINT(1) DEFAULT 1,
+        sms_notifications TINYINT(1) DEFAULT 0,
+        push_notifications TINYINT(1) DEFAULT 1,
+        promo_notifications TINYINT(1) DEFAULT 0,
+        order_notifications TINYINT(1) DEFAULT 1,
+        public_profile TINYINT(1) DEFAULT 1,
+        data_persistence TINYINT(1) DEFAULT 1,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
         deleted_at TIMESTAMP NULL DEFAULT NULL,
         INDEX idx_email (email),
-        INDEX idx_deleted_at (deleted_at)
+        INDEX idx_deleted_at (deleted_at),
+        INDEX idx_is_active (is_active),
+        INDEX idx_membership (membership_tier)
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+
     `);
 
     // Migration: Thêm các cột cần thiết cho users nếu chưa có (không dùng IF NOT EXISTS vì version MySQL cũ không hỗ trợ)
@@ -498,6 +521,22 @@ export async function initDb() {
       if (statusCol && !statusCol.Type.includes('pending_payment_confirmation')) {
         await connection.query("ALTER TABLE orders MODIFY COLUMN status ENUM('pending', 'pending_payment_confirmation', 'payment_received', 'confirmed', 'processing', 'shipped', 'delivered', 'cancelled') DEFAULT 'pending'");
       }
+      if (!columnNames.includes('survey_sent')) {
+        await connection.query('ALTER TABLE orders ADD COLUMN survey_sent TINYINT(1) DEFAULT 0');
+      }
+
+      // Migration: Thêm Index cho các cột thường xuyên query/filter để tránh delay
+      if (!columnNames.includes('idx_placed_at')) {
+        try { await connection.query('ALTER TABLE orders ADD INDEX idx_placed_at (placed_at)'); } catch (e) { }
+      }
+
+      try {
+        const [uCols]: any = await connection.query('SHOW COLUMNS FROM users');
+        const uColNames = uCols.map((col: any) => col.Field);
+        if (!uColNames.includes('idx_created_at')) {
+          await connection.query('ALTER TABLE users ADD INDEX idx_created_at (created_at)');
+        }
+      } catch (e) { }
 
     } catch (e) {
       console.log('Error adding columns to orders:', e);
@@ -1293,6 +1332,8 @@ export async function initDb() {
         access_token VARCHAR(255) NULL,
         assigned_admin_id BIGINT UNSIGNED NULL,
         last_message_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        first_response_at TIMESTAMP NULL,
+        sla_breached BOOLEAN DEFAULT FALSE,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
         FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL,
@@ -1324,6 +1365,12 @@ export async function initDb() {
         console.log('Adding access_token column to support_chats table...');
         await connection.query('ALTER TABLE support_chats ADD COLUMN access_token VARCHAR(255) NULL AFTER status');
         await connection.query('ALTER TABLE support_chats ADD INDEX idx_access_token (access_token)');
+      }
+      if (!columnNames.includes('first_response_at')) {
+        await connection.query('ALTER TABLE support_chats ADD COLUMN first_response_at TIMESTAMP NULL AFTER last_message_at');
+      }
+      if (!columnNames.includes('sla_breached')) {
+        await connection.query('ALTER TABLE support_chats ADD COLUMN sla_breached BOOLEAN DEFAULT FALSE AFTER first_response_at');
       }
     } catch (e) {
       console.log('Error migrating support_chats table:', e);

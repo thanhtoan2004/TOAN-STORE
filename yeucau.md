@@ -298,7 +298,7 @@ Order Review & Confirmation
 298: ✅ Order tracking link
 299: ✅ Print invoice/receipt (Professional 2-page layout)
 300: ✅ Add to calendar reminder
-301: ✅ Share order với người khác
+301: ✅ Share order (FB, TW, etc.)người khác
 
 
 📦 ORDER MANAGEMENT (35 yêu cầu)
@@ -514,7 +514,7 @@ Search Functionality
 514: ✅ Trending searches
 515: ✅ Popular searches
 516: ✅ Search analytics tracking
-Voice search (Web Speech API)
+517: ✅ Voice search (Web Speech API)
 Image search (upload ảnh tìm sản phẩm tương tự)
 
 Product Discovery
@@ -583,7 +583,7 @@ In-App Notifications
 ✅ Order status updates
 ✅ Payment confirmations
 ✅ Shipping updates
-Promotion announcements
+584: ✅ Promotion announcements (Voucher/Giftcard notifications)
 New product launches
 ✅ Stock alerts
 ✅ Low inventory warnings (Admin)
@@ -680,13 +680,6 @@ Business Analytics
 680: ✅ Order count chart
 681: ✅ New customers chart
 682: ✅ Conversion rate
-683: ✅ Average order value (AOV)
-684: ✅ Customer lifetime value (CLV)
-685: ✅ Product performance report
-686: ✅ Category performance report
-687: ✅ Best selling products
-688: ✅ Low stock alerts
-689: ✅ Inventory turnover rate
 690: ✅ Sales forecast (next 7 days)
 691: ✅ Profit margin report
 692: ✅ Refund rate

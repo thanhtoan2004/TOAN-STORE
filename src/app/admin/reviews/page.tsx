@@ -17,6 +17,11 @@ interface Review {
   admin_reply?: string;
   status: string;
   created_at: string;
+  media?: {
+    id: number;
+    media_url: string;
+    media_type: 'image' | 'video';
+  }[];
 }
 
 export default function AdminReviewsPage() {
@@ -221,6 +226,30 @@ export default function AdminReviewsPage() {
                           )}
 
                           <p className="mt-2 text-gray-700">{review.comment}</p>
+
+                          {/* Review Media */}
+                          {review.media && review.media.length > 0 && (
+                            <div className="flex gap-2 mt-3 overflow-x-auto pb-2">
+                              {review.media.map((item) => (
+                                <div key={item.id} className="relative w-20 h-20 flex-shrink-0 rounded-md overflow-hidden bg-gray-100 border">
+                                  {item.media_type === 'image' ? (
+                                    <img
+                                      src={item.media_url}
+                                      alt="Review"
+                                      className="w-full h-full object-cover cursor-pointer hover:opacity-80 transition-opacity"
+                                      onClick={() => window.open(item.media_url, '_blank')}
+                                    />
+                                  ) : (
+                                    <video
+                                      src={item.media_url}
+                                      className="w-full h-full object-cover cursor-pointer"
+                                      onClick={() => window.open(item.media_url, '_blank')}
+                                    />
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          )}
 
                           {review.admin_reply && (
                             <div className="mt-3 p-3 bg-blue-50 rounded border border-blue-200">

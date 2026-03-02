@@ -57,6 +57,7 @@ export default function AdminChatDetailPage() {
     const [loading, setLoading] = useState(true);
     const [sending, setSending] = useState(false);
     const [inputValue, setInputValue] = useState('');
+    const [isCustomerTyping, setIsCustomerTyping] = useState(false);
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -69,8 +70,8 @@ export default function AdminChatDetailPage() {
     const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files && e.target.files[0]) {
             const file = e.target.files[0];
-            if (file.size > 5 * 1024 * 1024) { // 5MB limit
-                alert('File quá lớn. Vui lòng chọn file nhỏ hơn 5MB.');
+            if (file.size > 20 * 1024 * 1024) { // 20MB limit
+                alert('File quá lớn. Vui lòng chọn file nhỏ hơn 20MB.');
                 return;
             }
             setSelectedFile(file);
@@ -114,6 +115,11 @@ export default function AdminChatDetailPage() {
 
                 if (msgData.success) {
                     setMessages(msgData.messages);
+                    // Mark as read when opening (Admin marks customer messages)
+                    if (socketRef.current) {
+                        fetch(`/api/support/chat/${chatId}/read`, { method: 'PATCH' });
+                        socketRef.current.emit('mark-read', { chatId });
+                    }
                 }
 
                 // Since we don't have a direct "get single chat" endpoint for admin usage efficiently exposed 
@@ -188,15 +194,38 @@ export default function AdminChatDetailPage() {
                     if (prev.some(m => m.id === data.id)) return prev;
                     return [...prev, data];
                 });
+
+                // If it's a customer message, emit read event
+                if (data.sender_type === 'customer') {
+                    fetch(`/api/support/chat/${chatId}/read`, { method: 'PATCH' });
+                    socketRef.current.emit('mark-read', { chatId });
+                }
             });
 
-            // Additionally, refresh chat details on message to ensure status/assignment sync
             socketRef.current.on('chat-updated', async () => {
                 const res = await fetch(`/api/admin/support/chats/${chatId}`);
                 if (res.ok) {
                     const data = await res.json();
                     if (data.success && data.chat) setChat(data.chat);
                 }
+            });
+
+            socketRef.current.on('user-typing', (data: any) => {
+                if (data.senderType === 'customer') {
+                    setIsCustomerTyping(true);
+                }
+            });
+
+            socketRef.current.on('user-stop-typing', (data: any) => {
+                if (data.senderType === 'customer') {
+                    setIsCustomerTyping(false);
+                }
+            });
+
+            socketRef.current.on('messages-read', () => {
+                setMessages(prev => prev.map(m =>
+                    m.sender_type === 'admin' ? { ...m, is_read: true } : m
+                ));
             });
         };
 
@@ -268,8 +297,29 @@ export default function AdminChatDetailPage() {
             setSelectedFile(fileToSend);
         } finally {
             setSending(false);
+            if (socketRef.current) {
+                socketRef.current.emit('stop-typing', { chatId, senderType: 'admin' });
+            }
         }
     };
+
+    // Typing emission
+    const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+    useEffect(() => {
+        if (!chatId || !inputValue.trim() || !socketRef.current || chat?.assigned_admin_id !== user?.id) return;
+
+        socketRef.current.emit('typing', { chatId, senderType: 'admin' });
+
+        if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+
+        typingTimeoutRef.current = setTimeout(() => {
+            socketRef.current.emit('stop-typing', { chatId, senderType: 'admin' });
+        }, 3000);
+
+        return () => {
+            if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+        };
+    }, [inputValue, chatId, chat?.assigned_admin_id, user?.id]);
 
     const handleAction = async (action: 'assign' | 'resolve') => {
         if (!user) return;
@@ -391,18 +441,58 @@ export default function AdminChatDetailPage() {
                             >
                                 {msg.image_url && (
                                     <div className="mb-2">
-                                        <img
-                                            src={msg.image_url}
-                                            alt="Attachment"
-                                            className="max-w-full rounded-lg max-h-64 object-cover border border-gray-200 bg-white"
-                                        />
+                                        {(msg.image_url.match(/\.(jpeg|jpg|gif|png|webp|svg)/i)) ? (
+                                            <img
+                                                src={msg.image_url}
+                                                alt="Attachment"
+                                                className="max-w-full rounded-lg max-h-64 object-cover border border-gray-200 bg-white cursor-pointer"
+                                                onClick={() => window.open(msg.image_url, '_blank')}
+                                            />
+                                        ) : (
+                                            <a
+                                                href={msg.image_url}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className={`flex items-center gap-2 p-2 rounded-lg border transition-colors ${msg.sender_type === 'admin'
+                                                        ? 'bg-white/10 border-white/20 text-white'
+                                                        : 'bg-gray-50 border-gray-100 text-black'
+                                                    }`}
+                                            >
+                                                <Paperclip size={16} />
+                                                <span className="underline text-xs truncate max-w-[200px]">Xem tệp đính kèm</span>
+                                            </a>
+                                        )}
                                     </div>
                                 )}
                                 {msg.message && <div>{msg.message}</div>}
+                                {msg.sender_type === 'admin' && (
+                                    <div className="flex items-center justify-end gap-1 mt-1">
+                                        {msg.is_read ? (
+                                            <div className="flex -space-x-1" title="Đã xem">
+                                                <CheckCircle2 size={10} className="text-blue-400" />
+                                                <CheckCircle2 size={10} className="text-blue-400" />
+                                            </div>
+                                        ) : (
+                                            <span title="Đã gửi">
+                                                <CheckCircle2 size={10} className="text-white/40" />
+                                            </span>
+                                        )}
+                                    </div>
+                                )}
                             </div>
                         </div>
                     </div>
                 ))}
+                {isCustomerTyping && (
+                    <div className="flex justify-start">
+                        <div className="bg-white border border-gray-200 px-4 py-2 rounded-2xl rounded-tl-sm shadow-sm flex items-center gap-1">
+                            <div className="w-1 h-1 bg-gray-400 rounded-full animate-bounce" />
+                            <div className="w-1 h-1 bg-gray-400 rounded-full animate-bounce [animation-delay:0.2s]" />
+                            <div className="w-1 h-1 bg-gray-400 rounded-full animate-bounce [animation-delay:0.4s]" />
+                            <span className="text-[10px] text-gray-400 ml-1 font-medium italic">Khách đang soạn tin...</span>
+                        </div>
+                    </div>
+                )}
                 <div ref={messagesEndRef} />
             </div>
 
@@ -426,7 +516,7 @@ export default function AdminChatDetailPage() {
                             type="file"
                             ref={fileInputRef}
                             className="hidden"
-                            accept="image/*"
+                            accept="image/*,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
                             onChange={handleFileSelect}
                             disabled={sending || chat.assigned_admin_id !== user?.id}
                         />
