@@ -48,7 +48,6 @@ export async function getProducts(filters: {
 }) {
     let whereClause = `WHERE p.is_active = 1 AND p.deleted_at IS NULL`;
     const params: any[] = [];
-    let joinClause = '';
 
     if (filters.search) {
         whereClause += ' AND MATCH(p.name, p.sku, p.description) AGAINST(?)';

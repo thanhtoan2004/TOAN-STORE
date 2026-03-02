@@ -90,7 +90,7 @@ export async function GET(request: Request) {
     const { items: productsData, total: totalCount } = await getProducts(filters);
 
     // Convert string prices to numbers
-    let products = productsData.map(p => ({
+    const products = productsData.map(p => ({
       ...p,
       base_price: p.base_price ? parseFloat(p.base_price) : 0,
       retail_price: p.retail_price ? parseFloat(p.retail_price) : 0

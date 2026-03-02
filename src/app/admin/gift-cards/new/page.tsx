@@ -118,8 +118,13 @@ export default function NewGiftCardPage() {
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Hết hạn
               </label>
-              required
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent"
+              <input
+                type="date"
+                name="expires_at"
+                value={formData.expires_at}
+                onChange={handleChange}
+                required
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent"
               />
             </div>
             <button
