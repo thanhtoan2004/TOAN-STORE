@@ -2,6 +2,8 @@
  * Common date utilities for TOAN Store
  * Enforces Vietnam timezone (UTC+7) and consistent formatting
  */
+import { formatDistanceToNow } from 'date-fns';
+import { vi } from 'date-fns/locale';
 
 const VIETNAM_TIMEZONE = 'Asia/Ho_Chi_Minh';
 
@@ -90,8 +92,6 @@ export function formatRelativeTime(date: string | Date | null | undefined): stri
     const d = typeof date === 'string' ? new Date(date) : date;
 
     try {
-        const { formatDistanceToNow } = require('date-fns');
-        const { vi } = require('date-fns/locale');
         return formatDistanceToNow(d, { addSuffix: true, locale: vi });
     } catch (e) {
         // Simple fallback if date-fns fails

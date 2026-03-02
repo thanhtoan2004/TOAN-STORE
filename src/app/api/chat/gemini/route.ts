@@ -109,7 +109,7 @@ async function chatHandler(req: NextRequest) {
 
         if (isSearchIntent && lowerMsg.length > 3) {
             // Lọc bỏ các từ thừa để lấy keyword cốt lõi (ví dụ: "giày jordan giá bao nhiêu" -> "giày jordan")
-            let keyword = lowerMsg
+            const keyword = lowerMsg
                 .replace(/(cho xem|mua|tìm|kiếm|giá bao nhiêu|giá sao|giá|thuộc danh mục nào)/gi, '')
                 .replace(/\s+/g, ' ')
                 .trim();
@@ -143,8 +143,8 @@ async function chatHandler(req: NextRequest) {
         let phone = '';
 
         // Phân tích câu nói hiện tại của user xem có chứa Order ID hoặc SĐT không
-        let matchO = lowerMsg.match(/(nk|nike)\d+_\w+/i) || lowerMsg.match(/(nk|nike)\d+/i);
-        let matchP = lowerMsg.match(/\b(0\d{9,10})\b/);
+        const matchO = lowerMsg.match(/(nk|nike)\d+_\w+/i) || lowerMsg.match(/(nk|nike)\d+/i);
+        const matchP = lowerMsg.match(/\b(0\d{9,10})\b/);
 
         if (matchO) orderId = matchO[0].toUpperCase();
         if (matchP) phone = matchP[0];

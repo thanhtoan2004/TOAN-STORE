@@ -27,7 +27,8 @@ async function contactHandler(req: NextRequest): Promise<NextResponse> {
     return createErrorResponse(validation.error, 400);
   }
 
-  let { name, email, subject, message, userId } = body as ContactRequest;
+  const { name, email, subject, message } = body as ContactRequest;
+  let { userId } = body as ContactRequest;
 
   // Security: If user is logged in, use their real ID. 
   // If not logged in but they sent an ID, ignore the ID (prevent spoofing).

@@ -139,7 +139,7 @@ async function postHandler_Legacy(request: NextRequest) {
     // Trường hợp 1: Thêm hàng loạt (Bulk Add - Dùng cho Reorder)
     if (items && Array.isArray(items)) {
       let addedCount = 0;
-      let skippedItems = [];
+      const skippedItems = [];
 
       for (const item of items) {
         const { productId: pId, quantity: qty = 1, size: s } = item;
@@ -334,7 +334,7 @@ export const POST = withRateLimit(async function postHandler(request: NextReques
     // Trường hợp 1: Thêm hàng loạt (Bulk Add - Dùng cho Reorder)
     if (items && Array.isArray(items)) {
       let addedCount = 0;
-      let skippedItems = [];
+      const skippedItems = [];
 
       for (const item of items) {
         const { productId: pId, quantity: qty = 1, size: s } = item;

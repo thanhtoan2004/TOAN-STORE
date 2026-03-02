@@ -15,8 +15,8 @@ export async function GET(request: NextRequest) {
         const page = parseInt(searchParams.get('page') || '1');
         const offset = (page - 1) * limit;
 
-        let whereConditions = ['is_published = 1'];
-        let queryParams: any[] = [];
+        const whereConditions = ['is_published = 1'];
+        const queryParams: any[] = [];
 
         if (category) {
             whereConditions.push('category = ?');

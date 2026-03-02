@@ -2,7 +2,7 @@ import fs from 'fs';
 import path from 'path';
 
 const filePath = 'd:\\nike-clone\\src\\lib\\db\\repositories\\order.ts';
-let content = fs.readFileSync(filePath, 'utf-8');
+const content = fs.readFileSync(filePath, 'utf-8');
 
 const target = `        await connection.commit();
     } catch (error) {

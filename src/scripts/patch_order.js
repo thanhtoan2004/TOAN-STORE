@@ -2,7 +2,7 @@
 const fs = require('fs');
 
 const filePath = 'd:\\nike-clone\\src\\lib\\db\\repositories\\order.ts';
-let content = fs.readFileSync(filePath, 'utf-8');
+const content = fs.readFileSync(filePath, 'utf-8');
 
 const cancelOrderIndex = content.indexOf('export async function cancelOrder');
 

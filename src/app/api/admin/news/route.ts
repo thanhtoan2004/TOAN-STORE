@@ -48,8 +48,8 @@ export async function GET(request: NextRequest) {
 
         const offset = (page - 1) * limit;
 
-        let whereConditions = [];
-        let queryParams: any[] = [];
+        const whereConditions = [];
+        const queryParams: any[] = [];
 
         if (search) {
             whereConditions.push('(title LIKE ? OR excerpt LIKE ?)');

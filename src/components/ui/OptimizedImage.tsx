@@ -10,9 +10,10 @@ interface OptimizedImageProps extends Omit<ImageProps, 'loader'> {
  * Use this instead of next/image for any images hosted on Cloudinary or external sources
  * that we want to optimize via Cloudinary Fetch API (if configured).
  */
-export default function OptimizedImage(props: OptimizedImageProps) {
+export default function OptimizedImage({ alt, ...props }: OptimizedImageProps) {
     return (
         <Image
+            alt={alt}
             {...props}
             loader={cloudinaryLoader}
         />

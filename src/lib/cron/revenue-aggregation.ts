@@ -7,7 +7,7 @@ import { eq, and, sql, gte, lte, count, sum } from 'drizzle-orm';
  */
 export async function aggregateDailyMetrics(startDate: Date, endDate: Date = startDate) {
     const dates = [];
-    let current = new Date(startDate);
+    const current = new Date(startDate);
     current.setHours(0, 0, 0, 0);
 
     const finish = new Date(endDate);

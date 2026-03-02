@@ -44,7 +44,7 @@ export function sanitizeRichContent(input: string): string {
     if (!input) return '';
 
     // First remove dangerous content
-    let clean = input
+    const clean = input
         .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
         .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, '')
         .replace(/<iframe\b[^<]*(?:(?!<\/iframe>)<[^<]*)*<\/iframe>/gi, '')

@@ -29,7 +29,7 @@ export async function GET(request: NextRequest) {
     const offset = (page - 1) * limit;
 
     // Building query with Drizzle
-    let whereClause = eq(products.isActive, status === 'active' ? 1 : 0);
+    const whereClause = eq(products.isActive, status === 'active' ? 1 : 0);
     // Note: Drizzle handles Soft Delete better but for now we follow the existing pattern
     const filters = [sql`${products.deletedAt} IS NULL`];
 

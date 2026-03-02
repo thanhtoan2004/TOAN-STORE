@@ -409,7 +409,7 @@ export async function getOrderByNumber(orderNumber: string) {
         return [];
     }
 
-    let order = orders[0];
+    const order = orders[0];
 
     // Fallback if delivery info is missing from linked address
     if (!order.delivery_address && order.shipping_address_snapshot) {

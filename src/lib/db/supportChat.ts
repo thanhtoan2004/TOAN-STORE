@@ -238,8 +238,8 @@ export async function getAdminChats(filters: {
     const limit = filters.limit || 20;
     const offset = (page - 1) * limit;
 
-    let whereClauses: string[] = [];
-    let params: any[] = [];
+    const whereClauses: string[] = [];
+    const params: any[] = [];
 
     if (filters.status) {
         whereClauses.push('sc.status = ?');

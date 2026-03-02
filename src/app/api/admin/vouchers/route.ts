@@ -217,8 +217,8 @@ export async function PUT(request: NextRequest) {
     }
 
     // Check if new code already exists (including soft-deleted if index is strict)
-    let isRestoringFromDeleted = false;
-    let existingDeletedId = null;
+    const isRestoringFromDeleted = false;
+    const existingDeletedId = null;
     if (code) {
       const existing = await executeQuery(
         `SELECT id, deleted_at FROM vouchers WHERE code = ? AND id != ?`,
