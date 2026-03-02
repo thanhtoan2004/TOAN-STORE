@@ -144,7 +144,7 @@ export default function MembershipTab({
                     <div className="text-left md:text-right bg-black/10 backdrop-blur-sm p-4 rounded-2xl border border-white/10">
                         <p className="text-sm font-medium text-white/80 uppercase tracking-widest">Điểm tích lũy</p>
                         <p className="text-4xl font-black">{currentPoints.toLocaleString('vi-VN')}</p>
-                        <p className="text-xs font-bold text-white/60">NIKE POINTS</p>
+                        <p className="text-xs font-bold text-white/60">TOAN POINTS</p>
                     </div>
                 </div>
 

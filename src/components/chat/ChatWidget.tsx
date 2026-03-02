@@ -159,7 +159,7 @@ export default function ChatWidget() {
         {
             id: 'welcome',
             role: 'model',
-            content: 'Chào bạn! Tôi là trợ lý ảo AI cao cấp của Nike. Tôi có thể giúp bạn tìm sản phẩm, xem hàng mới về hoặc tra cứu trạng thái đơn hàng. Bạn cần giúp gì hôm nay?'
+            content: 'Chào bạn! Tôi là trợ lý ảo AI cao cấp của TOAN Store. Tôi có thể giúp bạn tìm sản phẩm, xem hàng mới về hoặc tra cứu trạng thái đơn hàng. Bạn cần giúp gì hôm nay?'
         }
     ]);
     const [inputValue, setInputValue] = useState('');
@@ -254,7 +254,7 @@ export default function ChatWidget() {
                                     )}
                                 </div>
                                 <div>
-                                    <h3 className="font-black text-xs tracking-tight">NIKE ASSISTANT</h3>
+                                    <h3 className="font-black text-xs tracking-tight">TOAN STORE ASSISTANT</h3>
                                     <p className="text-[9px] text-gray-400 font-medium">Trực tuyến 24/7</p>
                                 </div>
                             </div>

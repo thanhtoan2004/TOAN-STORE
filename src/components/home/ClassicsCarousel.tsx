@@ -108,10 +108,10 @@ const ClassicsCarousel = () => {
     },
   ];
 
-  const fontClass = language === 'vi' ? 'font-bold' : 'font-nike-futura';
+  const fontClass = language === 'vi' ? 'font-bold' : 'font-toan-heading';
 
   return (
-    <section className="nike-container py-10">
+    <section className="toan-container py-10">
       <div className="mb-8">
         <h2 className={`text-2xl ${fontClass} mb-2 uppercase`}>{t.common.product || 'SẢN PHẨM'}</h2>
       </div>

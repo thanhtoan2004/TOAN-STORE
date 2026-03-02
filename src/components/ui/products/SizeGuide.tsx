@@ -49,7 +49,7 @@ export default function SizeGuide({ isOpen, onClose }: SizeGuideProps) {
             <div className="bg-white rounded-2xl w-full max-w-2xl relative shadow-2xl animate-in fade-in zoom-in duration-300 max-h-[90vh] flex flex-col">
                 {/* Header */}
                 <div className="flex items-center justify-between p-6 border-b">
-                    <h2 className="text-2xl font-nike-futura font-bold uppercase">Bảng quy đổi kích cỡ Nike</h2>
+                    <h2 className="text-2xl font-toan-heading font-bold uppercase">Bảng quy đổi kích cỡ Nike</h2>
                     <button
                         onClick={onClose}
                         className="p-2 hover:bg-gray-100 rounded-full transition-colors"

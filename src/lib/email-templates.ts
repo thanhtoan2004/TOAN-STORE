@@ -122,8 +122,8 @@ export async function sendOrderConfirmationEmail(details: OrderDetails) {
           <div class="note-box" style="margin-top: 30px;">
             <p class="note-title">Cần hỗ trợ?</p>
             <p style="margin: 0; color: #666; font-size: 14px;">
-              Liên hệ với chúng tôi qua email: support@nikeclone.com<br>
-              Hoặc gọi: 1900-xxxx (8:00 - 22:00 hàng ngày)
+              Liên hệ với chúng tôi qua email: support@toanstore.com<br>
+              Hoặc gọi: 1900-xxxx (8:01 - 22:00 hàng ngày)
             </p>
           </div>
   `;

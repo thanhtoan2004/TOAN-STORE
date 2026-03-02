@@ -1,10 +1,10 @@
 openapi: 3.0.3
 info:
-  title: TOAN Store E-commerce API
+  title: TOAN Store API
   description: |
-    API documentation for TOAN Store E-commerce platform.
+    TOAN Store E-commerce System API Documentation (Vietnam Context)
     
-    **Authentication**: JWT via HTTP-Only Cookies (`nike_auth_session` / `nike_admin_session`)  
+    **Authentication**: JWT via HTTP-Only Cookies (`toan_auth_session` / `toan_admin_session`)  
     **Rate Limiting**: Redis-backed sliding window, Fail-Closed for sensitive endpoints.
   version: 2.5.0
   contact:
@@ -526,11 +526,11 @@ components:
     cookieAuth:
       type: apiKey
       in: cookie
-      name: nike_auth_session
+      name: toan_auth_session
     adminCookieAuth:
       type: apiKey
       in: cookie
-      name: nike_admin_session
+      name: toan_admin_session
     bearerAuth:
       type: http
       scheme: bearer

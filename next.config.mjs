@@ -52,8 +52,8 @@ export default withSentryConfig(
 
     // Suppresses source map uploading logs during bundling
     silent: true,
-    org: 'nike-clone',
-    project: 'nike-clone',
+    org: 'toan-store',
+    project: 'toan-store',
   },
   {
     // For all available options, see:

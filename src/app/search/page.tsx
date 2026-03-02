@@ -34,7 +34,7 @@ function SearchContent() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="nike-container py-12">
+      <div className="toan-container py-12">
         <div className="max-w-6xl mx-auto">
           <h1 className="text-4xl font-bold mb-6">Tìm Kiếm</h1>
 

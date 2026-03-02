@@ -26,7 +26,7 @@ export default function WomenClothingPage() {
     <div className="min-h-screen bg-white">
       {/* Header */}
       <div className="bg-white border-b">
-        <div className="nike-container py-8">
+        <div className="toan-container py-8">
           <nav className="text-sm text-gray-600 mb-4">
             <Link href="/" className="hover:text-black">Trang chủ</Link>
             <span className="mx-2">/</span>
@@ -39,7 +39,7 @@ export default function WomenClothingPage() {
         </div>
       </div>
 
-      <div className="nike-container py-8">
+      <div className="toan-container py-8">
         <div className="flex flex-col lg:flex-row gap-8">
           <aside className="w-full lg:w-64 flex-shrink-0">
             <ProductFilter

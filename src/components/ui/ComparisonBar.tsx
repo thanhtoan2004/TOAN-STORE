@@ -23,7 +23,7 @@ export default function ComparisonBar() {
                 exit={{ y: 80, opacity: 0 }}
                 className="fixed bottom-16 md:bottom-0 left-0 right-0 z-[9997] bg-white border-t border-gray-200 shadow-2xl"
             >
-                <div className="nike-container py-3">
+                <div className="toan-container py-3">
                     <div className="flex items-center gap-4">
                         {/* Product thumbnails */}
                         <div className="flex items-center gap-2 flex-1 overflow-x-auto">

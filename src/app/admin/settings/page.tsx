@@ -20,7 +20,7 @@ interface Settings {
 export default function SettingsPage() {
   const [settings, setSettings] = useState<Settings>({
     store_name: 'TOAN Store',
-    store_email: 'admin@nike-clone.com',
+    store_email: 'admin@toanstore.com',
     store_phone: '0123456789',
     store_address: '123 Main Street',
     store_city: 'Hanoi',

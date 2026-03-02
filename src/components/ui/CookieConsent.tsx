@@ -6,7 +6,7 @@ import { Cookie, X, Settings } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
 import Link from 'next/link';
 
-const COOKIE_CONSENT_KEY = 'nike_cookie_consent';
+const COOKIE_CONSENT_KEY = 'toan_cookie_consent';
 
 interface CookiePreferences {
     necessary: boolean;

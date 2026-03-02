@@ -5,8 +5,8 @@ import { Type, Eye, Minus, Plus, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useLanguage } from '@/contexts/LanguageContext';
 
-const FONT_SIZE_KEY = 'nike_font_size';
-const REDUCE_MOTION_KEY = 'nike_reduce_motion';
+const FONT_SIZE_KEY = 'toan_font_size';
+const REDUCE_MOTION_KEY = 'toan_reduce_motion';
 const HIGH_CONTRAST_KEY = 'highContrast';
 const COLOR_BLIND_KEY = 'colorBlindFriendly';
 

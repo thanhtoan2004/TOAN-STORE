@@ -1,6 +1,6 @@
 {
     "info": {
-        "_postman_id": "nike-clone-api-perfect-coverage",
+        "_postman_id": "toan-store-api-perfect-coverage",
         "name": "TOAN Store API - Full Audited (105+ Routes)",
         "description": "Bộ sưu tập API hoàn chỉnh đã trải qua Full Security & Business Logic Audit (14 fixes applied).\n\n105+ API routes bao gồm:\n- Auth & User (JWT, OAuth, Refresh Token)\n- Shop & Products (CRUD, Search, Variants)\n- Cart & Orders (State Machine, Stock Management)\n- Payment (VNPay/MoMo IPN with Idempotency)\n- Admin (Full CRUD for all entities)\n- Support & CRON Jobs\n\nSecurity: Input Validation, XSS Sanitization, JWT Verification, Rate Limiting, AES-256-GCM Encryption.",
         "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
@@ -71,7 +71,7 @@
                                 "method": "POST",
                                 "body": {
                                     "mode": "raw",
-                                    "raw": "{\n    \"email\": \"admin@nike.com\",\n    \"password\": \"admin123\"\n}",
+                                    "raw": "{\n    \"email\": \"admin@toanstore.com\",\n    \"password\": \"admin123\"\n}",
                                     "options": {
                                         "raw": {
                                             "language": "json"

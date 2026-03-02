@@ -4,44 +4,44 @@ services:
   # MySQL Database
   db:
     image: mysql:8.0
-    container_name: nike-mysql
+    container_name: toan-store-db
     restart: always
     environment:
       MYSQL_ALLOW_EMPTY_PASSWORD: "yes"
-      MYSQL_DATABASE: nike_clone
+      MYSQL_DATABASE: toan_store
     ports:
       - "3307:3306" # Tránh xung đột với MySQL cài sẵn (cổng 3306)
     volumes:
       - mysql_data:/var/lib/mysql
     networks:
-      - nike-network
+      - toan-network
 
   # Redis for Caching and Background Jobs
   redis:
     image: redis:alpine
-    container_name: nike-redis
+    container_name: toan-store-redis
     ports:
       - "6379:6379"
     volumes:
       - redis_data:/data
     restart: always
     networks:
-      - nike-network
+      - toan-network
 
   # MailHog for Local Email Testing
   mailhog:
     image: mailhog/mailhog
-    container_name: nike-mailhog
+    container_name: toan-store-mailhog
     ports:
       - "1025:1025" # SMTP server
       - "8025:8025" # Web UI
     networks:
-      - nike-network
+      - toan-network
 
   # Meilisearch for Advanced Search
   meilisearch:
     image: getmeili/meilisearch:v1.10
-    container_name: nike-meilisearch
+    container_name: toan-store-meilisearch
     environment:
       - MEILI_MASTER_KEY=masterKey # Change in production
     ports:
@@ -50,11 +50,11 @@ services:
       - meili_data:/meili_data
     restart: always
     networks:
-      - nike-network
+      - toan-network
 
 # Define networks
 networks:
-  nike-network:
+  toan-network:
     driver: bridge
 
 # Define persistent volumes

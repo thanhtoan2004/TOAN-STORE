@@ -107,7 +107,7 @@ function SignInContent() {
   };
 
   return (
-    <div className="nike-container py-10">
+    <div className="toan-container py-10">
       <div className="max-w-md mx-auto bg-white p-8 rounded-lg shadow-sm border">
         <div className="mb-8 text-center">
           <h1 className="text-3xl font-bold uppercase mb-2">{t.auth.sign_in}</h1>
@@ -297,7 +297,7 @@ function SignInContent() {
 
 export default function SignInPage() {
   return (
-    <Suspense fallback={<div className="nike-container py-10">Loading...</div>}>
+    <Suspense fallback={<div className="toan-container py-10">Loading...</div>}>
       <SignInContent />
     </Suspense>
   );

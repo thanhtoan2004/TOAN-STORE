@@ -43,7 +43,7 @@ export function ComparisonProvider({ children }: { children: ReactNode }) {
      */
     useEffect(() => {
         try {
-            const saved = localStorage.getItem('nike_compare_list');
+            const saved = localStorage.getItem('toan_compare_list');
             if (saved) {
                 setItems(JSON.parse(saved));
             }
@@ -61,7 +61,7 @@ export function ComparisonProvider({ children }: { children: ReactNode }) {
     useEffect(() => {
         if (isLoaded) {
             try {
-                localStorage.setItem('nike_compare_list', JSON.stringify(items));
+                localStorage.setItem('toan_compare_list', JSON.stringify(items));
             } catch (error) {
                 console.error('Lỗi khi lưu danh sách so sánh vào localStorage:', error);
             }

@@ -89,7 +89,7 @@ const seeds: SeedTable[] = [
         name: 'admin_users',
         check: 'SELECT COUNT(*) as count FROM admin_users',
         data: `INSERT INTO admin_users (username, email, password, full_name, role) VALUES
-            ('admin', 'admin@nike.com', '$2b$10$CTpJGqihD7OewkHcHf8rXuvQ/uLWlC3Imm6AoMpIv06db78INhiWi', 'System Administrator', 'super_admin')
+            ('admin', 'admin@toanstore.com', '$2b$10$CTpJGqihD7OewkHcHf8rXuvQ/uLWlC3Imm6AoMpIv06db78INhiWi', 'System Administrator', 'super_admin')
         ON DUPLICATE KEY UPDATE username = VALUES(username)`
     },
 

@@ -102,7 +102,7 @@ export default function CartPage() {
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <div className="bg-white border-b">
-        <div className="nike-container py-8">
+        <div className="toan-container py-8">
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-3xl font-bold mb-2">{t.cart.bag}</h1>
@@ -120,7 +120,7 @@ export default function CartPage() {
         </div>
       </div>
 
-      <div className="nike-container py-8">
+      <div className="toan-container py-8">
         {cartItems.length === 0 ? (
           // Empty Cart
           <div className="text-center py-16">

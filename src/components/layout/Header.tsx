@@ -57,7 +57,7 @@ const Header = () => {
     <header className="w-full bg-white">
       {/* Top mini-nav: Thanh điều hướng phụ phía trên cùng (Ẩn trên mobile vì đã có BottomNavBar) */}
       <div className="bg-[#f5f5f5] py-2 hidden md:block">
-        <div className="nike-container flex justify-between items-center text-xs">
+        <div className="toan-container flex justify-between items-center text-xs">
 
           {/* Logo các thương hiệu con (Jordan, Converse) */}
           <div className="flex space-x-1.5">
@@ -143,7 +143,7 @@ const Header = () => {
       </div>
 
       {/* Main navigation: Khu vực menu chính (Logo, Links, Icons) */}
-      <div className="nike-container py-4">
+      <div className="toan-container py-4">
         <div className="flex items-center justify-between">
 
           {/* Logo chính của ứng dụng */}
@@ -206,7 +206,7 @@ const Header = () => {
       </div>
 
       {/* Nút mở Menu trên nền tảng Mobile (Chỉ hiện trên màn hình nhỏ) */}
-      <div className="md:hidden nike-container pb-2 flex items-center justify-between text-black">
+      <div className="md:hidden toan-container pb-2 flex items-center justify-between text-black">
         <button
           onClick={() => setIsMobileMenuOpen(true)}
           className="flex items-center space-x-1 text-sm hover:opacity-70 transition-opacity"

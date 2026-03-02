@@ -4,7 +4,7 @@ import { Target, Lightbulb, Recycle, Sun, RefreshCcw, Package, Flag, Check } fro
 export default function SustainabilityPage() {
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="nike-container py-12">
+      <div className="toan-container py-12">
         <div className="max-w-4xl mx-auto">
           <h1 className="text-4xl font-bold mb-6">Tính Bền Vững</h1>
 

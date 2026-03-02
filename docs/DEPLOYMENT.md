@@ -20,7 +20,7 @@ Hướng dẫn triển khai TOAN Store E-commerce trên các môi trường khá
 ### 1. Clone & Install
 ```bash
 git clone <repo-url>
-cd nike-clone
+cd toan-store
 npm install
 ```
 
@@ -30,7 +30,7 @@ npm run infra:up
 # Hoặc thủ công: docker-compose up -d
 ```
 Khởi động:
-- **MySQL** — `localhost:3307` (user: root, pass: root, db: nike_clone)
+- **MySQL** — `localhost:3307` (user: root, pass: root, db: toan_store)
 - **Redis** — `localhost:6379`
 - **MailHog** — SMTP `localhost:1025`, Web UI `localhost:8025`
 
@@ -45,7 +45,7 @@ DB_HOST=localhost
 DB_PORT=3307
 DB_USER=root
 DB_PASSWORD=root
-DB_NAME=nike_clone
+DB_NAME=toan_store
 
 # Security
 JWT_SECRET=your_local_dev_secret
@@ -84,9 +84,9 @@ NODE_ENV=production
 # Database (sử dụng connection pooling)
 DB_HOST=your-mysql-host
 DB_PORT=3306
-DB_USER=nike_app
+DB_USER=toan_app
 DB_PASSWORD=<strong_password>
-DB_NAME=nike_clone
+DB_NAME=toan_store
 
 # Security (BẮT BUỘC - sẽ crash nếu thiếu)
 JWT_SECRET=<random_64_char_string>
@@ -169,7 +169,7 @@ services:
     image: mysql:8.0
     environment:
       MYSQL_ROOT_PASSWORD: "${DB_PASSWORD}"
-      MYSQL_DATABASE: nike_clone
+      MYSQL_DATABASE: toan_store
     volumes:
       - mysql_data:/var/lib/mysql
     ports:
@@ -215,13 +215,13 @@ sudo apt install docker.io docker-compose
 
 # Clone & setup
 git clone <repo>
-cd nike-clone
+cd toan-store
 npm install
 npm run build
 
 # Start with PM2
 npm install -g pm2
-pm2 start npm --name "nike-clone" -- start
+pm2 start npm --name "toan-store" -- start
 pm2 startup
 pm2 save
 ```

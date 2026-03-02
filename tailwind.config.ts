@@ -41,9 +41,9 @@ export default {
         popover: { DEFAULT: 'hsl(var(--popover))', foreground: 'hsl(var(--popover-foreground))' },
         card: { DEFAULT: 'hsl(var(--card))', foreground: 'hsl(var(--card-foreground))' },
         // Nike brand
-        'nike-black': '#111111',
-        'nike-gray': '#757575',
-        'nike-light-gray': '#f5f5f5',
+        'toan-black': '#111111',
+        'toan-gray': '#757575',
+        'toan-light-gray': '#f5f5f5',
       },
       borderRadius: {
         lg: 'var(--radius)',
@@ -63,7 +63,7 @@ export default {
         'shimmer': 'shimmer 2s infinite',
       },
       fontFamily: {
-        'nike-futura': ['Nike Futura', 'sans-serif'],
+        'toan-heading': ['Nike Futura', 'sans-serif'],
         'helvetica': ['HelveticaNowText', 'sans-serif'],
         'helvetica-medium': ['HelveticaNowTextMedium', 'sans-serif'],
         'helvetica-display': ['HelveticaNowDisplayMedium', 'sans-serif'],

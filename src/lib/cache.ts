@@ -1,6 +1,6 @@
 import { getRedisConnection } from './redis';
 
-const CACHE_PREFIX = 'nike:';
+const CACHE_PREFIX = 'toan:';
 const DEFAULT_TTL = 3600; // 1 hour in seconds
 
 /**

@@ -1,7 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 
-const filePath = 'd:\\nike-clone\\src\\lib\\db\\repositories\\order.ts';
+const filePath = 'd:\\TOAN STORE\\src\\lib\\db\\repositories\\order.ts';
 const content = fs.readFileSync(filePath, 'utf-8');
 
 const target = `        await connection.commit();

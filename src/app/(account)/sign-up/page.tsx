@@ -55,7 +55,7 @@ export default function SignupPage() {
   };
 
   return (
-    <div className="nike-container py-10">
+    <div className="toan-container py-10">
       <div className="max-w-md mx-auto bg-white p-8 rounded-lg shadow-sm border">
         <div className="mb-8 text-center">
           <h1 className="text-3xl font-bold uppercase mb-2">{t.auth.create_account}</h1>

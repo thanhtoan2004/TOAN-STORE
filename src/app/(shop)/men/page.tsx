@@ -197,7 +197,7 @@ interface CategoryGridProps {
 const CategoryGrid: React.FC<CategoryGridProps> = ({ categories }) => {
   const { t } = useLanguage();
   return (
-    <section className="nike-container py-16">
+    <section className="toan-container py-16">
       <h2 className="text-3xl font-bold mb-8 text-center">
         {t.hub.shop_by_category}
       </h2>
@@ -231,7 +231,7 @@ const FeaturedCollections: React.FC<FeaturedCollectionsProps> = ({
 }) => {
   const { t } = useLanguage();
   return (
-    <section className="nike-container py-16">
+    <section className="toan-container py-16">
       <h2 className="text-3xl font-bold mb-12 text-center">
         {t.hub.featured_collections}
       </h2>
@@ -310,7 +310,7 @@ interface AthleteSectionProps {
 const AthleteSection: React.FC<AthleteSectionProps> = ({ athletes, isMounted }) => {
   const { t } = useLanguage();
   return (
-    <section className="nike-container py-12 border-t border-gray-200">
+    <section className="toan-container py-12 border-t border-gray-200">
       <h2 className="text-2xl font-bold mb-8">
         {t.hub.style_by_athletes}
       </h2>

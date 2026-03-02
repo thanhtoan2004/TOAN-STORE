@@ -19,7 +19,7 @@ const HeroSection = () => {
     setIsMounted(true);
   }, []);
 
-  const fontClass = language === 'vi' ? 'font-bold' : 'font-nike-futura';
+  const fontClass = language === 'vi' ? 'font-bold' : 'font-toan-heading';
 
   return (
 
@@ -31,7 +31,7 @@ const HeroSection = () => {
         {isMounted && (
           <Image
             src={imageService.getUrl("https://images.unsplash.com/photo-1541339907198-e08759dfc3ef?w=1920&q=80", { preset: 'HERO_BANNER' })}
-            alt="Sophia Smith - Nike athlete"
+            alt="Sophia Smith - TOAN Store athlete"
             fill
             className="object-cover"
             priority
@@ -50,7 +50,7 @@ const HeroSection = () => {
       </div>
 
       {/* Text content */}
-      <div className="nike-container py-8 md:py-12 flex flex-col items-center">
+      <div className="toan-container py-8 md:py-12 flex flex-col items-center">
         <div className="text-center max-w-3xl mx-auto">
           <p className="text-sm font-helvetica-medium mb-2">Sophia Smith</p>
           <h1 className={`text-5xl md:text-6xl ${fontClass} uppercase tracking-tighter mb-4`}>

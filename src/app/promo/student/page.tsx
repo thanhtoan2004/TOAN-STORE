@@ -34,7 +34,7 @@ export default function StudentPromoPage() {
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8 }}
-          className="relative nike-container h-full flex flex-col justify-center items-center text-center px-4"
+          className="relative toan-container h-full flex flex-col justify-center items-center text-center px-4"
         >
           <motion.div
             initial={{ scale: 0 }}
@@ -64,7 +64,7 @@ export default function StudentPromoPage() {
       </div>
 
       {/* Benefits Section */}
-      <div className="nike-container py-12 md:py-20">
+      <div className="toan-container py-12 md:py-20">
         <div className="max-w-4xl mx-auto">
           <motion.h2
             initial={{ opacity: 0, y: 20 }}

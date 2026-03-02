@@ -461,7 +461,7 @@ export default function AccountSettings() {
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `nike_personal_data_${user?.id}.json`;
+        a.download = `toan_personal_data_${user?.id}.json`;
         document.body.appendChild(a);
         a.click();
         window.URL.revokeObjectURL(url);

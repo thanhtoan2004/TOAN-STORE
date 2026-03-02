@@ -41,12 +41,12 @@ services:
     container_name: toan-store-db
     restart: always
     environment:
-      MYSQL_DATABASE: nike_clone
+      MYSQL_DATABASE: toan_store
       MYSQL_ROOT_PASSWORD: YourSecretPassword
     volumes:
       - db_data:/var/lib/mysql
     networks:
-      - nike-network
+      - toan-network
 
   # 2. Redis Cache
   redis:
@@ -54,7 +54,7 @@ services:
     container_name: toan-store-redis
     restart: always
     networks:
-      - nike-network
+      - toan-network
 
   # 3. Meilisearch (Tìm kiếm)
   meilisearch:
@@ -64,7 +64,7 @@ services:
     environment:
       - MEILI_MASTER_KEY=YourMasterKey
     networks:
-      - nike-network
+      - toan-network
 
   # 4. Ứng dụng Next.js
   app:
@@ -72,7 +72,7 @@ services:
     container_name: toan-store-app
     restart: always
     environment:
-      - DATABASE_URL=mysql://root:YourSecretPassword@db:3306/nike_clone
+      - DATABASE_URL=mysql://root:YourSecretPassword@db:3306/toan_store
       - REDIS_URL=redis://redis:6379
       - MEILI_HOST=http://meilisearch:7700
       - NEXT_PUBLIC_SOCKET_URL=https://yourdomain.com
@@ -83,10 +83,10 @@ services:
       - redis
       - meilisearch
     networks:
-      - nike-network
+      - toan-network
 
 networks:
-  nike-network:
+  toan-network:
     driver: bridge
 
 volumes:

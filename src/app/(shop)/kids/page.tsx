@@ -122,7 +122,7 @@ export default function KidsPage() {
             </div>
 
             {/* Shop by Category */}
-            <section className="nike-container py-16">
+            <section className="toan-container py-16">
                 <h2 className="text-3xl font-bold mb-8 text-center">
                     {t.hub.shop_by_category}
                 </h2>
@@ -144,7 +144,7 @@ export default function KidsPage() {
             </section>
 
             {/* Featured Collections */}
-            <section className="nike-container py-16 border-t border-gray-100">
+            <section className="toan-container py-16 border-t border-gray-100">
                 <h2 className="text-3xl font-bold mb-12 text-center">
                     {t.hub.featured_collections}
                 </h2>

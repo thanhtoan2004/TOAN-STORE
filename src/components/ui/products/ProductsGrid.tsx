@@ -202,7 +202,7 @@ const ProductsGrid = ({
   const toggleScrollMode = useCallback(() => {
     setInfiniteScroll(prev => {
       const next = !prev;
-      localStorage.setItem('nike_scroll_mode', next ? 'infinite' : 'pagination');
+      localStorage.setItem('toan_scroll_mode', next ? 'infinite' : 'pagination');
       // Reset to page 1 when switching modes
       fetchProducts(1, sortOrder);
       return next;
@@ -211,7 +211,7 @@ const ProductsGrid = ({
 
   // Load preference from localStorage
   useEffect(() => {
-    const saved = localStorage.getItem('nike_scroll_mode');
+    const saved = localStorage.getItem('toan_scroll_mode');
     if (saved === 'infinite') setInfiniteScroll(true);
   }, []);
 

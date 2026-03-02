@@ -4,7 +4,7 @@ import { Leaf, HardHat, Heart, BarChart, Check } from 'lucide-react';
 export default function CorporateSocialResponsibilityPage() {
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="nike-container py-12">
+      <div className="toan-container py-12">
         <div className="max-w-4xl mx-auto">
           <h1 className="text-4xl font-bold mb-6">Cam Kết Trách Nhiệm Xã Hội</h1>
           <p className="text-lg text-gray-600 mb-8">

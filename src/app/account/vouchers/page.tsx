@@ -136,7 +136,7 @@ export default function UserVouchersPage() {
                                                 </span>
                                             </div>
                                             <p className="text-gray-500 text-sm mb-6 leading-relaxed">
-                                                Sử dụng mã này tại trang thanh toán để nhận ngay ưu đãi khi mua sắm tại Nike.
+                                                Sử dụng mã này tại trang thanh toán để nhận ngay ưu đãi khi mua sắm tại TOAN Store.
                                             </p>
                                         </div>
 

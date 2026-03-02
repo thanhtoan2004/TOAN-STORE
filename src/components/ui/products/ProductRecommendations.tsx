@@ -57,7 +57,7 @@ export default function ProductRecommendations({ currentProductId }: ProductReco
 
     if (loading || products.length === 0) return null;
 
-    const fontClass = language === 'vi' ? 'font-bold' : 'font-nike-futura';
+    const fontClass = language === 'vi' ? 'font-bold' : 'font-toan-heading';
 
     return (
         <section className="py-12 border-t">

@@ -177,7 +177,7 @@ export default function TransactionsPage() {
         <div className="min-h-screen bg-gray-50">
             {/* Header */}
             <div className="bg-white border-b">
-                <div className="nike-container py-8">
+                <div className="toan-container py-8">
                     <div className="flex items-center justify-between">
                         <div>
                             <h1 className="text-3xl font-bold mb-1">
@@ -203,7 +203,7 @@ export default function TransactionsPage() {
                 </div>
             </div>
 
-            <div className="nike-container py-6">
+            <div className="toan-container py-6">
                 {/* Filter Tabs */}
                 <div className="flex gap-2 overflow-x-auto pb-4 mb-6 scrollbar-hide">
                     {TYPE_TABS.map(tab => {

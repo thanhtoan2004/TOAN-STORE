@@ -24,7 +24,7 @@
 
 //     try {
 //         const info = await transporter.sendMail({
-//             from: process.env.SMTP_FROM || '"TOAN Store" <no-reply@nikeclone.com>',
+//             from: process.env.SMTP_FROM || '"TOAN Store" <no-reply@toanstore.com>',
 //             to: 'duongtrunghieu062016@gmail.com',
 //             subject: 'Test Email từ DẶNG THANH TOÀN',
 //             html: '<h1>Thành công!</h1><p>Hệ thống email của ĐẶNG THANH TOÀN đã được liên kết chính xác với Google SMTP.</p>',

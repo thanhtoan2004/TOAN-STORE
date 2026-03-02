@@ -15,7 +15,7 @@ const dbPassword = process.env.DB_PASSWORD && process.env.DB_PASSWORD.trim() !==
 const poolConfig: any = {
     host: process.env.DB_HOST || 'localhost',
     user: process.env.DB_USER || 'root',
-    database: process.env.DB_NAME || 'nike_clone',
+    database: process.env.DB_NAME || 'toan_store',
     port: Number(process.env.DB_PORT) || 3306,
     waitForConnections: true,
     connectionLimit: 10,

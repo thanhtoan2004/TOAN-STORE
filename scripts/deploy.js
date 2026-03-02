@@ -48,7 +48,7 @@ async function deploy() {
 
         const duration = ((Date.now() - startTime) / 1000).toFixed(2);
         console.log(`\n🎉 Deployment Ready! (Took ${duration}s)`);
-        console.log('👉 You can now restart your server (e.g., pm2 restart nike-clone)');
+        console.log('👉 You can now restart your server (e.g., pm2 restart toanstore)');
 
     } catch (err) {
         console.error('\n❌ Unexpected Deployment Error:', err);

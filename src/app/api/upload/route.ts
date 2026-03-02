@@ -53,7 +53,7 @@ export async function POST(request: NextRequest) {
 
         // 4. Upload to Cloudinary with metadata
         const resourceType = file.type.startsWith('video/') ? 'video' : 'image';
-        const folder = resourceType === 'video' ? 'nike-clone/videos' : 'nike-clone/products';
+        const folder = resourceType === 'video' ? 'toan-store/videos' : 'toan-store/products';
 
         const result = await uploadImage(base64Image, folder);
 

@@ -118,31 +118,17 @@ export default function NewGiftCardPage() {
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Hết hạn
               </label>
-              <input
-                type="datetime-local"
-                name="expires_at"
-                value={formData.expires_at}
-                onChange={handleChange}
-                required
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent"
+              required
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent"
               />
             </div>
-
-            <div className="flex gap-2 pt-4">
-              <button
-                type="submit"
-                disabled={loading}
-                className="px-6 py-2 bg-black text-white rounded hover:bg-gray-800 disabled:opacity-50"
-              >
-                {loading ? 'Đang lưu...' : 'Tạo Gift Card'}
-              </button>
-              <Link
-                href="/admin/gift-cards"
-                className="px-6 py-2 border border-gray-300 rounded hover:bg-gray-50"
-              >
-                Hủy
-              </Link>
-            </div>
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full bg-black text-white py-3 rounded-lg font-bold hover:bg-gray-900 transition disabled:bg-gray-400"
+            >
+              {loading ? 'Đang xử lý...' : 'Tạo Thẻ'}
+            </button>
           </form>
         </div>
       </div>

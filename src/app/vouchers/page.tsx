@@ -110,7 +110,7 @@ export default function VouchersPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="bg-white border-b">
-        <div className="nike-container py-8">
+        <div className="toan-container py-8">
           <h1 className="text-4xl font-bold mb-2">Mã Giảm Giá</h1>
           <p className="text-gray-600 mb-4">Khám phá các ưu đãi đặc biệt dành cho bạn</p>
 
@@ -139,7 +139,7 @@ export default function VouchersPage() {
         </div>
       </div>
 
-      <div className="nike-container py-8">
+      <div className="toan-container py-8">
         {activeTab === 'list' ? (
           <>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

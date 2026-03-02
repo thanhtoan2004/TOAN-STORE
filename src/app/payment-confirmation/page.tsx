@@ -99,7 +99,7 @@ export default function PaymentConfirmationPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="nike-container py-12">
+      <div className="toan-container py-12">
         <div className="max-w-2xl mx-auto">
           <Link href="/help" className="text-gray-600 hover:text-black mb-4 inline-block">
             ← Quay lại Trung Tâm Trợ Giúp

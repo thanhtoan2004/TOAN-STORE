@@ -405,7 +405,7 @@ export default function LiveSupportChat({ userId, guestEmail, guestName }: LiveS
                             {msg.sender_type === 'admin' && (
                                 <div className="flex items-center gap-1 mb-1 text-[10px] text-gray-500 font-bold uppercase">
                                     <User size={10} />
-                                    <span>{msg.sender_first_name || 'NIKE SUPPORT'} {msg.sender_last_name || ''} • {new Date(msg.created_at).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}</span>
+                                    <span>{msg.sender_first_name || 'TOAN STORE SUPPORT'} {msg.sender_last_name || ''} • {new Date(msg.created_at).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}</span>
                                 </div>
                             )}
                             {msg.image_url && (
@@ -455,7 +455,7 @@ export default function LiveSupportChat({ userId, guestEmail, guestName }: LiveS
                             <div className="w-1 h-1 bg-gray-400 rounded-full animate-bounce" />
                             <div className="w-1 h-1 bg-gray-400 rounded-full animate-bounce [animation-delay:0.2s]" />
                             <div className="w-1 h-1 bg-gray-400 rounded-full animate-bounce [animation-delay:0.4s]" />
-                            <span className="text-[10px] text-gray-400 ml-1 font-medium">Đội ngũ Nike đang soạn tin...</span>
+                            <span className="text-[10px] text-gray-400 ml-1 font-medium">Đội ngũ TOAN Store đang soạn tin...</span>
                         </div>
                     </div>
                 )}

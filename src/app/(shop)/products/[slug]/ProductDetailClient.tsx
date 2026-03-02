@@ -1206,7 +1206,7 @@ function ProductPrintSection({ product, selectedSize }: { product: any; selected
             {/* Header */}
             <div className="flex justify-between items-center border-b-2 border-black pb-6 mb-8">
                 <div>
-                    <h1 className="text-4xl font-bold nike-heading tracking-tighter">TOAN Store</h1>
+                    <h1 className="text-4xl font-bold toan-heading tracking-tighter">TOAN Store</h1>
                     <p className="text-sm text-gray-500 italic mt-1 uppercase tracking-widest">Product Catalog / Spec Sheet</p>
                 </div>
                 <div className="text-right">

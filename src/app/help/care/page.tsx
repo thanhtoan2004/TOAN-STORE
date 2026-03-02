@@ -7,7 +7,7 @@ import { Sparkles, CloudRain, Sun, Wind, Droplets, RefreshCw } from 'lucide-reac
 export default function ProductCarePage() {
     return (
         <div className="min-h-screen bg-gray-50">
-            <div className="nike-container py-12">
+            <div className="toan-container py-12">
                 <div className="max-w-4xl mx-auto">
                     {/* Breadcrumb */}
                     <div className="flex items-center gap-2 text-sm text-gray-500 mb-8">

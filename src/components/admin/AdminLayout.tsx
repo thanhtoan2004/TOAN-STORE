@@ -41,14 +41,14 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
         const response = await fetch('/api/auth/admin', { cache: 'no-store' });
         if (!response.ok) {
           // Clear cookie on client side if unauthorized
-          document.cookie = 'nike_admin_session=; Max-Age=0; path=/;';
+          document.cookie = 'toan_admin_session=; Max-Age=0; path=/;';
           router.replace('/admin/login');
           return;
         }
         const data = await response.json();
         const isAdmin = !!(data?.user?.is_admin === 1 || data?.user?.is_admin === true);
         if (!isAdmin) {
-          document.cookie = 'nike_admin_session=; Max-Age=0; path=/;';
+          document.cookie = 'toan_admin_session=; Max-Age=0; path=/;';
           router.replace('/admin/login');
           return;
         }
@@ -83,7 +83,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
       <div className="fixed inset-y-0 left-0 w-64 bg-black text-white flex flex-col">
         <div className="flex items-center justify-center h-16 border-b border-gray-800">
           <Link href="/admin/dashboard" className="text-xl font-bold">
-            Nike Admin
+            TOAN STORE Admin
           </Link>
         </div>
         <nav className="mt-8 space-y-2 flex-1 overflow-y-auto px-0">

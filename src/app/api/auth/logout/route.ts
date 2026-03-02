@@ -38,7 +38,7 @@ export async function POST(req: NextRequest) {
     // 2. Clear Cookies
     cookieStore.delete(AUTH_TOKEN);
     cookieStore.delete(REFRESH_TOKEN);
-    cookieStore.delete('nike_admin_session');
+    cookieStore.delete('toan_admin_session');
 
     return NextResponse.json({
       success: true,

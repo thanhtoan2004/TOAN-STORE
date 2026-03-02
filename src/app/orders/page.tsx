@@ -184,7 +184,7 @@ export default function OrdersPage() {
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <div className="bg-white border-b">
-        <div className="nike-container py-8">
+        <div className="toan-container py-8">
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-3xl font-bold mb-2">{t.orders.title}</h1>
@@ -197,7 +197,7 @@ export default function OrdersPage() {
         </div>
       </div>
 
-      <div className="nike-container py-8">
+      <div className="toan-container py-8">
         {orders.length === 0 ? (
           // Empty state
           <div className="text-center py-16">

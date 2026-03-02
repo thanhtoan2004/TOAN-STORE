@@ -1,6 +1,6 @@
-# Nike Clone - Complete SQL Encyclopedia
+# TOAN Store - Complete SQL Encyclopedia
 
-Tài liệu này là từ điển SQL đầy đủ cho toàn bộ dự án Nike Clone. Được thiết kế cho việc học chuyên sâu, tài liệu bao gồm từ các CRUD cơ bản đến các Query phức tạp (Aggregation, Subqueries, Full-text Search, và Financial Analytics).
+Tài liệu này là từ điển SQL đầy đủ cho toàn bộ dự án TOAN Store. Được thiết kế cho việc học chuyên sâu, tài liệu bao gồm từ các CRUD cơ bản đến các Query phức tạp (Aggregation, Subqueries, Full-text Search, và Financial Analytics).
 
 ---
 

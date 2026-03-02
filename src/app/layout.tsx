@@ -34,10 +34,10 @@ export const metadata: Metadata = {
     template: '%s | TOAN Store', // Ví dụ: Giày Nam | TOAN Store
     default: 'TOAN Store - Just Do It',
   },
-  description: "Nike delivers innovative products, experiences and services to inspire athletes.",
+  description: "TOAN Store delivers innovative products, experiences and services to inspire athletes.",
   openGraph: {
     title: 'TOAN Store',
-    description: 'The best place to buy Nike products.',
+    description: 'The best place to buy premium products at TOAN Store.',
     url: process.env.NEXT_PUBLIC_APP_URL,
     siteName: 'TOAN Store',
     images: [
@@ -50,7 +50,7 @@ export const metadata: Metadata = {
     locale: 'vi_VN',
     type: 'website',
   },
-  keywords: ['nike', 'giày nike', 'giày chạy bộ', 'thời trang thể thao', 'TOAN Store', 'nike vietnam'],
+  keywords: ['toan store', 'giày thể thao', 'giày chạy bộ', 'thời trang thể thao', 'TOAN Store vietnam'],
 };
 
 

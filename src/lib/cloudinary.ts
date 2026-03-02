@@ -18,7 +18,7 @@ console.log(`[SERVICE_INITIALIZATION] Cloudinary configured for cloud: ${process
  * Hàm push file tĩnh (Base64 hoặc link tạm) lên tài khoản Cloudinary.
  * Trả về 1 object chứa chuỗi `secure_url` (Link CDN) để paste vào CSDL MySQL.
  */
-export async function uploadImage(fileUri: string, folder: string = 'nike-clone') {
+export async function uploadImage(fileUri: string, folder: string = 'toan-store') {
     try {
         const result = await cloudinary.uploader.upload(fileUri, {
             folder: folder,

@@ -100,7 +100,7 @@ function OrderSuccessContent() {
   // Social Sharing Logic
   const shareToSocial = (platform: 'facebook' | 'twitter') => {
     const url = window.location.origin;
-    const text = `Tôi vừa đặt hàng thành công tại Nike! Mã đơn hàng: #${orderData.orderNumber}`;
+    const text = `Tôi vừa đặt hàng thành công tại TOAN Store! Mã đơn hàng: #${orderData.orderNumber}`;
 
     let shareUrl = '';
     if (platform === 'facebook') {
@@ -121,8 +121,8 @@ function OrderSuccessContent() {
     const deliveryDate = new Date();
     deliveryDate.setDate(deliveryDate.getDate() + 3);
 
-    const title = `Giao hàng Nike #${orderData.orderNumber}`;
-    const description = `Đơn hàng Nike #${orderData.orderNumber} dự kiến sẽ được giao tới bạn.`;
+    const title = `Giao hàng TOAN Store #${orderData.orderNumber}`;
+    const description = `Đơn hàng TOAN Store #${orderData.orderNumber} dự kiến sẽ được giao tới bạn.`;
 
     const formatDateICS = (date: Date) => {
       return date.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
@@ -144,7 +144,7 @@ function OrderSuccessContent() {
     const blob = new Blob([icsContent], { type: 'text/calendar;charset=utf-8' });
     const link = document.createElement('a');
     link.href = window.URL.createObjectURL(blob);
-    link.setAttribute('download', `nike-order-${orderData.orderNumber}.ics`);
+    link.setAttribute('download', `toan-order-${orderData.orderNumber}.ics`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -152,7 +152,7 @@ function OrderSuccessContent() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="nike-container py-16">
+      <div className="toan-container py-16">
         <div className="max-w-2xl mx-auto text-center">
           {/* Success Icon */}
           <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
@@ -162,7 +162,7 @@ function OrderSuccessContent() {
           {/* Success Message */}
           <h1 className="text-3xl font-bold mb-4">Đặt hàng thành công!</h1>
           <p className="text-gray-600 mb-8">
-            Cảm ơn bạn đã mua hàng tại Nike. Chúng tôi đã nhận được đơn hàng của bạn và sẽ xử lý trong thời gian sớm nhất.
+            Cảm ơn bạn đã mua hàng tại TOAN Store. Chúng tôi đã nhận được đơn hàng của bạn và sẽ xử lý trong thời gian sớm nhất.
           </p>
 
           {/* Order Info */}
@@ -249,7 +249,7 @@ function OrderSuccessContent() {
             <div className="text-sm text-gray-700 space-y-2">
               <p>• <strong>Chính sách đổi trả:</strong> 30 ngày đổi trả miễn phí</p>
               <p>• <strong>Hỗ trợ khách hàng:</strong> 1800-1234 (8:00 - 22:00, thứ 2 - chủ nhật)</p>
-              <p>• <strong>Email hỗ trợ:</strong> support@nike.com</p>
+              <p>• <strong>Email hỗ trợ:</strong> support@toanstore.com</p>
             </div>
           </div>
 

@@ -82,7 +82,7 @@ export const dictionary = {
         },
         plp: {
             title: 'Danh Mục Sản Phẩm',
-            description: 'Khám phá bộ sưu tập đầy đủ các sản phẩm Nike',
+            description: 'Khám phá bộ sưu tập đầy đủ các sản phẩm tại TOAN Store',
             all_products: 'Tất cả sản phẩm',
             error_title: 'Đã xảy ra lỗi',
             try_again: 'Thử lại',
@@ -139,7 +139,7 @@ export const dictionary = {
         },
         footer: {
             get_help: 'HỖ TRỢ',
-            about_nike: 'VỀ TOAN STORE',
+            about_toan: 'VỀ TOAN STORE',
             promotions: 'KHUYẾN MÃI & ƯU ĐÃI',
             order_status: 'Trạng thái đơn hàng',
             shipping: 'Vận chuyển & Giao hàng',
@@ -178,7 +178,7 @@ export const dictionary = {
             subtitle: 'Quản lý và theo dõi các đơn hàng của bạn',
             back_home: 'Về trang chủ',
             empty: 'Chưa có đơn hàng nào',
-            empty_desc: 'Bạn chưa có đơn hàng nào. Hãy khám phá các sản phẩm Nike tuyệt vời!',
+            empty_desc: 'Bạn chưa có đơn hàng nào. Hãy khám phá các sản phẩm tuyệt vời tại TOAN Store!',
             shop_now: 'Mua sắm ngay',
             total_orders: 'Tổng cộng {count} đơn hàng',
             status_filter: 'Tất cả trạng thái',
@@ -235,7 +235,7 @@ export const dictionary = {
         },
         auth: {
             create_account: 'Tạo tài khoản',
-            sign_up_desc: 'Tham gia  TOAN Store để mua sắm hàng độc quyền và cá nhân hóa trải nghiệm của bạn.',
+            sign_up_desc: 'Tham gia TOAN Store để mua sắm hàng độc quyền và cá nhân hóa trải nghiệm của bạn.',
             register_error: 'Đăng ký không thành công',
             agree_prefix: 'Tôi đồng ý với',
             agree_suffix: 'của TOAN Store.',
@@ -384,7 +384,7 @@ export const dictionary = {
         },
         plp: {
             title: 'Product Catalog',
-            description: 'Explore our full collection of Nike products',
+            description: 'Explore our full collection of premium products',
             all_products: 'All Products',
             error_title: 'Something went wrong',
             try_again: 'Try Again',
@@ -441,7 +441,7 @@ export const dictionary = {
         },
         footer: {
             get_help: 'GET HELP',
-            about_nike: 'ABOUT TOAN Store',
+            about_toan: 'ABOUT TOAN Store',
             promotions: 'PROMOTIONS & DISCOUNTS',
             order_status: 'Order Status',
             shipping: 'Shipping & Delivery',
@@ -480,7 +480,7 @@ export const dictionary = {
             subtitle: 'Manage and track your orders',
             back_home: 'Back to Home',
             empty: 'No orders yet',
-            empty_desc: 'You have no orders yet. Explore our great Nike products!',
+            empty_desc: 'You have no orders yet. Explore our great products at TOAN Store!',
             shop_now: 'Shop Now',
             total_orders: 'Total {count} orders',
             status_filter: 'All Statuses',

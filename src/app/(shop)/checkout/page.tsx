@@ -466,7 +466,7 @@ export default function CheckoutPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="bg-white border-b">
-        <div className="nike-container py-6">
+        <div className="toan-container py-6">
           <div className="flex items-center justify-between">
             <h1 className="text-3xl font-bold">{t.checkout.title}</h1>
             <Link href="/cart" className="text-blue-600 hover:text-blue-800">← {t.orders.back_home || 'Back to Cart'}</Link>
@@ -475,7 +475,7 @@ export default function CheckoutPage() {
       </div>
 
       <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="nike-container py-8" autoComplete="off">
+        <form onSubmit={form.handleSubmit(onSubmit)} className="toan-container py-8" autoComplete="off">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             <div className="lg:col-span-2 space-y-6">
               <div className="bg-white rounded-lg shadow-sm border p-6">

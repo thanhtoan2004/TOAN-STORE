@@ -139,10 +139,10 @@ export default function OrderTracking({
                         <div className="flex-1 pb-8">
                             <h3
                                 className={`font-semibold text-lg ${step.isCurrent
-                                        ? "text-blue-600"
-                                        : step.isCompleted
-                                            ? "text-green-600"
-                                            : "text-gray-400"
+                                    ? "text-blue-600"
+                                    : step.isCompleted
+                                        ? "text-green-600"
+                                        : "text-gray-400"
                                     }`}
                             >
                                 {step.description}
@@ -176,8 +176,8 @@ export default function OrderTracking({
             <div className="mt-6 p-4 bg-gray-50 rounded-lg">
                 <p className="text-sm text-gray-700">
                     <strong>Cần hỗ trợ?</strong> Liên hệ với chúng tôi qua email:{" "}
-                    <a href="mailto:support@nikeclone.com" className="text-blue-600 hover:underline">
-                        support@nikeclone.com
+                    <a href="mailto:support@toanstore.com" className="text-blue-600 hover:underline">
+                        support@toanstore.com
                     </a>{" "}
                     hoặc hotline: <span className="font-semibold">1900-xxxx</span>
                 </p>

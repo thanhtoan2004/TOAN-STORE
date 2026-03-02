@@ -73,10 +73,10 @@ export default function MaintenancePage() {
                 <div className="mt-12 text-gray-400">
                     <p className="mb-2">Cần hỗ trợ gấp?</p>
                     <a
-                        href="mailto:admin@nike-clone.com"
+                        href="mailto:admin@toanstore.com"
                         className="text-white hover:text-gray-300 transition-colors underline"
                     >
-                        admin@nike-clone.com
+                        admin@toanstore.com
                     </a>
                 </div>
             </div>

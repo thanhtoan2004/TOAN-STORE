@@ -90,7 +90,7 @@ export async function middleware(req: NextRequest) {
   const acceptHeader = req.headers.get('accept') || '';
   const isHtmlRequest = req.method === 'GET' && acceptHeader.includes('text/html');
   if (pathname.startsWith('/admin') && !pathname.startsWith('/admin/api') && isHtmlRequest) {
-    const token = req.cookies.get('nike_admin_session')?.value;
+    const token = req.cookies.get('toan_admin_session')?.value;
 
     // IP Whitelisting for Admin panel
     const ipWhitelist = process.env.ADMIN_IP_WHITELIST;
@@ -151,7 +151,7 @@ export async function middleware(req: NextRequest) {
   // A. Chặn người dùng đã đăng nhập truy cập lại các trang Auth
   const authRoutes = ['/sign-in', '/sign-up', '/forgot-password', '/reset-password'];
   const isAuthRoute = authRoutes.some(route => pathname.startsWith(route));
-  const userSession = req.cookies.get('nike_auth_session')?.value;
+  const userSession = req.cookies.get('toan_auth_session')?.value;
 
   if (isAuthRoute && userSession) {
     // Đã có cookie đăng nhập -> Cưỡng chế đá về trang chủ

@@ -101,7 +101,7 @@ export async function GET() {
         const response = new NextResponse(encoder.encode(dataStr));
 
         response.headers.set('Content-Type', 'application/json');
-        response.headers.set('Content-Disposition', `attachment; filename="nike_personal_data_${userId}.json"`);
+        response.headers.set('Content-Disposition', `attachment; filename="toan_personal_data_${userId}.json"`);
 
         return response;
 

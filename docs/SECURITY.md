@@ -25,9 +25,9 @@ Tài liệu bảo mật cho TOAN Store E-commerce. Dự án đã đạt chứng 
 ### Token Types
 | Token | Cookie Name | Purpose | Expiry |
 |-------|-------------|---------|--------|
-| Access Token (User) | `nike_auth_session` | API authentication | 15 min |
-| Access Token (Admin) | `nike_admin_session` | Admin API authentication | 15 min |
-| Refresh Token | `nike_refresh_token` | Renew access tokens | 7 days |
+| Access Token (User) | `toan_auth_session` | API authentication | 15 min |
+| Access Token (Admin) | `toan_admin_session` | Admin API authentication | 15 min |
+| Refresh Token | `toan_refresh_token` | Renew access tokens | 7 days |
 
 ### Session Isolation
 - User tokens và Admin tokens tách biệt hoàn toàn

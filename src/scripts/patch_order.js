@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-require-imports */
 const fs = require('fs');
 
-const filePath = 'd:\\nike-clone\\src\\lib\\db\\repositories\\order.ts';
+const filePath = 'd:\\TOAN STORE\\src\\lib\\db\\repositories\\order.ts';
 const content = fs.readFileSync(filePath, 'utf-8');
 
 const cancelOrderIndex = content.indexOf('export async function cancelOrder');

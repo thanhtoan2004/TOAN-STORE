@@ -128,7 +128,7 @@ const Footer = () => {
       { name: t.footer.contact, href: '/help/contact' },
     ],
     company: [
-      { name: t.footer.about_nike, href: '/about' },
+      { name: t.footer.about_toan, href: '/about' },
       { name: t.footer.news, href: '/news' },
       { name: t.footer.careers, href: '/careers' },
       { name: t.footer.investors, href: '/investors' },
@@ -144,7 +144,7 @@ const Footer = () => {
 
   return (
     <footer className="bg-[#111] text-white pt-10">
-      <div className="nike-container">
+      <div className="toan-container">
 
         {/* Chia lưới (Grid) thành 4 cột trên màn hình lớn */}
         <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-8 pb-10">
@@ -159,7 +159,7 @@ const Footer = () => {
                 {t.footer.join_member}
               </Link>
               <Link href="/about" className="text-white font-helvetica-medium text-sm">
-                {t.footer.about_nike}
+                {t.footer.about_toan}
               </Link>
               <Link href="/help/contact" className="text-white font-helvetica-medium text-sm">
                 {t.footer.feedback}
@@ -185,7 +185,7 @@ const Footer = () => {
 
           {/* Cột 3: Về công ty (ABOUT COMPANY) */}
           <div className="space-y-4">
-            <h3 className="font-helvetica-medium text-sm text-white">{t.footer.about_nike}</h3>
+            <h3 className="font-helvetica-medium text-sm text-white">{t.footer.about_toan}</h3>
             <nav className="flex flex-col space-y-2">
               {footerLinks.company.map((link) => (
                 <Link

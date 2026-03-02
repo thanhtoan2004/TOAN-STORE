@@ -333,7 +333,7 @@ export default function OrderDetailPage() {
     <div className="min-h-screen bg-gray-50">
       <div className="print:hidden">
         <div className="bg-white border-b">
-          <div className="nike-container py-6">
+          <div className="toan-container py-6">
             <div className="flex items-center justify-between">
               <div>
                 <Link href="/orders" className="text-blue-600 hover:text-blue-800 flex items-center mb-2">
@@ -351,7 +351,7 @@ export default function OrderDetailPage() {
           </div>
         </div>
 
-        <div className="nike-container py-8">
+        <div className="toan-container py-8">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             <div className="lg:col-span-2 space-y-8">
               <div className="bg-white rounded-lg shadow-sm border p-6">
@@ -658,8 +658,8 @@ function InvoiceSection({ orderData, copyLabel }: { orderData: OrderData; copyLa
     <div className="py-4 px-6 max-w-4xl mx-auto">
       <div className="flex justify-between items-start mb-4">
         <div>
-          <h1 className="text-2xl font-bold nike-heading">TOAN Store</h1>
-          <p className="text-xs text-gray-600">Website: nike-clone.demo | Hotline: 1800-1234</p>
+          <h1 className="text-2xl font-bold toan-heading">TOAN Store</h1>
+          <p className="text-xs text-gray-600">Website: toanstore.demo | Hotline: 1800-1234</p>
         </div>
         <div className="text-right">
           <h2 className="text-lg font-bold uppercase">{copyLabel}</h2>

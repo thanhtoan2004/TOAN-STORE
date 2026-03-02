@@ -66,7 +66,7 @@
 }
 
 @font-face {
-  font-family: 'Nike Futura';
+  font-family: 'TOAN Heading';
   src: url('https://ext.same-assets.com/4169129157/1782967134.bin') format('woff2');
   font-weight: normal;
   font-style: normal;
@@ -97,27 +97,27 @@
   font-display: swap;
 }
 
-.nike-heading {
-  font-family: 'Nike Futura', sans-serif;
+.toan-heading {
+  font-family: 'TOAN Heading', sans-serif;
   font-weight: bold;
   text-transform: uppercase;
 }
 
-.nike-text {
+.toan-text {
   font-family: 'HelveticaNowText', sans-serif;
 }
 
-.nike-text-medium {
+.toan-text-medium {
   font-family: 'HelveticaNowTextMedium', sans-serif;
 }
 
-.nike-display {
+.toan-display {
   font-family: 'HelveticaNowDisplayMedium', sans-serif;
 }
 
 
 
-.nike-container {
+.toan-container {
   @apply max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8;
 }
 

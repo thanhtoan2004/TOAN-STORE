@@ -39,8 +39,8 @@ export default function PushNotificationBanner() {
                 if (reg.showNotification) {
                     reg.showNotification('TOAN Store 🎉', {
                         body: 'Bạn sẽ nhận thông báo về đơn hàng, khuyến mãi và sản phẩm mới!',
-                        icon: '/nike.svg',
-                        badge: '/nike.svg',
+                        icon: '/logo.svg',
+                        badge: '/logo.svg',
                         tag: 'welcome',
                     });
                 }

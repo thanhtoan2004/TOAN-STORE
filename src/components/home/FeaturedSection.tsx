@@ -81,10 +81,10 @@ const FeaturedSection = () => {
     />
   );
 
-  const fontClass = language === 'vi' ? 'font-bold' : 'font-nike-futura';
+  const fontClass = language === 'vi' ? 'font-bold' : 'font-toan-heading';
 
   return (
-    <section className="nike-container py-8 md:py-16">
+    <section className="toan-container py-8 md:py-16">
       <h2 className={`text-2xl ${fontClass} mb-8 text-center`}>{t.home.featured}</h2>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

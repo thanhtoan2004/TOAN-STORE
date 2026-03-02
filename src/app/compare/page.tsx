@@ -64,7 +64,7 @@ export default function ComparePage() {
         <div className="min-h-screen bg-gray-50">
             {/* Header */}
             <div className="bg-white border-b sticky top-0 z-10">
-                <div className="nike-container py-4">
+                <div className="toan-container py-4">
                     <div className="flex items-center justify-between">
                         <div className="flex items-center gap-4">
                             <Link href="/categories" className="p-2 hover:bg-gray-100 rounded-full transition-colors">
@@ -91,7 +91,7 @@ export default function ComparePage() {
                 </div>
             </div>
 
-            <div className="nike-container py-6">
+            <div className="toan-container py-6">
                 {items.length < 2 ? (
                     <div className="text-center py-20 bg-white rounded-2xl">
                         <div className="w-20 h-20 mx-auto mb-4 bg-gray-100 rounded-full flex items-center justify-center">

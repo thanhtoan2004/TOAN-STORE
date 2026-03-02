@@ -158,7 +158,7 @@ erDiagram
 | Column | Type | Description |
 |--------|------|-------------|
 | id | BIGINT PK | — |
-| order_number | VARCHAR(50) UNIQUE | e.g., "NK-20260213-XXXXX" |
+| order_number | VARCHAR(50) UNIQUE | e.g., "TS-20260213-XXXXX" |
 | user_id | BIGINT FK→users | — |
 | email | VARCHAR(255) | Legacy (Masked ***) |
 | email_encrypted | TEXT | AES-256-GCM Encrypted |

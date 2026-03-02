@@ -44,7 +44,7 @@ const LinksSection = () => {
   ]
 
   return (
-    <section className="nike-container py-14 border-t border-gray-200">
+    <section className="toan-container py-14 border-t border-gray-200">
       <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
         {linkColumns.map((column, idx) => (
           <div key={idx} className="space-y-3">

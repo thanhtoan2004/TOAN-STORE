@@ -30,9 +30,9 @@ export function getJwtSecret(): string {
     if (process.env.NODE_ENV === 'production') throw new Error('JWT_SECRET is required in production!');
     return 'dev_fallback_secret_not_for_production';
 }
-export const AUTH_TOKEN = 'nike_auth_session';
-export const ADMIN_TOKEN = 'nike_admin_session';
-export const REFRESH_TOKEN = 'nike_refresh_token';
+export const AUTH_TOKEN = 'toan_auth_session';
+export const ADMIN_TOKEN = 'toan_admin_session';
+export const REFRESH_TOKEN = 'toan_refresh_token';
 
 // Token expiration times
 export const ACCESS_TOKEN_EXP = '15m'; // 15 minutes
