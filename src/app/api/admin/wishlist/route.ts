@@ -17,11 +17,11 @@ export async function GET(request: NextRequest) {
     }
     const { searchParams } = new URL(request.url);
     const page = parseInt(searchParams.get('page') || '1');
-    const limit = parseInt(searchParams.get('limit') || '20');
+    const limit = Math.min(parseInt(searchParams.get('limit') || '20'), 100); // M2: Cap limit
     const offset = (page - 1) * limit;
 
     // Get wishlist items with product info and count how many times each product is in wishlists
-    const data = await executeQuery(
+    const data = (await executeQuery(
       `SELECT p.id, p.name, p.sku, 
               COALESCE(MAX(pi.url), '') as image_url,
               COUNT(DISTINCT wi.id) as wishlist_count, COUNT(DISTINCT w.user_id) as unique_users
@@ -33,9 +33,11 @@ export async function GET(request: NextRequest) {
        ORDER BY wishlist_count DESC
        LIMIT ? OFFSET ?`,
       [limit, offset]
-    ) as any[];
+    )) as any[];
 
-    const [countRow] = await executeQuery('SELECT COUNT(DISTINCT product_id) as total FROM wishlist_items') as any[];
+    const [countRow] = (await executeQuery(
+      'SELECT COUNT(DISTINCT product_id) as total FROM wishlist_items'
+    )) as any[];
     const totalProductsWishlisted = countRow?.total || 0;
 
     // Summary + wishlists (the container per user)
@@ -49,7 +51,7 @@ export async function GET(request: NextRequest) {
     const summary = wishlistSummaryRows?.[0] || {
       total_wishlists: 0,
       total_wishlist_items: 0,
-      total_users_with_wishlist: 0
+      total_users_with_wishlist: 0,
     };
 
     // Show latest wishlists with item counts (no pagination needed for now)
@@ -77,8 +79,8 @@ export async function GET(request: NextRequest) {
         page,
         limit,
         total: totalProductsWishlisted,
-        totalPages: Math.ceil(totalProductsWishlisted / limit)
-      }
+        totalPages: Math.ceil(totalProductsWishlisted / limit),
+      },
     });
   } catch (error) {
     console.error('Error fetching wishlist stats:', error);

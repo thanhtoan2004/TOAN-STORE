@@ -5,7 +5,7 @@ import { sanitizeRichContent } from '@/lib/sanitize';
 
 // Ensure news table exists
 async function ensureNewsTable() {
-    await executeQuery(`
+  await executeQuery(`
     CREATE TABLE IF NOT EXISTS news (
       id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
       title VARCHAR(255) NOT NULL,
@@ -31,45 +31,46 @@ async function ensureNewsTable() {
  * Hỗ trợ tìm kiếm theo tiêu đề/trích dẫn và lọc theo chuyên mục/trạng thái xuất bản.
  */
 export async function GET(request: NextRequest) {
-    const admin = await checkAdminAuth();
-    if (!admin) {
-        return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
+  const admin = await checkAdminAuth();
+  if (!admin) {
+    return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
+  }
+
+  try {
+    await ensureNewsTable();
+
+    const { searchParams } = new URL(request.url);
+    const page = parseInt(searchParams.get('page') || '1');
+    const limit = Math.min(parseInt(searchParams.get('limit') || '20'), 100); // M2: Cap limit
+    const search = searchParams.get('search') || '';
+    const category = searchParams.get('category') || '';
+    const publishedFilter = searchParams.get('published') || '';
+
+    const offset = (page - 1) * limit;
+
+    const whereConditions = [];
+    const queryParams: any[] = [];
+
+    if (search) {
+      whereConditions.push('(title LIKE ? OR excerpt LIKE ?)');
+      queryParams.push(`%${search}%`, `%${search}%`);
     }
 
-    try {
-        await ensureNewsTable();
+    if (category) {
+      whereConditions.push('category = ?');
+      queryParams.push(category);
+    }
 
-        const { searchParams } = new URL(request.url);
-        const page = parseInt(searchParams.get('page') || '1');
-        const limit = parseInt(searchParams.get('limit') || '20');
-        const search = searchParams.get('search') || '';
-        const category = searchParams.get('category') || '';
-        const publishedFilter = searchParams.get('published') || '';
+    if (publishedFilter === 'published') {
+      whereConditions.push('is_published = 1');
+    } else if (publishedFilter === 'draft') {
+      whereConditions.push('is_published = 0');
+    }
 
-        const offset = (page - 1) * limit;
+    const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : '';
 
-        const whereConditions = [];
-        const queryParams: any[] = [];
-
-        if (search) {
-            whereConditions.push('(title LIKE ? OR excerpt LIKE ?)');
-            queryParams.push(`%${search}%`, `%${search}%`);
-        }
-
-        if (category) {
-            whereConditions.push('category = ?');
-            queryParams.push(category);
-        }
-
-        if (publishedFilter === 'published') {
-            whereConditions.push('is_published = 1');
-        } else if (publishedFilter === 'draft') {
-            whereConditions.push('is_published = 0');
-        }
-
-        const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : '';
-
-        const news = await executeQuery(`
+    const news = await executeQuery(
+      `
       SELECT 
         n.*,
         au.full_name as author_name
@@ -78,30 +79,35 @@ export async function GET(request: NextRequest) {
       ${whereClause}
       ORDER BY n.created_at DESC
       LIMIT ? OFFSET ?
-    `, [...queryParams, limit, offset]);
+    `,
+      [...queryParams, limit, offset]
+    );
 
-        const [countRow] = await executeQuery(`
+    const [countRow] = (await executeQuery(
+      `
       SELECT COUNT(*) as total FROM news n ${whereClause}
-    `, queryParams) as any[];
+    `,
+      queryParams
+    )) as any[];
 
-        const total = countRow?.total || 0;
+    const total = countRow?.total || 0;
 
-        return NextResponse.json({
-            success: true,
-            data: {
-                news,
-                pagination: {
-                    page,
-                    limit,
-                    total,
-                    totalPages: Math.ceil(total / limit)
-                }
-            }
-        });
-    } catch (error) {
-        console.error('Error fetching news:', error);
-        return NextResponse.json({ success: false, message: 'Error fetching news' }, { status: 500 });
-    }
+    return NextResponse.json({
+      success: true,
+      data: {
+        news,
+        pagination: {
+          page,
+          limit,
+          total,
+          totalPages: Math.ceil(total / limit),
+        },
+      },
+    });
+  } catch (error) {
+    console.error('Error fetching news:', error);
+    return NextResponse.json({ success: false, message: 'Error fetching news' }, { status: 500 });
+  }
 }
 
 // POST - Create news
@@ -113,48 +119,67 @@ export async function GET(request: NextRequest) {
  * 3. Ghi nhận thời gian xuất bản nếu đặt trạng thái là Published.
  */
 export async function POST(request: NextRequest) {
-    const admin = await checkAdminAuth();
-    if (!admin) {
-        return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
+  const admin = await checkAdminAuth();
+  if (!admin) {
+    return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
+  }
+
+  try {
+    await ensureNewsTable();
+
+    const body = await request.json();
+    const { title, excerpt, image_url, category, is_published } = body;
+    const content = sanitizeRichContent(body.content || '');
+
+    if (!title || !content) {
+      return NextResponse.json(
+        { success: false, message: 'Title and content are required' },
+        { status: 400 }
+      );
     }
 
-    try {
-        await ensureNewsTable();
+    // Generate slug from title
+    const slug = title
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/đ/g, 'd')
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '');
 
-        const body = await request.json();
-        const { title, excerpt, image_url, category, is_published } = body;
-        const content = sanitizeRichContent(body.content || '');
+    const published_at = is_published ? new Date() : null;
 
-        if (!title || !content) {
-            return NextResponse.json({ success: false, message: 'Title and content are required' }, { status: 400 });
-        }
-
-        // Generate slug from title
-        const slug = title
-            .toLowerCase()
-            .normalize('NFD')
-            .replace(/[\u0300-\u036f]/g, '')
-            .replace(/đ/g, 'd')
-            .replace(/[^a-z0-9]+/g, '-')
-            .replace(/^-+|-+$/g, '');
-
-        const published_at = is_published ? new Date() : null;
-
-        const result = await executeQuery(`
+    const result = (await executeQuery(
+      `
       INSERT INTO news (title, slug, excerpt, content, image_url, category, author_id, is_published, published_at)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `, [title, slug, excerpt, content, image_url, category, admin.userId, is_published ? 1 : 0, published_at]) as any;
+    `,
+      [
+        title,
+        slug,
+        excerpt,
+        content,
+        image_url,
+        category,
+        admin.userId,
+        is_published ? 1 : 0,
+        published_at,
+      ]
+    )) as any;
 
-        return NextResponse.json({
-            success: true,
-            message: 'News created successfully',
-            data: { id: result.insertId }
-        });
-    } catch (error: any) {
-        console.error('Error creating news:', error);
-        if (error.code === 'ER_DUP_ENTRY') {
-            return NextResponse.json({ success: false, message: 'A news article with this title already exists' }, { status: 400 });
-        }
-        return NextResponse.json({ success: false, message: 'Error creating news' }, { status: 500 });
+    return NextResponse.json({
+      success: true,
+      message: 'News created successfully',
+      data: { id: result.insertId },
+    });
+  } catch (error: any) {
+    console.error('Error creating news:', error);
+    if (error.code === 'ER_DUP_ENTRY') {
+      return NextResponse.json(
+        { success: false, message: 'A news article with this title already exists' },
+        { status: 400 }
+      );
     }
+    return NextResponse.json({ success: false, message: 'Error creating news' }, { status: 500 });
+  }
 }

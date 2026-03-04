@@ -19,7 +19,6 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get('limit') || '10');
     const offset = (page - 1) * limit;
 
-
     // Nếu là admin call (có status param), lấy all reviews
     if (statusParam && !productIdStr) {
       const admin = await checkAdminAuth();
@@ -47,18 +46,25 @@ export async function GET(request: NextRequest) {
 
       const total = countResult[0]?.total || 0;
 
-      // Get media for each review concurrently
-      const mediaPromises = reviews.map(async (review) => {
-        const media = await executeQuery<any[]>(
-          `SELECT id, media_type, media_url, thumbnail_url, file_size
+      // FIX H2: Batch media query for admin reviews (1 query instead of N)
+      if (reviews.length > 0) {
+        const reviewIds = reviews.map((r: any) => r.id);
+        const allMedia = await executeQuery<any[]>(
+          `SELECT id, review_id, media_type, media_url, thumbnail_url, file_size
            FROM review_media
-           WHERE review_id = ?
+           WHERE review_id IN (?)
            ORDER BY position ASC`,
-          [review.id]
+          [reviewIds as any]
         );
-        review.media = media || [];
-      });
-      await Promise.all(mediaPromises);
+        const mediaMap = new Map<number, any[]>();
+        (allMedia || []).forEach((m: any) => {
+          if (!mediaMap.has(m.review_id)) mediaMap.set(m.review_id, []);
+          mediaMap.get(m.review_id)!.push(m);
+        });
+        reviews.forEach((r: any) => {
+          r.media = mediaMap.get(r.id) || [];
+        });
+      }
 
       return NextResponse.json({
         success: true,
@@ -67,35 +73,40 @@ export async function GET(request: NextRequest) {
           page,
           limit,
           total,
-          totalPages: Math.ceil(total / limit)
-        }
+          totalPages: Math.ceil(total / limit),
+        },
       });
     }
 
     // Nếu là product reviews (productId)
     if (!productIdStr) {
-      return NextResponse.json(
-        { success: false, message: 'Thiếu productId' },
-        { status: 400 }
-      );
+      return NextResponse.json({ success: false, message: 'Thiếu productId' }, { status: 400 });
     }
 
     const productId = parseInt(productIdStr);
     if (isNaN(productId)) {
-      return NextResponse.json(
-        { success: false, message: 'Invalid productId' },
-        { status: 400 }
-      );
+      return NextResponse.json({ success: false, message: 'Invalid productId' }, { status: 400 });
     }
 
     // Get reviews from database
     // Secure dynamic ordering using whitelist mapping
     const ordersMap: { [key: string]: string } = {
-      'highest': 'r.rating DESC, r.created_at DESC',
-      'lowest': 'r.rating ASC, r.created_at DESC',
-      'newest': 'r.created_at DESC'
+      highest: 'r.rating DESC, r.created_at DESC',
+      lowest: 'r.rating ASC, r.created_at DESC',
+      newest: 'r.created_at DESC',
     };
     const finalOrderBy = ordersMap[sortParam] || 'r.created_at DESC';
+
+    // FIX C1: Parameterize rating filter instead of string interpolation
+    const ratingFilter = searchParams.get('rating');
+    const ratingValue = ratingFilter ? parseInt(ratingFilter) : null;
+    const reviewParams: any[] = [productId];
+    let ratingClause = '';
+    if (ratingValue && ratingValue >= 1 && ratingValue <= 5) {
+      ratingClause = 'AND r.rating = ?';
+      reviewParams.push(ratingValue);
+    }
+    reviewParams.push(limit, offset);
 
     const reviews = await executeQuery<any[]>(
       `SELECT 
@@ -105,29 +116,47 @@ export async function GET(request: NextRequest) {
        FROM product_reviews r
        LEFT JOIN users u ON r.user_id = u.id
        WHERE r.product_id = ? AND r.status = 'approved'
-       ${searchParams.get('rating') ? `AND r.rating = ${parseInt(searchParams.get('rating')!)}` : ''}
+       ${ratingClause}
        ORDER BY ${finalOrderBy}
        LIMIT ? OFFSET ?`,
-      [productId, limit, offset]
+      reviewParams
     );
 
-    // Get media for each review concurrently to avoid N+1 queries blocking
-    const mediaPromises = reviews.map(async (review) => {
-      const media = await executeQuery<any[]>(
-        `SELECT id, media_type, media_url, thumbnail_url, file_size
+    // FIX H2: Batch media query instead of N+1 (1 query for all reviews)
+    if (reviews.length > 0) {
+      const reviewIds = reviews.map((r) => r.id);
+      const allMedia = await executeQuery<any[]>(
+        `SELECT id, review_id, media_type, media_url, thumbnail_url, file_size
          FROM review_media
-         WHERE review_id = ?
+         WHERE review_id IN (?)
          ORDER BY position ASC`,
-        [review.id]
+        [reviewIds as any]
       );
-      review.media = media || [];
-    });
-    await Promise.all(mediaPromises);
+      // Group media by review_id
+      const mediaMap = new Map<number, any[]>();
+      (allMedia || []).forEach((m) => {
+        if (!mediaMap.has(m.review_id)) mediaMap.set(m.review_id, []);
+        mediaMap.get(m.review_id)!.push(m);
+      });
+      reviews.forEach((r) => {
+        r.media = mediaMap.get(r.id) || [];
+      });
+    } else {
+      reviews.forEach((r) => {
+        r.media = [];
+      });
+    }
 
-    // Get total count
+    // Get total count (with same rating filter)
+    const countParams: any[] = [productId];
+    let countRatingClause = '';
+    if (ratingValue && ratingValue >= 1 && ratingValue <= 5) {
+      countRatingClause = 'AND rating = ?';
+      countParams.push(ratingValue);
+    }
     const countResult = await executeQuery<any[]>(
-      'SELECT COUNT(*) as total FROM product_reviews WHERE product_id = ? AND status = "approved"',
-      [productId]
+      `SELECT COUNT(*) as total FROM product_reviews WHERE product_id = ? AND status = 'approved' ${countRatingClause}`,
+      countParams
     );
 
     const total = countResult[0]?.total || 0;
@@ -156,7 +185,7 @@ export async function GET(request: NextRequest) {
       four_star: parseInt(rawStats.four_star) || 0,
       three_star: parseInt(rawStats.three_star) || 0,
       two_star: parseInt(rawStats.two_star) || 0,
-      one_star: parseInt(rawStats.one_star) || 0
+      one_star: parseInt(rawStats.one_star) || 0,
     };
 
     return NextResponse.json({
@@ -168,16 +197,13 @@ export async function GET(request: NextRequest) {
           page,
           limit,
           total,
-          totalPages: Math.ceil(total / limit)
-        }
-      }
+          totalPages: Math.ceil(total / limit),
+        },
+      },
     });
   } catch (error) {
     console.error('Lỗi khi lấy reviews:', error);
-    return NextResponse.json(
-      { success: false, message: 'Lỗi server nội bộ' },
-      { status: 500 }
-    );
+    return NextResponse.json({ success: false, message: 'Lỗi server nội bộ' }, { status: 500 });
   }
 }
 
@@ -210,10 +236,7 @@ export async function POST(request: NextRequest) {
     }
 
     if (rating < 1 || rating > 5) {
-      return NextResponse.json(
-        { success: false, message: 'Rating phải từ 1-5' },
-        { status: 400 }
-      );
+      return NextResponse.json({ success: false, message: 'Rating phải từ 1-5' }, { status: 400 });
     }
 
     // Check if user has purchased this product
@@ -276,14 +299,11 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       message: 'Đánh giá của bạn đang chờ duyệt',
-      data: { reviewId }
+      data: { reviewId },
     });
   } catch (error) {
     console.error('Lỗi khi tạo review:', error);
-    return NextResponse.json(
-      { success: false, message: 'Lỗi server nội bộ' },
-      { status: 500 }
-    );
+    return NextResponse.json({ success: false, message: 'Lỗi server nội bộ' }, { status: 500 });
   }
 }
 
@@ -297,10 +317,7 @@ export async function PUT(request: NextRequest) {
     if (id && status) {
       const isAdmin = await checkAdminAuth();
       if (!isAdmin) {
-        return NextResponse.json(
-          { success: false, message: 'Không có quyền' },
-          { status: 401 }
-        );
+        return NextResponse.json({ success: false, message: 'Không có quyền' }, { status: 401 });
       }
 
       // FIX H3: Validate status whitelist
@@ -312,14 +329,14 @@ export async function PUT(request: NextRequest) {
         );
       }
 
-      await executeQuery(
-        `UPDATE product_reviews SET status = ?, updated_at = NOW() WHERE id = ?`,
-        [status, parseInt(id)]
-      );
+      await executeQuery(`UPDATE product_reviews SET status = ?, updated_at = NOW() WHERE id = ?`, [
+        status,
+        parseInt(id),
+      ]);
 
       return NextResponse.json({
         success: true,
-        message: 'Cập nhật trạng thái thành công'
+        message: 'Cập nhật trạng thái thành công',
       });
     }
 
@@ -332,17 +349,11 @@ export async function PUT(request: NextRequest) {
 
     // Validate
     if (!reviewId) {
-      return NextResponse.json(
-        { success: false, message: 'Thiếu reviewId' },
-        { status: 400 }
-      );
+      return NextResponse.json({ success: false, message: 'Thiếu reviewId' }, { status: 400 });
     }
 
     if (rating && (rating < 1 || rating > 5)) {
-      return NextResponse.json(
-        { success: false, message: 'Rating phải từ 1-5' },
-        { status: 400 }
-      );
+      return NextResponse.json({ success: false, message: 'Rating phải từ 1-5' }, { status: 400 });
     }
 
     // Check if review exists and belongs to user
@@ -375,14 +386,11 @@ export async function PUT(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      message: 'Đánh giá đã được cập nhật và đang chờ duyệt lại'
+      message: 'Đánh giá đã được cập nhật và đang chờ duyệt lại',
     });
   } catch (error) {
     console.error('Lỗi khi cập nhật review:', error);
-    return NextResponse.json(
-      { success: false, message: 'Lỗi server nội bộ' },
-      { status: 500 }
-    );
+    return NextResponse.json({ success: false, message: 'Lỗi server nội bộ' }, { status: 500 });
   }
 }
 
@@ -394,10 +402,7 @@ export async function DELETE(request: NextRequest) {
 
     // Validate
     if (!reviewId) {
-      return NextResponse.json(
-        { success: false, message: 'Thiếu reviewId' },
-        { status: 400 }
-      );
+      return NextResponse.json({ success: false, message: 'Thiếu reviewId' }, { status: 400 });
     }
 
     const isAdmin = await checkAdminAuth();
@@ -424,21 +429,16 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    // Delete review
-    await executeQuery(
-      'DELETE FROM product_reviews WHERE id = ?',
-      [parseInt(reviewId)]
-    );
+    // FIX H4: Cascade delete — remove media first, then review
+    await executeQuery('DELETE FROM review_media WHERE review_id = ?', [parseInt(reviewId)]);
+    await executeQuery('DELETE FROM product_reviews WHERE id = ?', [parseInt(reviewId)]);
 
     return NextResponse.json({
       success: true,
-      message: 'Đánh giá đã được xóa'
+      message: 'Đánh giá đã được xóa',
     });
   } catch (error) {
     console.error('Lỗi khi xóa review:', error);
-    return NextResponse.json(
-      { success: false, message: 'Lỗi server nội bộ' },
-      { status: 500 }
-    );
+    return NextResponse.json({ success: false, message: 'Lỗi server nội bộ' }, { status: 500 });
   }
 }

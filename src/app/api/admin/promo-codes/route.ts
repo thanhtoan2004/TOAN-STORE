@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
     }
     const { searchParams } = new URL(request.url);
     const page = parseInt(searchParams.get('page') || '1');
-    const limit = parseInt(searchParams.get('limit') || '20');
+    const limit = Math.min(parseInt(searchParams.get('limit') || '20'), 100); // M2: Cap limit
     const offset = (page - 1) * limit;
     const isActive = searchParams.get('isActive'); // 'true', 'false', or null for all
 
@@ -36,7 +36,8 @@ export async function GET(request: NextRequest) {
     if (isActive !== null) {
       const now = new Date().toISOString();
       if (isActive === 'true') {
-        whereClause = ' AND (c.starts_at IS NULL OR c.starts_at <= ?) AND (c.ends_at IS NULL OR c.ends_at >= ?)';
+        whereClause =
+          ' AND (c.starts_at IS NULL OR c.starts_at <= ?) AND (c.ends_at IS NULL OR c.ends_at >= ?)';
         params.push(now, now);
       } else if (isActive === 'false') {
         whereClause = ' AND (c.starts_at > ? OR c.ends_at < ?)';
@@ -57,7 +58,8 @@ export async function GET(request: NextRequest) {
     if (isActive !== null) {
       const now = new Date().toISOString();
       if (isActive === 'true') {
-        countQuery += ' AND (starts_at IS NULL OR starts_at <= ?) AND (ends_at IS NULL OR ends_at >= ?)';
+        countQuery +=
+          ' AND (starts_at IS NULL OR starts_at <= ?) AND (ends_at IS NULL OR ends_at >= ?)';
         countParams.push(now, now);
       } else if (isActive === 'false') {
         countQuery += ' AND (starts_at > ? OR ends_at < ?)';
@@ -76,16 +78,13 @@ export async function GET(request: NextRequest) {
           page,
           limit,
           total,
-          totalPages: Math.ceil(total / limit)
-        }
-      }
+          totalPages: Math.ceil(total / limit),
+        },
+      },
     });
   } catch (error) {
     console.error('Error fetching coupons:', error);
-    return NextResponse.json(
-      { success: false, message: 'Lỗi server nội bộ' },
-      { status: 500 }
-    );
+    return NextResponse.json({ success: false, message: 'Lỗi server nội bộ' }, { status: 500 });
   }
 }
 
@@ -113,7 +112,7 @@ export async function POST(request: NextRequest) {
       ends_at,
       usage_limit,
       usage_limit_per_user,
-      applicable_tier
+      applicable_tier,
     } = body;
 
     // Validate required fields
@@ -169,7 +168,7 @@ export async function POST(request: NextRequest) {
         ends_at || null,
         usage_limit || null,
         usage_limit_per_user || null,
-        applicable_tier || 'bronze'
+        applicable_tier || 'bronze',
       ]
     );
 
@@ -178,14 +177,11 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      message: 'Tạo mã giảm giá thành công'
+      message: 'Tạo mã giảm giá thành công',
     });
   } catch (error) {
     console.error('Error creating coupon:', error);
-    return NextResponse.json(
-      { success: false, message: 'Lỗi server nội bộ' },
-      { status: 500 }
-    );
+    return NextResponse.json({ success: false, message: 'Lỗi server nội bộ' }, { status: 500 });
   }
 }
 
@@ -220,7 +216,7 @@ export async function PUT(request: NextRequest) {
       'ends_at',
       'usage_limit',
       'usage_limit_per_user',
-      'applicable_tier'
+      'applicable_tier',
     ];
 
     const updateFields: string[] = [];
@@ -242,24 +238,18 @@ export async function PUT(request: NextRequest) {
 
     updateValues.push(id);
 
-    await executeQuery(
-      `UPDATE coupons SET ${updateFields.join(', ')} WHERE id = ?`,
-      updateValues
-    );
+    await executeQuery(`UPDATE coupons SET ${updateFields.join(', ')} WHERE id = ?`, updateValues);
 
     // Invalidate cache
     await invalidateCache('promo-codes:available');
 
     return NextResponse.json({
       success: true,
-      message: 'Cập nhật mã giảm giá thành công'
+      message: 'Cập nhật mã giảm giá thành công',
     });
   } catch (error) {
     console.error('Error updating coupon:', error);
-    return NextResponse.json(
-      { success: false, message: 'Lỗi server nội bộ' },
-      { status: 500 }
-    );
+    return NextResponse.json({ success: false, message: 'Lỗi server nội bộ' }, { status: 500 });
   }
 }
 
@@ -291,13 +281,10 @@ export async function DELETE(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      message: 'Xóa mã giảm giá thành công'
+      message: 'Xóa mã giảm giá thành công',
     });
   } catch (error) {
     console.error('Error deleting coupon:', error);
-    return NextResponse.json(
-      { success: false, message: 'Lỗi server nội bộ' },
-      { status: 500 }
-    );
+    return NextResponse.json({ success: false, message: 'Lỗi server nội bộ' }, { status: 500 });
   }
 }

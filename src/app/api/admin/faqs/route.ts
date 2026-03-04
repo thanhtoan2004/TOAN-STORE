@@ -11,23 +11,20 @@ export async function GET(request: NextRequest) {
   try {
     const adminAuth = await checkAdminAuth();
     if (!adminAuth) {
-      return NextResponse.json(
-        { success: false, message: 'Unauthorized' },
-        { status: 401 }
-      );
+      return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
     }
 
     const { searchParams } = new URL(request.url);
     const page = parseInt(searchParams.get('page') || '1');
-    const limit = parseInt(searchParams.get('limit') || '20');
+    const limit = Math.min(parseInt(searchParams.get('limit') || '20'), 100); // M2: Cap limit
     const offset = (page - 1) * limit;
 
-    const faqs = await executeQuery(
+    const faqs = (await executeQuery(
       `SELECT * FROM faqs ORDER BY position ASC, created_at DESC LIMIT ? OFFSET ?`,
       [limit, offset]
-    ) as any[];
+    )) as any[];
 
-    const [countRow] = await executeQuery(`SELECT COUNT(*) as total FROM faqs`) as any[];
+    const [countRow] = (await executeQuery(`SELECT COUNT(*) as total FROM faqs`)) as any[];
     const total = countRow?.total || 0;
     const totalPages = Math.ceil(total / limit);
 
@@ -38,15 +35,12 @@ export async function GET(request: NextRequest) {
         page,
         limit,
         total,
-        totalPages
-      }
+        totalPages,
+      },
     });
   } catch (error) {
     console.error('Error fetching FAQs:', error);
-    return NextResponse.json(
-      { success: false, message: 'Error fetching FAQs' },
-      { status: 500 }
-    );
+    return NextResponse.json({ success: false, message: 'Error fetching FAQs' }, { status: 500 });
   }
 }
 
@@ -58,10 +52,7 @@ export async function POST(request: NextRequest) {
   try {
     const adminAuth = await checkAdminAuth();
     if (!adminAuth) {
-      return NextResponse.json(
-        { success: false, message: 'Unauthorized' },
-        { status: 401 }
-      );
+      return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
     }
 
     const body = await request.json();
@@ -75,23 +66,20 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const result = await executeQuery(
+    const result = (await executeQuery(
       `INSERT INTO faqs (question, answer, category_id, position, is_active, created_at, updated_at) 
        VALUES (?, ?, ?, ?, 1, NOW(), NOW())`,
       [question, answer, category_id || 1, position || 0]
-    ) as any;
+    )) as any;
 
     return NextResponse.json({
       success: true,
       message: 'FAQ created successfully',
-      data: { id: result.insertId, question, answer, category_id, position }
+      data: { id: result.insertId, question, answer, category_id, position },
     });
   } catch (error) {
     console.error('Error creating FAQ:', error);
-    return NextResponse.json(
-      { success: false, message: 'Error creating FAQ' },
-      { status: 500 }
-    );
+    return NextResponse.json({ success: false, message: 'Error creating FAQ' }, { status: 500 });
   }
 }
 
@@ -102,10 +90,7 @@ export async function PUT(request: NextRequest) {
   try {
     const adminAuth = await checkAdminAuth();
     if (!adminAuth) {
-      return NextResponse.json(
-        { success: false, message: 'Unauthorized' },
-        { status: 401 }
-      );
+      return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
     }
 
     const body = await request.json();
@@ -113,28 +98,29 @@ export async function PUT(request: NextRequest) {
     const answer = sanitizeRichContent(body.answer || '');
 
     if (!id) {
-      return NextResponse.json(
-        { success: false, message: 'ID is required' },
-        { status: 400 }
-      );
+      return NextResponse.json({ success: false, message: 'ID is required' }, { status: 400 });
     }
 
     await executeQuery(
       `UPDATE faqs SET question = ?, answer = ?, category_id = ?, position = ?, is_active = ?, updated_at = NOW() 
        WHERE id = ?`,
-      [question, answer, category_id || 1, position || 0, is_active !== undefined ? (is_active ? 1 : 0) : 1, id]
+      [
+        question,
+        answer,
+        category_id || 1,
+        position || 0,
+        is_active !== undefined ? (is_active ? 1 : 0) : 1,
+        id,
+      ]
     );
 
     return NextResponse.json({
       success: true,
-      message: 'FAQ updated successfully'
+      message: 'FAQ updated successfully',
     });
   } catch (error) {
     console.error('Error updating FAQ:', error);
-    return NextResponse.json(
-      { success: false, message: 'Error updating FAQ' },
-      { status: 500 }
-    );
+    return NextResponse.json({ success: false, message: 'Error updating FAQ' }, { status: 500 });
   }
 }
 
@@ -145,33 +131,24 @@ export async function DELETE(request: NextRequest) {
   try {
     const adminAuth = await checkAdminAuth();
     if (!adminAuth) {
-      return NextResponse.json(
-        { success: false, message: 'Unauthorized' },
-        { status: 401 }
-      );
+      return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
     }
 
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
 
     if (!id) {
-      return NextResponse.json(
-        { success: false, message: 'ID is required' },
-        { status: 400 }
-      );
+      return NextResponse.json({ success: false, message: 'ID is required' }, { status: 400 });
     }
 
     await executeQuery(`DELETE FROM faqs WHERE id = ?`, [id]);
 
     return NextResponse.json({
       success: true,
-      message: 'FAQ deleted successfully'
+      message: 'FAQ deleted successfully',
     });
   } catch (error) {
     console.error('Error deleting FAQ:', error);
-    return NextResponse.json(
-      { success: false, message: 'Error deleting FAQ' },
-      { status: 500 }
-    );
+    return NextResponse.json({ success: false, message: 'Error deleting FAQ' }, { status: 500 });
   }
 }

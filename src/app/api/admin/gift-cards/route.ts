@@ -15,26 +15,28 @@ export async function GET(request: NextRequest) {
 
     const searchParams = request.nextUrl.searchParams;
     const page = parseInt(searchParams.get('page') || '1');
-    const limit = parseInt(searchParams.get('limit') || '20');
+    const limit = Math.min(parseInt(searchParams.get('limit') || '20'), 100); // M2: Cap limit
     const offset = (page - 1) * limit;
 
     const { decrypt } = await import('@/lib/encryption');
-    const data = (await executeQuery(
-      `SELECT id, card_number, pin, initial_balance, current_balance, status, failed_attempts, expires_at, created_at 
+    const data = (
+      (await executeQuery(
+        `SELECT id, card_number, pin, initial_balance, current_balance, status, failed_attempts, expires_at, created_at 
        FROM gift_cards ORDER BY created_at DESC LIMIT ? OFFSET ?`,
-      [limit, offset]
-    ) as any[]).map(card => ({
+        [limit, offset]
+      )) as any[]
+    ).map((card) => ({
       ...card,
-      pin: decrypt(card.pin) // Decrypt for Admin view
+      pin: decrypt(card.pin), // Decrypt for Admin view
     }));
 
-    const countResult = await executeQuery('SELECT COUNT(*) as total FROM gift_cards') as any[];
+    const countResult = (await executeQuery('SELECT COUNT(*) as total FROM gift_cards')) as any[];
     const total = countResult[0]?.total || 0;
 
     return NextResponse.json({
       success: true,
       data,
-      pagination: { page, limit, total, totalPages: Math.ceil(total / limit) }
+      pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
     });
   } catch (error) {
     console.error('Error fetching gift cards:', error);
@@ -57,10 +59,10 @@ export async function POST(request: NextRequest) {
     const { encrypt } = await import('@/lib/encryption');
     const hashedPin = encrypt(pin);
 
-    const result = await executeQuery(
+    const result = (await executeQuery(
       'INSERT INTO gift_cards (card_number, pin, initial_balance, current_balance, status, expires_at) VALUES (?, ?, ?, ?, ?, ?)',
       [card_number, hashedPin, initial_balance, initial_balance, 'active', expires_at]
-    ) as any;
+    )) as any;
 
     const giftCardId = result.insertId;
 

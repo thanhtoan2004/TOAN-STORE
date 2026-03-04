@@ -22,7 +22,7 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url);
     const page = parseInt(searchParams.get('page') || '1');
-    const limit = parseInt(searchParams.get('limit') || '20');
+    const limit = Math.min(parseInt(searchParams.get('limit') || '20'), 100); // M2: Cap limit
     const status = searchParams.get('status');
     const search = searchParams.get('search');
     const offset = (page - 1) * limit;
@@ -33,27 +33,30 @@ export async function GET(request: NextRequest) {
     }
 
     if (search) {
-      // Note: Encryption search is limited to exact matches or we need to handle it differently.
-      // For now, we follow the existing pattern which was searching on encrypted fields (which usually doesn't work well unless it's deterministic).
-      // However, we maintain compatibility with the original logic.
-      filters.push(sql`(${ordersSchema.orderNumber} LIKE ${`%%${search}%%`} OR ${users.email} LIKE ${`%%${search}%%`} OR ${users.phone} LIKE ${`%%${search}%%`})`);
+      // FIX P5 (TODO): Search trên email/phone đã được mã hóa AES-256 sẽ KHÔNG bao giờ khớp.
+      // Giải pháp tương lai: Tạo blind index (hash email/phone) để search.
+      // Hiện tại chỉ search theo orderNumber hoạt động chính xác.
+      filters.push(
+        sql`(${ordersSchema.orderNumber} LIKE ${`%%${search}%%`} OR ${users.email} LIKE ${`%%${search}%%`} OR ${users.phone} LIKE ${`%%${search}%%`})`
+      );
     }
 
-    const data = await db.select({
-      id: ordersSchema.id,
-      orderNumber: ordersSchema.orderNumber,
-      status: ordersSchema.status,
-      total: ordersSchema.total,
-      placedAt: ordersSchema.placedAt,
-      customerName: users.firstName, // Mapping to full_name logic or firstName for now
-      customerEmail: users.email,
-      itemCount: sql<number>`count(${orderItems.id})`,
-      phone: ordersSchema.phone,
-      email: ordersSchema.email,
-    })
+    const data = await db
+      .select({
+        id: ordersSchema.id,
+        orderNumber: ordersSchema.orderNumber,
+        status: ordersSchema.status,
+        total: ordersSchema.total,
+        placedAt: ordersSchema.placedAt,
+        customerName: users.firstName, // Mapping to full_name logic or firstName for now
+        customerEmail: users.email,
+        itemCount: sql<number>`count(${orderItems.id})`,
+        phone: ordersSchema.phone,
+        email: ordersSchema.email,
+      })
       .from(ordersSchema)
       .leftJoin(users, eq(ordersSchema.userId, users.id))
-      .leftJoin(orderItems, eq(ordersSchema.id, orderItems.id))
+      .leftJoin(orderItems, eq(ordersSchema.id, orderItems.orderId)) // FIX H1: was orderItems.id
       .where(and(...filters))
       .groupBy(ordersSchema.id)
       .orderBy(desc(ordersSchema.placedAt))
@@ -61,15 +64,16 @@ export async function GET(request: NextRequest) {
       .offset(offset);
 
     // Decrypt PII data
-    const decryptedOrders = data.map(order => ({
+    const decryptedOrders = data.map((order) => ({
       ...order,
       phone: order.phone ? decrypt(order.phone) : null,
       email: order.email ? decrypt(order.email) : null,
-      customerName: order.customerName // users table might also have encrypted fields in some implementations, but here we follow ordersSchema
+      customerName: order.customerName, // users table might also have encrypted fields in some implementations, but here we follow ordersSchema
     }));
 
     // Get total count
-    const [countResult] = await db.select({ count: countDistinct(ordersSchema.id) })
+    const [countResult] = await db
+      .select({ count: countDistinct(ordersSchema.id) })
       .from(ordersSchema)
       .leftJoin(users, eq(ordersSchema.userId, users.id))
       .where(and(...filters));
@@ -80,7 +84,7 @@ export async function GET(request: NextRequest) {
       page,
       limit,
       total,
-      totalPages: Math.ceil(total / limit)
+      totalPages: Math.ceil(total / limit),
     });
   } catch (error) {
     logger.error(error, 'Error fetching orders:');

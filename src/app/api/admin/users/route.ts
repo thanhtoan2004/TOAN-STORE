@@ -21,7 +21,7 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url);
     const page = parseInt(searchParams.get('page') || '1');
-    const limit = parseInt(searchParams.get('limit') || '20');
+    const limit = Math.min(parseInt(searchParams.get('limit') || '20'), 100); // M2: Cap limit
     const search = searchParams.get('search');
     const offset = (page - 1) * limit;
 
@@ -33,18 +33,19 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const data = await db.select({
-      id: usersSchema.id,
-      email: usersSchema.email,
-      firstName: usersSchema.firstName,
-      lastName: usersSchema.lastName,
-      phone: usersSchema.phone,
-      isActive: usersSchema.isActive,
-      isVerified: usersSchema.isVerified,
-      isBanned: usersSchema.isBanned,
-      createdAt: usersSchema.createdAt,
-      updatedAt: usersSchema.updatedAt,
-    })
+    const data = await db
+      .select({
+        id: usersSchema.id,
+        email: usersSchema.email,
+        firstName: usersSchema.firstName,
+        lastName: usersSchema.lastName,
+        phone: usersSchema.phone,
+        isActive: usersSchema.isActive,
+        isVerified: usersSchema.isVerified,
+        isBanned: usersSchema.isBanned,
+        createdAt: usersSchema.createdAt,
+        updatedAt: usersSchema.updatedAt,
+      })
       .from(usersSchema)
       .where(and(...filters))
       .orderBy(desc(usersSchema.createdAt))
@@ -52,13 +53,14 @@ export async function GET(request: NextRequest) {
       .offset(offset);
 
     // Decrypt PII data
-    const decryptedUsers = data.map(user => ({
+    const decryptedUsers = data.map((user) => ({
       ...user,
-      phone: user.phone ? decrypt(user.phone) : null
+      phone: user.phone ? decrypt(user.phone) : null,
     }));
 
     // Get total count
-    const [countResult] = await db.select({ total: count() })
+    const [countResult] = await db
+      .select({ total: count() })
       .from(usersSchema)
       .where(and(...filters));
 
@@ -68,7 +70,7 @@ export async function GET(request: NextRequest) {
       page,
       limit,
       total,
-      totalPages: Math.ceil(total / limit)
+      totalPages: Math.ceil(total / limit),
     });
   } catch (error) {
     logger.error(error, 'Error fetching users:');
@@ -92,9 +94,16 @@ export async function PUT(request: NextRequest) {
     if (!id) return ResponseWrapper.error('User ID required', 400);
 
     // Filter updates
-    const allowedFields = ['firstName', 'lastName', 'phone', 'isActive', 'isVerified', 'membershipTier'];
+    const allowedFields = [
+      'firstName',
+      'lastName',
+      'phone',
+      'isActive',
+      'isVerified',
+      'membershipTier',
+    ];
     const filteredUpdates: any = {};
-    Object.keys(updates).forEach(key => {
+    Object.keys(updates).forEach((key) => {
       if (allowedFields.includes(key)) {
         filteredUpdates[key] = updates[key];
       }
@@ -104,10 +113,11 @@ export async function PUT(request: NextRequest) {
       return ResponseWrapper.error('No valid fields to update', 400);
     }
 
-    await db.update(usersSchema)
+    await db
+      .update(usersSchema)
       .set({
         ...filteredUpdates,
-        updatedAt: sql`CURRENT_TIMESTAMP`
+        updatedAt: sql`CURRENT_TIMESTAMP`,
       })
       .where(eq(usersSchema.id, id));
 
@@ -132,10 +142,11 @@ export async function DELETE(request: NextRequest) {
     const id = searchParams.get('id');
     if (!id) return ResponseWrapper.error('User ID required', 400);
 
-    await db.update(usersSchema)
+    await db
+      .update(usersSchema)
       .set({
         deletedAt: sql`CURRENT_TIMESTAMP`,
-        isActive: 0
+        isActive: 0,
       })
       .where(eq(usersSchema.id, Number(id)));
 
@@ -145,4 +156,3 @@ export async function DELETE(request: NextRequest) {
     return ResponseWrapper.serverError('Internal server error', error);
   }
 }
-

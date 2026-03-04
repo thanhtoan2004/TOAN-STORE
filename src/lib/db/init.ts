@@ -58,40 +58,64 @@ export async function initDb() {
         await connection.query('ALTER TABLE users ADD COLUMN accumulated_points INT DEFAULT 0');
       }
       if (!columnNames.includes('membership_tier')) {
-        await connection.query("ALTER TABLE users ADD COLUMN membership_tier ENUM('bronze', 'silver', 'gold', 'platinum') DEFAULT 'bronze'");
+        await connection.query(
+          "ALTER TABLE users ADD COLUMN membership_tier ENUM('bronze', 'silver', 'gold', 'platinum') DEFAULT 'bronze'"
+        );
       }
       if (!columnNames.includes('is_banned')) {
-        await connection.query("ALTER TABLE users ADD COLUMN is_banned TINYINT(1) DEFAULT 0 COMMENT 'User banned status: 0 = active, 1 = banned'");
+        await connection.query(
+          "ALTER TABLE users ADD COLUMN is_banned TINYINT(1) DEFAULT 0 COMMENT 'User banned status: 0 = active, 1 = banned'"
+        );
       }
       if (!columnNames.includes('google_id')) {
-        await connection.query('ALTER TABLE users ADD COLUMN google_id VARCHAR(255) DEFAULT NULL UNIQUE');
+        await connection.query(
+          'ALTER TABLE users ADD COLUMN google_id VARCHAR(255) DEFAULT NULL UNIQUE'
+        );
       }
       if (!columnNames.includes('facebook_id')) {
-        await connection.query('ALTER TABLE users ADD COLUMN facebook_id VARCHAR(255) DEFAULT NULL UNIQUE');
+        await connection.query(
+          'ALTER TABLE users ADD COLUMN facebook_id VARCHAR(255) DEFAULT NULL UNIQUE'
+        );
       }
       if (!columnNames.includes('avatar_url')) {
-        await connection.query('ALTER TABLE users ADD COLUMN avatar_url VARCHAR(1000) DEFAULT NULL');
+        await connection.query(
+          'ALTER TABLE users ADD COLUMN avatar_url VARCHAR(1000) DEFAULT NULL'
+        );
       }
       if (!columnNames.includes('email_notifications')) {
-        await connection.query('ALTER TABLE users ADD COLUMN email_notifications TINYINT(1) DEFAULT 1');
+        await connection.query(
+          'ALTER TABLE users ADD COLUMN email_notifications TINYINT(1) DEFAULT 1'
+        );
       }
       if (!columnNames.includes('sms_notifications')) {
-        await connection.query('ALTER TABLE users ADD COLUMN sms_notifications TINYINT(1) DEFAULT 0');
+        await connection.query(
+          'ALTER TABLE users ADD COLUMN sms_notifications TINYINT(1) DEFAULT 0'
+        );
       }
       if (!columnNames.includes('sms_order_notifications')) {
-        await connection.query('ALTER TABLE users ADD COLUMN sms_order_notifications TINYINT(1) DEFAULT 0');
+        await connection.query(
+          'ALTER TABLE users ADD COLUMN sms_order_notifications TINYINT(1) DEFAULT 0'
+        );
       }
       if (!columnNames.includes('push_notifications')) {
-        await connection.query('ALTER TABLE users ADD COLUMN push_notifications TINYINT(1) DEFAULT 1');
+        await connection.query(
+          'ALTER TABLE users ADD COLUMN push_notifications TINYINT(1) DEFAULT 1'
+        );
       }
       if (!columnNames.includes('promo_notifications')) {
-        await connection.query('ALTER TABLE users ADD COLUMN promo_notifications TINYINT(1) DEFAULT 0');
+        await connection.query(
+          'ALTER TABLE users ADD COLUMN promo_notifications TINYINT(1) DEFAULT 0'
+        );
       }
       if (!columnNames.includes('order_notifications')) {
-        await connection.query('ALTER TABLE users ADD COLUMN order_notifications TINYINT(1) DEFAULT 1');
+        await connection.query(
+          'ALTER TABLE users ADD COLUMN order_notifications TINYINT(1) DEFAULT 1'
+        );
       }
       if (!columnNames.includes('data_persistence')) {
-        await connection.query('ALTER TABLE users ADD COLUMN data_persistence TINYINT(1) DEFAULT 1');
+        await connection.query(
+          'ALTER TABLE users ADD COLUMN data_persistence TINYINT(1) DEFAULT 1'
+        );
       }
       if (!columnNames.includes('public_profile')) {
         await connection.query('ALTER TABLE users ADD COLUMN public_profile TINYINT(1) DEFAULT 1');
@@ -170,8 +194,6 @@ export async function initDb() {
         FOREIGN KEY (attribute_id) REFERENCES category_attributes(id) ON DELETE CASCADE
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
     `);
-
-
 
     // Tạo bảng brands
     await connection.query(`
@@ -294,7 +316,6 @@ export async function initDb() {
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
     `);
 
-
     // Tạo bảng product_images
     await connection.query(`
       CREATE TABLE IF NOT EXISTS product_images (
@@ -380,7 +401,9 @@ export async function initDb() {
       const columnNames = columns.map((col: any) => col.Field);
 
       if (!columnNames.includes('price_when_added')) {
-        await connection.query('ALTER TABLE wishlist_items ADD COLUMN price_when_added DECIMAL(12, 2) NULL AFTER product_id');
+        await connection.query(
+          'ALTER TABLE wishlist_items ADD COLUMN price_when_added DECIMAL(12, 2) NULL AFTER product_id'
+        );
         // Seed price_when_added for existing items
         await connection.query(`
           UPDATE wishlist_items wi
@@ -462,25 +485,39 @@ export async function initDb() {
       const columnNames = columns.map((col: any) => col.Field);
 
       if (!columnNames.includes('currency')) {
-        await connection.query("ALTER TABLE orders ADD COLUMN currency VARCHAR(10) DEFAULT 'VND' AFTER status");
+        await connection.query(
+          "ALTER TABLE orders ADD COLUMN currency VARCHAR(10) DEFAULT 'VND' AFTER status"
+        );
       }
       if (!columnNames.includes('voucher_code')) {
-        await connection.query('ALTER TABLE orders ADD COLUMN voucher_code VARCHAR(100) AFTER discount');
+        await connection.query(
+          'ALTER TABLE orders ADD COLUMN voucher_code VARCHAR(100) AFTER discount'
+        );
       }
       if (!columnNames.includes('voucher_discount')) {
-        await connection.query('ALTER TABLE orders ADD COLUMN voucher_discount DECIMAL(12, 2) DEFAULT 0 AFTER voucher_code');
+        await connection.query(
+          'ALTER TABLE orders ADD COLUMN voucher_discount DECIMAL(12, 2) DEFAULT 0 AFTER voucher_code'
+        );
       }
       if (!columnNames.includes('giftcard_number')) {
-        await connection.query('ALTER TABLE orders ADD COLUMN giftcard_number VARCHAR(16) AFTER voucher_discount');
+        await connection.query(
+          'ALTER TABLE orders ADD COLUMN giftcard_number VARCHAR(16) AFTER voucher_discount'
+        );
       }
       if (!columnNames.includes('giftcard_discount')) {
-        await connection.query('ALTER TABLE orders ADD COLUMN giftcard_discount DECIMAL(12, 2) DEFAULT 0 AFTER giftcard_number');
+        await connection.query(
+          'ALTER TABLE orders ADD COLUMN giftcard_discount DECIMAL(12, 2) DEFAULT 0 AFTER giftcard_number'
+        );
       }
       if (!columnNames.includes('shipping_address_id')) {
-        await connection.query('ALTER TABLE orders ADD COLUMN shipping_address_id BIGINT UNSIGNED NULL AFTER shipping_address');
+        await connection.query(
+          'ALTER TABLE orders ADD COLUMN shipping_address_id BIGINT UNSIGNED NULL AFTER shipping_address'
+        );
       }
       if (!columnNames.includes('shipping_address_snapshot')) {
-        await connection.query('ALTER TABLE orders ADD COLUMN shipping_address_snapshot JSON AFTER shipping_address_id');
+        await connection.query(
+          'ALTER TABLE orders ADD COLUMN shipping_address_snapshot JSON AFTER shipping_address_id'
+        );
       } else {
         // Đảm bảo type là JSON nếu đã có nhưng đang là TEXT
         const snapCol = columns.find((c: any) => c.Field === 'shipping_address_snapshot');
@@ -489,37 +526,55 @@ export async function initDb() {
         }
       }
       if (!columnNames.includes('tracking_number')) {
-        await connection.query('ALTER TABLE orders ADD COLUMN tracking_number VARCHAR(100) AFTER payment_status');
+        await connection.query(
+          'ALTER TABLE orders ADD COLUMN tracking_number VARCHAR(100) AFTER payment_status'
+        );
       }
       if (!columnNames.includes('carrier')) {
-        await connection.query('ALTER TABLE orders ADD COLUMN carrier VARCHAR(100) AFTER tracking_number');
+        await connection.query(
+          'ALTER TABLE orders ADD COLUMN carrier VARCHAR(100) AFTER tracking_number'
+        );
       }
       if (!columnNames.includes('shipped_at')) {
-        await connection.query('ALTER TABLE orders ADD COLUMN shipped_at TIMESTAMP NULL AFTER carrier');
+        await connection.query(
+          'ALTER TABLE orders ADD COLUMN shipped_at TIMESTAMP NULL AFTER carrier'
+        );
       }
       if (!columnNames.includes('delivered_at')) {
-        await connection.query('ALTER TABLE orders ADD COLUMN delivered_at TIMESTAMP NULL AFTER shipped_at');
+        await connection.query(
+          'ALTER TABLE orders ADD COLUMN delivered_at TIMESTAMP NULL AFTER shipped_at'
+        );
       }
       if (!columnNames.includes('payment_confirmed_at')) {
-        await connection.query('ALTER TABLE orders ADD COLUMN payment_confirmed_at TIMESTAMP NULL AFTER delivered_at');
+        await connection.query(
+          'ALTER TABLE orders ADD COLUMN payment_confirmed_at TIMESTAMP NULL AFTER delivered_at'
+        );
       }
       if (!columnNames.includes('phone')) {
-        await connection.query('ALTER TABLE orders ADD COLUMN phone VARCHAR(255) AFTER payment_status');
+        await connection.query(
+          'ALTER TABLE orders ADD COLUMN phone VARCHAR(255) AFTER payment_status'
+        );
       }
       if (!columnNames.includes('email')) {
         await connection.query('ALTER TABLE orders ADD COLUMN email VARCHAR(255) AFTER phone');
       }
       if (!columnNames.includes('has_gift_wrapping')) {
-        await connection.query('ALTER TABLE orders ADD COLUMN has_gift_wrapping TINYINT(1) DEFAULT 0');
+        await connection.query(
+          'ALTER TABLE orders ADD COLUMN has_gift_wrapping TINYINT(1) DEFAULT 0'
+        );
       }
       if (!columnNames.includes('gift_wrap_cost')) {
-        await connection.query('ALTER TABLE orders ADD COLUMN gift_wrap_cost DECIMAL(12, 2) DEFAULT 0.00');
+        await connection.query(
+          'ALTER TABLE orders ADD COLUMN gift_wrap_cost DECIMAL(12, 2) DEFAULT 0.00'
+        );
       }
 
       // Migration cho status ENUM nếu thiếu các giá trị mới
       const statusCol = columns.find((c: any) => c.Field === 'status');
       if (statusCol && !statusCol.Type.includes('pending_payment_confirmation')) {
-        await connection.query("ALTER TABLE orders MODIFY COLUMN status ENUM('pending', 'pending_payment_confirmation', 'payment_received', 'confirmed', 'processing', 'shipped', 'delivered', 'cancelled') DEFAULT 'pending'");
+        await connection.query(
+          "ALTER TABLE orders MODIFY COLUMN status ENUM('pending', 'pending_payment_confirmation', 'payment_received', 'confirmed', 'processing', 'shipped', 'delivered', 'cancelled') DEFAULT 'pending'"
+        );
       }
       if (!columnNames.includes('survey_sent')) {
         await connection.query('ALTER TABLE orders ADD COLUMN survey_sent TINYINT(1) DEFAULT 0');
@@ -527,7 +582,9 @@ export async function initDb() {
 
       // Migration: Thêm Index cho các cột thường xuyên query/filter để tránh delay
       if (!columnNames.includes('idx_placed_at')) {
-        try { await connection.query('ALTER TABLE orders ADD INDEX idx_placed_at (placed_at)'); } catch (e) { }
+        try {
+          await connection.query('ALTER TABLE orders ADD INDEX idx_placed_at (placed_at)');
+        } catch (e) {}
       }
 
       try {
@@ -536,8 +593,7 @@ export async function initDb() {
         if (!uColNames.includes('idx_created_at')) {
           await connection.query('ALTER TABLE users ADD INDEX idx_created_at (created_at)');
         }
-      } catch (e) { }
-
+      } catch (e) {}
     } catch (e) {
       console.log('Error adding columns to orders:', e);
     }
@@ -909,18 +965,28 @@ export async function initDb() {
       const columnNames = columns.map((col: any) => col.Field);
 
       if (!columnNames.includes('parent_id')) {
-        await connection.query('ALTER TABLE news_comments ADD COLUMN parent_id BIGINT UNSIGNED NULL AFTER user_id');
-        await connection.query('ALTER TABLE news_comments ADD CONSTRAINT fk_news_comments_parent FOREIGN KEY (parent_id) REFERENCES news_comments(id) ON DELETE CASCADE');
+        await connection.query(
+          'ALTER TABLE news_comments ADD COLUMN parent_id BIGINT UNSIGNED NULL AFTER user_id'
+        );
+        await connection.query(
+          'ALTER TABLE news_comments ADD CONSTRAINT fk_news_comments_parent FOREIGN KEY (parent_id) REFERENCES news_comments(id) ON DELETE CASCADE'
+        );
         await connection.query('ALTER TABLE news_comments ADD INDEX idx_parent_id (parent_id)');
       }
       if (!columnNames.includes('likes_count')) {
-        await connection.query('ALTER TABLE news_comments ADD COLUMN likes_count INT DEFAULT 0 AFTER status');
+        await connection.query(
+          'ALTER TABLE news_comments ADD COLUMN likes_count INT DEFAULT 0 AFTER status'
+        );
       }
       if (!columnNames.includes('updated_at')) {
-        await connection.query('ALTER TABLE news_comments ADD COLUMN updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP');
+        await connection.query(
+          'ALTER TABLE news_comments ADD COLUMN updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP'
+        );
       }
       if (!columnNames.includes('is_edited')) {
-        await connection.query('ALTER TABLE news_comments ADD COLUMN is_edited TINYINT(1) DEFAULT 0 AFTER likes_count');
+        await connection.query(
+          'ALTER TABLE news_comments ADD COLUMN is_edited TINYINT(1) DEFAULT 0 AFTER likes_count'
+        );
       }
     } catch (e) {
       console.log('Error migrating news_comments table:', e);
@@ -1060,10 +1126,14 @@ export async function initDb() {
         await connection.query('ALTER TABLE admin_users ADD COLUMN bio TEXT AFTER full_name');
       }
       if (!columnNames.includes('avatar_url')) {
-        await connection.query('ALTER TABLE admin_users ADD COLUMN avatar_url VARCHAR(1000) AFTER bio');
+        await connection.query(
+          'ALTER TABLE admin_users ADD COLUMN avatar_url VARCHAR(1000) AFTER bio'
+        );
       }
       if (!columnNames.includes('social_links')) {
-        await connection.query('ALTER TABLE admin_users ADD COLUMN social_links JSON AFTER avatar_url');
+        await connection.query(
+          'ALTER TABLE admin_users ADD COLUMN social_links JSON AFTER avatar_url'
+        );
       }
     } catch (e) {
       console.log('Error migrating admin_users for author profile:', e);
@@ -1115,33 +1185,51 @@ export async function initDb() {
       if (!columnNames.includes('sport_id')) {
         console.log('Adding sport_id column to products table...');
         await connection.query('ALTER TABLE products ADD COLUMN sport_id BIGINT UNSIGNED');
-        await connection.query('ALTER TABLE products ADD CONSTRAINT fk_product_sport FOREIGN KEY (sport_id) REFERENCES sports(id) ON DELETE SET NULL');
+        await connection.query(
+          'ALTER TABLE products ADD CONSTRAINT fk_product_sport FOREIGN KEY (sport_id) REFERENCES sports(id) ON DELETE SET NULL'
+        );
       }
       if (!columnNames.includes('is_featured')) {
-        await connection.query('ALTER TABLE products ADD COLUMN is_featured TINYINT(1) DEFAULT 0 AFTER is_active');
+        await connection.query(
+          'ALTER TABLE products ADD COLUMN is_featured TINYINT(1) DEFAULT 0 AFTER is_active'
+        );
       }
       if (!columnNames.includes('is_new_arrival')) {
-        await connection.query('ALTER TABLE products ADD COLUMN is_new_arrival TINYINT(1) DEFAULT 1 AFTER is_featured');
+        await connection.query(
+          'ALTER TABLE products ADD COLUMN is_new_arrival TINYINT(1) DEFAULT 1 AFTER is_featured'
+        );
       }
       if (!columnNames.includes('view_count')) {
-        await connection.query('ALTER TABLE products ADD COLUMN view_count INT DEFAULT 0 AFTER is_new_arrival');
+        await connection.query(
+          'ALTER TABLE products ADD COLUMN view_count INT DEFAULT 0 AFTER is_new_arrival'
+        );
       }
       if (!columnNames.includes('sale_count')) {
-        await connection.query('ALTER TABLE products ADD COLUMN sale_count INT DEFAULT 0 AFTER view_count');
+        await connection.query(
+          'ALTER TABLE products ADD COLUMN sale_count INT DEFAULT 0 AFTER view_count'
+        );
       }
       if (!columnNames.includes('meta_title')) {
-        await connection.query('ALTER TABLE products ADD COLUMN meta_title VARCHAR(255) AFTER sale_count');
+        await connection.query(
+          'ALTER TABLE products ADD COLUMN meta_title VARCHAR(255) AFTER sale_count'
+        );
       }
       if (!columnNames.includes('meta_description')) {
-        await connection.query('ALTER TABLE products ADD COLUMN meta_description TEXT AFTER meta_title');
+        await connection.query(
+          'ALTER TABLE products ADD COLUMN meta_description TEXT AFTER meta_title'
+        );
       }
       // Migration: Add cost_price for BI/Profit tracking
       if (!columnNames.includes('cost_price')) {
-        await connection.query('ALTER TABLE products ADD COLUMN cost_price DECIMAL(12, 2) DEFAULT 0 AFTER retail_price');
+        await connection.query(
+          'ALTER TABLE products ADD COLUMN cost_price DECIMAL(12, 2) DEFAULT 0 AFTER retail_price'
+        );
       }
       // Migration: Add Full-Text Search Index
       try {
-        await connection.query('ALTER TABLE products ADD FULLTEXT INDEX idx_fts_product (name, sku, description)');
+        await connection.query(
+          'ALTER TABLE products ADD FULLTEXT INDEX idx_fts_product (name, sku, description)'
+        );
       } catch (ftsErr) {
         console.log('FTS Index already exists or not supported by Engine');
       }
@@ -1155,10 +1243,14 @@ export async function initDb() {
       const columnNames = columns.map((col: any) => col.Field);
 
       if (!columnNames.includes('meta_title')) {
-        await connection.query('ALTER TABLE categories ADD COLUMN meta_title VARCHAR(255) AFTER is_active');
+        await connection.query(
+          'ALTER TABLE categories ADD COLUMN meta_title VARCHAR(255) AFTER is_active'
+        );
       }
       if (!columnNames.includes('meta_description')) {
-        await connection.query('ALTER TABLE categories ADD COLUMN meta_description TEXT AFTER meta_title');
+        await connection.query(
+          'ALTER TABLE categories ADD COLUMN meta_description TEXT AFTER meta_title'
+        );
       }
     } catch (e) {
       console.log('Error migrating categories table:', e);
@@ -1170,8 +1262,12 @@ export async function initDb() {
       const columnNames = columns.map((col: any) => col.Field);
 
       if (!columnNames.includes('color_id')) {
-        await connection.query('ALTER TABLE product_images ADD COLUMN color_id BIGINT UNSIGNED NULL AFTER product_id');
-        await connection.query('ALTER TABLE product_images ADD CONSTRAINT fk_product_images_color FOREIGN KEY (color_id) REFERENCES product_colors(id) ON DELETE SET NULL');
+        await connection.query(
+          'ALTER TABLE product_images ADD COLUMN color_id BIGINT UNSIGNED NULL AFTER product_id'
+        );
+        await connection.query(
+          'ALTER TABLE product_images ADD CONSTRAINT fk_product_images_color FOREIGN KEY (color_id) REFERENCES product_colors(id) ON DELETE SET NULL'
+        );
       }
     } catch (e) {
       console.log('Error migrating product_images table:', e);
@@ -1183,7 +1279,9 @@ export async function initDb() {
       const columnNames = columns.map((col: any) => col.Field);
 
       if (!columnNames.includes('is_featured')) {
-        await connection.query('ALTER TABLE product_reviews ADD COLUMN is_featured TINYINT(1) DEFAULT 0 AFTER helpful_count');
+        await connection.query(
+          'ALTER TABLE product_reviews ADD COLUMN is_featured TINYINT(1) DEFAULT 0 AFTER helpful_count'
+        );
       }
     } catch (e) {
       console.log('Error migrating product_reviews table:', e);
@@ -1196,29 +1294,47 @@ export async function initDb() {
 
       if (!columnNames.includes('product_variant_id')) {
         console.log('Adding product_variant_id column to order_items table...');
-        await connection.query('ALTER TABLE order_items ADD COLUMN product_variant_id BIGINT UNSIGNED NULL AFTER product_id');
-        await connection.query('ALTER TABLE order_items ADD CONSTRAINT fk_order_items_variant FOREIGN KEY (product_variant_id) REFERENCES product_variants(id) ON DELETE SET NULL');
+        await connection.query(
+          'ALTER TABLE order_items ADD COLUMN product_variant_id BIGINT UNSIGNED NULL AFTER product_id'
+        );
+        await connection.query(
+          'ALTER TABLE order_items ADD CONSTRAINT fk_order_items_variant FOREIGN KEY (product_variant_id) REFERENCES product_variants(id) ON DELETE SET NULL'
+        );
       }
       if (!columnNames.includes('inventory_id')) {
         console.log('Adding inventory_id column to order_items table...');
-        await connection.query('ALTER TABLE order_items ADD COLUMN inventory_id BIGINT UNSIGNED NULL AFTER product_variant_id');
-        await connection.query('ALTER TABLE order_items ADD CONSTRAINT fk_order_items_inventory FOREIGN KEY (inventory_id) REFERENCES inventory(id) ON DELETE SET NULL');
+        await connection.query(
+          'ALTER TABLE order_items ADD COLUMN inventory_id BIGINT UNSIGNED NULL AFTER product_variant_id'
+        );
+        await connection.query(
+          'ALTER TABLE order_items ADD CONSTRAINT fk_order_items_inventory FOREIGN KEY (inventory_id) REFERENCES inventory(id) ON DELETE SET NULL'
+        );
       }
       if (!columnNames.includes('sku')) {
-        await connection.query('ALTER TABLE order_items ADD COLUMN sku VARCHAR(100) AFTER product_name');
+        await connection.query(
+          'ALTER TABLE order_items ADD COLUMN sku VARCHAR(100) AFTER product_name'
+        );
       }
       if (!columnNames.includes('unit_price')) {
-        await connection.query('ALTER TABLE order_items ADD COLUMN unit_price DECIMAL(12, 2) AFTER quantity');
+        await connection.query(
+          'ALTER TABLE order_items ADD COLUMN unit_price DECIMAL(12, 2) AFTER quantity'
+        );
       }
       if (!columnNames.includes('total_price')) {
-        await connection.query('ALTER TABLE order_items ADD COLUMN total_price DECIMAL(12, 2) AFTER unit_price');
+        await connection.query(
+          'ALTER TABLE order_items ADD COLUMN total_price DECIMAL(12, 2) AFTER unit_price'
+        );
       }
       if (!columnNames.includes('flash_sale_item_id')) {
-        await connection.query('ALTER TABLE order_items ADD COLUMN flash_sale_item_id BIGINT UNSIGNED NULL AFTER total_price');
+        await connection.query(
+          'ALTER TABLE order_items ADD COLUMN flash_sale_item_id BIGINT UNSIGNED NULL AFTER total_price'
+        );
       }
       // Migration: Add cost_price to order_items for profit snapshot
       if (!columnNames.includes('cost_price')) {
-        await connection.query('ALTER TABLE order_items ADD COLUMN cost_price DECIMAL(12, 2) DEFAULT 0 AFTER unit_price');
+        await connection.query(
+          'ALTER TABLE order_items ADD COLUMN cost_price DECIMAL(12, 2) DEFAULT 0 AFTER unit_price'
+        );
       }
     } catch (e) {
       console.log('Error migrating order_items table:', e);
@@ -1232,25 +1348,37 @@ export async function initDb() {
       ['Football', 'football', 'Football boots and kits'],
       ['Tennis', 'tennis', 'Tennis shoes and apparel'],
       ['Yoga', 'yoga', 'Yoga and lifestyle apparel'],
-      ['Skateboarding', 'skateboarding', 'Skateboarding shoes and gear']
+      ['Skateboarding', 'skateboarding', 'Skateboarding shoes and gear'],
     ];
 
     for (const [name, slug, desc] of sports) {
-      await connection.query(`
+      await connection.query(
+        `
           INSERT IGNORE INTO sports (name, slug, description)
           VALUES (?, ?, ?)
-        `, [name, slug, desc]);
+        `,
+        [name, slug, desc]
+      );
     }
 
     // Migration: Add deleted_at columns to all target tables
-    const tablesToMigrate = ['users', 'products', 'categories', 'vouchers', 'flash_sales', 'coupons'];
+    const tablesToMigrate = [
+      'users',
+      'products',
+      'categories',
+      'vouchers',
+      'flash_sales',
+      'coupons',
+    ];
     for (const table of tablesToMigrate) {
       try {
         const [columns]: any = await connection.query(`SHOW COLUMNS FROM ${table}`);
         const columnNames = columns.map((col: any) => col.Field);
         if (!columnNames.includes('deleted_at')) {
           console.log(`Adding deleted_at column to ${table} table...`);
-          await connection.query(`ALTER TABLE ${table} ADD COLUMN deleted_at TIMESTAMP NULL DEFAULT NULL`);
+          await connection.query(
+            `ALTER TABLE ${table} ADD COLUMN deleted_at TIMESTAMP NULL DEFAULT NULL`
+          );
           await connection.query(`ALTER TABLE ${table} ADD INDEX idx_deleted_at (deleted_at)`);
         }
       } catch (e) {
@@ -1282,33 +1410,51 @@ export async function initDb() {
 
       if (!columnNames.includes('user_id')) {
         console.log('Adding user_id column to security_logs table...');
-        await connection.query('ALTER TABLE security_logs ADD COLUMN user_id BIGINT UNSIGNED NULL AFTER id');
-        await connection.query('ALTER TABLE security_logs ADD CONSTRAINT fk_security_logs_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL');
+        await connection.query(
+          'ALTER TABLE security_logs ADD COLUMN user_id BIGINT UNSIGNED NULL AFTER id'
+        );
+        await connection.query(
+          'ALTER TABLE security_logs ADD CONSTRAINT fk_security_logs_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL'
+        );
       }
       if (!columnNames.includes('admin_id')) {
         console.log('Adding admin_id column to security_logs table...');
-        await connection.query('ALTER TABLE security_logs ADD COLUMN admin_id BIGINT UNSIGNED NULL AFTER user_id');
-        await connection.query('ALTER TABLE security_logs ADD CONSTRAINT fk_security_logs_admin FOREIGN KEY (admin_id) REFERENCES admin_users(id) ON DELETE SET NULL');
+        await connection.query(
+          'ALTER TABLE security_logs ADD COLUMN admin_id BIGINT UNSIGNED NULL AFTER user_id'
+        );
+        await connection.query(
+          'ALTER TABLE security_logs ADD CONSTRAINT fk_security_logs_admin FOREIGN KEY (admin_id) REFERENCES admin_users(id) ON DELETE SET NULL'
+        );
       }
       if (!columnNames.includes('event_type')) {
         console.log('Adding event_type column to security_logs table...');
-        await connection.query('ALTER TABLE security_logs ADD COLUMN event_type VARCHAR(100) NOT NULL AFTER admin_id');
+        await connection.query(
+          'ALTER TABLE security_logs ADD COLUMN event_type VARCHAR(100) NOT NULL AFTER admin_id'
+        );
       }
       if (!columnNames.includes('ip_address')) {
         console.log('Adding ip_address column to security_logs table...');
-        await connection.query('ALTER TABLE security_logs ADD COLUMN ip_address VARCHAR(45) AFTER event_type');
+        await connection.query(
+          'ALTER TABLE security_logs ADD COLUMN ip_address VARCHAR(45) AFTER event_type'
+        );
       }
       if (!columnNames.includes('user_agent')) {
         console.log('Adding user_agent column to security_logs table...');
-        await connection.query('ALTER TABLE security_logs ADD COLUMN user_agent TEXT AFTER ip_address');
+        await connection.query(
+          'ALTER TABLE security_logs ADD COLUMN user_agent TEXT AFTER ip_address'
+        );
       }
       if (!columnNames.includes('details')) {
         console.log('Adding details column to security_logs table...');
-        await connection.query('ALTER TABLE security_logs ADD COLUMN details JSON AFTER user_agent');
+        await connection.query(
+          'ALTER TABLE security_logs ADD COLUMN details JSON AFTER user_agent'
+        );
       }
       if (!columnNames.includes('status')) {
         console.log('Adding status column to security_logs table...');
-        await connection.query('ALTER TABLE security_logs ADD COLUMN status VARCHAR(50) AFTER details');
+        await connection.query(
+          'ALTER TABLE security_logs ADD COLUMN status VARCHAR(50) AFTER details'
+        );
       }
     } catch (e) {
       console.log('Error migrating security_logs table:', e);
@@ -1320,20 +1466,28 @@ export async function initDb() {
       const [vCols]: any = await connection.query('SHOW COLUMNS FROM vouchers');
       const vColNames = vCols.map((col: any) => col.Field);
       if (!vColNames.includes('min_order_value')) {
-        await connection.query('ALTER TABLE vouchers ADD COLUMN min_order_value DECIMAL(12, 2) DEFAULT 0 AFTER value');
+        await connection.query(
+          'ALTER TABLE vouchers ADD COLUMN min_order_value DECIMAL(12, 2) DEFAULT 0 AFTER value'
+        );
       }
       if (!vColNames.includes('applicable_categories')) {
-        await connection.query('ALTER TABLE vouchers ADD COLUMN applicable_categories JSON NULL AFTER min_order_value');
+        await connection.query(
+          'ALTER TABLE vouchers ADD COLUMN applicable_categories JSON NULL AFTER min_order_value'
+        );
       }
 
       // Coupons
       const [cCols]: any = await connection.query('SHOW COLUMNS FROM coupons');
       const cColNames = cCols.map((col: any) => col.Field);
       if (!cColNames.includes('min_order_amount')) {
-        await connection.query('ALTER TABLE coupons ADD COLUMN min_order_amount DECIMAL(12, 2) DEFAULT 0 AFTER value');
+        await connection.query(
+          'ALTER TABLE coupons ADD COLUMN min_order_amount DECIMAL(12, 2) DEFAULT 0 AFTER value'
+        );
       }
       if (!cColNames.includes('applicable_categories')) {
-        await connection.query('ALTER TABLE coupons ADD COLUMN applicable_categories JSON NULL AFTER min_order_amount');
+        await connection.query(
+          'ALTER TABLE coupons ADD COLUMN applicable_categories JSON NULL AFTER min_order_amount'
+        );
       }
     } catch (e) {
       console.log('Error migrating vouchers/coupons tables:', e);
@@ -1381,14 +1535,22 @@ export async function initDb() {
       const columnNames = columns.map((col: any) => col.Field);
       if (!columnNames.includes('access_token')) {
         console.log('Adding access_token column to support_chats table...');
-        await connection.query('ALTER TABLE support_chats ADD COLUMN access_token VARCHAR(255) NULL AFTER status');
-        await connection.query('ALTER TABLE support_chats ADD INDEX idx_access_token (access_token)');
+        await connection.query(
+          'ALTER TABLE support_chats ADD COLUMN access_token VARCHAR(255) NULL AFTER status'
+        );
+        await connection.query(
+          'ALTER TABLE support_chats ADD INDEX idx_access_token (access_token)'
+        );
       }
       if (!columnNames.includes('first_response_at')) {
-        await connection.query('ALTER TABLE support_chats ADD COLUMN first_response_at TIMESTAMP NULL AFTER last_message_at');
+        await connection.query(
+          'ALTER TABLE support_chats ADD COLUMN first_response_at TIMESTAMP NULL AFTER last_message_at'
+        );
       }
       if (!columnNames.includes('sla_breached')) {
-        await connection.query('ALTER TABLE support_chats ADD COLUMN sla_breached BOOLEAN DEFAULT FALSE AFTER first_response_at');
+        await connection.query(
+          'ALTER TABLE support_chats ADD COLUMN sla_breached BOOLEAN DEFAULT FALSE AFTER first_response_at'
+        );
       }
     } catch (e) {
       console.log('Error migrating support_chats table:', e);
@@ -1531,7 +1693,21 @@ export async function initDb() {
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
     `);
 
-    console.log('Khởi tạo cơ sở dữ liệu thành công');
+    // ═══════════════════════════════════════════
+    // LƯU Ý QUAN TRỌNG VỀ DATABASE SCHEMA (GDPR, MIGRATIONS)
+    // ═══════════════════════════════════════════
+    // File init.ts này chứa 62 base tables.
+    // Tuy nhiên, database thực tế có 83 tables. 21 bảng còn lại được quản lý bằng Drizzle ORM Migrations.
+    // Các bảng Drizzle quản lý bao gồm: _migrations, admin_audit_logs, daily_metrics, gift_card_lockouts,
+    // inventory_transfers, payments, product_embeddings, search_analytics, system_config, v.v.
+    //
+    // ĐỂ FRESH DEPLOY, HÃY CHẠY:
+    // 1. npm run db:init (chạy file này)
+    // 2. npx drizzle-kit push (để tạo 21 bảng còn lại và đồng bộ schema)
+
+    console.log(
+      'Khởi tạo cơ sở dữ liệu thành công. VUI LÒNG CHẠY "npx drizzle-kit push" ĐỂ HOÀN TẤT SCHEMA.'
+    );
     connection.release();
     return true;
   } catch (error) {

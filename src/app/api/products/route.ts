@@ -40,7 +40,8 @@ export async function GET(request: Request) {
     const filters: any = {
       limit,
       offset,
-      search: search || undefined
+      sort: sort || 'newest', // FIX H3: Pass sort for SQL ORDER BY
+      search: search || undefined,
     };
 
     if (category && category !== 'all') {
@@ -90,30 +91,14 @@ export async function GET(request: Request) {
     const { items: productsData, total: totalCount } = await getProducts(filters);
 
     // Convert string prices to numbers
-    const products = productsData.map(p => ({
+    const products = productsData.map((p) => ({
       ...p,
       base_price: p.base_price ? parseFloat(p.base_price) : 0,
-      retail_price: p.retail_price ? parseFloat(p.retail_price) : 0
+      retail_price: p.retail_price ? parseFloat(p.retail_price) : 0,
     }));
 
-    // Apply sorting
-    products.sort((a, b) => {
-      switch (sort) {
-        case 'price-asc':
-          return (a.retail_price || a.base_price) - (b.retail_price || b.base_price);
-        case 'price-desc':
-          return (b.retail_price || b.base_price) - (a.retail_price || a.base_price);
-        case 'discount':
-          const discountA = a.retail_price ? ((a.base_price - a.retail_price) / a.base_price) * 100 : 0;
-          const discountB = b.retail_price ? ((b.base_price - b.retail_price) / b.base_price) * 100 : 0;
-          return discountB - discountA;
-        case 'name':
-          return a.name.localeCompare(b.name);
-        case 'newest':
-        default:
-          return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
-      }
-    });
+    // FIX H3: Sorting now done at SQL level via getProducts() — no JS sort needed
+    // This fixes incorrect pagination (JS sort only sorted within 1 page)
 
     const total = totalCount;
     const totalPages = Math.ceil(total / limit);
@@ -125,8 +110,8 @@ export async function GET(request: Request) {
         page,
         limit,
         total,
-        totalPages
-      }
+        totalPages,
+      },
     };
 
     // Save to cache for 30 minutes

@@ -2,7 +2,8 @@ import { executeQuery } from '../connection';
 
 // Product functions
 export async function getProductSizes(productId: number) {
-    return executeQuery(`
+  return executeQuery(
+    `
     SELECT 
         pv.size, 
         i.quantity as stock, 
@@ -15,81 +16,86 @@ export async function getProductSizes(productId: number) {
     LEFT JOIN inventory i ON i.product_variant_id = pv.id
     WHERE pv.product_id = ?
     ORDER BY CAST(pv.size AS DECIMAL(10,1))`,
-        [productId]
-    );
+    [productId]
+  );
 }
 
 export async function getProductById(productId: number) {
-    const [product] = await executeQuery<any[]>(`
+  const [product] = await executeQuery<any[]>(
+    `
     SELECT * FROM products WHERE id = ? AND is_active = 1 AND deleted_at IS NULL`,
-        [productId]
-    );
-    return product;
+    [productId]
+  );
+  return product;
 }
 
 export async function getProductBySlug(slug: string) {
-    const [product] = await executeQuery<any[]>(`
+  const [product] = await executeQuery<any[]>(
+    `
     SELECT * FROM products WHERE slug = ? AND is_active = 1 AND deleted_at IS NULL`,
-        [slug]
-    );
-    return product;
+    [slug]
+  );
+  return product;
 }
 
 export async function getProducts(filters: {
-    category?: string;
-    sport?: string;
-    gender?: string;
-    minPrice?: number;
-    maxPrice?: number;
-    search?: string;
-    isNewArrival?: boolean;
-    limit?: number;
-    offset?: number;
+  category?: string;
+  sport?: string;
+  gender?: string;
+  minPrice?: number;
+  maxPrice?: number;
+  search?: string;
+  isNewArrival?: boolean;
+  sort?: string; // FIX H3: Accept sort param for SQL ORDER BY
+  limit?: number;
+  offset?: number;
 }) {
-    let whereClause = `WHERE p.is_active = 1 AND p.deleted_at IS NULL`;
-    const params: any[] = [];
+  let whereClause = `WHERE p.is_active = 1 AND p.deleted_at IS NULL`;
+  const params: any[] = [];
 
-    if (filters.search) {
-        whereClause += ' AND MATCH(p.name, p.sku, p.description) AGAINST(?)';
-        params.push(filters.search);
-    }
+  if (filters.search) {
+    whereClause += ' AND MATCH(p.name, p.sku, p.description) AGAINST(?)';
+    params.push(filters.search);
+  }
 
-    if (filters.category) {
-        whereClause += ' AND p.category_id = (SELECT id FROM categories WHERE slug = ? OR name = ? LIMIT 1)';
-        params.push(filters.category, filters.category);
-    }
+  if (filters.category) {
+    whereClause +=
+      ' AND p.category_id = (SELECT id FROM categories WHERE slug = ? OR name = ? LIMIT 1)';
+    params.push(filters.category, filters.category);
+  }
 
-    if (filters.sport) {
-        whereClause += ' AND p.sport_id = (SELECT id FROM sports WHERE slug = ? OR name = ? LIMIT 1)';
-        params.push(filters.sport, filters.sport);
-    }
+  if (filters.sport) {
+    whereClause += ' AND p.sport_id = (SELECT id FROM sports WHERE slug = ? OR name = ? LIMIT 1)';
+    params.push(filters.sport, filters.sport);
+  }
 
-    if (filters.gender) {
-        whereClause += ' AND EXISTS (SELECT 1 FROM product_gender_categories pgc WHERE pgc.product_id = p.id AND pgc.gender = ?)';
-        params.push(filters.gender);
-    }
+  if (filters.gender) {
+    whereClause +=
+      ' AND EXISTS (SELECT 1 FROM product_gender_categories pgc WHERE pgc.product_id = p.id AND pgc.gender = ?)';
+    params.push(filters.gender);
+  }
 
-    if (filters.minPrice !== undefined) {
-        whereClause += ' AND (p.retail_price >= ? OR (p.retail_price IS NULL AND p.base_price >= ?))';
-        params.push(filters.minPrice, filters.minPrice);
-    }
+  if (filters.minPrice !== undefined) {
+    whereClause += ' AND (p.retail_price >= ? OR (p.retail_price IS NULL AND p.base_price >= ?))';
+    params.push(filters.minPrice, filters.minPrice);
+  }
 
-    if (filters.maxPrice !== undefined) {
-        whereClause += ' AND (p.retail_price <= ? OR (p.retail_price IS NULL AND p.base_price <= ?))';
-        params.push(filters.maxPrice, filters.maxPrice);
-    }
+  if (filters.maxPrice !== undefined) {
+    whereClause += ' AND (p.retail_price <= ? OR (p.retail_price IS NULL AND p.base_price <= ?))';
+    params.push(filters.maxPrice, filters.maxPrice);
+  }
 
-    if (filters.isNewArrival) {
-        whereClause += ' AND p.created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)';
-    }
+  if (filters.isNewArrival) {
+    whereClause += ' AND p.created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)';
+  }
 
-    // 1. Get Total Count
-    const countQuery = `SELECT COUNT(*) as total FROM products p ${whereClause}`;
-    const [countResult]: any = await executeQuery(countQuery, params);
-    const total = countResult?.total || 0;
+  // 1. Get Total Count
+  const countQuery = `SELECT COUNT(*) as total FROM products p ${whereClause}`;
+  const [countResult]: any = await executeQuery(countQuery, params);
+  const total = countResult?.total || 0;
 
-    // 2. Get Products
-    let query = `
+  // 2. Get Products
+  let query = `
     SELECT 
       p.*,
       (SELECT url FROM product_images WHERE product_id = p.id AND is_main = 1 LIMIT 1) as image_url,
@@ -100,161 +106,164 @@ export async function getProducts(filters: {
     FROM products p
     ${whereClause}`;
 
-    if (filters.search) params.push(filters.search);
+  if (filters.search) params.push(filters.search);
 
-    if (filters.search) {
-        query += ' ORDER BY relevance DESC, p.created_at DESC';
-    } else {
-        query += ' ORDER BY p.created_at DESC';
+  // FIX H3: SQL ORDER BY via whitelist (sort BEFORE LIMIT for correct pagination)
+  const sortMap: Record<string, string> = {
+    'price-asc': 'COALESCE(p.retail_price, p.base_price) ASC',
+    'price-desc': 'COALESCE(p.retail_price, p.base_price) DESC',
+    discount: '(p.base_price - COALESCE(p.retail_price, p.base_price)) DESC',
+    name: 'p.name ASC',
+    newest: 'p.created_at DESC',
+  };
+
+  if (filters.search) {
+    query += ` ORDER BY relevance DESC, ${sortMap[filters.sort || 'newest'] || 'p.created_at DESC'}`;
+  } else {
+    query += ` ORDER BY ${sortMap[filters.sort || 'newest'] || 'p.created_at DESC'}`;
+  }
+
+  if (filters.limit) {
+    query += ` LIMIT ${filters.limit}`;
+    if (filters.offset !== undefined) {
+      query += ` OFFSET ${filters.offset}`;
     }
+  }
 
-    if (filters.limit) {
-        query += ` LIMIT ${filters.limit}`;
-        if (filters.offset !== undefined) {
-            query += ` OFFSET ${filters.offset}`;
-        }
-    }
-
-    const items = await executeQuery<any[]>(query, params);
-    return { items, total };
+  const items = await executeQuery<any[]>(query, params);
+  return { items, total };
 }
 
 // Chatbot Search Function
 export async function searchProductsForChat(keyword: string) {
-    try {
-        // Search products by name (limit 5) using Full-Text Search
-        const products = await executeQuery<any[]>(
-            `SELECT p.id, p.name, p.base_price, p.retail_price, p.slug, p.short_description,
+  try {
+    // Search products by name (limit 5) using Full-Text Search
+    const products = await executeQuery<any[]>(
+      `SELECT p.id, p.name, p.base_price, p.retail_price, p.slug, p.short_description,
                (SELECT url FROM product_images WHERE product_id = p.id AND is_main = 1 LIMIT 1) as image_url,
                MATCH(p.name, p.sku, p.description) AGAINST(?) as relevance
         FROM products p
         WHERE MATCH(p.name, p.sku, p.description) AGAINST(?) AND p.is_active = 1 AND p.deleted_at IS NULL
         ORDER BY relevance DESC
         LIMIT 5`,
-            [keyword, keyword]
-        );
+      [keyword, keyword]
+    );
 
-        // For each product, fetch available sizes and ratings via helper
-        const result = await formatProductsForChat(products);
-        return result;
-    } catch (error) {
-        console.error('Chatbot Search Error:', error);
-        // Fallback to LIKE if FTS fails
-        const products = await executeQuery<any[]>(
-            `SELECT p.id, p.name, p.base_price, p.retail_price, p.slug, p.short_description,
+    // For each product, fetch available sizes and ratings via helper
+    const result = await formatProductsForChat(products);
+    return result;
+  } catch (error) {
+    console.error('Chatbot Search Error:', error);
+    // Fallback to LIKE if FTS fails
+    const products = await executeQuery<any[]>(
+      `SELECT p.id, p.name, p.base_price, p.retail_price, p.slug, p.short_description,
                (SELECT url FROM product_images WHERE product_id = p.id AND is_main = 1 LIMIT 1) as image_url
         FROM products p
         WHERE p.name LIKE ? AND p.is_active = 1 AND p.deleted_at IS NULL
         LIMIT 5`,
-            [`%${keyword}%`]
-        );
-        return formatProductsForChat(products);
-    }
+      [`%${keyword}%`]
+    );
+    return formatProductsForChat(products);
+  }
 }
 
 export async function getNewArrivalsForChat() {
-    try {
-        const products = await executeQuery<any[]>(
-            `SELECT p.id, p.name, p.base_price, p.retail_price, p.slug,
+  try {
+    const products = await executeQuery<any[]>(
+      `SELECT p.id, p.name, p.base_price, p.retail_price, p.slug,
                (SELECT url FROM product_images WHERE product_id = p.id AND is_main = 1 LIMIT 1) as image_url
         FROM products p
         WHERE p.is_active = 1 AND p.deleted_at IS NULL
         ORDER BY p.created_at DESC 
         LIMIT 5`
-        );
-        return formatProductsForChat(products);
-    } catch (error) {
-        console.error('Chatbot New Arrivals Error:', error);
-        return [];
-    }
+    );
+    return formatProductsForChat(products);
+  } catch (error) {
+    console.error('Chatbot New Arrivals Error:', error);
+    return [];
+  }
 }
 
 export async function getDiscountedProductsForChat() {
-    try {
-        const products = await executeQuery<any[]>(
-            `SELECT id, name, base_price, retail_price, slug,
+  try {
+    const products = await executeQuery<any[]>(
+      `SELECT id, name, base_price, retail_price, slug,
                (SELECT url FROM product_images WHERE product_id = p.id AND is_main = 1 LIMIT 1) as image_url
         FROM products p
         WHERE p.is_active = 1 AND p.retail_price < p.base_price AND p.deleted_at IS NULL
         ORDER BY (p.base_price - p.retail_price) DESC 
         LIMIT 5`
-        );
-        return formatProductsForChat(products);
-    } catch (error) {
-        console.error('Chatbot Discount Error:', error);
-        return [];
-    }
+    );
+    return formatProductsForChat(products);
+  } catch (error) {
+    console.error('Chatbot Discount Error:', error);
+    return [];
+  }
 }
 
 export async function getProductsByCategoryForChat(categorySlug: string) {
-    try {
-        const products = await executeQuery<any[]>(
-            `SELECT p.id, p.name, p.base_price, p.retail_price, p.slug,
+  try {
+    const products = await executeQuery<any[]>(
+      `SELECT p.id, p.name, p.base_price, p.retail_price, p.slug,
                (SELECT url FROM product_images WHERE product_id = p.id AND is_main = 1 LIMIT 1) as image_url
         FROM products p
         JOIN categories c ON p.category_id = c.id
         WHERE p.is_active = 1 AND (c.slug = ? OR c.name LIKE ?) AND p.deleted_at IS NULL
         ORDER BY p.created_at DESC 
         LIMIT 5`,
-            [categorySlug, `%${categorySlug}%`]
-        );
-        return formatProductsForChat(products);
-    } catch (error) {
-        console.error('Chatbot Category Error:', error);
-        return [];
-    }
+      [categorySlug, `%${categorySlug}%`]
+    );
+    return formatProductsForChat(products);
+  } catch (error) {
+    console.error('Chatbot Category Error:', error);
+    return [];
+  }
 }
 
 // Helper to format products consistently for chat (Optimized to avoid N+1)
 export async function formatProductsForChat(products: any[]) {
-    if (products.length === 0) return [];
+  if (products.length === 0) return [];
 
-    const productIds = products.map(p => p.id);
+  const productIds = products.map((p) => p.id);
 
-    // Batch fetch available sizes for all products
-    const allSizes = await executeQuery<any[]>(
-        `SELECT pv.product_id, pv.size, (COALESCE(i.quantity, 0) - COALESCE(i.reserved, 0)) as stock 
+  // Batch fetch available sizes for all products
+  const allSizes = await executeQuery<any[]>(
+    `SELECT pv.product_id, pv.size, (COALESCE(i.quantity, 0) - COALESCE(i.reserved, 0)) as stock 
          FROM product_variants pv 
          LEFT JOIN inventory i ON i.product_variant_id = pv.id
          WHERE pv.product_id IN (?) AND (COALESCE(i.quantity, 0) - COALESCE(i.reserved, 0)) > 0
          ORDER BY CAST(pv.size AS DECIMAL(10,1))`,
-        [productIds as any]
-    );
+    [productIds as any]
+  );
 
-    // Group sizes by product_id
-    const sizesByProduct: Record<string, string[]> = {};
-    allSizes.forEach(s => {
-        if (!sizesByProduct[s.product_id]) sizesByProduct[s.product_id] = [];
-        sizesByProduct[s.product_id].push(s.size);
-    });
+  // Group sizes by product_id
+  const sizesByProduct: Record<string, string[]> = {};
+  allSizes.forEach((s) => {
+    if (!sizesByProduct[s.product_id]) sizesByProduct[s.product_id] = [];
+    sizesByProduct[s.product_id].push(s.size);
+  });
 
-    return products.map(p => {
-        const availableSizes = (sizesByProduct[p.id] || []).join(', ');
-        const price = p.retail_price || p.base_price;
-        const originalPrice = p.retail_price ? p.base_price : null;
+  return products.map((p) => {
+    const availableSizes = (sizesByProduct[p.id] || []).join(', ');
+    const price = p.retail_price || p.base_price;
+    const originalPrice = p.retail_price ? p.base_price : null;
 
-        return {
-            id: p.id,
-            name: p.name,
-            price: price,
-            originalPrice: originalPrice,
-            image_url: p.image_url || '/images/placeholder.png',
-            sizes: availableSizes || 'Hết hàng',
-            link: `/products/${p.slug || p.id}`
-        };
-    });
+    return {
+      id: p.id,
+      name: p.name,
+      price: price,
+      originalPrice: originalPrice,
+      image_url: p.image_url || '/images/placeholder.png',
+      sizes: availableSizes || 'Hết hàng',
+      link: `/products/${p.slug || p.id}`,
+    };
+  });
 }
 
 export async function softDeleteProduct(productId: number) {
-    return executeQuery(
-        'UPDATE products SET deleted_at = NOW() WHERE id = ?',
-        [productId]
-    );
+  return executeQuery('UPDATE products SET deleted_at = NOW() WHERE id = ?', [productId]);
 }
 
 export async function restoreProduct(productId: number) {
-    return executeQuery(
-        'UPDATE products SET deleted_at = NULL WHERE id = ?',
-        [productId]
-    );
+  return executeQuery('UPDATE products SET deleted_at = NULL WHERE id = ?', [productId]);
 }

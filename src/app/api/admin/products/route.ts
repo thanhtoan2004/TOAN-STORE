@@ -12,7 +12,7 @@ import { logger } from '@/lib/logger';
 // GET - Lấy danh sách sản phẩm (Admin)
 /**
  * API Lấy danh sách sản phẩm phục vụ trang Quản lý (Admin).
- * Khác với API Public, Endpoint này dùng thư viện Drizzle ORM để query 
+ * Khác với API Public, Endpoint này dùng thư viện Drizzle ORM để query
  * và bắt buộc phải qua lớp xác thực `checkAdminAuth`.
  * Hỗ trợ các filter: Tìm theo tên/SKU, lọc theo Trạng thái (Active/Inactive).
  */
@@ -23,7 +23,7 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url);
     const page = parseInt(searchParams.get('page') || '1');
-    const limit = parseInt(searchParams.get('limit') || '20');
+    const limit = Math.min(parseInt(searchParams.get('limit') || '20'), 100); // M2: Cap limit
     const search = searchParams.get('search');
     const status = searchParams.get('status');
     const offset = (page - 1) * limit;
@@ -34,24 +34,27 @@ export async function GET(request: NextRequest) {
     const filters = [sql`${products.deletedAt} IS NULL`];
 
     if (search) {
-      filters.push(sql`(${products.name} LIKE ${`%%${search}%%`} OR ${products.sku} LIKE ${`%%${search}%%`})`);
+      filters.push(
+        sql`(${products.name} LIKE ${`%%${search}%%`} OR ${products.sku} LIKE ${`%%${search}%%`})`
+      );
     }
     if (status) {
       filters.push(eq(products.isActive, status === 'active' ? 1 : 0));
     }
 
-    const data = await db.select({
-      id: products.id,
-      sku: products.sku,
-      name: products.name,
-      slug: products.slug,
-      basePrice: products.basePrice,
-      retailPrice: products.retailPrice,
-      isActive: products.isActive,
-      createdAt: products.createdAt,
-      primaryImage: sql<string>`(SELECT url FROM product_images WHERE product_id = ${products.id} AND is_main = 1 LIMIT 1)`,
-      categoryName: categories.name,
-    })
+    const data = await db
+      .select({
+        id: products.id,
+        sku: products.sku,
+        name: products.name,
+        slug: products.slug,
+        basePrice: products.basePrice,
+        retailPrice: products.retailPrice,
+        isActive: products.isActive,
+        createdAt: products.createdAt,
+        primaryImage: sql<string>`(SELECT url FROM product_images WHERE product_id = ${products.id} AND is_main = 1 LIMIT 1)`,
+        categoryName: categories.name,
+      })
       .from(products)
       .leftJoin(categories, eq(products.categoryId, categories.id))
       .where(and(...filters))
@@ -60,7 +63,8 @@ export async function GET(request: NextRequest) {
       .offset(offset);
 
     // Get total count
-    const [countResult] = await db.select({ count: sql<number>`count(*)` })
+    const [countResult] = await db
+      .select({ count: sql<number>`count(*)` })
       .from(products)
       .where(and(...filters));
 
@@ -70,7 +74,7 @@ export async function GET(request: NextRequest) {
       page,
       limit,
       total,
-      totalPages: Math.ceil(total / limit)
+      totalPages: Math.ceil(total / limit),
     });
   } catch (error) {
     logger.error(error, 'Error fetching products:');
@@ -109,7 +113,7 @@ export async function POST(request: NextRequest) {
       image_url,
       gallery_images,
       main_media_type,
-      is_new_arrival
+      is_new_arrival,
     } = body;
 
     // Validate using ResponseWrapper
@@ -127,7 +131,7 @@ export async function POST(request: NextRequest) {
       categoryId: category_id ? Number(category_id) : null,
       collectionId: collection_id ? Number(collection_id) : null,
       isActive: is_active !== undefined ? Number(is_active) : 1,
-      isNewArrival: is_new_arrival ? 1 : 0
+      isNewArrival: is_new_arrival ? 1 : 0,
     });
 
     const productId = result.insertId;
@@ -138,7 +142,7 @@ export async function POST(request: NextRequest) {
         productId,
         url: image_url,
         isMain: 1,
-        altText: name
+        altText: name,
       });
     }
 
@@ -176,15 +180,43 @@ export async function PUT(request: NextRequest) {
 
     if (!id) return ResponseWrapper.error('Product ID required', 400);
 
+    // FIX M1: Whitelist — only allow safe fields to be updated
+    const allowedFields = [
+      'name',
+      'slug',
+      'sku',
+      'basePrice',
+      'retailPrice',
+      'costPrice',
+      'description',
+      'shortDescription',
+      'categoryId',
+      'brandId',
+      'collectionId',
+      'isActive',
+      'isNewArrival',
+      'gender',
+    ];
+    const filteredUpdates: any = {};
+    Object.keys(updates).forEach((key) => {
+      if (allowedFields.includes(key)) {
+        filteredUpdates[key] = updates[key];
+      }
+    });
+
+    if (Object.keys(filteredUpdates).length === 0) {
+      return ResponseWrapper.error('No valid fields to update', 400);
+    }
+
     // Transition logic: simplified for this proof of concept
-    // In a real "Full" upgrade, we'd use a repository pattern
     const [current] = await db.select().from(products).where(eq(products.id, id)).limit(1);
     if (!current) return ResponseWrapper.notFound('Product not found');
 
-    await db.update(products)
+    await db
+      .update(products)
       .set({
-        ...updates,
-        updatedAt: sql`CURRENT_TIMESTAMP`
+        ...filteredUpdates,
+        updatedAt: sql`CURRENT_TIMESTAMP`,
       })
       .where(eq(products.id, id));
 
@@ -209,11 +241,12 @@ export async function DELETE(request: NextRequest) {
     const id = searchParams.get('id');
     if (!id) return ResponseWrapper.error('Product ID required', 400);
 
-    await db.update(products)
+    await db
+      .update(products)
       .set({
         isActive: 0,
         deletedAt: sql`CURRENT_TIMESTAMP`,
-        updatedAt: sql`CURRENT_TIMESTAMP`
+        updatedAt: sql`CURRENT_TIMESTAMP`,
       })
       .where(eq(products.id, Number(id)));
 
