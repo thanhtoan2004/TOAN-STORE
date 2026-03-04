@@ -21,107 +21,89 @@ export async function GET(request: NextRequest) {
         const userId = Number(session.userId);
         const searchParams = request.nextUrl.searchParams;
         const page = parseInt(searchParams.get('page') || '1');
-        const limit = parseInt(searchParams.get('limit') || '10');
+        const limit = Math.min(parseInt(searchParams.get('limit') || '10'), 50);
         const type = searchParams.get('type'); // 'payment' | 'refund' | 'points' | 'gift_card'
         const offset = (page - 1) * limit;
 
-        // Build transactions from multiple sources
-        const transactions: any[] = [];
+        // Build SQL UNION ALL với LIMIT/OFFSET thay vì fetch ALL rồi .slice()
+        const unions: string[] = [];
+        const countUnions: string[] = [];
+        const params: any[] = [];
+        const countParams: any[] = [];
 
-        // 1. Order payments
         if (!type || type === 'payment') {
-            const orderPayments = await executeQuery<any[]>(`
-                SELECT 
-                    o.id,
-                    o.order_number,
-                    o.total as amount,
-                    o.payment_method,
-                    o.status as order_status,
-                    o.created_at,
-                    'payment' as transaction_type,
-                    CASE 
-                        WHEN o.status IN ('delivered', 'processing', 'shipped') THEN 'completed'
-                        WHEN o.status = 'cancelled' THEN 'cancelled'
-                        WHEN o.status = 'pending' THEN 'pending'
-                        ELSE o.status
-                    END as transaction_status
-                FROM orders o
-                WHERE o.user_id = ?
-                ORDER BY o.created_at DESC
-            `, [userId]);
-            transactions.push(...orderPayments);
+            unions.push(`
+                SELECT o.id, o.order_number, o.total as amount, o.payment_method,
+                       o.status as order_status, o.created_at,
+                       'payment' as transaction_type,
+                       CASE WHEN o.status IN ('delivered','processing','shipped') THEN 'completed'
+                            WHEN o.status = 'cancelled' THEN 'cancelled'
+                            WHEN o.status = 'pending' THEN 'pending'
+                            ELSE o.status END as transaction_status,
+                       NULL as description
+                FROM orders o WHERE o.user_id = ?
+            `);
+            countUnions.push(`SELECT COUNT(*) as cnt FROM orders WHERE user_id = ?`);
+            params.push(userId);
+            countParams.push(userId);
         }
 
-        // 2. Refunds
         if (!type || type === 'refund') {
-            const refunds = await executeQuery<any[]>(`
-                SELECT 
-                    r.id,
-                    o.order_number,
-                    r.refund_amount as amount,
-                    o.payment_method,
-                    o.status as order_status,
-                    r.created_at,
-                    'refund' as transaction_type,
-                    r.status as transaction_status
-                FROM refunds r
-                JOIN orders o ON r.order_id = o.id
-                WHERE o.user_id = ?
-                ORDER BY r.created_at DESC
-            `, [userId]);
-            transactions.push(...refunds);
+            unions.push(`
+                SELECT r.id, o.order_number, r.refund_amount as amount, o.payment_method,
+                       o.status as order_status, r.created_at,
+                       'refund' as transaction_type, r.status as transaction_status,
+                       NULL as description
+                FROM refunds r JOIN orders o ON r.order_id = o.id WHERE o.user_id = ?
+            `);
+            countUnions.push(`SELECT COUNT(*) as cnt FROM refunds r JOIN orders o ON r.order_id = o.id WHERE o.user_id = ?`);
+            params.push(userId);
+            countParams.push(userId);
         }
 
-        // 3. Points transactions
         if (!type || type === 'points') {
-            const points = await executeQuery<any[]>(`
-                SELECT 
-                    pt.id,
-                    NULL as order_number,
-                    pt.points as amount,
-                    NULL as payment_method,
-                    NULL as order_status,
-                    pt.created_at,
-                    'points' as transaction_type,
-                    pt.type as transaction_status,
-                    pt.description
-                FROM point_transactions pt
-                WHERE pt.user_id = ?
-                ORDER BY pt.created_at DESC
-            `, [userId]);
-            transactions.push(...points);
+            unions.push(`
+                SELECT pt.id, NULL as order_number, pt.points as amount, NULL as payment_method,
+                       NULL as order_status, pt.created_at,
+                       'points' as transaction_type, pt.type as transaction_status,
+                       pt.description
+                FROM point_transactions pt WHERE pt.user_id = ?
+            `);
+            countUnions.push(`SELECT COUNT(*) as cnt FROM point_transactions WHERE user_id = ?`);
+            params.push(userId);
+            countParams.push(userId);
         }
 
-        // 4. Gift card transactions
         if (!type || type === 'gift_card') {
-            const giftCards = await executeQuery<any[]>(`
-                SELECT 
-                    gct.id,
-                    gc.card_number as order_number,
-                    gct.amount,
-                    NULL as payment_method,
-                    NULL as order_status,
-                    gct.created_at,
-                    'gift_card' as transaction_type,
-                    gct.type as transaction_status,
-                    gct.description
-                FROM gift_card_transactions gct
-                JOIN gift_cards gc ON gct.gift_card_id = gc.id
+            unions.push(`
+                SELECT gct.id, gc.card_number as order_number, gct.amount, NULL as payment_method,
+                       NULL as order_status, gct.created_at,
+                       'gift_card' as transaction_type, gct.type as transaction_status,
+                       gct.description
+                FROM gift_card_transactions gct JOIN gift_cards gc ON gct.gift_card_id = gc.id
                 WHERE gct.user_id = ?
-                ORDER BY gct.created_at DESC
-            `, [userId]);
-            transactions.push(...giftCards);
+            `);
+            countUnions.push(`SELECT COUNT(*) as cnt FROM gift_card_transactions WHERE user_id = ?`);
+            params.push(userId);
+            countParams.push(userId);
         }
 
-        // Sort all by date descending
-        transactions.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+        if (unions.length === 0) {
+            return NextResponse.json({ transactions: [], pagination: { page, limit, total: 0, totalPages: 0 } });
+        }
 
-        // Paginate
-        const total = transactions.length;
-        const paginatedTransactions = transactions.slice(offset, offset + limit);
+        // Count total
+        const countQuery = `SELECT SUM(cnt) as total FROM (${countUnions.join(' UNION ALL ')}) as counts`;
+        const countResult = await executeQuery<any[]>(countQuery, countParams);
+        const total = Number(countResult[0]?.total || 0);
+
+        // Paginated data
+        const dataQuery = `(${unions.join(') UNION ALL (')}) ORDER BY created_at DESC LIMIT ? OFFSET ?`;
+        params.push(limit, offset);
+        const transactions = await executeQuery<any[]>(dataQuery, params);
 
         return NextResponse.json({
-            transactions: paginatedTransactions,
+            transactions,
             pagination: {
                 page,
                 limit,

@@ -1,6 +1,6 @@
 # Database Schema
 
-TOAN Store sử dụng **MySQL 8.0** với 30+ bảng. Schema tự khởi tạo qua `src/lib/db/init.ts`.
+TOAN Store sử dụng **MySQL 8.0** với **86 bảng**. Schema tự khởi tạo qua `src/lib/db/init.ts`.
 
 ---
 
@@ -82,6 +82,9 @@ erDiagram
 | email | VARCHAR(255) UNIQUE | — |
 | password | VARCHAR(255) | Bcrypt |
 | full_name | VARCHAR(200) | — |
+| bio | TEXT NULL | Tiểu sử tác giả (Author Profile) |
+| avatar_url | VARCHAR(1000) NULL | Ảnh đại diện tác giả |
+| social_links | JSON NULL | Liên kết mạng xã hội |
 | role_id | INT FK→roles | Relational RBAC Role ID |
 | is_active | TINYINT(1) DEFAULT 1 | — |
 | last_login | TIMESTAMP NULL | — |
@@ -148,6 +151,7 @@ erDiagram
 | slug | VARCHAR(300) UNIQUE | — |
 | parent_id | BIGINT NULL FK→categories | Nested categories |
 | description | TEXT | — |
+| position | INT DEFAULT 0 | Thứ tự hiển thị (Drag & Drop) |
 | is_active | TINYINT(1) DEFAULT 1 | — |
 
 ---
@@ -372,7 +376,7 @@ Form liên hệ từ khách hàng (`contact_messages`).
 Hệ thống Tin tức & Blog với bình luận lồng nhau.
 | Table | Purpose |
 |-------|---------|
-| `news` | Bài viết news/blog |
+| `news` | Bài viết news/blog (`author_id` FK→admin_users) |
 | `news_comments` | Bình luận (support parent_id cho nested) |
 | `news_comment_likes` | Theo dõi lượt thích bình luận |
 

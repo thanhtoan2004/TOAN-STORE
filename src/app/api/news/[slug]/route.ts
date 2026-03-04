@@ -12,9 +12,10 @@ export async function GET(
         const result = await executeQuery(`
       SELECT 
         n.*,
-        CONCAT(u.first_name, ' ', u.last_name) as author_name
+        n.author_id,
+        au.full_name as author_name
       FROM news n
-      LEFT JOIN users u ON n.author_id = u.id
+      LEFT JOIN admin_users au ON n.author_id = au.id
       WHERE n.slug = ? AND n.is_published = 1
     `, [slug]) as any[];
 

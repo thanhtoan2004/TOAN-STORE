@@ -72,9 +72,9 @@ export async function GET(request: NextRequest) {
         const news = await executeQuery(`
       SELECT 
         n.*,
-        CONCAT(u.first_name, ' ', u.last_name) as author_name
+        au.full_name as author_name
       FROM news n
-      LEFT JOIN users u ON n.author_id = u.id
+      LEFT JOIN admin_users au ON n.author_id = au.id
       ${whereClause}
       ORDER BY n.created_at DESC
       LIMIT ? OFFSET ?

@@ -26,26 +26,46 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const status = searchParams.get('status');
     const page = parseInt(searchParams.get('page') || '1');
-    const limit = parseInt(searchParams.get('limit') || '10');
+    const limit = Math.min(parseInt(searchParams.get('limit') || '10'), 50); // Cap at 50
     const userId = session.userId;
+    const offset = (page - 1) * limit;
 
-    // Lấy orders từ database (Đã được tối ưu N+1 trong repository)
-    let orders = await getOrdersByUserId(Number(userId)) as any[];
+    // SQL-level filtering + pagination (thay vì fetch ALL rồi .slice())
+    let countQuery = 'SELECT COUNT(*) as total FROM orders WHERE user_id = ?';
+    let dataQuery = `SELECT * FROM orders WHERE user_id = ?`;
+    const params: any[] = [Number(userId)];
+    const countParams: any[] = [Number(userId)];
 
-    // Filter by status nếu có
     if (status && status !== 'all') {
-      orders = orders.filter(o => o.status === status);
+      countQuery += ' AND status = ?';
+      dataQuery += ' AND status = ?';
+      params.push(status);
+      countParams.push(status);
     }
 
-    // Pagination
-    const total = orders.length;
+    dataQuery += ' ORDER BY placed_at DESC LIMIT ? OFFSET ?';
+    params.push(limit, offset);
+
+    const [countResult, orders] = await Promise.all([
+      executeQuery<any[]>(countQuery, countParams),
+      executeQuery<any[]>(dataQuery, params)
+    ]);
+
+    const total = countResult[0]?.total || 0;
     const totalPages = Math.ceil(total / limit);
-    const offset = (page - 1) * limit;
-    const paginatedOrders = orders.slice(offset, offset + limit);
+
+    // Enrich with order items
+    const enrichedOrders = await Promise.all(orders.map(async (order: any) => {
+      const items = await executeQuery<any[]>(
+        'SELECT oi.*, pi.url as image_url FROM order_items oi LEFT JOIN product_images pi ON pi.product_id = oi.product_id AND pi.is_main = 1 WHERE oi.order_id = ? LIMIT 5',
+        [order.id]
+      );
+      return { ...order, items };
+    }));
 
     return NextResponse.json({
       success: true,
-      orders: paginatedOrders,
+      orders: enrichedOrders,
       pagination: {
         page,
         limit,

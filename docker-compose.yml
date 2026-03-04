@@ -13,6 +13,12 @@ services:
       - "3307:3306" # Tránh xung đột với MySQL cài sẵn (cổng 3306)
     volumes:
       - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: [ "CMD", "mysqladmin", "ping", "-h", "localhost" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
     networks:
       - toan-network
 
@@ -25,6 +31,11 @@ services:
     volumes:
       - redis_data:/data
     restart: always
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     networks:
       - toan-network
 
@@ -35,6 +46,11 @@ services:
     ports:
       - "1025:1025" # SMTP server
       - "8025:8025" # Web UI
+    healthcheck:
+      test: [ "CMD", "wget", "--spider", "-q", "http://localhost:8025" ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
     networks:
       - toan-network
 
@@ -49,6 +65,11 @@ services:
     volumes:
       - meili_data:/meili_data
     restart: always
+    healthcheck:
+      test: [ "CMD", "wget", "--spider", "-q", "http://localhost:7700/health" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     networks:
       - toan-network
 

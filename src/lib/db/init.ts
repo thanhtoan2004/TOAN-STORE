@@ -1051,6 +1051,24 @@ export async function initDb() {
                             ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4
                               `);
 
+    // Migration: Thêm bio, avatar_url cho admin_users (Author Profile)
+    try {
+      const [columns]: any = await connection.query('SHOW COLUMNS FROM admin_users');
+      const columnNames = columns.map((col: any) => col.Field);
+
+      if (!columnNames.includes('bio')) {
+        await connection.query('ALTER TABLE admin_users ADD COLUMN bio TEXT AFTER full_name');
+      }
+      if (!columnNames.includes('avatar_url')) {
+        await connection.query('ALTER TABLE admin_users ADD COLUMN avatar_url VARCHAR(1000) AFTER bio');
+      }
+      if (!columnNames.includes('social_links')) {
+        await connection.query('ALTER TABLE admin_users ADD COLUMN social_links JSON AFTER avatar_url');
+      }
+    } catch (e) {
+      console.log('Error migrating admin_users for author profile:', e);
+    }
+
     // Tạo bảng gift_card_transactions
     await connection.query(`
       CREATE TABLE IF NOT EXISTS gift_card_transactions(
@@ -1446,6 +1464,69 @@ export async function initDb() {
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
         INDEX idx_user_read (user_id, is_read),
+        INDEX idx_created_at (created_at)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    `);
+
+    // ═══════════════════════════════════════════
+    // GDPR COMPLIANCE TABLES
+    // ═══════════════════════════════════════════
+
+    // Bảng user_consents: Theo dõi sự đồng ý (consent) của người dùng cho từng mục đích
+    // (marketing, analytics, v.v.) theo đúng chuẩn GDPR EU.
+    // Mỗi lần user bật/tắt consent sẽ ghi 1 record mới (immutable audit trail).
+    await connection.query(`
+      CREATE TABLE IF NOT EXISTS user_consents (
+        id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+        user_id BIGINT UNSIGNED NOT NULL,
+        purpose ENUM('marketing', 'analytics', 'personalization', 'third_party') NOT NULL,
+        is_granted TINYINT(1) NOT NULL DEFAULT 0,
+        ip_address VARCHAR(45),
+        user_agent TEXT,
+        version INT DEFAULT 1 COMMENT 'Consent policy version at time of agreement',
+        granted_at TIMESTAMP NULL,
+        revoked_at TIMESTAMP NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+        INDEX idx_user_purpose (user_id, purpose),
+        INDEX idx_created_at (created_at)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    `);
+
+    // Bảng cookie_consents: Lưu trữ lựa chọn cookie của visitor/user (Essential, Analytics, Marketing, Functional).
+    // Thay vì chỉ dùng localStorage, lưu vào DB để Admin có thể audit và chứng minh compliance.
+    await connection.query(`
+      CREATE TABLE IF NOT EXISTS cookie_consents (
+        id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+        session_id VARCHAR(255) NOT NULL,
+        user_id BIGINT UNSIGNED NULL,
+        preferences JSON NOT NULL COMMENT '{"essential":true,"analytics":false,"marketing":false,"functional":true}',
+        ip_address VARCHAR(45),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL,
+        INDEX idx_session (session_id),
+        INDEX idx_user (user_id)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    `);
+
+    // Bảng data_requests: Quản lý yêu cầu quyền dữ liệu cá nhân theo GDPR
+    // (Right to Access = export, Right to be Forgotten = delete, Right to Rectification = modify).
+    // Admin xử lý và cập nhật status cho từng yêu cầu trong dashboard.
+    await connection.query(`
+      CREATE TABLE IF NOT EXISTS data_requests (
+        id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+        user_id BIGINT UNSIGNED NOT NULL,
+        request_type ENUM('export', 'delete', 'modify') NOT NULL,
+        status ENUM('pending', 'processing', 'completed', 'rejected') DEFAULT 'pending',
+        reason TEXT COMMENT 'User reason for the request',
+        admin_notes TEXT COMMENT 'Admin response or processing notes',
+        completed_at TIMESTAMP NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+        INDEX idx_user (user_id),
+        INDEX idx_status (status),
         INDEX idx_created_at (created_at)
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
     `);

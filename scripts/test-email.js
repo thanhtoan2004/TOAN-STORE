@@ -112,7 +112,7 @@ async function sendTrollEmail() {
   try {
     const info = await transporter.sendMail({
       from: process.env.SMTP_FROM,
-      to: 'duongtrunghieu062016@gmail.com', // đổi mail bạn thân tại đây
+      to: 'nguyennhatquang522004@gmail.com', // đổi mail bạn thân tại đây
       subject: '⚠ Cảnh báo đăng nhập bất thường',
       html: htmlTemplate,
     });

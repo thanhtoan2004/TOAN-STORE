@@ -15,6 +15,7 @@ interface NewsDetail {
     content: string;
     image_url: string;
     category: string;
+    author_id: number | null;
     author_name: string;
     published_at: string;
     views: number;
@@ -80,7 +81,7 @@ export default function NewsDetailPage() {
 
     return (
         <div className="min-h-screen bg-gray-50">
-            <div className="nike-container py-12">
+            <div className="toan-container py-12">
                 <div className="max-w-4xl mx-auto">
                     {/* Breadcrumb */}
                     <div className="mb-6">
@@ -118,7 +119,16 @@ export default function NewsDetailPage() {
                             {/* Meta */}
                             <div className="flex items-center gap-4 text-sm text-gray-600 mb-6 pb-6 border-b">
                                 {news.author_name && (
-                                    <span>Tác giả: {news.author_name}</span>
+                                    <span>
+                                        Tác giả:{' '}
+                                        {news.author_id ? (
+                                            <Link href={`/news/author/${news.author_id}`} className="font-medium text-black hover:underline">
+                                                {news.author_name}
+                                            </Link>
+                                        ) : (
+                                            news.author_name
+                                        )}
+                                    </span>
                                 )}
                                 <span>•</span>
                                 <span>{formatDate(news.published_at)}</span>

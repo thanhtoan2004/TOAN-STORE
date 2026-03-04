@@ -165,6 +165,21 @@ Strict-Transport-Security: max-age=31536000; includeSubDomains; preload (prod on
 - **Auto-release**: CRON job cleanup expired reservations
 - **Flash Sale Limits**: Per-user purchase limits enforced server-side
 
+### Point Redemption Transaction Security
+- **DB Transaction + Pessimistic Locking**: Đổi điểm sử dụng `SELECT FOR UPDATE` trên cả bảng `users` và `vouchers` để ngăn Race Condition (2 request đồng thời trừ điểm).
+- **Validate**: voucherId phải là số nguyên dương, user không bị banned/xóa mềm.
+- **Atomic Operations**: Trừ điểm → Ghi log → Gán voucher trong cùng 1 transaction (commit hoặc rollback toàn bộ).
+
+### Bulk Import Security
+- **File Size Limit**: Tối đa 5MB, chỉ chấp nhận `.xlsx/.xls/.csv`.
+- **Row Limit**: Tối đa 500 sản phẩm/lần import.
+- **Data Validation**: Giá không âm, tên tối đa 500 ký tự, tự sinh slug/SKU an toàn.
+- **Audit Trail**: Ghi nhận Admin nào import, số lượng, tên file vào `admin_audit_logs`.
+
+### Author Profile Privacy
+- API công khai chỉ trả về `full_name`, `username`, `avatar_url`, `bio`, `role`.
+- **Không bao giờ** trả về `email`, `password` hoặc bất kỳ thông tin nhạy cảm nào của Admin.
+
 ---
 
 ## 🔍 Audit Trail

@@ -4,6 +4,55 @@ Tất cả thay đổi quan trọng được ghi nhận tại đây theo format 
 
 ---
 
+## [2.12.0] - 2026-03-04
+
+### 🔧 Performance Optimization
+- **SQL Pagination** — Refactored `orders/route.ts` and `transactions/route.ts` from JS `.slice()` to SQL `LIMIT/OFFSET`. Transactions API now uses `UNION ALL` query instead of 4 separate queries + JS sort.
+
+### 🧪 Testing (56 Unit Tests + 28 E2E Tests)
+- **Vitest Unit Tests** — Added 3 test files: `order-logic.test.ts` (24 tests), `encryption.test.ts` (16 tests), `utils.test.ts` (15 tests). All 56 tests passing.
+- **Playwright E2E Tests** — Added 3 spec files: `auth.spec.ts` (7 tests), `security.spec.ts` (12 tests), `api.spec.ts` (9 tests).
+
+### 🛡️ GDPR Compliance
+- **GDPR Database Tables** — Added `user_consents`, `cookie_consents`, `data_requests` tables to `init.ts`.
+- **Consent Management API** — New `GET/POST /api/account/consent` with immutable audit trail (IP + User-Agent logging).
+
+### 🏗️ Infrastructure & DevOps
+- **Docker Healthchecks** — Added healthcheck for all 4 services (MySQL, Redis, MailHog, Meilisearch).
+- **Environment Config** — Updated `.env.example` (6 → 30+ vars), `.env.production.example`, `.env.staging.example`.
+- **Security Keys** — Added `ENCRYPTION_KEY` and `CRON_SECRET` to `.env`.
+
+### 📝 Documentation
+- **Backup & Restore Guide** — Created `docs/BACKUP_RESTORE.md` with MySQL, Redis, Meilisearch backup commands, cron schedule, and disaster recovery plan.
+- **README Overhaul** — Updated all numbers (148+ APIs, 86 tables, 56 tests), added Meilisearch/Vitest/Playwright to tech stack, testing section, GDPR compliance.
+
+---
+
+## [2.11.0] - 2026-03-03
+
+### ✨ New Features
+- **Point Redemption UI** — Trang đổi điểm thưởng lấy Voucher (`/account/redeem`). Giao dịch bảo mật bằng DB Transaction + `SELECT FOR UPDATE` chống Race Condition.
+- **Bulk Import/Export** — Admin nhập/xuất sản phẩm hàng loạt qua file Excel `.xlsx` (`/admin/products/bulk`). Giới hạn 5MB, 500 dòng/lần, tự tra cứu category/brand, audit log.
+- **Drag & Drop Category Reorder** — Kéo thả sắp xếp thứ tự danh mục sản phẩm trong Admin (`/admin/categories`), sử dụng `@hello-pangea/dnd`, tự động lưu position.
+- **Blog Author Profile** — Trang hồ sơ tác giả bài viết (`/news/author/[id]`) hiển thị thông tin Admin (bio, avatar, role) và danh sách bài viết đã xuất bản. Chuyển FK `author_id` từ bảng `users` sang `admin_users`.
+
+### 🛡️ Security Hardening
+- **Race Condition Prevention** — API đổi điểm sử dụng DB Transaction + Pessimistic Locking (`FOR UPDATE`) ngăn 2 request đồng thời trừ điểm.
+- **Information Leak Fix** — Xóa trường `email` khỏi response công khai của Author Profile API.
+- **File Upload Validation** — Giới hạn kích thước (5MB), kiểm tra phần mở rộng (.xlsx/.xls/.csv), validate giá tiền không âm.
+- **Array Size Limits** — Giới hạn 100 items/request cho Reorder API, 500 dòng/request cho Bulk Import.
+- **Input Sanitization** — Validate voucherId (số nguyên dương), categoryId/position (không âm), tên sản phẩm (tối đa 500 ký tự).
+- **Audit Logging** — Ghi nhận Admin nào đã thực hiện Bulk Import (người thực hiện, số lượng, tên file).
+
+### 📝 Documentation
+- Cập nhật `README.md`, `docs/API-DOCS.md`, `docs/DATABASE.md`, `docs/CHANGELOG.md`, `docs/SECURITY.md` với tất cả tính năng mới.
+
+### 📦 Dependencies
+- Thêm `xlsx` — Đọc/ghi file Excel cho Bulk Import/Export.
+- Thêm `@hello-pangea/dnd` — Drag & Drop library (fork chính thức của react-beautiful-dnd, hỗ trợ React 18+).
+
+---
+
 ## [2.10.0] - 2026-03-02
 
 ### ✨ New Experience & Smart Automation

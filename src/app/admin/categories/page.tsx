@@ -1,8 +1,8 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import AdminLayout from '@/components/admin/AdminLayout';
-import Link from 'next/link';
+import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
 
 interface Category {
   id: number;
@@ -17,6 +17,7 @@ interface Category {
 export default function CategoriesPage() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [newCategory, setNewCategory] = useState({ name: '', slug: '', description: '', imageUrl: '', position: 0 });
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editForm, setEditForm] = useState({ name: '', slug: '', description: '', imageUrl: '', position: 0 });
@@ -31,9 +32,12 @@ export default function CategoriesPage() {
       const data = await response.json();
 
       if (data.success) {
-        setCategories(data.data);
+        // Sort by position
+        const sorted = (data.data || []).sort((a: Category, b: Category) => a.position - b.position);
+        setCategories(sorted);
       } else if (Array.isArray(data)) {
-        setCategories(data);
+        const sorted = data.sort((a: Category, b: Category) => a.position - b.position);
+        setCategories(sorted);
       }
     } catch (error) {
       console.error('Error fetching categories:', error);
@@ -108,6 +112,41 @@ export default function CategoriesPage() {
     }
   };
 
+  const handleDragEnd = useCallback(async (result: DropResult) => {
+    if (!result.destination) return;
+
+    const sourceIndex = result.source.index;
+    const destIndex = result.destination.index;
+
+    if (sourceIndex === destIndex) return;
+
+    // Optimistic update
+    const reordered = Array.from(categories);
+    const [moved] = reordered.splice(sourceIndex, 1);
+    reordered.splice(destIndex, 0, moved);
+
+    // Update positions
+    const updated = reordered.map((cat, index) => ({ ...cat, position: index }));
+    setCategories(updated);
+
+    // Persist to server
+    setSaving(true);
+    try {
+      await fetch('/api/admin/categories/reorder', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          items: updated.map(cat => ({ id: cat.id, position: cat.position }))
+        })
+      });
+    } catch (error) {
+      console.error('Error saving order:', error);
+      fetchCategories(); // Rollback on error
+    } finally {
+      setSaving(false);
+    }
+  }, [categories]);
+
   return (
     <AdminLayout>
       <div className="space-y-6">
@@ -115,11 +154,27 @@ export default function CategoriesPage() {
         <div className="flex justify-between items-end">
           <div>
             <h1 className="text-3xl font-bold text-gray-900">Quản lý Danh mục</h1>
-            <p className="mt-1 text-sm text-gray-500">Thêm, sửa, xóa danh mục sản phẩm</p>
+            <p className="mt-1 text-sm text-gray-500">Thêm, sửa, xóa và kéo thả sắp xếp danh mục sản phẩm</p>
           </div>
-          <div className="text-sm font-medium bg-gray-100 px-4 py-2 rounded-full">
-            Total Categories: <span className="font-bold">{categories.length}</span>
+          <div className="flex items-center gap-3">
+            {saving && (
+              <span className="text-sm text-blue-600 flex items-center gap-1">
+                <span className="animate-spin h-3 w-3 border-2 border-blue-600 border-t-transparent rounded-full" />
+                Đang lưu...
+              </span>
+            )}
+            <div className="text-sm font-medium bg-gray-100 px-4 py-2 rounded-full">
+              Total Categories: <span className="font-bold">{categories.length}</span>
+            </div>
           </div>
+        </div>
+
+        {/* Drag hint */}
+        <div className="bg-blue-50 border border-blue-200 rounded-lg px-4 py-3 text-sm text-blue-700 flex items-center gap-2">
+          <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
+          </svg>
+          Kéo thả các hàng trong bảng bên dưới để sắp xếp thứ tự danh mục. Thay đổi được lưu tự động.
         </div>
 
         {/* Form Thêm */}
@@ -174,94 +229,132 @@ export default function CategoriesPage() {
           </form>
         </div>
 
-        {/* Danh sách */}
+        {/* Danh sách with Drag & Drop */}
         <div className="bg-white rounded-lg shadow overflow-hidden">
           {loading ? (
             <div className="flex justify-center p-8">Đang tải...</div>
           ) : (
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Tên</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Slug</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Mô tả</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Vị trí</th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Hành động</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200">
-                {editingId ? (
+            <DragDropContext onDragEnd={handleDragEnd}>
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
                   <tr>
-                    <td colSpan={5} className="px-6 py-4">
-                      <form onSubmit={handleUpdate} className="space-y-2">
-                        <div className="grid grid-cols-2 gap-2">
-                          <input
-                            type="text"
-                            value={editForm.name}
-                            onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
-                            className="px-3 py-2 border border-gray-300 rounded-lg"
-                          />
-                          <input
-                            type="text"
-                            value={editForm.slug}
-                            onChange={(e) => setEditForm({ ...editForm, slug: e.target.value })}
-                            className="px-3 py-2 border border-gray-300 rounded-lg"
-                          />
-                        </div>
-                        <textarea
-                          value={editForm.description}
-                          onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
-                          rows={2}
-                          placeholder="Mô tả"
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-                        />
-                        <input
-                          type="text"
-                          value={editForm.imageUrl}
-                          onChange={(e) => setEditForm({ ...editForm, imageUrl: e.target.value })}
-                          placeholder="URL Hình ảnh"
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-                        />
-                        <input
-                          type="number"
-                          value={editForm.position}
-                          onChange={(e) => setEditForm({ ...editForm, position: parseInt(e.target.value) })}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-                        />
-                        <div className="flex gap-2">
-                          <button type="submit" className="px-3 py-2 bg-green-600 text-white rounded-lg">Lưu</button>
-                          <button type="button" onClick={() => setEditingId(null)} className="px-3 py-2 bg-gray-400 text-white rounded-lg">Hủy</button>
-                        </div>
-                      </form>
-                    </td>
+                    <th className="w-10 px-3 py-3"></th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Tên</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Slug</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Mô tả</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Vị trí</th>
+                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Hành động</th>
                   </tr>
-                ) : null}
-                {categories.map((cat) => (
-                  <tr key={cat.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 text-sm font-medium text-gray-900">{cat.name}</td>
-                    <td className="px-6 py-4 text-sm text-gray-500">{cat.slug}</td>
-                    <td className="px-6 py-4 text-sm text-gray-500">{cat.description?.substring(0, 50)}</td>
-                    <td className="px-6 py-4 text-sm text-gray-900">{cat.position}</td>
-                    <td className="px-6 py-4 text-right text-sm space-x-2">
-                      <div className="flex items-center justify-end gap-2">
-                        <button
-                          onClick={() => handleEdit(cat)}
-                          className="px-3 py-1 text-sm border border-gray-300 rounded hover:bg-gray-50 text-gray-700"
-                        >
-                          Sửa
-                        </button>
-                        <button
-                          onClick={() => handleDelete(cat.id)}
-                          className="px-3 py-1 text-sm bg-red-600 text-white rounded hover:bg-red-700"
-                        >
-                          Xóa
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <Droppable droppableId="categories">
+                  {(provided) => (
+                    <tbody
+                      ref={provided.innerRef}
+                      {...provided.droppableProps}
+                      className="divide-y divide-gray-200"
+                    >
+                      {editingId ? (
+                        <tr>
+                          <td colSpan={6} className="px-6 py-4">
+                            <form onSubmit={handleUpdate} className="space-y-2">
+                              <div className="grid grid-cols-2 gap-2">
+                                <input
+                                  type="text"
+                                  value={editForm.name}
+                                  onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+                                  className="px-3 py-2 border border-gray-300 rounded-lg"
+                                />
+                                <input
+                                  type="text"
+                                  value={editForm.slug}
+                                  onChange={(e) => setEditForm({ ...editForm, slug: e.target.value })}
+                                  className="px-3 py-2 border border-gray-300 rounded-lg"
+                                />
+                              </div>
+                              <textarea
+                                value={editForm.description}
+                                onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
+                                rows={2}
+                                placeholder="Mô tả"
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                              />
+                              <input
+                                type="text"
+                                value={editForm.imageUrl}
+                                onChange={(e) => setEditForm({ ...editForm, imageUrl: e.target.value })}
+                                placeholder="URL Hình ảnh"
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                              />
+                              <input
+                                type="number"
+                                value={editForm.position}
+                                onChange={(e) => setEditForm({ ...editForm, position: parseInt(e.target.value) })}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                              />
+                              <div className="flex gap-2">
+                                <button type="submit" className="px-3 py-2 bg-green-600 text-white rounded-lg">Lưu</button>
+                                <button type="button" onClick={() => setEditingId(null)} className="px-3 py-2 bg-gray-400 text-white rounded-lg">Hủy</button>
+                              </div>
+                            </form>
+                          </td>
+                        </tr>
+                      ) : null}
+                      {categories.map((cat, index) => (
+                        <Draggable key={cat.id} draggableId={String(cat.id)} index={index}>
+                          {(provided, snapshot) => (
+                            <tr
+                              ref={provided.innerRef}
+                              {...provided.draggableProps}
+                              className={`${snapshot.isDragging ? 'bg-blue-50 shadow-lg' : 'hover:bg-gray-50'} transition-colors`}
+                              style={{
+                                ...provided.draggableProps.style,
+                                display: snapshot.isDragging ? 'table' : undefined,
+                                width: snapshot.isDragging ? '100%' : undefined,
+                              }}
+                            >
+                              <td
+                                {...provided.dragHandleProps}
+                                className="w-10 px-3 py-4 text-gray-400 cursor-grab active:cursor-grabbing"
+                              >
+                                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                                  <circle cx="9" cy="6" r="1.5" />
+                                  <circle cx="15" cy="6" r="1.5" />
+                                  <circle cx="9" cy="12" r="1.5" />
+                                  <circle cx="15" cy="12" r="1.5" />
+                                  <circle cx="9" cy="18" r="1.5" />
+                                  <circle cx="15" cy="18" r="1.5" />
+                                </svg>
+                              </td>
+                              <td className="px-6 py-4 text-sm font-medium text-gray-900">{cat.name}</td>
+                              <td className="px-6 py-4 text-sm text-gray-500">{cat.slug}</td>
+                              <td className="px-6 py-4 text-sm text-gray-500">{cat.description?.substring(0, 50)}</td>
+                              <td className="px-6 py-4 text-sm text-gray-900">{cat.position}</td>
+                              <td className="px-6 py-4 text-right text-sm space-x-2">
+                                <div className="flex items-center justify-end gap-2">
+                                  <button
+                                    onClick={() => handleEdit(cat)}
+                                    className="px-3 py-1 text-sm border border-gray-300 rounded hover:bg-gray-50 text-gray-700"
+                                  >
+                                    Sửa
+                                  </button>
+                                  <button
+                                    onClick={() => handleDelete(cat.id)}
+                                    className="px-3 py-1 text-sm bg-red-600 text-white rounded hover:bg-red-700"
+                                  >
+                                    Xóa
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          )}
+                        </Draggable>
+                      ))}
+                      {provided.placeholder}
+                    </tbody>
+                  )}
+                </Droppable>
+              </table>
+            </DragDropContext>
           )}
         </div>
       </div>
