@@ -1,6 +1,6 @@
 # Database Schema
 
-TOAN Store sử dụng **MySQL 8.0** với **83 bảng**. Schema tự khởi tạo qua `src/lib/db/init.ts`.
+TOAN Store sử dụng **MySQL 8.0** với **77 bảng** (sau khi đã dọn dẹp các bảng cũ). Schema tự khởi tạo qua `src/lib/db/init.ts`.
 
 ---
 
@@ -49,7 +49,8 @@ erDiagram
 | google_id             | VARCHAR(255) UNIQUE NULL                  | OAuth Google                 |
 | facebook_id           | VARCHAR(255) UNIQUE NULL                  | OAuth Facebook               |
 | avatar_url            | VARCHAR(1000) NULL                        | —                            |
-| accumulated_points    | INT DEFAULT 0                             | Loyalty points               |
+| available_points      | INT DEFAULT 0                             | Điểm hiện có để đổi thưởng   |
+| lifetime_points       | INT DEFAULT 0                             | Tổng điểm tích lũy trọn đời  |
 | membership_tier       | ENUM('bronze','silver','gold','platinum') | Auto-calculated              |
 | is_active             | TINYINT(1) DEFAULT 1                      | —                            |
 | is_verified           | TINYINT(1) DEFAULT 0                      | Email verified               |
@@ -342,8 +343,12 @@ Lịch sử biến động điểm thưởng.
 |--------|------|-------------|
 | user_id | BIGINT | — |
 | points | INT | +/- |
-| type | ENUM | earn, spend, expire |
+| type | ENUM | earn, spend, expire, refund, adjust, redeem |
+| balance_after | INT | Điểm sau giao dịch |
+| source | VARCHAR(50) | order, voucher, system |
+| source_id | VARCHAR(100) | Order Number or Voucher ID |
 | description | TEXT | — |
+| created_at | TIMESTAMP | — |
 
 ### `system_logs`
 
@@ -430,7 +435,7 @@ Hệ thống thông báo nội bộ (In-app Notifications).
 | is_read | TINYINT(1) | Trạng thái đã đọc |
 | created_at | TIMESTAMP | — |
 
-### `admin_audit_logs`
+### `admin_activity_logs`
 
 Audit log cho mọi hành động admin nhạy cảm.
 

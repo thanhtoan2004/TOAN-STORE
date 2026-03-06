@@ -14,61 +14,101 @@ export async function PUT(request: NextRequest) {
   try {
     const session = await verifyAuth();
     if (!session) {
-      return NextResponse.json(
-        { success: false, message: 'Unauthorized' },
-        { status: 401 }
-      );
+      return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
     }
 
     const body = await request.json();
     const {
-      firstName, lastName, phone, dateOfBirth, gender, avatarUrl,
-      email_notifications, sms_notifications, sms_order_notifications,
-      push_notifications, promo_notifications, order_notifications,
-      data_persistence, public_profile
+      firstName,
+      lastName,
+      phone,
+      dateOfBirth,
+      gender,
+      avatarUrl,
+      email_notifications,
+      sms_notifications,
+      sms_order_notifications,
+      push_notifications,
+      promo_notifications,
+      order_notifications,
+      data_persistence,
+      public_profile,
     } = body;
 
-    // Update user info
-    await executeQuery(
-      `UPDATE users 
-       SET first_name = ?, 
-           last_name = ?, 
-           phone = ?, 
-           date_of_birth = ?, 
-           gender = ?,
-           avatar_url = ?,
-           email_notifications = ?,
-           sms_notifications = ?,
-           sms_order_notifications = ?,
-           push_notifications = ?,
-           promo_notifications = ?,
-           order_notifications = ?,
-           data_persistence = ?,
-           public_profile = ?,
-           updated_at = CURRENT_TIMESTAMP 
-       WHERE id = ?`,
-      [
-        firstName,
-        lastName,
-        encrypt(phone || null),
-        dateOfBirth || null,
-        gender || null,
-        avatarUrl || null,
-        email_notifications !== undefined ? (email_notifications ? 1 : 0) : null,
-        sms_notifications !== undefined ? (sms_notifications ? 1 : 0) : null,
-        sms_order_notifications !== undefined ? (sms_order_notifications ? 1 : 0) : null,
-        push_notifications !== undefined ? (push_notifications ? 1 : 0) : null,
-        promo_notifications !== undefined ? (promo_notifications ? 1 : 0) : null,
-        order_notifications !== undefined ? (order_notifications ? 1 : 0) : null,
-        data_persistence !== undefined ? (data_persistence ? 1 : 0) : null,
-        public_profile !== undefined ? (public_profile ? 1 : 0) : null,
-        session.userId
-      ]
-    );
+    // Build dynamic update query
+    const updates: string[] = [];
+    const values: any[] = [];
+
+    if (firstName !== undefined) {
+      updates.push('first_name = ?');
+      values.push(firstName);
+    }
+    if (lastName !== undefined) {
+      updates.push('last_name = ?');
+      values.push(lastName);
+    }
+
+    if (phone !== undefined) {
+      updates.push(`phone = '***'`, 'phone_encrypted = ?', 'is_encrypted = TRUE');
+      values.push(phone ? encrypt(phone) : null);
+    }
+
+    if (dateOfBirth !== undefined) {
+      updates.push('date_of_birth = ?');
+      values.push(dateOfBirth || null);
+    }
+    if (gender !== undefined) {
+      updates.push('gender = ?');
+      values.push(gender || null);
+    }
+    if (avatarUrl !== undefined) {
+      updates.push('avatar_url = ?');
+      values.push(avatarUrl || null);
+    }
+
+    if (email_notifications !== undefined) {
+      updates.push('email_notifications = ?');
+      values.push(email_notifications ? 1 : 0);
+    }
+    if (sms_notifications !== undefined) {
+      updates.push('sms_notifications = ?');
+      values.push(sms_notifications ? 1 : 0);
+    }
+    if (sms_order_notifications !== undefined) {
+      updates.push('sms_order_notifications = ?');
+      values.push(sms_order_notifications ? 1 : 0);
+    }
+    if (push_notifications !== undefined) {
+      updates.push('push_notifications = ?');
+      values.push(push_notifications ? 1 : 0);
+    }
+    if (promo_notifications !== undefined) {
+      updates.push('promo_notifications = ?');
+      values.push(promo_notifications ? 1 : 0);
+    }
+    if (order_notifications !== undefined) {
+      updates.push('order_notifications = ?');
+      values.push(order_notifications ? 1 : 0);
+    }
+    if (data_persistence !== undefined) {
+      updates.push('data_persistence = ?');
+      values.push(data_persistence ? 1 : 0);
+    }
+    if (public_profile !== undefined) {
+      updates.push('public_profile = ?');
+      values.push(public_profile ? 1 : 0);
+    }
+
+    if (updates.length > 0) {
+      updates.push('updated_at = CURRENT_TIMESTAMP');
+      values.push(session.userId); // For WHERE id = ?
+
+      await executeQuery(`UPDATE users SET ${updates.join(', ')} WHERE id = ?`, values);
+    }
 
     return NextResponse.json({
       success: true,
-      message: 'Cập nhật thông tin thành công'
+      message: 'Cập nhật thông tin thành công',
     });
   } catch (error) {
     console.error('Lỗi cập nhật thông tin:', error);

@@ -10,7 +10,6 @@ interface User {
   firstName: string;
   lastName: string;
   phone: string;
-  isAdmin?: number;
   isActive: number;
   isBanned: number;
   createdAt: string;
@@ -70,27 +69,10 @@ export default function AdminUsersPage() {
     }
   };
 
-  const toggleAdminRole = async (userId: number, currentRole: number) => {
-    if (!confirm('Are you sure you want to change this user admin role?')) return;
-
-    try {
-      const response = await fetch(`/api/admin/users/${userId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ is_admin: currentRole === 1 ? 0 : 1 }),
-      });
-
-      if (response.ok) {
-        fetchUsers();
-      }
-    } catch (error) {
-      console.error('Error updating user:', error);
-    }
-  };
-
   const toggleBanStatus = async (userId: number, currentBanStatus: number) => {
     const action = currentBanStatus === 1 ? 'unban' : 'ban';
-    if (!confirm(`Bạn có chắc muốn ${action === 'ban' ? 'khóa' : 'mở khóa'} tài khoản này?`)) return;
+    if (!confirm(`Bạn có chắc muốn ${action === 'ban' ? 'khóa' : 'mở khóa'} tài khoản này?`))
+      return;
 
     try {
       const response = await fetch(`/api/admin/users/${userId}`, {
@@ -122,12 +104,23 @@ export default function AdminUsersPage() {
           </div>
           <div className="flex items-center space-x-3">
             <button
-              onClick={() => window.location.href = '/api/admin/users/export'}
+              onClick={() => (window.location.href = '/api/admin/users/export')}
               className="flex items-center space-x-2 px-4 py-2 bg-white border border-gray-300 rounded-md text-sm font-medium hover:bg-gray-50 transition-colors shadow-sm"
               title="Export all customers to CSV"
             >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                className="h-4 w-4"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
+                />
               </svg>
               <span>Export CSV</span>
             </button>
@@ -188,9 +181,6 @@ export default function AdminUsersPage() {
                       Phone
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-[120px]">
-                      Role
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-[120px]">
                       Status
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-[140px]">
@@ -233,38 +223,20 @@ export default function AdminUsersPage() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span
-                          className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${user.isAdmin === 1
-                            ? 'bg-purple-100 text-purple-800'
-                            : 'bg-gray-100 text-gray-800'
-                            }`}
-                        >
-                          {user.isAdmin === 1 ? 'Admin' : 'User'}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span
-                          className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${user.isBanned === 1
-                            ? 'bg-red-100 text-red-800'
-                            : 'bg-green-100 text-green-800'
-                            }`}
+                          className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                            user.isBanned === 1
+                              ? 'bg-red-100 text-red-800'
+                              : 'bg-green-100 text-green-800'
+                          }`}
                         >
                           {user.isBanned === 1 ? 'Banned' : 'Active'}
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900">
-                          {formatDate(user.createdAt)}
-                        </div>
+                        <div className="text-sm text-gray-900">{formatDate(user.createdAt)}</div>
                       </td>
                       <td className="px-6 py-4 text-right">
                         <div className="flex flex-col gap-2 items-end">
-                          <button
-                            onClick={() => toggleAdminRole(user.id, user.isAdmin || 0)}
-                            className="text-sm text-purple-600 hover:text-purple-900 whitespace-nowrap font-medium"
-                            title={user.isAdmin === 1 ? 'Remove Admin Role' : 'Make Admin'}
-                          >
-                            {user.isAdmin === 1 ? '− Admin' : '+ Admin'}
-                          </button>
                           <button
                             onClick={() => toggleBanStatus(user.id, user.isBanned)}
                             className={`text-sm whitespace-nowrap font-medium ${user.isBanned === 1 ? 'text-green-600 hover:text-green-900' : 'text-red-600 hover:text-red-900'}`}

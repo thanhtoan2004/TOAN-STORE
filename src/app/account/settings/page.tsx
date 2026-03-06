@@ -6,22 +6,52 @@ import { useLanguage } from '@/contexts/LanguageContext';
 import { useModal } from '@/contexts/ModalContext';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { User, Lock, MapPin, Package, Heart, Bell, CreditCard, Shield, Palette, Star, Ticket } from 'lucide-react';
+import {
+  User,
+  Lock,
+  MapPin,
+  Package,
+  Heart,
+  Bell,
+  CreditCard,
+  Shield,
+  Palette,
+  Star,
+  Ticket,
+} from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'react-hot-toast';
 import dynamic from 'next/dynamic';
 
 // Dynamic imports for tab components
-const MembershipTab = dynamic(() => import('@/components/account/settings/MembershipTab'), { ssr: false });
-const PersonalInfoTab = dynamic(() => import('@/components/account/settings/PersonalInfoTab'), { ssr: false });
-const SecurityTab = dynamic(() => import('@/components/account/settings/SecurityTab'), { ssr: false });
-const AddressesTab = dynamic(() => import('@/components/account/settings/AddressesTab'), { ssr: false });
+const MembershipTab = dynamic(() => import('@/components/account/settings/MembershipTab'), {
+  ssr: false,
+});
+const PersonalInfoTab = dynamic(() => import('@/components/account/settings/PersonalInfoTab'), {
+  ssr: false,
+});
+const SecurityTab = dynamic(() => import('@/components/account/settings/SecurityTab'), {
+  ssr: false,
+});
+const AddressesTab = dynamic(() => import('@/components/account/settings/AddressesTab'), {
+  ssr: false,
+});
 const OrdersTab = dynamic(() => import('@/components/account/settings/OrdersTab'), { ssr: false });
-const WishlistTab = dynamic(() => import('@/components/account/settings/WishlistTab'), { ssr: false });
-const NotificationsTab = dynamic(() => import('@/components/account/settings/NotificationsTab'), { ssr: false });
-const PaymentTab = dynamic(() => import('@/components/account/settings/PaymentTab'), { ssr: false });
-const PrivacyTab = dynamic(() => import('@/components/account/settings/PrivacyTab'), { ssr: false });
-const AppearanceTab = dynamic(() => import('@/components/account/settings/AppearanceTab'), { ssr: false });
+const WishlistTab = dynamic(() => import('@/components/account/settings/WishlistTab'), {
+  ssr: false,
+});
+const NotificationsTab = dynamic(() => import('@/components/account/settings/NotificationsTab'), {
+  ssr: false,
+});
+const PaymentTab = dynamic(() => import('@/components/account/settings/PaymentTab'), {
+  ssr: false,
+});
+const PrivacyTab = dynamic(() => import('@/components/account/settings/PrivacyTab'), {
+  ssr: false,
+});
+const AppearanceTab = dynamic(() => import('@/components/account/settings/AppearanceTab'), {
+  ssr: false,
+});
 
 export default function AccountSettings() {
   const { t, language: currentLang, setLanguage } = useLanguage();
@@ -36,7 +66,9 @@ export default function AccountSettings() {
   // Sensitive action states (used by SecurityTab and PrivacyTab)
   const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
   const [passwordValue, setPasswordValue] = useState('');
-  const [pendingAction, setPendingAction] = useState<'export' | 'delete' | 'toggle2fa' | null>(null);
+  const [pendingAction, setPendingAction] = useState<'export' | 'delete' | 'toggle2fa' | null>(
+    null
+  );
   const [passwordError, setPasswordError] = useState('');
   const [verifyingPassword, setVerifyingPassword] = useState(false);
 
@@ -48,7 +80,7 @@ export default function AccountSettings() {
     confirmText: 'Xác nhận',
     cancelText: 'Hủy',
     danger: false,
-    onConfirm: () => { }
+    onConfirm: () => {},
   });
 
   // States for PersonalInfoTab
@@ -60,7 +92,7 @@ export default function AccountSettings() {
     phone: '',
     dateOfBirth: '',
     gender: '',
-    avatarUrl: ''
+    avatarUrl: '',
   });
 
   // States for NotificationsTab
@@ -93,14 +125,20 @@ export default function AccountSettings() {
     city: '',
     state: '',
     postal_code: '',
-    is_default: false
+    is_default: false,
   });
 
   // 1. Hook kiểm tra Auth & URL Params (chạy 1 lần trên client mount và khi auth thay đổi)
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
       setFormData({
-        firstName: '', lastName: '', email: '', phone: '', dateOfBirth: '', gender: '', avatarUrl: ''
+        firstName: '',
+        lastName: '',
+        email: '',
+        phone: '',
+        dateOfBirth: '',
+        gender: '',
+        avatarUrl: '',
       });
       setAddresses([]);
       router.push('/sign-in');
@@ -132,7 +170,7 @@ export default function AccountSettings() {
     };
 
     if (user) {
-      setFormData(prev => {
+      setFormData((prev) => {
         // Tránh reset nếu user đang gõ (chỉ cập nhật nếu form đang rỗng hoặc được tải lại sau khi save)
         return {
           firstName: user.firstName || prev.firstName || '',
@@ -141,7 +179,7 @@ export default function AccountSettings() {
           phone: user.phone || prev.phone || '',
           dateOfBirth: formatDateForInput(user.dateOfBirth) || prev.dateOfBirth || '',
           gender: user.gender || prev.gender || '',
-          avatarUrl: (user as any).avatar_url || (user as any).avatarUrl || prev.avatarUrl || ''
+          avatarUrl: (user as any).avatar_url || (user as any).avatarUrl || prev.avatarUrl || '',
         };
       });
 
@@ -151,6 +189,8 @@ export default function AccountSettings() {
       if (user.order_notifications !== undefined) setOrderNotifications(user.order_notifications);
       if (user.push_notifications !== undefined) setPushNotifications(user.push_notifications);
       if (user.sms_notifications !== undefined) setSmsNotifications(user.sms_notifications);
+      if (user.sms_order_notifications !== undefined)
+        setSmsOrderNotifications(user.sms_order_notifications);
       if (user.data_persistence !== undefined) setDataPersistence(user.data_persistence);
       if (user.public_profile !== undefined) setPublicProfile(user.public_profile);
     }
@@ -186,9 +226,10 @@ export default function AccountSettings() {
   const revokeSession = async (sessionId: string) => {
     setConfirmConfig({
       title: sessionId === 'all' ? 'Đăng xuất khỏi tất cả thiết bị' : 'Thu hồi phiên đăng nhập',
-      message: sessionId === 'all'
-        ? 'Bạn có chắc chắn muốn đăng xuất khỏi tất cả các thiết bị? Điều này sẽ yêu cầu bạn đăng nhập lại trên mọi thiết bị hiện đang hoạt động.'
-        : 'Bạn có chắc chắn muốn thu hồi phiên đăng nhập này? Thiết bị sẽ bị đăng xuất ngay lập tức.',
+      message:
+        sessionId === 'all'
+          ? 'Bạn có chắc chắn muốn đăng xuất khỏi tất cả các thiết bị? Điều này sẽ yêu cầu bạn đăng nhập lại trên mọi thiết bị hiện đang hoạt động.'
+          : 'Bạn có chắc chắn muốn thu hồi phiên đăng nhập này? Thiết bị sẽ bị đăng xuất ngay lập tức.',
       confirmText: sessionId === 'all' ? 'Đăng xuất tất cả' : 'Thu hồi',
       cancelText: 'Hủy',
       danger: true,
@@ -206,7 +247,7 @@ export default function AccountSettings() {
             if (sessionId === 'all') {
               window.location.href = '/sign-in';
             } else {
-              setSessions(prev => prev.filter((s: any) => s.id !== sessionId));
+              setSessions((prev) => prev.filter((s: any) => s.id !== sessionId));
             }
           }
         } catch (e) {
@@ -214,7 +255,7 @@ export default function AccountSettings() {
         } finally {
           setRevokingSession(null);
         }
-      }
+      },
     });
     setIsConfirmModalOpen(true);
   };
@@ -244,7 +285,7 @@ export default function AccountSettings() {
     const { name, value, type } = e.target;
     setAddressForm({
       ...addressForm,
-      [name]: type === 'checkbox' ? (e.target as HTMLInputElement).checked : value
+      [name]: type === 'checkbox' ? (e.target as HTMLInputElement).checked : value,
     });
   };
 
@@ -254,9 +295,7 @@ export default function AccountSettings() {
 
     setLoading(true);
     try {
-      const url = editingAddress
-        ? '/api/addresses'
-        : '/api/addresses';
+      const url = editingAddress ? '/api/addresses' : '/api/addresses';
 
       const method = editingAddress ? 'PUT' : 'POST';
 
@@ -267,7 +306,7 @@ export default function AccountSettings() {
       const response = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body)
+        body: JSON.stringify(body),
       });
 
       if (response.ok) {
@@ -282,7 +321,7 @@ export default function AccountSettings() {
           city: '',
           state: '',
           postal_code: '',
-          is_default: false
+          is_default: false,
         });
         loadAddresses();
         setTimeout(() => setMessage(''), 3000);
@@ -308,7 +347,7 @@ export default function AccountSettings() {
       onConfirm: async () => {
         try {
           const response = await fetch(`/api/addresses?userId=${user.id}&addressId=${addressId}`, {
-            method: 'DELETE'
+            method: 'DELETE',
           });
 
           if (response.ok) {
@@ -319,7 +358,7 @@ export default function AccountSettings() {
         } catch (error) {
           setMessage('Không thể xóa địa chỉ');
         }
-      }
+      },
     });
   };
 
@@ -333,8 +372,8 @@ export default function AccountSettings() {
         body: JSON.stringify({
           userId: user.id,
           addressId,
-          action: 'setDefault'
-        })
+          action: 'setDefault',
+        }),
       });
 
       if (response.ok) {
@@ -357,7 +396,7 @@ export default function AccountSettings() {
       city: address.city || '',
       state: address.state || '',
       postal_code: address.postal_code || '',
-      is_default: address.is_default === 1
+      is_default: address.is_default === 1,
     });
     setShowAddressForm(true);
   };
@@ -365,7 +404,7 @@ export default function AccountSettings() {
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     setFormData({
       ...formData,
-      [e.target.name]: e.target.value
+      [e.target.name]: e.target.value,
     });
   };
 
@@ -378,7 +417,7 @@ export default function AccountSettings() {
       const response = await fetch('/api/account/update', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData)
+        body: JSON.stringify(formData),
       });
 
       const data = await response.json();
@@ -423,8 +462,8 @@ export default function AccountSettings() {
           sms_order_notifications: smsOrderNotifications,
           push_notifications: pushNotifications,
           data_persistence: dataPersistence,
-          public_profile: publicProfile
-        })
+          public_profile: publicProfile,
+        }),
       });
 
       const data = await response.json();
@@ -432,7 +471,10 @@ export default function AccountSettings() {
       if (response.ok) {
         toast.success('Đã lưu thay đổi cài đặt');
         setMessage('Cập nhật cài đặt thành công!');
-        setTimeout(() => setMessage(''), 3000);
+        setTimeout(() => {
+          setMessage('');
+          window.location.reload();
+        }, 1500);
       } else {
         toast.error(data.message || 'Lỗi khi lưu cài đặt');
       }
@@ -499,9 +541,10 @@ export default function AccountSettings() {
         setPendingAction(null);
         showAlert({
           title: 'Thành công',
-          message: 'Tài khoản của bạn đã được xóa thành công. Bạn sẽ được chuyển hướng về trang chủ.',
+          message:
+            'Tài khoản của bạn đã được xóa thành công. Bạn sẽ được chuyển hướng về trang chủ.',
           type: 'success',
-          onConfirm: () => window.location.href = '/'
+          onConfirm: () => (window.location.href = '/'),
         });
       } else {
         const data = await response.json();
@@ -528,7 +571,7 @@ export default function AccountSettings() {
       const response = await fetch('/api/account/verify-password', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ password: passwordValue })
+        body: JSON.stringify({ password: passwordValue }),
       });
 
       const data = await response.json();
@@ -560,8 +603,8 @@ export default function AccountSettings() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           enabled: !(user as any)?.two_factor_enabled,
-          password: passwordValue
-        })
+          password: passwordValue,
+        }),
       });
       const data = await res.json();
       if (data.success) {
@@ -594,15 +637,17 @@ export default function AccountSettings() {
     { id: 'payment', label: t.common.payment, icon: 'credit-card' },
     { id: 'vouchers', label: 'Vouchers của tôi', icon: 'ticket' },
     { id: 'privacy', label: t.common.privacy, icon: 'shield' },
-    { id: 'appearance', label: t.common.appearance, icon: 'palette' }
+    { id: 'appearance', label: t.common.appearance, icon: 'palette' },
   ];
 
   // Helper function to calculate progress (for MembershipTab)
   const getMembershipProgress = (points: number, tier: string) => {
     if (tier === 'platinum') return 100;
-    if (tier === 'gold') return Math.max(0, Math.min(100, (points - 5000) / (10000 - 5000) * 100));
-    if (tier === 'silver') return Math.max(0, Math.min(100, (points - 1000) / (5000 - 1000) * 100));
-    return Math.max(0, Math.min(100, points / 1000 * 100));
+    if (tier === 'gold')
+      return Math.max(0, Math.min(100, ((points - 5000) / (10000 - 5000)) * 100));
+    if (tier === 'silver')
+      return Math.max(0, Math.min(100, ((points - 1000) / (5000 - 1000)) * 100));
+    return Math.max(0, Math.min(100, (points / 1000) * 100));
   };
 
   const getNextTierPoints = (tier: string) => {
@@ -612,10 +657,10 @@ export default function AccountSettings() {
     return 1000;
   };
 
-
-  const currentPoints = (user as any)?.accumulatedPoints || 0;
+  const currentAvailablePoints = (user as any)?.availablePoints || 0;
+  const currentLifetimePoints = (user as any)?.lifetimePoints || 0;
   const currentTier = (user as any)?.membershipTier || 'bronze';
-  const progress = getMembershipProgress(currentPoints, currentTier);
+  const progress = getMembershipProgress(currentLifetimePoints, currentTier);
   const nextCheckpoint = getNextTierPoints(currentTier);
 
   // Show loading while checking auth
@@ -649,17 +694,17 @@ export default function AccountSettings() {
               <nav className="space-y-1">
                 {menuItems.map((item) => {
                   const IconComponent = {
-                    'star': Star,
-                    'user': User,
-                    'lock': Lock,
+                    star: Star,
+                    user: User,
+                    lock: Lock,
                     'map-pin': MapPin,
-                    'package': Package,
-                    'heart': Heart,
-                    'bell': Bell,
+                    package: Package,
+                    heart: Heart,
+                    bell: Bell,
                     'credit-card': CreditCard,
-                    'shield': Shield,
-                    'palette': Palette,
-                    'ticket': Ticket
+                    shield: Shield,
+                    palette: Palette,
+                    ticket: Ticket,
                   }[item.icon];
 
                   return (
@@ -672,8 +717,9 @@ export default function AccountSettings() {
                           setActiveTab(item.id);
                         }
                       }}
-                      className={`w-full text-left px-4 py-3 rounded-lg flex items-center gap-3 transition-colors ${activeTab === item.id ? 'bg-black text-white' : 'hover:bg-gray-100'
-                        }`}
+                      className={`w-full text-left px-4 py-3 rounded-lg flex items-center gap-3 transition-colors ${
+                        activeTab === item.id ? 'bg-black text-white' : 'hover:bg-gray-100'
+                      }`}
                     >
                       {IconComponent && <IconComponent className="w-5 h-5" />}
                       <span className="text-sm font-medium">{item.label}</span>
@@ -687,7 +733,9 @@ export default function AccountSettings() {
           <div className="lg:col-span-3">
             <div className="bg-white rounded-lg shadow-sm border p-8">
               {message && (
-                <div className={`mb-6 p-4 rounded-lg ${message.includes('thành công') || message.includes('tải xuống') ? 'bg-green-50 text-green-800 border border-green-200' : 'bg-red-50 text-red-800 border border-red-200'}`}>
+                <div
+                  className={`mb-6 p-4 rounded-lg ${message.includes('thành công') || message.includes('tải xuống') ? 'bg-green-50 text-green-800 border border-green-200' : 'bg-red-50 text-red-800 border border-red-200'}`}
+                >
                   {message}
                 </div>
               )}
@@ -695,7 +743,8 @@ export default function AccountSettings() {
               {activeTab === 'membership' && (
                 <MembershipTab
                   currentTier={currentTier}
-                  currentPoints={currentPoints}
+                  currentAvailablePoints={currentAvailablePoints}
+                  currentLifetimePoints={currentLifetimePoints}
                   progress={progress}
                   nextCheckpoint={nextCheckpoint}
                 />
@@ -813,9 +862,7 @@ export default function AccountSettings() {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-xl animate-in fade-in zoom-in duration-200">
             <h2 className="text-xl font-bold mb-4">{confirmConfig.title}</h2>
-            <p className="text-gray-600 mb-6 text-sm">
-              {confirmConfig.message}
-            </p>
+            <p className="text-gray-600 mb-6 text-sm">{confirmConfig.message}</p>
 
             <div className="flex gap-3 mt-6">
               <button
@@ -842,10 +889,20 @@ export default function AccountSettings() {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-xl animate-in fade-in zoom-in duration-200">
             <h2 className="text-xl font-bold mb-4">
-              {pendingAction === 'export' ? 'Xác nhận thông tin' : pendingAction === 'toggle2fa' ? 'Xác thực 2 bước (2FA)' : 'Xác nhận xóa tài khoản'}
+              {pendingAction === 'export'
+                ? 'Xác nhận thông tin'
+                : pendingAction === 'toggle2fa'
+                  ? 'Xác thực 2 bước (2FA)'
+                  : 'Xác nhận xóa tài khoản'}
             </h2>
             <p className="text-gray-600 mb-6 text-sm">
-              Vì lý do bảo mật, vui lòng nhập mật khẩu của bạn để {pendingAction === 'export' ? 'tải xuống dữ liệu cá nhân' : pendingAction === 'toggle2fa' ? 'bật/tắt Xác thực 2 bước' : 'xóa tài khoản vĩnh viễn'}.
+              Vì lý do bảo mật, vui lòng nhập mật khẩu của bạn để{' '}
+              {pendingAction === 'export'
+                ? 'tải xuống dữ liệu cá nhân'
+                : pendingAction === 'toggle2fa'
+                  ? 'bật/tắt Xác thực 2 bước'
+                  : 'xóa tài khoản vĩnh viễn'}
+              .
             </p>
 
             <form onSubmit={handleVerifyPassword}>

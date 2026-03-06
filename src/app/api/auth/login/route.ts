@@ -43,10 +43,9 @@ async function loginHandler(req: Request): Promise<NextResponse> {
   }
 
   // Find user by email
-  const users = await executeQuery(
-    'SELECT * FROM users WHERE email = ? AND deleted_at IS NULL',
-    [email]
-  ) as User[];
+  const users = (await executeQuery('SELECT * FROM users WHERE email = ? AND deleted_at IS NULL', [
+    email,
+  ])) as User[];
 
   if (users.length === 0) {
     const ip = req.headers.get('x-forwarded-for') || '127.0.0.1';
@@ -71,7 +70,11 @@ async function loginHandler(req: Request): Promise<NextResponse> {
     if (currentAttempts >= MAX_ATTEMPTS) {
       const ttl = await redis.ttl(lockoutKey);
       const minutesLeft = Math.ceil(ttl / 60);
-      await logSecurityEvent('login_failed', ip, user.id, { email, attempts: currentAttempts, reason: 'Account locked' });
+      await logSecurityEvent('login_failed', ip, user.id, {
+        email,
+        attempts: currentAttempts,
+        reason: 'Account locked',
+      });
       return createErrorResponse(
         `Tài khoản tạm khóa do đăng nhập sai quá nhiều. Vui lòng thử lại sau ${minutesLeft} phút.`,
         429,
@@ -117,7 +120,11 @@ async function loginHandler(req: Request): Promise<NextResponse> {
         await redis.expire(lockoutKey, LOCKOUT_SECONDS);
       }
       const remaining = MAX_ATTEMPTS - newAttempts;
-      await logSecurityEvent('login_failed', ip, user.id, { email, reason: 'Invalid password', attempts: newAttempts });
+      await logSecurityEvent('login_failed', ip, user.id, {
+        email,
+        reason: 'Invalid password',
+        attempts: newAttempts,
+      });
       if (remaining > 0) {
         return createErrorResponse(
           `Email hoặc mật khẩu không chính xác. Còn ${remaining} lần thử.`,
@@ -141,18 +148,23 @@ async function loginHandler(req: Request): Promise<NextResponse> {
   try {
     const redis = getRedisConnection();
     await redis.del(lockoutKey);
-  } catch (e) { /* ignore */ }
+  } catch (e) {
+    /* ignore */
+  }
 
   // Check 2FA
   const userAny = user as any;
-  const is2FAEnabled = userAny.two_factor_enabled === 1 || userAny.two_factor_enabled === '1' || userAny.two_factor_enabled === true;
+  const is2FAEnabled =
+    userAny.two_factor_enabled === 1 ||
+    userAny.two_factor_enabled === '1' ||
+    userAny.two_factor_enabled === true;
 
   if (is2FAEnabled) {
     return NextResponse.json({
       success: true,
       requires2FA: true,
       email: user.email,
-      message: 'Vui lòng xác thực 2 bước'
+      message: 'Vui lòng xác thực 2 bước',
     });
   }
 
@@ -160,8 +172,7 @@ async function loginHandler(req: Request): Promise<NextResponse> {
   const payload = {
     userId: user.id,
     email: user.email,
-    is_admin: user.is_admin === 1 || user.is_admin === '1' || user.is_admin === true,
-    tv: user.token_version // Token Version
+    tv: user.token_version, // Token Version
   };
   const accessToken = generateAccessToken(payload);
   const refreshToken = generateRefreshToken(payload);
@@ -174,8 +185,10 @@ async function loginHandler(req: Request): Promise<NextResponse> {
 
     // Phân tích trình duyệt và hệ điều hành từ User-Agent
     const isMobile = /Mobile|Android|iPhone|iPad/i.test(userAgent);
-    const browser = userAgent.match(/(Chrome|Firefox|Safari|Edge|Opera)\/[\d.]+/)?.[0] || 'Unknown Browser';
-    const os = userAgent.match(/(Windows NT|Mac OS X|Linux|Android|iOS)[\s\/]?[\d._]*/)?.[0] || 'Unknown OS';
+    const browser =
+      userAgent.match(/(Chrome|Firefox|Safari|Edge|Opera)\/[\d.]+/)?.[0] || 'Unknown Browser';
+    const os =
+      userAgent.match(/(Windows NT|Mac OS X|Linux|Android|iOS)[\s\/]?[\d._]*/)?.[0] || 'Unknown OS';
 
     // Key: refresh_token:user_id, Value: token — Expires in 7 days
     await redis.set(`refresh_token:${user.id}`, refreshToken, 'EX', 7 * 24 * 60 * 60);
@@ -198,7 +211,13 @@ async function loginHandler(req: Request): Promise<NextResponse> {
     if (allSessions && Object.keys(allSessions).length > 10) {
       const entries = Object.entries(allSessions).map(([id, val]) => ({
         id,
-        loginAt: (() => { try { return JSON.parse(val as string).loginAt || 0; } catch { return 0; } })()
+        loginAt: (() => {
+          try {
+            return JSON.parse(val as string).loginAt || 0;
+          } catch {
+            return 0;
+          }
+        })(),
       }));
       entries.sort((a, b) => a.loginAt - b.loginAt);
       await redis.hdel(sessionsKey, entries[0].id);
@@ -207,7 +226,6 @@ async function loginHandler(req: Request): Promise<NextResponse> {
     console.error('Error storing session in Redis:', error);
     // Continue even if Redis fails (fallback to stateless JWT)
   }
-
 
   // Set cookies
   const cookieStore = await cookies();
@@ -219,7 +237,7 @@ async function loginHandler(req: Request): Promise<NextResponse> {
     path: '/',
     secure: isProd,
     maxAge: 15 * 60, // 15 minutes
-    sameSite: 'strict'
+    sameSite: 'strict',
   });
 
   // Refresh Token Cookie
@@ -228,7 +246,7 @@ async function loginHandler(req: Request): Promise<NextResponse> {
     path: '/',
     secure: isProd,
     maxAge: 7 * 24 * 60 * 60, // 7 days
-    sameSite: 'strict'
+    sameSite: 'strict',
   });
 
   // Map snake_case to camelCase for frontend
@@ -239,18 +257,24 @@ async function loginHandler(req: Request): Promise<NextResponse> {
       email: user.email,
       firstName: user.first_name,
       lastName: user.last_name,
-      phone: decrypt(user.phone || ''),
+      phone:
+        (user as any).is_encrypted && (user as any).phone_encrypted
+          ? decrypt((user as any).phone_encrypted)
+          : (user as any).phone !== '***'
+            ? (user as any).phone
+            : '',
       dateOfBirth: user.date_of_birth,
       gender: user.gender,
       isActive: user.is_active,
       isVerified: user.is_verified,
-      is_admin: user.is_admin
-    } as any
+    } as any,
   };
 
   // Success
   // Fire and forget security event logging (non-blocking)
-  logSecurityEvent('login_success', ip, user.id, { email }).catch(err => console.error('Failed to log login success:', err));
+  logSecurityEvent('login_success', ip, user.id, { email }).catch((err) =>
+    console.error('Failed to log login success:', err)
+  );
 
   // Gửi Email Cảnh báo Đăng nhập Mới (Chạy ngầm hoàn toàn không block request)
   (async () => {

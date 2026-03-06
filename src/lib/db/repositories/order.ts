@@ -490,10 +490,23 @@ export async function getOrdersByUserId(userId: number, page: number = 1, limit:
   );
   const total = countResult?.total || 0;
 
-  const items = orders.map((o) => ({
+  // Helper: kiểm tra decrypt có thất bại không
+  const safeDecryptFn = (encrypted: string | null | undefined): string => {
+    if (!encrypted) return '';
+    const result = decrypt(encrypted);
+    if (result && /^[0-9a-f]+:[0-9a-f]+:[0-9a-f]+$/i.test(result)) return '';
+    return result === '***' ? '' : result || '';
+  };
+
+  const items = orders.map(({ phone_encrypted, email_encrypted, is_encrypted, ...o }) => ({
     ...o,
-    phone: o.is_encrypted ? decrypt(o.phone_encrypted) : o.phone,
-    email: o.is_encrypted ? decrypt(o.email_encrypted) : o.email,
+    phone:
+      is_encrypted && phone_encrypted
+        ? safeDecryptFn(phone_encrypted)
+        : o.phone !== '***'
+          ? o.phone
+          : '',
+    email: is_encrypted && email_encrypted ? safeDecryptFn(email_encrypted) : o.email,
   }));
 
   return { items, total, page, limit: safeLimit, totalPages: Math.ceil(total / safeLimit) };
@@ -535,8 +548,10 @@ export async function getOrderByNumber(orderNumber: string) {
           : order.shipping_address_snapshot;
 
       order.delivery_name = snapshot.name || snapshot.recipient_name;
-      order.delivery_phone = snapshot.phone;
-      order.delivery_address = snapshot.address || snapshot.address_line;
+      // Snapshot stores encrypted phone/address — try to decrypt them
+      order.delivery_phone_encrypted = snapshot.phone;
+      order.delivery_address_encrypted = snapshot.address || snapshot.address_line;
+      order.ua_is_encrypted = true; // Mark as encrypted so the decrypt logic below handles it
       order.delivery_ward = snapshot.ward;
       order.delivery_district = snapshot.district;
       order.delivery_city = snapshot.city;
@@ -547,18 +562,49 @@ export async function getOrderByNumber(orderNumber: string) {
 
   const items = await executeQuery('SELECT * FROM order_items WHERE order_id = ?', [order.id]);
 
+  // Helper: kiểm tra decrypt có thất bại không
+  const safeDecrypt = (encrypted: string | null | undefined): string => {
+    if (!encrypted) return '';
+    const result = decrypt(encrypted);
+    // Nếu kết quả vẫn chứa pattern hex thô → decrypt thất bại ngầm
+    if (result && /^[0-9a-f]+:[0-9a-f]+:[0-9a-f]+$/i.test(result)) {
+      return '';
+    }
+    return result === '***' ? '' : result || '';
+  };
+
   // Decrypt PII data
-  order.phone = order.is_encrypted ? decrypt(order.phone_encrypted) : order.phone;
-  order.email = order.is_encrypted ? decrypt(order.email_encrypted) : order.email;
-  order.delivery_phone = order.ua_is_encrypted
-    ? decrypt(order.delivery_phone_encrypted)
-    : decrypt(order.delivery_phone);
-  order.delivery_address = order.ua_is_encrypted
-    ? decrypt(order.delivery_address_encrypted)
-    : decrypt(order.delivery_address);
+  order.phone =
+    order.is_encrypted && order.phone_encrypted
+      ? safeDecrypt(order.phone_encrypted)
+      : order.phone !== '***'
+        ? order.phone
+        : '';
+  order.email =
+    order.is_encrypted && order.email_encrypted ? safeDecrypt(order.email_encrypted) : order.email;
+  order.delivery_phone =
+    order.ua_is_encrypted && order.delivery_phone_encrypted
+      ? safeDecrypt(order.delivery_phone_encrypted)
+      : order.delivery_phone !== '***'
+        ? order.delivery_phone || ''
+        : '';
+  order.delivery_address =
+    order.ua_is_encrypted && order.delivery_address_encrypted
+      ? safeDecrypt(order.delivery_address_encrypted)
+      : order.delivery_address !== '***'
+        ? order.delivery_address || ''
+        : '';
 
   // Map payment_confirmed_at to confirmed_at for the frontend timeline if needed
   order.confirmed_at = order.payment_confirmed_at;
+
+  // Strip encrypted fields để tránh lộ chuỗi hex ra frontend
+  delete order.phone_encrypted;
+  delete order.email_encrypted;
+  delete order.delivery_phone_encrypted;
+  delete order.delivery_address_encrypted;
+  delete order.is_encrypted;
+  delete order.ua_is_encrypted;
 
   return [
     {
@@ -598,15 +644,45 @@ export async function getOrderById(id: number) {
 
   const order = orders[0];
 
+  // Helper: kiểm tra decrypt có thất bại không
+  const safeDecryptFn = (encrypted: string | null | undefined): string => {
+    if (!encrypted) return '';
+    const result = decrypt(encrypted);
+    if (result && /^[0-9a-f]+:[0-9a-f]+:[0-9a-f]+$/i.test(result)) return '';
+    return result === '***' ? '' : result || '';
+  };
+
   // Decrypt PII data
-  order.phone = order.is_encrypted ? decrypt(order.phone_encrypted) : order.phone;
-  order.email = order.is_encrypted ? decrypt(order.email_encrypted) : order.email;
-  order.delivery_phone = order.ua_is_encrypted
-    ? decrypt(order.delivery_phone_encrypted)
-    : decrypt(order.delivery_phone);
-  order.delivery_address = order.ua_is_encrypted
-    ? decrypt(order.delivery_address_encrypted)
-    : decrypt(order.delivery_address);
+  order.phone =
+    order.is_encrypted && order.phone_encrypted
+      ? safeDecryptFn(order.phone_encrypted)
+      : order.phone !== '***'
+        ? order.phone
+        : '';
+  order.email =
+    order.is_encrypted && order.email_encrypted
+      ? safeDecryptFn(order.email_encrypted)
+      : order.email;
+  order.delivery_phone =
+    order.ua_is_encrypted && order.delivery_phone_encrypted
+      ? safeDecryptFn(order.delivery_phone_encrypted)
+      : order.delivery_phone !== '***'
+        ? order.delivery_phone || ''
+        : '';
+  order.delivery_address =
+    order.ua_is_encrypted && order.delivery_address_encrypted
+      ? safeDecryptFn(order.delivery_address_encrypted)
+      : order.delivery_address !== '***'
+        ? order.delivery_address || ''
+        : '';
+
+  // Strip encrypted fields
+  delete order.phone_encrypted;
+  delete order.email_encrypted;
+  delete order.delivery_phone_encrypted;
+  delete order.delivery_address_encrypted;
+  delete order.is_encrypted;
+  delete order.ua_is_encrypted;
 
   return {
     ...order,
@@ -735,22 +811,38 @@ export async function updateOrderStatus(orderNumber: string, status: string) {
 
         if (pointsToDeduct > 0) {
           const [users]: any = await connection.execute(
-            'SELECT accumulated_points FROM users WHERE id = ? FOR UPDATE',
+            'SELECT available_points, lifetime_points FROM users WHERE id = ? FOR UPDATE',
             [userId]
           );
           if (users.length > 0) {
-            const currentPoints = users[0].accumulated_points || 0;
-            const newPoints = Math.max(0, currentPoints - pointsToDeduct);
+            const currentAvailable = users[0].available_points || 0;
+            const currentLifetime = users[0].lifetime_points || 0;
+            const newAvailable = Math.max(0, currentAvailable - pointsToDeduct);
+            const newLifetime = Math.max(0, currentLifetime - pointsToDeduct);
 
             let newTier = 'bronze';
-            if (newPoints >= 10000) newTier = 'platinum';
-            else if (newPoints >= 5000) newTier = 'gold';
-            else if (newPoints >= 1000) newTier = 'silver';
+            if (newLifetime >= 10000) newTier = 'platinum';
+            else if (newLifetime >= 5000) newTier = 'gold';
+            else if (newLifetime >= 1000) newTier = 'silver';
 
             await connection.execute(
-              'UPDATE users SET accumulated_points = ?, membership_tier = ? WHERE id = ?',
-              [newPoints, newTier, userId]
+              'UPDATE users SET available_points = ?, lifetime_points = ?, membership_tier = ? WHERE id = ?',
+              [newAvailable, newLifetime, newTier, userId]
             );
+
+            // Log point deduction
+            await connection.execute(
+              `INSERT INTO point_transactions (user_id, points, type, description, balance_after, source, source_id)
+               VALUES (?, ?, 'refund', ?, ?, 'order', ?)`,
+              [
+                userId,
+                -pointsToDeduct,
+                `Deducted due to order ${orderNumber} refund/cancellation`,
+                newAvailable,
+                orderNumber,
+              ]
+            );
+
             logger.info(
               `[Points] Deducted ${pointsToDeduct} from User ${userId} due to order refund.`
             );
@@ -778,20 +870,37 @@ export async function updateOrderStatus(orderNumber: string, status: string) {
           const pointsEarned = Math.floor(total / 10000);
           if (pointsEarned > 0) {
             const [users]: any = await connection.execute(
-              'SELECT accumulated_points, membership_tier, email, full_name FROM users WHERE id = ? FOR UPDATE',
+              'SELECT available_points, lifetime_points, membership_tier, email, full_name FROM users WHERE id = ? FOR UPDATE',
               [userId]
             );
             if (users.length > 0) {
-              const currentPoints = users[0].accumulated_points || 0;
+              const currentAvailable = users[0].available_points || 0;
+              const currentLifetime = users[0].lifetime_points || 0;
               const oldTier = users[0].membership_tier || 'bronze';
-              const newPoints = currentPoints + pointsEarned;
+              const newAvailable = currentAvailable + pointsEarned;
+              const newLifetime = currentLifetime + pointsEarned;
+
               let newTier = 'bronze';
-              if (newPoints >= 10000) newTier = 'platinum';
-              else if (newPoints >= 5000) newTier = 'gold';
-              else if (newPoints >= 1000) newTier = 'silver';
+              if (newLifetime >= 10000) newTier = 'platinum';
+              else if (newLifetime >= 5000) newTier = 'gold';
+              else if (newLifetime >= 1000) newTier = 'silver';
+
               await connection.execute(
-                'UPDATE users SET accumulated_points = ?, membership_tier = ? WHERE id = ?',
-                [newPoints, newTier, userId]
+                'UPDATE users SET available_points = ?, lifetime_points = ?, membership_tier = ? WHERE id = ?',
+                [newAvailable, newLifetime, newTier, userId]
+              );
+
+              // Log point earning
+              await connection.execute(
+                `INSERT INTO point_transactions (user_id, points, type, description, balance_after, source, source_id)
+                 VALUES (?, ?, 'earn', ?, ?, 'order', ?)`,
+                [
+                  userId,
+                  pointsEarned,
+                  `Earned from order ${orderNumber}`,
+                  newAvailable,
+                  orderNumber,
+                ]
               );
 
               // Tier Upgrade Notification
@@ -806,7 +915,7 @@ export async function updateOrderStatus(orderNumber: string, status: string) {
                       fullName: users[0].full_name,
                       oldTier,
                       newTier,
-                      totalPoints: newPoints,
+                      totalPoints: newLifetime,
                     })
                     .catch(() => {});
                 }

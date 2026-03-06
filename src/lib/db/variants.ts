@@ -9,21 +9,17 @@ export interface ProductVariant {
   product_id: number;
   sku: string;
   barcode?: string;
-  size?: string; // Direct column now
-  color?: string; // Direct column now
+  size?: string;
+  colorId?: number; // Updated to FK
   attributes?: {
-    // Keep for additional flexible attributes (material, pattern, etc.)
     [key: string]: any;
   };
   price: number;
   weight?: number;
   height?: number;
-  width_measurement?: number;
+  width?: number;
   depth?: number;
   product_name?: string;
-  low_stock_threshold?: number;
-  allow_backorder?: number;
-  expected_restock_date?: string | null;
 }
 
 export interface InventoryData {
@@ -38,7 +34,9 @@ export interface InventoryData {
 /**
  * Get all variants for a product with inventory
  */
-export async function getProductVariants(productId: number): Promise<(ProductVariant & InventoryData)[]> {
+export async function getProductVariants(
+  productId: number
+): Promise<(ProductVariant & InventoryData)[]> {
   const sql = `
     SELECT 
       pv.id,
@@ -46,7 +44,7 @@ export async function getProductVariants(productId: number): Promise<(ProductVar
       pv.sku,
       pv.barcode,
       pv.size,
-      pv.color,
+      pv.color_id,
       pv.attributes,
       pv.price,
       pv.weight,
@@ -69,16 +67,21 @@ export async function getProductVariants(productId: number): Promise<(ProductVar
 
   const results = await query<RowDataPacket[]>(sql, [productId]);
 
-  return results.map(row => ({
+  return results.map((row) => ({
     ...row,
-    attributes: row.attributes && typeof row.attributes === 'string' ? JSON.parse(row.attributes) : (row.attributes || {})
+    attributes:
+      row.attributes && typeof row.attributes === 'string'
+        ? JSON.parse(row.attributes)
+        : row.attributes || {},
   })) as (ProductVariant & InventoryData)[];
 }
 
 /**
  * Get a specific variant by ID
  */
-export async function getVariantById(variantId: number): Promise<(ProductVariant & InventoryData) | null> {
+export async function getVariantById(
+  variantId: number
+): Promise<(ProductVariant & InventoryData) | null> {
   const sql = `
     SELECT 
       pv.*,
@@ -102,14 +105,20 @@ export async function getVariantById(variantId: number): Promise<(ProductVariant
   const row = results[0];
   return {
     ...row,
-    attributes: row.attributes && typeof row.attributes === 'string' ? JSON.parse(row.attributes) : (row.attributes || {})
+    attributes:
+      row.attributes && typeof row.attributes === 'string'
+        ? JSON.parse(row.attributes)
+        : row.attributes || {},
   } as ProductVariant & InventoryData;
 }
 
 /**
  * Find variant by product ID and size (backward compatibility)
  */
-export async function findVariantBySize(productId: number, size: string): Promise<(ProductVariant & InventoryData) | null> {
+export async function findVariantBySize(
+  productId: number,
+  size: string
+): Promise<(ProductVariant & InventoryData) | null> {
   const sql = `
     SELECT 
       pv.*,
@@ -133,7 +142,10 @@ export async function findVariantBySize(productId: number, size: string): Promis
   const row = results[0];
   return {
     ...row,
-    attributes: row.attributes && typeof row.attributes === 'string' ? JSON.parse(row.attributes) : (row.attributes || {})
+    attributes:
+      row.attributes && typeof row.attributes === 'string'
+        ? JSON.parse(row.attributes)
+        : row.attributes || {},
   } as ProductVariant & InventoryData;
 }
 
@@ -160,7 +172,11 @@ export async function checkStock(variantId: number, requestedQuantity: number): 
 /**
  * Reserve stock for an order (atomic operation)
  */
-export async function reserveStock(variantId: number, quantity: number, orderId: string): Promise<boolean> {
+export async function reserveStock(
+  variantId: number,
+  quantity: number,
+  orderId: string
+): Promise<boolean> {
   const { getConnection } = await import('./mysql');
   const connection = await getConnection();
 
@@ -206,7 +222,11 @@ export async function reserveStock(variantId: number, quantity: number, orderId:
 /**
  * Release reserved stock (e.g., when order is cancelled)
  */
-export async function releaseStock(variantId: number, quantity: number, orderId: string): Promise<void> {
+export async function releaseStock(
+  variantId: number,
+  quantity: number,
+  orderId: string
+): Promise<void> {
   const { getConnection } = await import('./mysql');
   const connection = await getConnection();
 
@@ -240,7 +260,11 @@ export async function releaseStock(variantId: number, quantity: number, orderId:
 /**
  * Complete stock deduction when order is fulfilled
  */
-export async function deductStock(variantId: number, quantity: number, orderId: string): Promise<void> {
+export async function deductStock(
+  variantId: number,
+  quantity: number,
+  orderId: string
+): Promise<void> {
   const { getConnection } = await import('./mysql');
   const connection = await getConnection();
 

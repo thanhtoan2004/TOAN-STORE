@@ -9,46 +9,39 @@ import { checkAdminAuth } from '@/lib/auth';
  * 2. Truy vấn thông tin từ bảng `admin_users` dựa trên ID trong session.
  */
 export async function GET() {
-    try {
-        const session = await checkAdminAuth();
+  try {
+    const session = await checkAdminAuth();
 
-        if (!session) {
-            return NextResponse.json(
-                { error: 'Unauthorized' },
-                { status: 401 }
-            );
-        }
-
-        // Lấy thông tin người dùng từ CSDL admin_users
-        const admins = await executeQuery(
-            'SELECT id, email, full_name, is_active, role FROM admin_users WHERE id = ?',
-            [session.userId]
-        ) as any[];
-
-        if (admins.length === 0) {
-            return NextResponse.json(
-                { error: 'Không tìm thấy tài khoản admin' },
-                { status: 404 }
-            );
-        }
-
-        const admin = admins[0];
-
-        return NextResponse.json({
-            user: {
-                id: admin.id,
-                email: admin.email,
-                fullName: admin.full_name,
-                isActive: admin.is_active,
-                is_admin: 1, // Explicitly set for frontend check
-                role: admin.role
-            }
-        });
-    } catch (error) {
-        console.error('Lỗi xác thực admin:', error);
-        return NextResponse.json(
-            { error: 'Phiên đăng nhập không hợp lệ' },
-            { status: 401 }
-        );
+    if (!session) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+
+    // Lấy thông tin người dùng từ CSDL admin_users kèm Role Name (Unified Point 1)
+    const admins = (await executeQuery(
+      `SELECT au.id, au.email, au.full_name, au.is_active, r.name as role 
+             FROM admin_users au
+             LEFT JOIN roles r ON au.role_id = r.id
+             WHERE au.id = ?`,
+      [session.userId]
+    )) as any[];
+
+    if (admins.length === 0) {
+      return NextResponse.json({ error: 'Không tìm thấy tài khoản admin' }, { status: 404 });
+    }
+
+    const admin = admins[0];
+
+    return NextResponse.json({
+      user: {
+        id: admin.id,
+        email: admin.email,
+        fullName: admin.full_name,
+        isActive: admin.is_active,
+        role: admin.role || 'admin',
+      },
+    });
+  } catch (error) {
+    console.error('Lỗi xác thực admin:', error);
+    return NextResponse.json({ error: 'Phiên đăng nhập không hợp lệ' }, { status: 401 });
+  }
 }

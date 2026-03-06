@@ -1,6 +1,13 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  ReactNode,
+  useCallback,
+} from 'react';
 
 /**
  * Kiểu dữ liệu mô tả cấu trúc đầy đủ của một đối tượng User.
@@ -16,9 +23,10 @@ type User = {
   gender?: string;
   isActive?: boolean;
   isVerified?: boolean;
-  is_admin?: boolean;
-  membershipTier?: string;   // Hạng thẻ (Bạc, Vàng, Kim Cương...)
-  accumulatedPoints?: number; // Điểm tích lũy mua hàng
+
+  membershipTier?: string; // Hạng thẻ (Bạc, Vàng, Kim Cương...)
+  availablePoints?: number; // Điểm đổi quà
+  lifetimePoints?: number; // Điểm trọn đời tính rank
   two_factor_enabled?: boolean; // Tùy chọn 2FA (Xác thực 2 bước) có đang bật hay không
   avatarUrl?: string; // Đường dẫn ảnh đại diện
   email_notifications?: boolean;
@@ -38,7 +46,10 @@ type User = {
 type AuthContextType = {
   user: User;
   isAuthenticated: boolean; // Biến phái sinh: user != null
-  login: (email: string, password: string) => Promise<boolean | { requires2FA: boolean; email: string }>;
+  login: (
+    email: string,
+    password: string
+  ) => Promise<boolean | { requires2FA: boolean; email: string }>;
   register: (userData: RegisterData) => Promise<boolean>;
   logout: () => Promise<void>;
   loading: boolean; // Trạng thái màn hình loading lúc kiểm tra phiên đăng nhập lần đầu
@@ -117,7 +128,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
    * Hàm xử lý Đăng Nhập
    * @return Promise trả về `true` nếu thẳng tiến vào trong, hoặc Object `require2FA: true` nếu server đòi mã OTP.
    */
-  const login = async (email: string, password: string): Promise<boolean | { requires2FA: boolean; email: string }> => {
+  const login = async (
+    email: string,
+    password: string
+  ): Promise<boolean | { requires2FA: boolean; email: string }> => {
     setLoading(true);
     try {
       const response = await fetch('/api/auth/login', {
@@ -215,7 +229,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const handleActivity = () => resetTimer();
 
-    activityEvents.forEach(event => {
+    activityEvents.forEach((event) => {
       window.addEventListener(event, handleActivity);
     });
 
@@ -223,21 +237,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     return () => {
       if (timeoutId) clearTimeout(timeoutId);
-      activityEvents.forEach(event => {
+      activityEvents.forEach((event) => {
         window.removeEventListener(event, handleActivity);
       });
     };
   }, [user, logout]);
 
   return (
-    <AuthContext.Provider value={{
-      user,
-      isAuthenticated: !!user,
-      login,
-      register,
-      logout,
-      loading
-    }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        isAuthenticated: !!user,
+        login,
+        register,
+        logout,
+        loading,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );
@@ -250,4 +266,4 @@ export function useAuth() {
     throw new Error('useAuth must be used within an AuthProvider');
   }
   return context;
-} 
+}

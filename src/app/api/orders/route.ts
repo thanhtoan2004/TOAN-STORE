@@ -17,10 +17,7 @@ export async function GET(request: NextRequest) {
   try {
     const session = await verifyAuth();
     if (!session) {
-      return NextResponse.json(
-        { success: false, message: 'Unauthorized' },
-        { status: 401 }
-      );
+      return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
     }
 
     const { searchParams } = new URL(request.url);
@@ -48,20 +45,27 @@ export async function GET(request: NextRequest) {
 
     const [countResult, orders] = await Promise.all([
       executeQuery<any[]>(countQuery, countParams),
-      executeQuery<any[]>(dataQuery, params)
+      executeQuery<any[]>(dataQuery, params),
     ]);
 
     const total = countResult[0]?.total || 0;
     const totalPages = Math.ceil(total / limit);
 
     // Enrich with order items
-    const enrichedOrders = await Promise.all(orders.map(async (order: any) => {
-      const items = await executeQuery<any[]>(
-        'SELECT oi.*, pi.url as image_url FROM order_items oi LEFT JOIN product_images pi ON pi.product_id = oi.product_id AND pi.is_main = 1 WHERE oi.order_id = ? LIMIT 5',
-        [order.id]
-      );
-      return { ...order, items };
-    }));
+    const enrichedOrders = await Promise.all(
+      orders.map(async (order: any) => {
+        const items = await executeQuery<any[]>(
+          'SELECT oi.*, pi.url as image_url FROM order_items oi LEFT JOIN product_images pi ON pi.product_id = oi.product_id AND pi.is_main = 1 WHERE oi.order_id = ? LIMIT 5',
+          [order.id]
+        );
+        return {
+          ...order,
+          items,
+          item_count: items.length,
+          preview_image: items[0]?.image_url || '/placeholder-product.png',
+        };
+      })
+    );
 
     return NextResponse.json({
       success: true,
@@ -70,15 +74,12 @@ export async function GET(request: NextRequest) {
         page,
         limit,
         total,
-        totalPages
-      }
+        totalPages,
+      },
     });
   } catch (error) {
     console.error('Lỗi khi lấy danh sách đơn hàng:', error);
-    return NextResponse.json(
-      { success: false, message: 'Lỗi server nội bộ' },
-      { status: 500 }
-    );
+    return NextResponse.json({ success: false, message: 'Lỗi server nội bộ' }, { status: 500 });
   }
 }
 
@@ -98,14 +99,26 @@ async function createOrderHandler(request: NextRequest) {
     const userId = session?.userId || null;
 
     const body = await request.json();
-    const { items, shippingAddress, phone, email, paymentMethod, notes, shippingFee, discount, voucherCode, voucherDiscount, giftcardNumber, giftcardDiscount, has_gift_wrapping, gift_wrap_cost } = body;
+    const {
+      items,
+      shippingAddress,
+      phone,
+      email,
+      paymentMethod,
+      notes,
+      shippingFee,
+      discount,
+      voucherCode,
+      voucherDiscount,
+      giftcardNumber,
+      giftcardDiscount,
+      has_gift_wrapping,
+      gift_wrap_cost,
+    } = body;
 
     // Validate
     if (!items || items.length === 0) {
-      return NextResponse.json(
-        { success: false, message: 'Giỏ hàng trống' },
-        { status: 400 }
-      );
+      return NextResponse.json({ success: false, message: 'Giỏ hàng trống' }, { status: 400 });
     }
 
     if (!shippingAddress || !phone || !email) {
@@ -117,7 +130,9 @@ async function createOrderHandler(request: NextRequest) {
 
     // Validate Items & Prices (Security Fix + Flash Sale Integration)
     const { findVariantBySize, checkStock } = await import('@/lib/db/variants');
-    const { getActiveFlashSaleItem, updateFlashSaleSoldQuantity } = await import('@/lib/db/repositories/flash_sale');
+    const { getActiveFlashSaleItem, updateFlashSaleSoldQuantity } = await import(
+      '@/lib/db/repositories/flash_sale'
+    );
     const { getSettings } = await import('@/lib/db/settings');
 
     // Get Store Settings
@@ -127,13 +142,12 @@ async function createOrderHandler(request: NextRequest) {
     // Override shipping fee from client with server config (Security)
     // Note: If logic depends on address (International vs Domestic), implement here.
     // For now assuming domestic.
-    // const secureShippingFee = domesticShippingFee; 
+    // const secureShippingFee = domesticShippingFee;
     // Actually, createOrder accepts shippingFee as input? It should be calculated server side.
     // But currently we validate it or just use it?
     // The current logic doesn't seem to RE-CALCULATE shipping fee in lines 103+.
     // It uses `shippingFee` from body in `orderData`.
     // We should enforce it.
-
 
     const validatedItems: any[] = [];
     const flashSaleUpdates: { id: number; quantity: number }[] = [];
@@ -177,9 +191,9 @@ async function createOrderHandler(request: NextRequest) {
           size,
           quantity,
           price: finalPrice,
-          productVariantId: variant.id
+          productVariantId: variant.id,
         },
-        fsUpdate
+        fsUpdate,
       };
     });
 
@@ -201,7 +215,7 @@ async function createOrderHandler(request: NextRequest) {
 
     // Tính tổng tiền từ validatedItems (NOT from body)
     const subtotal = validatedItems.reduce((sum: number, item: any) => {
-      return sum + (item.price * item.quantity);
+      return sum + item.price * item.quantity;
     }, 0);
 
     // SECURITY FIX: Server-side Shipping Fee Calculation
@@ -216,16 +230,17 @@ async function createOrderHandler(request: NextRequest) {
     // 1. Membership Discount
     let membershipDiscount = 0;
     if (userId) {
-      const users = await executeQuery(
-        'SELECT membership_tier FROM users WHERE id = ?',
-        [userId]
-      ) as any[];
+      const users = (await executeQuery('SELECT membership_tier FROM users WHERE id = ?', [
+        userId,
+      ])) as any[];
 
       if (users.length > 0) {
         const tier = users[0].membership_tier;
         // Tier Discount
-        if (tier === 'platinum') membershipDiscount = Math.round(subtotal * 0.15); // 15%
-        else if (tier === 'gold') membershipDiscount = Math.round(subtotal * 0.10); // 10%
+        if (tier === 'platinum')
+          membershipDiscount = Math.round(subtotal * 0.15); // 15%
+        else if (tier === 'gold')
+          membershipDiscount = Math.round(subtotal * 0.1); // 10%
         else if (tier === 'silver') membershipDiscount = Math.round(subtotal * 0.05); // 5%
 
         // Tier Free Shipping (Silver and above)
@@ -249,7 +264,10 @@ async function createOrderHandler(request: NextRequest) {
         coupon = couponsArr[0];
         // Check Usage Limit
         if (coupon.usage_limit !== null) {
-          const usageCount = await executeQuery<any[]>(`SELECT COUNT(*) as count FROM coupon_usage WHERE coupon_id = ?`, [coupon.id]);
+          const usageCount = await executeQuery<any[]>(
+            `SELECT COUNT(*) as count FROM coupon_usage WHERE coupon_id = ?`,
+            [coupon.id]
+          );
           if (usageCount[0].count >= coupon.usage_limit) coupon = null; // Exceeded
         }
       } else {
@@ -260,7 +278,10 @@ async function createOrderHandler(request: NextRequest) {
         );
         if (vouchersArr && vouchersArr.length > 0) {
           coupon = vouchersArr[0];
-          if (coupon.recipient_user_id && (!userId || Number(userId) !== Number(coupon.recipient_user_id))) {
+          if (
+            coupon.recipient_user_id &&
+            (!userId || Number(userId) !== Number(coupon.recipient_user_id))
+          ) {
             coupon = null; // Not owner
           }
         }
@@ -293,7 +314,8 @@ async function createOrderHandler(request: NextRequest) {
     // Recalculate Total (Before Gift Card)
     if (finalDiscount > subtotal) finalDiscount = subtotal;
 
-    let totalAmount = subtotal + finalShippingFee - finalDiscount + (has_gift_wrapping ? (gift_wrap_cost || 0) : 0);
+    let totalAmount =
+      subtotal + finalShippingFee - finalDiscount + (has_gift_wrapping ? gift_wrap_cost || 0 : 0);
     if (totalAmount < 0) totalAmount = 0;
 
     // 3. Gift Card Validation
@@ -302,7 +324,8 @@ async function createOrderHandler(request: NextRequest) {
 
     if (giftcardNumber) {
       // Security: Check IP Lockout before trying to validate
-      const clientIp = request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || 'unknown';
+      const clientIp =
+        request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || 'unknown';
       const ipTarget = clientIp.includes(',') ? clientIp.split(',')[0].trim() : clientIp;
 
       const ipLockouts = await executeQuery<any[]>(
@@ -318,7 +341,10 @@ async function createOrderHandler(request: NextRequest) {
       if (ipLockouts && ipLockouts.length > 0) {
         const lockout = ipLockouts[0];
         if (lockout.locked_until && new Date(lockout.locked_until) > new Date()) {
-          return NextResponse.json({ success: false, message: 'Bạn đã nhập thẻ quá nhiều lần. Thử lại sau 30 phút.' }, { status: 429 });
+          return NextResponse.json(
+            { success: false, message: 'Bạn đã nhập thẻ quá nhiều lần. Thử lại sau 30 phút.' },
+            { status: 429 }
+          );
         }
         currentIpAttempts = lockout.attempt_count;
         lockoutId = lockout.id;
@@ -334,14 +360,20 @@ async function createOrderHandler(request: NextRequest) {
 
         // Anti Brute Force Check
         if (card.status === 'locked' || card.failed_attempts >= 5) {
-          return NextResponse.json({ success: false, message: 'Thẻ đã bị khóa do nhập sai nhiều lần.' }, { status: 403 });
+          return NextResponse.json(
+            { success: false, message: 'Thẻ đã bị khóa do nhập sai nhiều lần.' },
+            { status: 403 }
+          );
         }
 
         // Must verify PIN if provided in the checkout flow (Assume body.giftcardPin exists or we just rely on Card Number?? Wait, original logic didn't ask for PIN during checkout? If no PIN, anyone can use the card number!)
         // SECURITY FIX: Checkout MUST provide PIN.
         const providedPin = body.giftcardPin;
         if (!providedPin) {
-          return NextResponse.json({ success: false, message: 'Vui lòng cung cấp mã PIN của thẻ quà tặng' }, { status: 400 });
+          return NextResponse.json(
+            { success: false, message: 'Vui lòng cung cấp mã PIN của thẻ quà tặng' },
+            { status: 400 }
+          );
         }
 
         const { decrypt } = await import('@/lib/encryption');
@@ -353,30 +385,57 @@ async function createOrderHandler(request: NextRequest) {
             lockedUntil = new Date(Date.now() + 30 * 60000); // 30 mins
           }
           if (lockoutId) {
-            await executeQuery('UPDATE gift_card_lockouts SET attempt_count = ?, locked_until = ?, last_attempt = NOW() WHERE id = ?',
-              [newAttempts, lockedUntil ? lockedUntil.toISOString().slice(0, 19).replace('T', ' ') : null, lockoutId]
+            await executeQuery(
+              'UPDATE gift_card_lockouts SET attempt_count = ?, locked_until = ?, last_attempt = NOW() WHERE id = ?',
+              [
+                newAttempts,
+                lockedUntil ? lockedUntil.toISOString().slice(0, 19).replace('T', ' ') : null,
+                lockoutId,
+              ]
             );
           } else {
-            await executeQuery('INSERT INTO gift_card_lockouts (ip_address, attempt_count, locked_until) VALUES (?, ?, ?)',
-              [ipTarget, newAttempts, lockedUntil ? lockedUntil.toISOString().slice(0, 19).replace('T', ' ') : null]
+            await executeQuery(
+              'INSERT INTO gift_card_lockouts (ip_address, attempt_count, locked_until) VALUES (?, ?, ?)',
+              [
+                ipTarget,
+                newAttempts,
+                lockedUntil ? lockedUntil.toISOString().slice(0, 19).replace('T', ' ') : null,
+              ]
             );
           }
 
           // Penalty Card
           const newFailed = (card.failed_attempts || 0) + 1;
           if (newFailed >= 5) {
-            await executeQuery('UPDATE gift_cards SET failed_attempts = ?, status = ? WHERE id = ?', [newFailed, 'locked', card.id]);
-            return NextResponse.json({ success: false, message: 'Thẻ đã bị khóa do nhập sai mã PIN quá 5 lần.' }, { status: 403 });
+            await executeQuery(
+              'UPDATE gift_cards SET failed_attempts = ?, status = ? WHERE id = ?',
+              [newFailed, 'locked', card.id]
+            );
+            return NextResponse.json(
+              { success: false, message: 'Thẻ đã bị khóa do nhập sai mã PIN quá 5 lần.' },
+              { status: 403 }
+            );
           } else {
-            await executeQuery('UPDATE gift_cards SET failed_attempts = ? WHERE id = ?', [newFailed, card.id]);
-            return NextResponse.json({ success: false, message: 'Mã PIN thẻ quà tặng không chính xác.' }, { status: 400 });
+            await executeQuery('UPDATE gift_cards SET failed_attempts = ? WHERE id = ?', [
+              newFailed,
+              card.id,
+            ]);
+            return NextResponse.json(
+              { success: false, message: 'Mã PIN thẻ quà tặng không chính xác.' },
+              { status: 400 }
+            );
           }
         }
 
-        if (card.status === 'active' && (!card.expires_at || new Date(card.expires_at) > new Date())) {
+        if (
+          card.status === 'active' &&
+          (!card.expires_at || new Date(card.expires_at) > new Date())
+        ) {
           // Success Path - Reset attempts
-          if (lockoutId) await executeQuery('DELETE FROM gift_card_lockouts WHERE id = ?', [lockoutId]);
-          if (card.failed_attempts > 0) await executeQuery('UPDATE gift_cards SET failed_attempts = 0 WHERE id = ?', [card.id]);
+          if (lockoutId)
+            await executeQuery('DELETE FROM gift_card_lockouts WHERE id = ?', [lockoutId]);
+          if (card.failed_attempts > 0)
+            await executeQuery('UPDATE gift_cards SET failed_attempts = 0 WHERE id = ?', [card.id]);
 
           const balance = parseFloat(card.current_balance);
           const deduction = Math.min(balance, totalAmount);
@@ -386,7 +445,10 @@ async function createOrderHandler(request: NextRequest) {
             appliedGiftCardDiscount = deduction;
           }
         } else {
-          return NextResponse.json({ success: false, message: 'Thẻ quà tặng không hợp lệ hoặc đã hết hạn.' }, { status: 400 });
+          return NextResponse.json(
+            { success: false, message: 'Thẻ quà tặng không hợp lệ hoặc đã hết hạn.' },
+            { status: 400 }
+          );
         }
       } else {
         // Did not even find the card -> Penalty IP
@@ -394,11 +456,28 @@ async function createOrderHandler(request: NextRequest) {
         let lockedUntil = null;
         if (newAttempts >= 8) lockedUntil = new Date(Date.now() + 30 * 60000);
         if (lockoutId) {
-          await executeQuery('UPDATE gift_card_lockouts SET attempt_count = ?, locked_until = ?, last_attempt = NOW() WHERE id = ?', [newAttempts, lockedUntil ? lockedUntil.toISOString().slice(0, 19).replace('T', ' ') : null, lockoutId]);
+          await executeQuery(
+            'UPDATE gift_card_lockouts SET attempt_count = ?, locked_until = ?, last_attempt = NOW() WHERE id = ?',
+            [
+              newAttempts,
+              lockedUntil ? lockedUntil.toISOString().slice(0, 19).replace('T', ' ') : null,
+              lockoutId,
+            ]
+          );
         } else {
-          await executeQuery('INSERT INTO gift_card_lockouts (ip_address, attempt_count, locked_until) VALUES (?, ?, ?)', [ipTarget, newAttempts, lockedUntil ? lockedUntil.toISOString().slice(0, 19).replace('T', ' ') : null]);
+          await executeQuery(
+            'INSERT INTO gift_card_lockouts (ip_address, attempt_count, locked_until) VALUES (?, ?, ?)',
+            [
+              ipTarget,
+              newAttempts,
+              lockedUntil ? lockedUntil.toISOString().slice(0, 19).replace('T', ' ') : null,
+            ]
+          );
         }
-        return NextResponse.json({ success: false, message: 'Thẻ quà tặng không tồn tại.' }, { status: 404 });
+        return NextResponse.json(
+          { success: false, message: 'Thẻ quà tặng không tồn tại.' },
+          { status: 404 }
+        );
       }
     }
 
@@ -414,7 +493,8 @@ async function createOrderHandler(request: NextRequest) {
       voucherDiscount: appliedVoucherDiscount,
       giftcardNumber: appliedGiftCardNumber,
       giftcardDiscount: appliedGiftCardDiscount,
-      shippingAddress: typeof shippingAddress === 'string' ? shippingAddress : JSON.stringify(shippingAddress),
+      shippingAddress:
+        typeof shippingAddress === 'string' ? shippingAddress : JSON.stringify(shippingAddress),
       phone,
       email,
       paymentMethod: paymentMethod || 'cod',
@@ -429,9 +509,9 @@ async function createOrderHandler(request: NextRequest) {
         productImage: item.productImage,
         size: item.size,
         quantity: item.quantity,
-        price: item.price // Verified Price
+        price: item.price, // Verified Price
       })),
-      notes: notes || null
+      notes: notes || null,
     });
 
     // BUGS FIXED: Flash Sale Stock Update is ALREADY handled SECURELY inside `createOrder` (src/lib/db/repositories/order.ts) with `FOR UPDATE` transaction and Redis Lock.
@@ -447,15 +527,12 @@ async function createOrderHandler(request: NextRequest) {
         orderId,
         orderNumber,
         totalAmount,
-        membershipDiscount
-      }
+        membershipDiscount,
+      },
     });
   } catch (error) {
     console.error('Lỗi khi tạo đơn hàng:', error);
-    return NextResponse.json(
-      { success: false, message: 'Lỗi server nội bộ' },
-      { status: 500 }
-    );
+    return NextResponse.json({ success: false, message: 'Lỗi server nội bộ' }, { status: 500 });
   }
 }
 

@@ -41,7 +41,7 @@ export const GET = withPermission('manage:inventory', async (request: NextReques
         productSku: products.sku,
         variantId: productVariants.id,
         variantSize: productVariants.size,
-        variantColor: productVariants.color,
+        variantColor: productVariants.colorId,
         quantity: inventorySchema.quantity,
         reserved: inventorySchema.reserved,
         warehouseName: warehouses.name,
@@ -101,7 +101,7 @@ export const POST = withPermission('manage:inventory', async (request: Request) 
         and(
           eq(productVariants.productId, product_id),
           eq(productVariants.size, size),
-          color ? eq(productVariants.color, color) : sql`${productVariants.color} IS NULL`
+          color ? eq(productVariants.colorId, color) : sql`${productVariants.colorId} IS NULL`
         )
       );
 
@@ -111,7 +111,7 @@ export const POST = withPermission('manage:inventory', async (request: Request) 
       const [insertResult] = await db.insert(productVariants).values({
         productId: product_id,
         size,
-        color: color || null,
+        colorId: color || null,
       });
       variantId = (insertResult as any).insertId;
     }

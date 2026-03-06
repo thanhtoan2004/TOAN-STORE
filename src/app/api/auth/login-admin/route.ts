@@ -15,16 +15,13 @@ export async function POST(req: Request) {
     const { email, password }: LoginRequest = await req.json();
 
     // Tìm người dùng theo email trong bảng admin_users
-    const users = await executeQuery(
+    const users = (await executeQuery(
       'SELECT * FROM admin_users WHERE email = ? AND is_active = 1',
       [email]
-    ) as any[];
+    )) as any[];
 
     if (users.length === 0) {
-      return NextResponse.json(
-        { error: 'Email hoặc mật khẩu không chính xác' },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: 'Email hoặc mật khẩu không chính xác' }, { status: 401 });
     }
 
     const user = users[0];
@@ -33,22 +30,15 @@ export async function POST(req: Request) {
     const isPasswordValid = await bcrypt.compare(password, user.password);
 
     if (!isPasswordValid) {
-      return NextResponse.json(
-        { error: 'Email hoặc mật khẩu không chính xác' },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: 'Email hoặc mật khẩu không chính xác' }, { status: 401 });
     }
 
     // Tạo token JWT
-    const token = jwt.sign(
-      { userId: user.id, email: user.email, is_admin: 1 },
-      getJwtSecret(),
-      {
-        expiresIn: '7d',
-        issuer: 'toan-store',
-        audience: 'admin'
-      }
-    );
+    const token = jwt.sign({ userId: user.id, email: user.email }, getJwtSecret(), {
+      expiresIn: '7d',
+      issuer: 'toan-store',
+      audience: 'admin',
+    });
 
     // Lưu token vào cookie
     const cookieStore = await cookies();
@@ -57,9 +47,8 @@ export async function POST(req: Request) {
       path: '/',
       secure: process.env.NODE_ENV === 'production',
       maxAge: 60 * 60 * 24 * 7, // 7 ngày
-      sameSite: 'strict'
+      sameSite: 'strict',
     });
-
 
     // Trả về thông tin người dùng (không bao gồm mật khẩu)
     const { password: _, ...userWithoutPassword } = user;
@@ -68,17 +57,13 @@ export async function POST(req: Request) {
       success: true,
       user: {
         ...userWithoutPassword,
-        is_admin: 1,
         firstName: user.full_name?.split(' ')[0] || '',
-        lastName: user.full_name?.split(' ').slice(1).join(' ') || ''
-      } as any
+        lastName: user.full_name?.split(' ').slice(1).join(' ') || '',
+      } as any,
     };
     return NextResponse.json(response);
   } catch (error) {
     console.error('Lỗi đăng nhập:', error);
-    return NextResponse.json(
-      { error: 'Đã xảy ra lỗi khi đăng nhập' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Đã xảy ra lỗi khi đăng nhập' }, { status: 500 });
   }
-} 
+}

@@ -22,7 +22,10 @@ export async function initDb() {
         is_verified TINYINT(1) DEFAULT 0,
         is_encrypted TINYINT(1) DEFAULT 0,
         membership_tier ENUM('bronze', 'silver', 'gold', 'platinum') DEFAULT 'bronze',
-        accumulated_points INT DEFAULT 0,
+        available_points INT DEFAULT 0,
+        lifetime_points INT DEFAULT 0,
+        points_expiry_date DATE NULL,
+        tier_updated_at DATETIME NULL,
         avatar_url VARCHAR(1000) NULL,
         google_id VARCHAR(255) NULL UNIQUE,
         facebook_id VARCHAR(255) NULL UNIQUE,
@@ -54,8 +57,10 @@ export async function initDb() {
       const [columns]: any = await connection.query('SHOW COLUMNS FROM users');
       const columnNames = columns.map((col: any) => col.Field);
 
-      if (!columnNames.includes('accumulated_points')) {
-        await connection.query('ALTER TABLE users ADD COLUMN accumulated_points INT DEFAULT 0');
+      if (!columnNames.includes('available_points')) {
+        await connection.query(
+          'ALTER TABLE users ADD COLUMN available_points INT DEFAULT 0, ADD COLUMN lifetime_points INT DEFAULT 0'
+        );
       }
       if (!columnNames.includes('membership_tier')) {
         await connection.query(
@@ -184,14 +189,15 @@ export async function initDb() {
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
     `);
 
-    // Tạo bảng attribute_values
+    // Tạo bảng attribute_values (Unified Point 6)
     await connection.query(`
       CREATE TABLE IF NOT EXISTS attribute_values (
         id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
         attribute_id BIGINT UNSIGNED NOT NULL,
         value VARCHAR(255) NOT NULL,
+        label VARCHAR(255) DEFAULT NULL,
         position INT DEFAULT 0,
-        FOREIGN KEY (attribute_id) REFERENCES category_attributes(id) ON DELETE CASCADE
+        FOREIGN KEY (attribute_id) REFERENCES attributes(id) ON DELETE CASCADE
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
     `);
 
@@ -274,7 +280,7 @@ export async function initDb() {
         product_id BIGINT UNSIGNED NOT NULL,
         sku VARCHAR(200) UNIQUE,
         size VARCHAR(20),
-        color VARCHAR(100),
+        color_id BIGINT UNSIGNED NULL,
         barcode VARCHAR(100),
         attributes JSON,
         price DECIMAL(12,2) NOT NULL DEFAULT 0 CHECK (price >= 0),
@@ -284,6 +290,7 @@ export async function initDb() {
         depth DECIMAL(10,3) DEFAULT 0,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE,
+        FOREIGN KEY (color_id) REFERENCES product_colors(id) ON DELETE SET NULL,
         INDEX idx_sku (sku),
         INDEX idx_size (size)
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
@@ -745,7 +752,7 @@ export async function initDb() {
         email VARCHAR(255) NOT NULL UNIQUE,
         password VARCHAR(255) NOT NULL,
         full_name VARCHAR(255),
-        role ENUM('super_admin', 'admin', 'manager', 'support') DEFAULT 'admin',
+        role_id BIGINT UNSIGNED,
         is_active TINYINT(1) DEFAULT 1,
         last_login TIMESTAMP NULL,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -1060,62 +1067,59 @@ export async function initDb() {
                         ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4
                           `);
 
-    // Tạo bảng role_permission
-    await connection.query(`
-      CREATE TABLE IF NOT EXISTS role_permission(
-                            role_id BIGINT UNSIGNED NOT NULL,
-                            permission_id BIGINT UNSIGNED NOT NULL,
-                            PRIMARY KEY(role_id, permission_id),
-                            FOREIGN KEY(role_id) REFERENCES roles(id) ON DELETE CASCADE,
-                            FOREIGN KEY(permission_id) REFERENCES permissions(id) ON DELETE CASCADE
-                          ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4
-                            `);
+    // Bảng role_permissions (Many-to-Many cho RBAC) đã được Drizzle quản lý qua migration `0001_reflective_iceman.sql`.
 
     // Tạo bảng refunds
     await connection.query(`
       CREATE TABLE IF NOT EXISTS refunds (
         id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
         order_id BIGINT UNSIGNED NOT NULL,
+        request_id BIGINT UNSIGNED DEFAULT NULL,
         refund_amount DECIMAL(12,2) NOT NULL CHECK (refund_amount >= 0),
         status VARCHAR(50) DEFAULT 'completed',
         reason TEXT,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE
+        FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE,
+        FOREIGN KEY (request_id) REFERENCES refund_requests(id) ON DELETE SET NULL
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
     `);
 
     // Tạo bảng point_transactions
     await connection.query(`
-      CREATE TABLE IF NOT EXISTS point_transactions (
-        id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-        user_id BIGINT UNSIGNED NOT NULL,
-        points INT NOT NULL,
-        type ENUM('earn', 'spend') NOT NULL,
-        description VARCHAR(255),
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-    `);
+        CREATE TABLE IF NOT EXISTS point_transactions (
+          id INT AUTO_INCREMENT PRIMARY KEY,
+          user_id INT NOT NULL,
+          points INT NOT NULL,
+          type ENUM('earn', 'spend', 'refund', 'expire', 'redeem') NOT NULL,
+          source VARCHAR(255) NULL,
+          source_id VARCHAR(255) NULL,
+          balance_after INT NULL,
+          expiry_date DATE NULL,
+          description TEXT,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+      `);
 
     // Tạo bảng admin_activity_logs
     await connection.query(`
       CREATE TABLE IF NOT EXISTS admin_activity_logs(
-                              id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-                              admin_user_id BIGINT UNSIGNED,
-                              action VARCHAR(100) NOT NULL,
-                              entity_type VARCHAR(100),
-                              entity_id VARCHAR(100),
-                              old_values JSON,
-                              new_values JSON,
-                              ip_address VARCHAR(45),
-                              user_agent TEXT,
-                              created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                              FOREIGN KEY(admin_user_id) REFERENCES admin_users(id) ON DELETE SET NULL,
-                              INDEX idx_action(action),
-                              INDEX idx_admin(admin_user_id),
-                              INDEX idx_entity(entity_type, entity_id)
-                            ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4
-                              `);
+        id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+        admin_user_id BIGINT UNSIGNED,
+        action VARCHAR(100) NOT NULL,
+        entity_type VARCHAR(100),
+        entity_id VARCHAR(100),
+        old_values JSON,
+        new_values JSON,
+        ip_address VARCHAR(45),
+        user_agent TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY(admin_user_id) REFERENCES admin_users(id) ON DELETE SET NULL,
+        INDEX idx_action(action),
+        INDEX idx_admin(admin_user_id),
+        INDEX idx_entity(entity_type, entity_id)
+      ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4
+        `);
 
     // Migration: Thêm bio, avatar_url cho admin_users (Author Profile)
     try {
@@ -1142,24 +1146,24 @@ export async function initDb() {
     // Tạo bảng gift_card_transactions
     await connection.query(`
       CREATE TABLE IF NOT EXISTS gift_card_transactions(
-                                id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-                                gift_card_id BIGINT UNSIGNED NOT NULL,
-                                transaction_type ENUM('purchase', 'redeem', 'refund', 'adjustment') DEFAULT 'redeem',
-                                amount DECIMAL(12, 2) NOT NULL,
-                                balance_before DECIMAL(12, 2) NOT NULL,
-                                balance_after DECIMAL(12, 2) NOT NULL,
-                                description TEXT,
-                                order_id BIGINT UNSIGNED NULL,
-                                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                                FOREIGN KEY(gift_card_id) REFERENCES gift_cards(id) ON DELETE CASCADE,
-                                FOREIGN KEY(order_id) REFERENCES orders(id) ON DELETE SET NULL
-                              ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4
-                                `);
+          id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+          gift_card_id BIGINT UNSIGNED NOT NULL,
+          transaction_type ENUM('purchase', 'redeem', 'refund', 'adjustment') DEFAULT 'redeem',
+          amount DECIMAL(12, 2) NOT NULL,
+          balance_before DECIMAL(12, 2) NOT NULL,
+          balance_after DECIMAL(12, 2) NOT NULL,
+          description TEXT,
+          order_id BIGINT UNSIGNED NULL,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY(gift_card_id) REFERENCES gift_cards(id) ON DELETE CASCADE,
+          FOREIGN KEY(order_id) REFERENCES orders(id) ON DELETE SET NULL
+        ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4
+          `);
 
     // Tạo bảng rate_limits cho hệ thống bảo mật
     await connection.query(`
       CREATE TABLE IF NOT EXISTS rate_limits(
-                                  \`key\` VARCHAR(255) PRIMARY KEY,
+            \`key\` VARCHAR(255) PRIMARY KEY,
         \`count\` INT NOT NULL DEFAULT 0,
         \`expires_at\` BIGINT NOT NULL,
         INDEX idx_expiry (\`expires_at\`)
@@ -1509,7 +1513,7 @@ export async function initDb() {
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
         FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL,
-        FOREIGN KEY (assigned_admin_id) REFERENCES users(id) ON DELETE SET NULL,
+        FOREIGN KEY (assigned_admin_id) REFERENCES admin_users(id) ON DELETE SET NULL,
         INDEX idx_access_token (access_token)
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
     `);
@@ -1589,16 +1593,6 @@ export async function initDb() {
     `);
 
     await connection.query(`
-      CREATE TABLE IF NOT EXISTS attribute_options (
-        id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-        attribute_id BIGINT UNSIGNED NOT NULL,
-        value VARCHAR(255) NOT NULL,
-        label VARCHAR(255) NOT NULL,
-        FOREIGN KEY (attribute_id) REFERENCES attributes(id) ON DELETE CASCADE
-      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-    `);
-
-    await connection.query(`
       CREATE TABLE IF NOT EXISTS product_attribute_values (
         id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
         product_id BIGINT UNSIGNED NOT NULL,
@@ -1607,7 +1601,7 @@ export async function initDb() {
         option_id BIGINT UNSIGNED NULL,
         FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE,
         FOREIGN KEY (attribute_id) REFERENCES attributes(id) ON DELETE CASCADE,
-        FOREIGN KEY (option_id) REFERENCES attribute_options(id) ON DELETE SET NULL,
+        FOREIGN KEY (option_id) REFERENCES attribute_values(id) ON DELETE SET NULL,
         INDEX idx_product (product_id),
         INDEX idx_attribute (attribute_id)
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4

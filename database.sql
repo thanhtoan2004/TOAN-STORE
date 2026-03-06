@@ -27,7 +27,7 @@ CREATE TABLE `_migrations` (
   `name` varchar(255) NOT NULL,
   `executed_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=8 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=13 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -36,7 +36,7 @@ CREATE TABLE `_migrations` (
 
 LOCK TABLES `_migrations` WRITE;
 /*!40000 ALTER TABLE `_migrations` DISABLE KEYS */;
-INSERT INTO `_migrations` VALUES (1,'001_baseline.sql','2026-02-13 07:03:50'),(2,'002_create_warehouses_table.sql','2026-02-13 07:06:12'),(3,'003_add_inventory_column.sql','2026-02-13 07:08:54'),(4,'004_update_inventory_data.sql','2026-02-13 07:08:54'),(5,'003_skip.sql','2026-02-13 07:10:57'),(6,'0000_reflective_lady_vermin.sql','2026-02-15 12:20:10'),(7,'0001_reflective_iceman.sql','2026-02-15 12:20:10');
+INSERT INTO `_migrations` VALUES (1,'001_baseline.sql','2026-02-13 07:03:50'),(2,'002_create_warehouses_table.sql','2026-02-13 07:06:12'),(3,'003_add_inventory_column.sql','2026-02-13 07:08:54'),(4,'004_update_inventory_data.sql','2026-02-13 07:08:54'),(5,'003_skip.sql','2026-02-13 07:10:57'),(6,'0000_reflective_lady_vermin.sql','2026-02-15 12:20:10'),(7,'0001_reflective_iceman.sql','2026-02-15 12:20:10'),(8,'2026_03_06_1001_phase_1_low_risk.sql','2026-03-06 06:43:13'),(9,'2026_03_06_1002_phase_2_auth_support.sql','2026-03-06 07:02:00'),(10,'2026_03_06_1003_phase_3_high_risk.sql','2026-03-06 07:04:13'),(11,'2026_03_06_1004_phase_4_cleanup.sql','2026-03-06 10:02:47'),(12,'2026_03_06_1005_final_optimization_and_seed.sql','2026-03-06 13:42:19');
 /*!40000 ALTER TABLE `_migrations` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -78,37 +78,6 @@ INSERT INTO `admin_activity_logs` VALUES (8,1,'soft_delete_flash_sale','flash_sa
 UNLOCK TABLES;
 
 --
--- Table structure for table `admin_audit_logs`
---
-
-DROP TABLE IF EXISTS `admin_audit_logs`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `admin_audit_logs` (
-  `id` int NOT NULL AUTO_INCREMENT,
-  `admin_id` int DEFAULT NULL,
-  `action` varchar(255) DEFAULT NULL,
-  `target_type` varchar(50) DEFAULT NULL,
-  `target_id` varchar(100) DEFAULT NULL,
-  `details` json DEFAULT NULL,
-  `ip_address` varchar(45) DEFAULT NULL,
-  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`),
-  KEY `idx_admin` (`admin_id`),
-  KEY `idx_target` (`target_type`,`target_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
-
---
--- Dumping data for table `admin_audit_logs`
---
-
-LOCK TABLES `admin_audit_logs` WRITE;
-/*!40000 ALTER TABLE `admin_audit_logs` DISABLE KEYS */;
-/*!40000 ALTER TABLE `admin_audit_logs` ENABLE KEYS */;
-UNLOCK TABLES;
-
---
 -- Table structure for table `admin_users`
 --
 
@@ -121,7 +90,6 @@ CREATE TABLE `admin_users` (
   `email` varchar(255) NOT NULL,
   `password` varchar(255) NOT NULL,
   `full_name` varchar(255) DEFAULT NULL,
-  `role` enum('super_admin','admin','manager','support') DEFAULT 'admin',
   `is_active` tinyint(1) DEFAULT '1',
   `last_login` timestamp NULL DEFAULT NULL,
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
@@ -141,35 +109,8 @@ CREATE TABLE `admin_users` (
 
 LOCK TABLES `admin_users` WRITE;
 /*!40000 ALTER TABLE `admin_users` DISABLE KEYS */;
-INSERT INTO `admin_users` VALUES (1,'admin','admin@toanstore.com','$2b$10$CTpJGqihD7OewkHcHf8rXuvQ/uLWlC3Imm6AoMpIv06db78INhiWi','System Administrator','super_admin',1,NULL,'2025-12-06 14:11:35','2026-02-15 12:29:37',4),(2,'manager','manager@toanstore.com','$2a$10$YourHashedPasswordHere','Store Manager','manager',1,NULL,'2025-12-06 14:11:35','2025-12-06 14:11:35',NULL);
+INSERT INTO `admin_users` VALUES (1,'admin','admin@toanstore.com','$2b$10$CTpJGqihD7OewkHcHf8rXuvQ/uLWlC3Imm6AoMpIv06db78INhiWi','System Administrator',1,NULL,'2025-12-06 14:11:35','2026-02-15 12:29:37',4),(2,'manager','manager@toanstore.com','$2a$10$YourHashedPasswordHere','Store Manager',1,NULL,'2025-12-06 14:11:35','2025-12-06 14:11:35',NULL);
 /*!40000 ALTER TABLE `admin_users` ENABLE KEYS */;
-UNLOCK TABLES;
-
---
--- Table structure for table `attribute_options`
---
-
-DROP TABLE IF EXISTS `attribute_options`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `attribute_options` (
-  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
-  `attribute_id` bigint unsigned NOT NULL,
-  `value` varchar(255) NOT NULL,
-  `label` varchar(255) NOT NULL,
-  PRIMARY KEY (`id`),
-  KEY `attribute_id` (`attribute_id`),
-  CONSTRAINT `attribute_options_ibfk_1` FOREIGN KEY (`attribute_id`) REFERENCES `attributes` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
-
---
--- Dumping data for table `attribute_options`
---
-
-LOCK TABLES `attribute_options` WRITE;
-/*!40000 ALTER TABLE `attribute_options` DISABLE KEYS */;
-/*!40000 ALTER TABLE `attribute_options` ENABLE KEYS */;
 UNLOCK TABLES;
 
 --
@@ -183,10 +124,11 @@ CREATE TABLE `attribute_values` (
   `id` bigint unsigned NOT NULL AUTO_INCREMENT,
   `attribute_id` bigint unsigned NOT NULL,
   `value` varchar(255) NOT NULL,
+  `label` varchar(255) DEFAULT NULL,
   `position` int DEFAULT '0',
   PRIMARY KEY (`id`),
   KEY `attribute_id` (`attribute_id`),
-  CONSTRAINT `attribute_values_ibfk_1` FOREIGN KEY (`attribute_id`) REFERENCES `category_attributes` (`id`) ON DELETE CASCADE
+  CONSTRAINT `attribute_values_ibfk_1` FOREIGN KEY (`attribute_id`) REFERENCES `attributes` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -264,7 +206,7 @@ CREATE TABLE `banners` (
 
 LOCK TABLES `banners` WRITE;
 /*!40000 ALTER TABLE `banners` DISABLE KEYS */;
-INSERT INTO `banners` VALUES (1,'TOAN Store Air Max Collection','Khám phá bộ sưu tập Air Max mới nhất với công nghệ đệm khí tiên tiến','https://static.nike.com/a/images/f_auto/dpr_1.0,cs_srgb/w_1423,c_limit/4f37fca8-6bce-43e7-ad07-f57ae3c13142/nike-just-do-it.png',NULL,'/shoes','Mua Ngay','homepage',1,'2025-12-09 06:03:21','2026-02-07 06:03:21',1,0,307,'2025-12-09 06:03:21','2026-02-07 12:26:01'),(2,'Giảm giá đến 50%','Flash Sale cuối năm - Ưu đãi cực lớn cho các sản phẩm chọn lọc','https://static.nike.com/a/images/f_auto/dpr_1.0,cs_srgb/w_1423,c_limit/23d36c28-01e7-484d-a5d0-cf36209ccdfb/nike-just-do-it.jpg',NULL,'/categories','Xem Ngay','homepage',2,'2025-12-09 06:03:21','2026-01-08 06:03:21',1,0,84,'2025-12-09 06:03:21','2026-01-06 23:18:49'),(3,'TOAN Store Pro Training','Trang bị cho tập luyện với dòng sản phẩm TOAN Store Pro','https://static.nike.com/a/images/f_auto/dpr_1.0,cs_srgb/w_1423,c_limit/fb3a98c1-d98e-44b0-96d4-9c9fe5a1f4e0/nike-just-do-it.jpg',NULL,'/clothing','Khám Phá','homepage',3,'2025-12-09 06:03:21','2026-03-09 06:03:21',1,9,719,'2025-12-09 06:03:21','2026-03-03 07:28:54'),(4,'TOAN','','https://static.nike.com/a/images/q_auto:eco/t_product_v1/f_auto/dpr_1.5/h_381,c_limit/12359d89-6050-4d71-b487-d31e3b9ea564/ja-3-lunar-new-year-ep-basketball-shoes-s5LwQ251.png','','http://localhost:3000/toan','','homepage',1,NULL,NULL,1,0,564,'2026-01-30 02:00:14','2026-03-03 07:28:54');
+INSERT INTO `banners` VALUES (1,'TOAN Store Air Max Collection','Khám phá bộ sưu tập Air Max mới nhất với công nghệ đệm khí tiên tiến','https://static.nike.com/a/images/f_auto/dpr_1.0,cs_srgb/w_1423,c_limit/4f37fca8-6bce-43e7-ad07-f57ae3c13142/nike-just-do-it.png',NULL,'/shoes','Mua Ngay','homepage',1,'2025-12-09 06:03:21','2026-02-07 06:03:21',1,0,307,'2025-12-09 06:03:21','2026-02-07 12:26:01'),(2,'Giảm giá đến 50%','Flash Sale cuối năm - Ưu đãi cực lớn cho các sản phẩm chọn lọc','https://static.nike.com/a/images/f_auto/dpr_1.0,cs_srgb/w_1423,c_limit/23d36c28-01e7-484d-a5d0-cf36209ccdfb/nike-just-do-it.jpg',NULL,'/categories','Xem Ngay','homepage',2,'2025-12-09 06:03:21','2026-01-08 06:03:21',1,0,84,'2025-12-09 06:03:21','2026-01-06 23:18:49'),(3,'TOAN Store Pro Training','Trang bị cho tập luyện với dòng sản phẩm TOAN Store Pro','https://static.nike.com/a/images/f_auto/dpr_1.0,cs_srgb/w_1423,c_limit/fb3a98c1-d98e-44b0-96d4-9c9fe5a1f4e0/nike-just-do-it.jpg',NULL,'/clothing','Khám Phá','homepage',3,'2025-12-09 06:03:21','2026-03-09 06:03:21',1,9,768,'2025-12-09 06:03:21','2026-03-06 03:17:05'),(4,'TOAN','','https://static.nike.com/a/images/q_auto:eco/t_product_v1/f_auto/dpr_1.5/h_381,c_limit/12359d89-6050-4d71-b487-d31e3b9ea564/ja-3-lunar-new-year-ep-basketball-shoes-s5LwQ251.png','','http://localhost:3000/toan','','homepage',1,NULL,NULL,1,0,613,'2026-01-30 02:00:14','2026-03-06 03:17:05');
 /*!40000 ALTER TABLE `banners` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -541,6 +483,7 @@ CREATE TABLE `coupon_usage` (
   KEY `user_id` (`user_id`),
   KEY `order_id` (`order_id`),
   KEY `coupon_usage_ibfk_1` (`coupon_id`),
+  KEY `idx_coupon_usage_check` (`user_id`,`coupon_id`),
   CONSTRAINT `coupon_usage_ibfk_1` FOREIGN KEY (`coupon_id`) REFERENCES `coupons` (`id`) ON DELETE SET NULL,
   CONSTRAINT `coupon_usage_ibfk_2` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE SET NULL,
   CONSTRAINT `coupon_usage_ibfk_3` FOREIGN KEY (`order_id`) REFERENCES `orders` (`id`) ON DELETE SET NULL
@@ -583,7 +526,8 @@ CREATE TABLE `coupons` (
   PRIMARY KEY (`id`),
   UNIQUE KEY `code` (`code`),
   KEY `idx_deleted_at` (`deleted_at`),
-  KEY `idx_code_dates` (`code`,`starts_at`,`ends_at`)
+  KEY `idx_code_dates` (`code`,`starts_at`,`ends_at`),
+  KEY `idx_coupons_active` (`deleted_at`,`ends_at`)
 ) ENGINE=InnoDB AUTO_INCREMENT=13 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -605,7 +549,7 @@ DROP TABLE IF EXISTS `daily_metrics`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `daily_metrics` (
-  `date` timestamp NOT NULL,
+  `date` date NOT NULL,
   `revenue` decimal(15,2) DEFAULT '0.00',
   `orders_count` int DEFAULT '0',
   `customers_count` int DEFAULT '0',
@@ -623,7 +567,7 @@ CREATE TABLE `daily_metrics` (
 
 LOCK TABLES `daily_metrics` WRITE;
 /*!40000 ALTER TABLE `daily_metrics` DISABLE KEYS */;
-INSERT INTO `daily_metrics` VALUES ('2026-02-07 10:00:00',0.00,0,0,0,0.00,0.00,'2026-02-15 09:13:56'),('2026-02-08 10:00:00',0.00,0,0,0,0.00,0.00,'2026-02-15 09:13:56'),('2026-02-09 10:00:00',0.00,0,0,0,0.00,0.00,'2026-02-15 09:13:56'),('2026-02-10 10:00:00',1000000.00,1,1,0,0.00,1000000.00,'2026-02-15 09:13:56'),('2026-02-11 10:00:00',0.00,0,0,0,0.00,0.00,'2026-02-15 09:13:56'),('2026-02-12 10:00:00',9030000.00,7,1,2,0.00,9030000.00,'2026-02-15 09:13:56'),('2026-02-13 10:00:00',4170260.00,1,1,0,0.00,4170260.00,'2026-02-15 09:13:56'),('2026-02-14 10:00:00',0.00,0,0,0,0.00,0.00,'2026-02-15 09:13:56');
+INSERT INTO `daily_metrics` VALUES ('2026-02-07',0.00,0,0,0,0.00,0.00,'2026-02-15 09:13:56'),('2026-02-08',0.00,0,0,0,0.00,0.00,'2026-02-15 09:13:56'),('2026-02-09',0.00,0,0,0,0.00,0.00,'2026-02-15 09:13:56'),('2026-02-10',1000000.00,1,1,0,0.00,1000000.00,'2026-02-15 09:13:56'),('2026-02-11',0.00,0,0,0,0.00,0.00,'2026-02-15 09:13:56'),('2026-02-12',9030000.00,7,1,2,0.00,9030000.00,'2026-02-15 09:13:56'),('2026-02-13',4170260.00,1,1,0,0.00,4170260.00,'2026-02-15 09:13:56'),('2026-02-14',0.00,0,0,0,0.00,0.00,'2026-02-15 09:13:56');
 /*!40000 ALTER TABLE `daily_metrics` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -778,7 +722,6 @@ CREATE TABLE `flash_sales` (
   `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   `deleted_at` timestamp NULL DEFAULT NULL,
   PRIMARY KEY (`id`),
-  KEY `idx_active_time` (`is_active`,`start_time`,`end_time`),
   KEY `idx_deleted_at` (`deleted_at`),
   KEY `idx_active_dates` (`is_active`,`start_time`,`end_time`)
 ) ENGINE=InnoDB AUTO_INCREMENT=12 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
@@ -883,6 +826,7 @@ CREATE TABLE `gift_cards` (
   UNIQUE KEY `card_number` (`card_number`),
   KEY `purchased_by` (`purchased_by`),
   KEY `idx_card_number` (`card_number`),
+  KEY `idx_gift_cards_status` (`status`),
   CONSTRAINT `gift_cards_ibfk_1` FOREIGN KEY (`purchased_by`) REFERENCES `users` (`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB AUTO_INCREMENT=16 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
@@ -893,7 +837,7 @@ CREATE TABLE `gift_cards` (
 
 LOCK TABLES `gift_cards` WRITE;
 /*!40000 ALTER TABLE `gift_cards` DISABLE KEYS */;
-INSERT INTO `gift_cards` VALUES (2,'2345678901234567','2345',1000000.00,1000000.00,'VND','active',0,NULL,NULL,'2026-12-06 14:11:35','2025-12-06 14:11:35','2025-12-06 14:11:35'),(3,'3456789012345678','3456',2000000.00,2000000.00,'VND','active',0,NULL,NULL,'2026-12-06 14:11:35','2025-12-06 14:11:35','2025-12-06 14:11:35'),(4,'4567890123456789','4567',500000.00,300000.00,'VND','active',0,NULL,NULL,'2026-12-06 14:11:35','2025-12-06 14:11:35','2025-12-06 14:11:35'),(9,'1234567890123456','1234',500000.00,500000.00,'VND','active',0,NULL,NULL,'2026-12-07 02:25:17','2025-12-07 02:25:17','2025-12-07 02:25:17'),(10,'9876543210987654','5678',1000000.00,1000000.00,'VND','active',0,NULL,NULL,'2026-12-07 02:25:17','2025-12-07 02:25:17','2025-12-07 02:25:17'),(11,'1111222233334444','9999',250000.00,250000.00,'VND','active',0,NULL,NULL,'2026-12-07 02:25:17','2025-12-07 02:25:17','2025-12-07 02:25:17'),(12,'1234567891012131','1234',1000000.00,1000000.00,'VND','active',0,NULL,NULL,'2026-12-31 17:00:00','2026-01-29 14:57:02','2026-01-29 14:57:02'),(13,'1122334455667788','1234',1000000.00,0.00,'VND','used',0,NULL,NULL,'2027-01-01 03:00:00','2026-01-29 15:13:24','2026-01-30 12:50:35'),(14,'6969696969696969','$2b$10$RXx/A/yUbhSi6x3FSyA5FujcG7BgNXWQmFkcshyqes75MS7ygA046',100000.00,0.00,'VND','used',0,NULL,NULL,'2026-09-05 23:09:00','2026-02-14 02:04:53','2026-02-14 02:45:08'),(15,'9696969696969696','c74ee807934c21b9c9484c9cf06e4a45:830e434d1c2c245e0b56b5ad920d9b39:e35b73c9',100000.00,100000.00,'VND','active',0,NULL,NULL,'2026-06-09 02:06:00','2026-02-14 06:16:29','2026-02-14 06:16:29');
+INSERT INTO `gift_cards` VALUES (2,'2345678901234567','$2b$10$jKLc3TIFYZzp6wMGgI1NPud/Jl/Gv.rScynI7G3iIn/MtrpMdGtsS',1000000.00,1000000.00,'VND','active',0,NULL,NULL,'2026-12-06 14:11:35','2025-12-06 14:11:35','2026-03-06 05:40:42'),(3,'3456789012345678','$2b$10$pgI/Qxf/ZT2BgQLhMooXrOliZoOcfEjtPprrLfo5kCY/BORlg.XF2',2000000.00,2000000.00,'VND','active',0,NULL,NULL,'2026-12-06 14:11:35','2025-12-06 14:11:35','2026-03-06 05:40:42'),(4,'4567890123456789','$2b$10$Ae5WPDcu93PDobkvnn5EuuLpvkw5p03uCqmOLap.cb/GbbSSXxMni',500000.00,300000.00,'VND','active',0,NULL,NULL,'2026-12-06 14:11:35','2025-12-06 14:11:35','2026-03-06 05:40:43'),(9,'1234567890123456','$2b$10$Ntzc8iKZ1n3mftvuZJy89Ou53.VQFelU7DsDQNINcrfZuAAJP6Bt2',500000.00,500000.00,'VND','active',0,NULL,NULL,'2026-12-07 02:25:17','2025-12-07 02:25:17','2026-03-06 05:40:43'),(10,'9876543210987654','$2b$10$z19dTdgRvoBrjrvqAUMe0ekPMJ9sSCf86t8Al1HkzyVqvXqjdPXd2',1000000.00,1000000.00,'VND','active',0,NULL,NULL,'2026-12-07 02:25:17','2025-12-07 02:25:17','2026-03-06 05:40:43'),(11,'1111222233334444','$2b$10$WSg34bQT3S0D8TAOEsHvU.iurGW/0VdqUkN0kv/pW54/U/eq1W0l6',250000.00,250000.00,'VND','active',0,NULL,NULL,'2026-12-07 02:25:17','2025-12-07 02:25:17','2026-03-06 05:40:43'),(12,'1234567891012131','$2b$10$1WQTM.6Oj87TlombdxWJi.cvF1EbqnYl18nvVerfZPTWpa5PX4/hS',1000000.00,1000000.00,'VND','active',0,NULL,NULL,'2026-12-31 17:00:00','2026-01-29 14:57:02','2026-03-06 05:40:43'),(13,'1122334455667788','$2b$10$tlieXhxOfjxnko2qPiVmpu30aBg5WNSFMJaxyKWWnxnSSllFIjpMa',1000000.00,0.00,'VND','used',0,NULL,NULL,'2027-01-01 03:00:00','2026-01-29 15:13:24','2026-03-06 05:40:44'),(14,'6969696969696969','$2b$10$RXx/A/yUbhSi6x3FSyA5FujcG7BgNXWQmFkcshyqes75MS7ygA046',100000.00,0.00,'VND','used',0,NULL,NULL,'2026-09-05 23:09:00','2026-02-14 02:04:53','2026-02-14 02:45:08'),(15,'9696969696969696','$2b$10$oNt715nLT0kZzKYwSCh7jeDMWCWBwBto/bm9aADbjhDALlHzKpouG',100000.00,100000.00,'VND','active',0,NULL,NULL,'2026-06-09 02:06:00','2026-02-14 06:16:29','2026-03-06 05:40:44');
 /*!40000 ALTER TABLE `gift_cards` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -922,7 +866,6 @@ CREATE TABLE `inventory` (
   KEY `idx_quantity_reserved` (`quantity`,`reserved`),
   KEY `idx_variant_warehouse` (`product_variant_id`,`warehouse_id`),
   CONSTRAINT `inventory_ibfk_1` FOREIGN KEY (`product_variant_id`) REFERENCES `product_variants` (`id`) ON DELETE CASCADE,
-  CONSTRAINT `chk_inventory_non_negative` CHECK ((`quantity` >= 0)),
   CONSTRAINT `chk_inventory_quantity_non_negative` CHECK ((`quantity` >= 0)),
   CONSTRAINT `chk_inventory_reserved_non_negative` CHECK ((`reserved` >= 0)),
   CONSTRAINT `chk_inventory_reserved_not_exceed` CHECK ((`reserved` <= `quantity`))
@@ -956,6 +899,7 @@ CREATE TABLE `inventory_logs` (
   PRIMARY KEY (`id`),
   KEY `idx_inventory` (`inventory_id`),
   KEY `idx_created_at` (`created_at`),
+  KEY `idx_inventory_logs_time` (`inventory_id`,`created_at` DESC),
   CONSTRAINT `inventory_logs_ibfk_1` FOREIGN KEY (`inventory_id`) REFERENCES `inventory` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB AUTO_INCREMENT=62 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
@@ -1026,7 +970,9 @@ CREATE TABLE `news` (
   PRIMARY KEY (`id`),
   UNIQUE KEY `slug` (`slug`),
   KEY `author_id` (`author_id`),
-  CONSTRAINT `news_ibfk_1` FOREIGN KEY (`author_id`) REFERENCES `users` (`id`) ON DELETE SET NULL
+  KEY `idx_news_published` (`is_published`),
+  KEY `idx_news_published_at` (`published_at`),
+  CONSTRAINT `fk_news_admin_author` FOREIGN KEY (`author_id`) REFERENCES `admin_users` (`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -1036,7 +982,7 @@ CREATE TABLE `news` (
 
 LOCK TABLES `news` WRITE;
 /*!40000 ALTER TABLE `news` DISABLE KEYS */;
-INSERT INTO `news` VALUES (3,'TOAN','toan','DANG THANH TOAN','TOAN','https://static.nike.com/a/images/q_auto:eco/t_product_v1/f_auto/dpr_1.5/h_381,c_limit/f9f098e2-5a18-4e52-990f-b9cc09357fbc/air-max-dn8-leather-shoes-bYfKK6Qb.png','Sản Phẩm',3,'2026-02-01 05:40:49',1,33,'2026-02-01 12:40:48','2026-03-01 15:04:52');
+INSERT INTO `news` VALUES (3,'TOAN','toan','DANG THANH TOAN','TOAN','https://static.nike.com/a/images/q_auto:eco/t_product_v1/f_auto/dpr_1.5/h_381,c_limit/f9f098e2-5a18-4e52-990f-b9cc09357fbc/air-max-dn8-leather-shoes-bYfKK6Qb.png','Sản Phẩm',3,'2026-02-01 05:40:49',1,34,'2026-02-01 12:40:48','2026-03-05 03:06:56');
 /*!40000 ALTER TABLE `news` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -1250,7 +1196,7 @@ CREATE TABLE `orders` (
   `shipping_address_snapshot` json DEFAULT NULL,
   `shipping_phone_encrypted` text,
   `shipping_address_encrypted` text,
-  `status` enum('pending','pending_payment_confirmation','payment_received','confirmed','processing','shipped','delivered','cancelled','refunded') DEFAULT 'pending',
+  `status` enum('pending','pending_payment_confirmation','payment_received','confirmed','processing','shipped','delivered','cancelled','refunded') NOT NULL DEFAULT 'pending',
   `placed_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   `payment_method` varchar(50) DEFAULT 'cod',
@@ -1280,6 +1226,8 @@ CREATE TABLE `orders` (
   KEY `idx_status_placed` (`status`,`placed_at` DESC),
   KEY `idx_payment_status_placed` (`payment_status`,`placed_at` DESC),
   KEY `idx_tracking_carrier` (`tracking_number`,`carrier`),
+  KEY `idx_orders_voucher_code` (`voucher_code`),
+  KEY `idx_orders_payment_method` (`payment_method`),
   CONSTRAINT `fk_orders_billing_address` FOREIGN KEY (`billing_address_id`) REFERENCES `user_addresses` (`id`) ON DELETE SET NULL,
   CONSTRAINT `fk_orders_shipping_address` FOREIGN KEY (`shipping_address_id`) REFERENCES `user_addresses` (`id`) ON DELETE SET NULL,
   CONSTRAINT `orders_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE SET NULL
@@ -1393,42 +1341,6 @@ INSERT INTO `payment_methods` VALUES (1,'cod','Thanh toán khi nhận hàng','{\
 UNLOCK TABLES;
 
 --
--- Table structure for table `payments`
---
-
-DROP TABLE IF EXISTS `payments`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `payments` (
-  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
-  `order_id` bigint unsigned DEFAULT NULL,
-  `payment_method_id` bigint unsigned DEFAULT NULL,
-  `amount` decimal(12,2) NOT NULL,
-  `currency` varchar(10) DEFAULT 'VND',
-  `gateway_response` json DEFAULT NULL COMMENT 'Response from payment gateway (Stripe, PayPal, etc.)',
-  `status` varchar(50) DEFAULT 'pending' COMMENT 'pending, completed, failed, refunded',
-  `paid_at` timestamp NULL DEFAULT NULL,
-  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`),
-  KEY `payment_method_id` (`payment_method_id`),
-  KEY `idx_order_id` (`order_id`),
-  KEY `idx_status` (`status`),
-  KEY `idx_paid_at` (`paid_at`),
-  CONSTRAINT `payments_ibfk_1` FOREIGN KEY (`order_id`) REFERENCES `orders` (`id`) ON DELETE SET NULL,
-  CONSTRAINT `payments_ibfk_2` FOREIGN KEY (`payment_method_id`) REFERENCES `payment_methods` (`id`) ON DELETE SET NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
-
---
--- Dumping data for table `payments`
---
-
-LOCK TABLES `payments` WRITE;
-/*!40000 ALTER TABLE `payments` DISABLE KEYS */;
-/*!40000 ALTER TABLE `payments` ENABLE KEYS */;
-UNLOCK TABLES;
-
---
 -- Table structure for table `permissions`
 --
 
@@ -1466,13 +1378,20 @@ CREATE TABLE `point_transactions` (
   `id` bigint unsigned NOT NULL AUTO_INCREMENT,
   `user_id` bigint unsigned NOT NULL,
   `points` int NOT NULL,
-  `type` enum('earn','spend') NOT NULL,
+  `type` enum('earn','redeem','expire','refund','adjust') NOT NULL,
   `description` varchar(255) DEFAULT NULL,
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `balance_after` int NOT NULL DEFAULT '0',
+  `source` varchar(50) DEFAULT NULL,
+  `source_id` varchar(100) DEFAULT NULL,
+  `expires_at` datetime DEFAULT NULL,
   PRIMARY KEY (`id`),
-  KEY `user_id` (`user_id`),
+  KEY `idx_pt_user` (`user_id`),
+  KEY `idx_pt_type` (`type`),
+  KEY `idx_pt_expires` (`expires_at`),
+  KEY `idx_pt_user_time` (`user_id`,`created_at` DESC),
   CONSTRAINT `point_transactions_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -1481,6 +1400,7 @@ CREATE TABLE `point_transactions` (
 
 LOCK TABLES `point_transactions` WRITE;
 /*!40000 ALTER TABLE `point_transactions` DISABLE KEYS */;
+INSERT INTO `point_transactions` VALUES (1,1,-50,'redeem','Đổi voucher: REDEEM50K','2026-03-06 02:19:07',2397,NULL,NULL,NULL);
 /*!40000 ALTER TABLE `point_transactions` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -1496,14 +1416,14 @@ CREATE TABLE `product_attribute_values` (
   `product_id` bigint unsigned NOT NULL,
   `attribute_id` bigint unsigned NOT NULL,
   `value_text` text,
-  `option_id` bigint unsigned DEFAULT NULL,
+  `value_id` bigint unsigned DEFAULT NULL,
   PRIMARY KEY (`id`),
-  KEY `option_id` (`option_id`),
+  KEY `option_id` (`value_id`),
   KEY `idx_product` (`product_id`),
   KEY `idx_attribute` (`attribute_id`),
   CONSTRAINT `product_attribute_values_ibfk_1` FOREIGN KEY (`product_id`) REFERENCES `products` (`id`) ON DELETE CASCADE,
   CONSTRAINT `product_attribute_values_ibfk_2` FOREIGN KEY (`attribute_id`) REFERENCES `attributes` (`id`) ON DELETE CASCADE,
-  CONSTRAINT `product_attribute_values_ibfk_3` FOREIGN KEY (`option_id`) REFERENCES `attribute_options` (`id`) ON DELETE SET NULL
+  CONSTRAINT `product_attribute_values_ibfk_3` FOREIGN KEY (`value_id`) REFERENCES `attribute_values` (`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -1562,7 +1482,7 @@ CREATE TABLE `product_colors` (
   PRIMARY KEY (`id`),
   KEY `idx_product_id` (`product_id`),
   CONSTRAINT `product_colors_ibfk_1` FOREIGN KEY (`product_id`) REFERENCES `products` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -1571,6 +1491,7 @@ CREATE TABLE `product_colors` (
 
 LOCK TABLES `product_colors` WRITE;
 /*!40000 ALTER TABLE `product_colors` DISABLE KEYS */;
+INSERT INTO `product_colors` VALUES (1,1,'Black','#000000',NULL,0),(2,1,'White','#FFFFFF',NULL,0),(3,2,'White','#FFFFFF',NULL,0),(4,2,'Triple White','#FFFFFF',NULL,0);
 /*!40000 ALTER TABLE `product_colors` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -1647,6 +1568,7 @@ CREATE TABLE `product_images` (
   PRIMARY KEY (`id`),
   KEY `product_id` (`product_id`),
   KEY `fk_product_images_color` (`color_id`),
+  KEY `idx_product_images_main` (`product_id`,`is_main`),
   CONSTRAINT `fk_product_images_color` FOREIGN KEY (`color_id`) REFERENCES `product_colors` (`id`) ON DELETE SET NULL,
   CONSTRAINT `product_images_ibfk_1` FOREIGN KEY (`product_id`) REFERENCES `products` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB AUTO_INCREMENT=20 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
@@ -1694,7 +1616,7 @@ CREATE TABLE `product_reviews` (
   CONSTRAINT `product_reviews_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE SET NULL,
   CONSTRAINT `product_reviews_ibfk_2` FOREIGN KEY (`product_id`) REFERENCES `products` (`id`) ON DELETE CASCADE,
   CONSTRAINT `product_reviews_chk_1` CHECK ((`rating` between 1 and 5))
-) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -1703,40 +1625,8 @@ CREATE TABLE `product_reviews` (
 
 LOCK TABLES `product_reviews` WRITE;
 /*!40000 ALTER TABLE `product_reviews` DISABLE KEYS */;
-INSERT INTO `product_reviews` VALUES (2,2,2,1,'OK','xấu','approved',0,3,0,'2026-01-27 07:36:19','2026-02-24 13:13:49','ok'),(3,1,2,5,'hàng ok','ok','approved',1,0,0,'2026-03-01 11:49:23','2026-03-01 12:37:53',NULL);
+INSERT INTO `product_reviews` VALUES (2,2,2,1,'OK','xấu','approved',0,4,0,'2026-01-27 07:36:19','2026-03-05 03:10:10','ok'),(3,1,2,5,'hàng ok','ok','approved',1,1,0,'2026-03-01 11:49:23','2026-03-05 03:13:03',NULL),(4,1,6,5,'ok','okkkkkkk','approved',1,1,0,'2026-03-05 03:21:29','2026-03-05 03:25:05',NULL);
 /*!40000 ALTER TABLE `product_reviews` ENABLE KEYS */;
-UNLOCK TABLES;
-
---
--- Table structure for table `product_sizes`
---
-
-DROP TABLE IF EXISTS `product_sizes`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `product_sizes` (
-  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
-  `product_id` bigint unsigned NOT NULL,
-  `size` varchar(10) NOT NULL,
-  `stock` int NOT NULL DEFAULT '0',
-  `reserved` int NOT NULL DEFAULT '0',
-  `price_adjustment` decimal(12,2) DEFAULT '0.00',
-  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
-  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `uk_product_size` (`product_id`,`size`),
-  CONSTRAINT `product_sizes_ibfk_1` FOREIGN KEY (`product_id`) REFERENCES `products` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=49 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
-
---
--- Dumping data for table `product_sizes`
---
-
-LOCK TABLES `product_sizes` WRITE;
-/*!40000 ALTER TABLE `product_sizes` DISABLE KEYS */;
-INSERT INTO `product_sizes` VALUES (1,1,'38',50,0,0.00,'2025-12-06 14:11:35','2025-12-06 14:11:35'),(2,1,'39',45,0,0.00,'2025-12-06 14:11:35','2025-12-06 14:11:35'),(3,1,'40',60,0,0.00,'2025-12-06 14:11:35','2025-12-06 14:11:35'),(4,1,'41',55,0,0.00,'2025-12-06 14:11:35','2025-12-06 14:11:35'),(5,1,'42',50,0,0.00,'2025-12-06 14:11:35','2025-12-06 14:11:35'),(6,1,'43',40,0,0.00,'2025-12-06 14:11:35','2025-12-06 14:11:35'),(7,1,'44',30,0,0.00,'2025-12-06 14:11:35','2025-12-06 14:11:35'),(8,1,'45',20,0,0.00,'2025-12-06 14:11:35','2025-12-06 14:11:35'),(9,2,'38',55,0,0.00,'2025-12-06 14:11:35','2025-12-06 14:11:35'),(10,2,'39',50,0,0.00,'2025-12-06 14:11:35','2025-12-06 14:11:35'),(11,2,'40',65,0,0.00,'2025-12-06 14:11:35','2025-12-06 14:11:35'),(12,2,'41',60,0,0.00,'2025-12-06 14:11:35','2025-12-06 14:11:35'),(13,2,'42',55,0,0.00,'2025-12-06 14:11:35','2025-12-06 14:11:35'),(14,2,'43',45,0,0.00,'2025-12-06 14:11:35','2025-12-06 14:11:35'),(15,2,'44',35,0,0.00,'2025-12-06 14:11:35','2025-12-06 14:11:35'),(16,2,'45',25,0,0.00,'2025-12-06 14:11:35','2025-12-06 14:11:35'),(17,3,'38',40,0,0.00,'2025-12-06 14:11:35','2025-12-06 14:11:35'),(18,3,'39',35,0,0.00,'2025-12-06 14:11:35','2025-12-06 14:11:35'),(19,3,'40',50,0,0.00,'2025-12-06 14:11:35','2025-12-06 14:11:35'),(20,3,'41',45,0,0.00,'2025-12-06 14:11:35','2025-12-06 14:11:35'),(21,3,'42',40,0,0.00,'2025-12-06 14:11:35','2025-12-06 14:11:35'),(22,3,'43',30,0,0.00,'2025-12-06 14:11:35','2025-12-06 14:11:35'),(23,3,'44',25,0,0.00,'2025-12-06 14:11:35','2025-12-06 14:11:35'),(24,3,'45',15,0,0.00,'2025-12-06 14:11:35','2025-12-06 14:11:35'),(25,4,'38',30,0,0.00,'2025-12-06 14:11:35','2025-12-06 14:11:35'),(26,4,'39',25,0,0.00,'2025-12-06 14:11:35','2025-12-06 14:11:35'),(27,4,'40',35,0,0.00,'2025-12-06 14:11:35','2025-12-06 14:11:35'),(28,4,'41',30,0,0.00,'2025-12-06 14:11:35','2025-12-06 14:11:35'),(29,4,'42',25,0,0.00,'2025-12-06 14:11:35','2025-12-06 14:11:35'),(30,4,'43',20,0,0.00,'2025-12-06 14:11:35','2025-12-06 14:11:35'),(31,4,'44',15,0,0.00,'2025-12-06 14:11:35','2025-12-06 14:11:35'),(32,4,'45',10,0,0.00,'2025-12-06 14:11:35','2025-12-06 14:11:35'),(33,5,'38',20,0,0.00,'2025-12-06 14:11:35','2025-12-06 14:11:35'),(34,5,'39',18,0,0.00,'2025-12-06 14:11:35','2025-12-06 14:11:35'),(35,5,'40',25,0,0.00,'2025-12-06 14:11:35','2025-12-06 14:11:35'),(36,5,'41',22,0,0.00,'2025-12-06 14:11:35','2025-12-06 14:11:35'),(37,5,'42',20,0,0.00,'2025-12-06 14:11:35','2025-12-06 14:11:35'),(38,5,'43',15,0,0.00,'2025-12-06 14:11:35','2025-12-06 14:11:35'),(39,5,'44',10,0,0.00,'2025-12-06 14:11:35','2025-12-06 14:11:35'),(40,5,'45',8,0,0.00,'2025-12-06 14:11:35','2025-12-06 14:11:35'),(41,6,'38',35,0,0.00,'2025-12-06 14:11:35','2025-12-06 14:11:35'),(42,6,'39',32,0,0.00,'2025-12-06 14:11:35','2025-12-06 14:11:35'),(43,6,'40',40,0,0.00,'2025-12-06 14:11:35','2025-12-06 14:11:35'),(44,6,'41',38,0,0.00,'2025-12-06 14:11:35','2025-12-06 14:11:35'),(45,6,'42',35,0,0.00,'2025-12-06 14:11:35','2025-12-06 14:11:35'),(46,6,'43',28,0,0.00,'2025-12-06 14:11:35','2025-12-06 14:11:35'),(47,6,'44',22,0,0.00,'2025-12-06 14:11:35','2025-12-06 14:11:35'),(48,6,'45',18,0,0.00,'2025-12-06 14:11:35','2025-12-06 14:11:35');
-/*!40000 ALTER TABLE `product_sizes` ENABLE KEYS */;
 UNLOCK TABLES;
 
 --
@@ -1751,7 +1641,7 @@ CREATE TABLE `product_variants` (
   `product_id` bigint unsigned NOT NULL,
   `sku` varchar(200) DEFAULT NULL,
   `size` varchar(20) DEFAULT NULL,
-  `color` varchar(100) DEFAULT NULL,
+  `color_id` bigint unsigned DEFAULT NULL,
   `barcode` varchar(100) DEFAULT NULL,
   `attributes` json DEFAULT NULL COMMENT 'e.g., {"size": "42", "color": "Red", "width": "Standard"}',
   `price` decimal(12,2) NOT NULL DEFAULT '0.00',
@@ -1762,14 +1652,14 @@ CREATE TABLE `product_variants` (
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   UNIQUE KEY `sku` (`sku`),
-  KEY `idx_sku` (`sku`),
   KEY `idx_product_id` (`product_id`),
   KEY `idx_size` (`size`),
-  KEY `idx_color` (`color`),
   KEY `idx_product_size` (`product_id`,`size`),
-  KEY `idx_product_color` (`product_id`,`color`),
   KEY `idx_price` (`price`),
-  CONSTRAINT `product_variants_ibfk_1` FOREIGN KEY (`product_id`) REFERENCES `products` (`id`) ON DELETE CASCADE
+  KEY `product_variants_ibfk_2` (`color_id`),
+  KEY `idx_product_color` (`product_id`,`color_id`),
+  CONSTRAINT `product_variants_ibfk_1` FOREIGN KEY (`product_id`) REFERENCES `products` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `product_variants_ibfk_2` FOREIGN KEY (`color_id`) REFERENCES `product_colors` (`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB AUTO_INCREMENT=78 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -1779,7 +1669,7 @@ CREATE TABLE `product_variants` (
 
 LOCK TABLES `product_variants` WRITE;
 /*!40000 ALTER TABLE `product_variants` DISABLE KEYS */;
-INSERT INTO `product_variants` VALUES (1,1,'NK-AM270-BLK-38','38',NULL,NULL,'{\"size\": \"38\"}',3829000.00,0.000,0.000,0.000,0.000,'2025-12-06 14:11:35'),(2,1,'NK-AM270-BLK-39','39',NULL,NULL,'{\"size\": \"39\"}',3829000.00,0.000,0.000,0.000,0.000,'2025-12-06 14:11:35'),(3,1,'NK-AM270-BLK-40','40',NULL,NULL,'{\"size\": \"40\"}',3829000.00,0.000,0.000,0.000,0.000,'2025-12-06 14:11:35'),(4,1,'NK-AM270-BLK-41','41',NULL,NULL,'{\"size\": \"41\"}',3829000.00,0.000,0.000,0.000,0.000,'2025-12-06 14:11:35'),(5,1,'NK-AM270-BLK-42','42',NULL,NULL,'{\"size\": \"42\"}',3829000.00,0.000,0.000,0.000,0.000,'2025-12-06 14:11:35'),(6,1,'NK-AM270-BLK-43','43',NULL,NULL,'{\"size\": \"43\"}',3829000.00,0.000,0.000,0.000,0.000,'2025-12-06 14:11:35'),(7,1,'NK-AM270-BLK-44','44',NULL,NULL,'{\"size\": \"44\"}',3829000.00,0.000,0.000,0.000,0.000,'2025-12-06 14:11:35'),(8,1,'NK-AM270-BLK-45','45',NULL,NULL,'{\"size\": \"45\"}',3829000.00,0.000,0.000,0.000,0.000,'2025-12-06 14:11:35'),(9,2,'NK-AF1-WHT-38','38',NULL,NULL,'{\"size\": \"38\"}',2929000.00,0.000,0.000,0.000,0.000,'2025-12-06 14:11:35'),(10,2,'NK-AF1-WHT-39','39',NULL,NULL,'{\"size\": \"39\"}',2929000.00,0.000,0.000,0.000,0.000,'2025-12-06 14:11:35'),(11,2,'NK-AF1-WHT-40','40',NULL,NULL,'{\"size\": \"40\"}',2929000.00,0.000,0.000,0.000,0.000,'2025-12-06 14:11:35'),(12,2,'NK-AF1-WHT-41','41',NULL,NULL,'{\"size\": \"41\"}',2929000.00,0.000,0.000,0.000,0.000,'2025-12-06 14:11:35'),(13,2,'NK-AF1-WHT-42','42',NULL,NULL,'{\"size\": \"42\"}',2929000.00,0.000,0.000,0.000,0.000,'2025-12-06 14:11:35'),(14,2,'NK-AF1-WHT-43','43',NULL,NULL,'{\"size\": \"43\"}',2929000.00,0.000,0.000,0.000,0.000,'2025-12-06 14:11:35'),(15,2,'NK-AF1-WHT-44','44',NULL,NULL,'{\"size\": \"44\"}',2929000.00,0.000,0.000,0.000,0.000,'2025-12-06 14:11:35'),(16,2,'NK-AF1-WHT-45','45',NULL,NULL,'{\"size\": \"45\"}',2929000.00,0.000,0.000,0.000,0.000,'2025-12-06 14:11:35'),(17,3,'NK-PEG40-38','38',NULL,NULL,'{\"size\": \"38\"}',3519000.00,0.000,0.000,0.000,0.000,'2025-12-06 14:11:35'),(18,3,'NK-PEG40-39','39',NULL,NULL,'{\"size\": \"39\"}',3519000.00,0.000,0.000,0.000,0.000,'2025-12-06 14:11:35'),(19,3,'NK-PEG40-40','40',NULL,NULL,'{\"size\": \"40\"}',3519000.00,0.000,0.000,0.000,0.000,'2025-12-06 14:11:35'),(20,3,'NK-PEG40-41','41',NULL,NULL,'{\"size\": \"41\"}',3519000.00,0.000,0.000,0.000,0.000,'2025-12-06 14:11:35'),(21,3,'NK-PEG40-42','42',NULL,NULL,'{\"size\": \"42\"}',3519000.00,0.000,0.000,0.000,0.000,'2025-12-06 14:11:35'),(22,3,'NK-PEG40-43','43',NULL,NULL,'{\"size\": \"43\"}',3519000.00,0.000,0.000,0.000,0.000,'2025-12-06 14:11:35'),(23,3,'NK-PEG40-44','44',NULL,NULL,'{\"size\": \"44\"}',3519000.00,0.000,0.000,0.000,0.000,'2025-12-06 14:11:35'),(24,3,'NK-PEG40-45','45',NULL,NULL,'{\"size\": \"45\"}',3519000.00,0.000,0.000,0.000,0.000,'2025-12-06 14:11:35'),(25,4,'JD-J1MID-BRD-38','38',NULL,NULL,'{\"size\": \"38\"}',3829000.00,0.000,0.000,0.000,0.000,'2025-12-06 14:11:35'),(26,4,'JD-J1MID-BRD-39','39',NULL,NULL,'{\"size\": \"39\"}',3829000.00,0.000,0.000,0.000,0.000,'2025-12-06 14:11:35'),(27,4,'JD-J1MID-BRD-40','40',NULL,NULL,'{\"size\": \"40\"}',3829000.00,0.000,0.000,0.000,0.000,'2025-12-06 14:11:35'),(28,4,'JD-J1MID-BRD-41','41',NULL,NULL,'{\"size\": \"41\"}',3829000.00,0.000,0.000,0.000,0.000,'2025-12-06 14:11:35'),(29,4,'JD-J1MID-BRD-42','42',NULL,NULL,'{\"size\": \"42\"}',3829000.00,0.000,0.000,0.000,0.000,'2025-12-06 14:11:35'),(30,4,'JD-J1MID-BRD-43','43',NULL,NULL,'{\"size\": \"43\"}',3829000.00,0.000,0.000,0.000,0.000,'2025-12-06 14:11:35'),(31,4,'JD-J1MID-BRD-44','44',NULL,NULL,'{\"size\": \"44\"}',3829000.00,0.000,0.000,0.000,0.000,'2025-12-06 14:11:35'),(32,4,'JD-J1MID-BRD-45','45',NULL,NULL,'{\"size\": \"45\"}',3829000.00,0.000,0.000,0.000,0.000,'2025-12-06 14:11:35'),(33,5,'JD-J4-WHT-38','38',NULL,NULL,'{\"size\": \"38\"}',5589000.00,0.000,0.000,0.000,0.000,'2025-12-06 14:11:35'),(34,5,'JD-J4-WHT-39','39',NULL,NULL,'{\"size\": \"39\"}',5589000.00,0.000,0.000,0.000,0.000,'2025-12-06 14:11:35'),(35,5,'JD-J4-WHT-40','40',NULL,NULL,'{\"size\": \"40\"}',5589000.00,0.000,0.000,0.000,0.000,'2025-12-06 14:11:35'),(36,5,'JD-J4-WHT-41','41',NULL,NULL,'{\"size\": \"41\"}',5589000.00,0.000,0.000,0.000,0.000,'2025-12-06 14:11:35'),(37,5,'JD-J4-WHT-42','42',NULL,NULL,'{\"size\": \"42\"}',5589000.00,0.000,0.000,0.000,0.000,'2025-12-06 14:11:35'),(38,5,'JD-J4-WHT-43','43',NULL,NULL,'{\"size\": \"43\"}',5589000.00,0.000,0.000,0.000,0.000,'2025-12-06 14:11:35'),(39,5,'JD-J4-WHT-44','44',NULL,NULL,'{\"size\": \"44\"}',5589000.00,0.000,0.000,0.000,0.000,'2025-12-06 14:11:35'),(40,5,'JD-J4-WHT-45','45',NULL,NULL,'{\"size\": \"45\"}',5589000.00,0.000,0.000,0.000,0.000,'2025-12-06 14:11:35'),(41,6,'NK-DUNK-PND-38','38',NULL,NULL,'{\"size\": \"38\"}',2829000.00,0.000,0.000,0.000,0.000,'2025-12-06 14:11:35'),(42,6,'NK-DUNK-PND-39','39',NULL,NULL,'{\"size\": \"39\"}',2829000.00,0.000,0.000,0.000,0.000,'2025-12-06 14:11:35'),(43,6,'NK-DUNK-PND-40','40',NULL,NULL,'{\"size\": \"40\"}',2829000.00,0.000,0.000,0.000,0.000,'2025-12-06 14:11:35'),(44,6,'NK-DUNK-PND-41','41',NULL,NULL,'{\"size\": \"41\"}',2829000.00,0.000,0.000,0.000,0.000,'2025-12-06 14:11:35'),(45,6,'NK-DUNK-PND-42','42',NULL,NULL,'{\"size\": \"42\"}',2829000.00,0.000,0.000,0.000,0.000,'2025-12-06 14:11:35'),(46,6,'NK-DUNK-PND-43','43',NULL,NULL,'{\"size\": \"43\"}',2829000.00,0.000,0.000,0.000,0.000,'2025-12-06 14:11:35'),(47,6,'NK-DUNK-PND-44','44',NULL,NULL,'{\"size\": \"44\"}',2829000.00,0.000,0.000,0.000,0.000,'2025-12-06 14:11:35'),(48,6,'NK-DUNK-PND-45','45',NULL,NULL,'{\"size\": \"45\"}',2829000.00,0.000,0.000,0.000,0.000,'2025-12-06 14:11:35'),(64,7,NULL,'38',NULL,NULL,NULL,0.00,0.000,0.000,0.000,0.000,'2026-02-04 13:58:24'),(65,7,NULL,'39',NULL,NULL,NULL,0.00,0.000,0.000,0.000,0.000,'2026-02-04 13:59:36'),(66,7,NULL,'40',NULL,NULL,NULL,0.00,0.000,0.000,0.000,0.000,'2026-02-04 14:00:15'),(67,7,NULL,'41',NULL,NULL,NULL,0.00,0.000,0.000,0.000,0.000,'2026-02-04 14:00:32'),(68,7,NULL,'42',NULL,NULL,NULL,0.00,0.000,0.000,0.000,0.000,'2026-02-04 14:00:45');
+INSERT INTO `product_variants` VALUES (1,1,'NK-AM270-BLK-38','38',1,NULL,'{\"size\": \"38\"}',3829000.00,0.000,0.000,0.000,0.000,'2025-12-06 14:11:35'),(2,1,'NK-AM270-BLK-39','39',1,NULL,'{\"size\": \"39\"}',3829000.00,0.000,0.000,0.000,0.000,'2025-12-06 14:11:35'),(3,1,'NK-AM270-BLK-40','40',1,NULL,'{\"size\": \"40\"}',3829000.00,0.000,0.000,0.000,0.000,'2025-12-06 14:11:35'),(4,1,'NK-AM270-BLK-41','41',1,NULL,'{\"size\": \"41\"}',3829000.00,0.000,0.000,0.000,0.000,'2025-12-06 14:11:35'),(5,1,'NK-AM270-BLK-42','42',1,NULL,'{\"size\": \"42\"}',3829000.00,0.000,0.000,0.000,0.000,'2025-12-06 14:11:35'),(6,1,'NK-AM270-BLK-43','43',1,NULL,'{\"size\": \"43\"}',3829000.00,0.000,0.000,0.000,0.000,'2025-12-06 14:11:35'),(7,1,'NK-AM270-BLK-44','44',1,NULL,'{\"size\": \"44\"}',3829000.00,0.000,0.000,0.000,0.000,'2025-12-06 14:11:35'),(8,1,'NK-AM270-BLK-45','45',1,NULL,'{\"size\": \"45\"}',3829000.00,0.000,0.000,0.000,0.000,'2025-12-06 14:11:35'),(9,2,'NK-AF1-WHT-38','38',NULL,NULL,'{\"size\": \"38\"}',2929000.00,0.000,0.000,0.000,0.000,'2025-12-06 14:11:35'),(10,2,'NK-AF1-WHT-39','39',NULL,NULL,'{\"size\": \"39\"}',2929000.00,0.000,0.000,0.000,0.000,'2025-12-06 14:11:35'),(11,2,'NK-AF1-WHT-40','40',NULL,NULL,'{\"size\": \"40\"}',2929000.00,0.000,0.000,0.000,0.000,'2025-12-06 14:11:35'),(12,2,'NK-AF1-WHT-41','41',NULL,NULL,'{\"size\": \"41\"}',2929000.00,0.000,0.000,0.000,0.000,'2025-12-06 14:11:35'),(13,2,'NK-AF1-WHT-42','42',NULL,NULL,'{\"size\": \"42\"}',2929000.00,0.000,0.000,0.000,0.000,'2025-12-06 14:11:35'),(14,2,'NK-AF1-WHT-43','43',NULL,NULL,'{\"size\": \"43\"}',2929000.00,0.000,0.000,0.000,0.000,'2025-12-06 14:11:35'),(15,2,'NK-AF1-WHT-44','44',NULL,NULL,'{\"size\": \"44\"}',2929000.00,0.000,0.000,0.000,0.000,'2025-12-06 14:11:35'),(16,2,'NK-AF1-WHT-45','45',NULL,NULL,'{\"size\": \"45\"}',2929000.00,0.000,0.000,0.000,0.000,'2025-12-06 14:11:35'),(17,3,'NK-PEG40-38','38',NULL,NULL,'{\"size\": \"38\"}',3519000.00,0.000,0.000,0.000,0.000,'2025-12-06 14:11:35'),(18,3,'NK-PEG40-39','39',NULL,NULL,'{\"size\": \"39\"}',3519000.00,0.000,0.000,0.000,0.000,'2025-12-06 14:11:35'),(19,3,'NK-PEG40-40','40',NULL,NULL,'{\"size\": \"40\"}',3519000.00,0.000,0.000,0.000,0.000,'2025-12-06 14:11:35'),(20,3,'NK-PEG40-41','41',NULL,NULL,'{\"size\": \"41\"}',3519000.00,0.000,0.000,0.000,0.000,'2025-12-06 14:11:35'),(21,3,'NK-PEG40-42','42',NULL,NULL,'{\"size\": \"42\"}',3519000.00,0.000,0.000,0.000,0.000,'2025-12-06 14:11:35'),(22,3,'NK-PEG40-43','43',NULL,NULL,'{\"size\": \"43\"}',3519000.00,0.000,0.000,0.000,0.000,'2025-12-06 14:11:35'),(23,3,'NK-PEG40-44','44',NULL,NULL,'{\"size\": \"44\"}',3519000.00,0.000,0.000,0.000,0.000,'2025-12-06 14:11:35'),(24,3,'NK-PEG40-45','45',NULL,NULL,'{\"size\": \"45\"}',3519000.00,0.000,0.000,0.000,0.000,'2025-12-06 14:11:35'),(25,4,'JD-J1MID-BRD-38','38',NULL,NULL,'{\"size\": \"38\"}',3829000.00,0.000,0.000,0.000,0.000,'2025-12-06 14:11:35'),(26,4,'JD-J1MID-BRD-39','39',NULL,NULL,'{\"size\": \"39\"}',3829000.00,0.000,0.000,0.000,0.000,'2025-12-06 14:11:35'),(27,4,'JD-J1MID-BRD-40','40',NULL,NULL,'{\"size\": \"40\"}',3829000.00,0.000,0.000,0.000,0.000,'2025-12-06 14:11:35'),(28,4,'JD-J1MID-BRD-41','41',NULL,NULL,'{\"size\": \"41\"}',3829000.00,0.000,0.000,0.000,0.000,'2025-12-06 14:11:35'),(29,4,'JD-J1MID-BRD-42','42',NULL,NULL,'{\"size\": \"42\"}',3829000.00,0.000,0.000,0.000,0.000,'2025-12-06 14:11:35'),(30,4,'JD-J1MID-BRD-43','43',NULL,NULL,'{\"size\": \"43\"}',3829000.00,0.000,0.000,0.000,0.000,'2025-12-06 14:11:35'),(31,4,'JD-J1MID-BRD-44','44',NULL,NULL,'{\"size\": \"44\"}',3829000.00,0.000,0.000,0.000,0.000,'2025-12-06 14:11:35'),(32,4,'JD-J1MID-BRD-45','45',NULL,NULL,'{\"size\": \"45\"}',3829000.00,0.000,0.000,0.000,0.000,'2025-12-06 14:11:35'),(33,5,'JD-J4-WHT-38','38',NULL,NULL,'{\"size\": \"38\"}',5589000.00,0.000,0.000,0.000,0.000,'2025-12-06 14:11:35'),(34,5,'JD-J4-WHT-39','39',NULL,NULL,'{\"size\": \"39\"}',5589000.00,0.000,0.000,0.000,0.000,'2025-12-06 14:11:35'),(35,5,'JD-J4-WHT-40','40',NULL,NULL,'{\"size\": \"40\"}',5589000.00,0.000,0.000,0.000,0.000,'2025-12-06 14:11:35'),(36,5,'JD-J4-WHT-41','41',NULL,NULL,'{\"size\": \"41\"}',5589000.00,0.000,0.000,0.000,0.000,'2025-12-06 14:11:35'),(37,5,'JD-J4-WHT-42','42',NULL,NULL,'{\"size\": \"42\"}',5589000.00,0.000,0.000,0.000,0.000,'2025-12-06 14:11:35'),(38,5,'JD-J4-WHT-43','43',NULL,NULL,'{\"size\": \"43\"}',5589000.00,0.000,0.000,0.000,0.000,'2025-12-06 14:11:35'),(39,5,'JD-J4-WHT-44','44',NULL,NULL,'{\"size\": \"44\"}',5589000.00,0.000,0.000,0.000,0.000,'2025-12-06 14:11:35'),(40,5,'JD-J4-WHT-45','45',NULL,NULL,'{\"size\": \"45\"}',5589000.00,0.000,0.000,0.000,0.000,'2025-12-06 14:11:35'),(41,6,'NK-DUNK-PND-38','38',NULL,NULL,'{\"size\": \"38\"}',2829000.00,0.000,0.000,0.000,0.000,'2025-12-06 14:11:35'),(42,6,'NK-DUNK-PND-39','39',NULL,NULL,'{\"size\": \"39\"}',2829000.00,0.000,0.000,0.000,0.000,'2025-12-06 14:11:35'),(43,6,'NK-DUNK-PND-40','40',NULL,NULL,'{\"size\": \"40\"}',2829000.00,0.000,0.000,0.000,0.000,'2025-12-06 14:11:35'),(44,6,'NK-DUNK-PND-41','41',NULL,NULL,'{\"size\": \"41\"}',2829000.00,0.000,0.000,0.000,0.000,'2025-12-06 14:11:35'),(45,6,'NK-DUNK-PND-42','42',NULL,NULL,'{\"size\": \"42\"}',2829000.00,0.000,0.000,0.000,0.000,'2025-12-06 14:11:35'),(46,6,'NK-DUNK-PND-43','43',NULL,NULL,'{\"size\": \"43\"}',2829000.00,0.000,0.000,0.000,0.000,'2025-12-06 14:11:35'),(47,6,'NK-DUNK-PND-44','44',NULL,NULL,'{\"size\": \"44\"}',2829000.00,0.000,0.000,0.000,0.000,'2025-12-06 14:11:35'),(48,6,'NK-DUNK-PND-45','45',NULL,NULL,'{\"size\": \"45\"}',2829000.00,0.000,0.000,0.000,0.000,'2025-12-06 14:11:35'),(64,7,NULL,'38',NULL,NULL,NULL,0.00,0.000,0.000,0.000,0.000,'2026-02-04 13:58:24'),(65,7,NULL,'39',NULL,NULL,NULL,0.00,0.000,0.000,0.000,0.000,'2026-02-04 13:59:36'),(66,7,NULL,'40',NULL,NULL,NULL,0.00,0.000,0.000,0.000,0.000,'2026-02-04 14:00:15'),(67,7,NULL,'41',NULL,NULL,NULL,0.00,0.000,0.000,0.000,0.000,'2026-02-04 14:00:32'),(68,7,NULL,'42',NULL,NULL,NULL,0.00,0.000,0.000,0.000,0.000,'2026-02-04 14:00:45');
 /*!40000 ALTER TABLE `product_variants` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -1856,7 +1746,7 @@ DROP TABLE IF EXISTS `refund_requests`;
 CREATE TABLE `refund_requests` (
   `id` bigint unsigned NOT NULL AUTO_INCREMENT,
   `order_id` bigint unsigned NOT NULL,
-  `user_id` bigint unsigned NOT NULL,
+  `user_id` bigint unsigned DEFAULT NULL,
   `amount` decimal(10,2) NOT NULL,
   `reason` text NOT NULL,
   `images` json DEFAULT NULL,
@@ -1867,8 +1757,8 @@ CREATE TABLE `refund_requests` (
   PRIMARY KEY (`id`),
   KEY `order_id` (`order_id`),
   KEY `user_id` (`user_id`),
-  CONSTRAINT `refund_requests_ibfk_1` FOREIGN KEY (`order_id`) REFERENCES `orders` (`id`),
-  CONSTRAINT `refund_requests_ibfk_2` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`)
+  CONSTRAINT `refund_requests_fk_order` FOREIGN KEY (`order_id`) REFERENCES `orders` (`id`) ON DELETE RESTRICT,
+  CONSTRAINT `refund_requests_fk_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -1892,13 +1782,16 @@ DROP TABLE IF EXISTS `refunds`;
 CREATE TABLE `refunds` (
   `id` bigint unsigned NOT NULL AUTO_INCREMENT,
   `order_id` bigint unsigned NOT NULL,
+  `request_id` bigint unsigned DEFAULT NULL,
   `refund_amount` decimal(12,2) NOT NULL,
   `status` varchar(50) DEFAULT 'completed',
   `reason` text,
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   KEY `order_id` (`order_id`),
-  CONSTRAINT `refunds_ibfk_1` FOREIGN KEY (`order_id`) REFERENCES `orders` (`id`) ON DELETE CASCADE
+  KEY `refunds_ibfk_2` (`request_id`),
+  CONSTRAINT `refunds_ibfk_1` FOREIGN KEY (`order_id`) REFERENCES `orders` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `refunds_ibfk_2` FOREIGN KEY (`request_id`) REFERENCES `refund_requests` (`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -1932,7 +1825,7 @@ CREATE TABLE `review_media` (
   KEY `idx_review_id` (`review_id`),
   KEY `idx_media_type` (`media_type`),
   CONSTRAINT `fk_review_media_review` FOREIGN KEY (`review_id`) REFERENCES `product_reviews` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='Stores media (images and videos) attached to product reviews';
+) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='Stores media (images and videos) attached to product reviews';
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -1941,7 +1834,7 @@ CREATE TABLE `review_media` (
 
 LOCK TABLES `review_media` WRITE;
 /*!40000 ALTER TABLE `review_media` DISABLE KEYS */;
-INSERT INTO `review_media` VALUES (1,3,'image','/uploads/reviews/review_3_1772365771897_1bk65q.png',NULL,218648,'image/png',0,'2026-03-01 11:49:31');
+INSERT INTO `review_media` VALUES (1,3,'image','/uploads/reviews/review_3_1772365771897_1bk65q.png',NULL,218648,'image/png',0,'2026-03-01 11:49:31'),(2,4,'image','/uploads/reviews/review_4_1772680921551_lrz3h.png',NULL,218648,'image/png',0,'2026-03-05 03:22:01');
 /*!40000 ALTER TABLE `review_media` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -1968,34 +1861,8 @@ CREATE TABLE `role_permission` (
 
 LOCK TABLES `role_permission` WRITE;
 /*!40000 ALTER TABLE `role_permission` DISABLE KEYS */;
-INSERT INTO `role_permission` VALUES (1,1),(2,1),(3,1),(1,2),(2,2),(3,2),(3,3),(3,4),(3,5),(3,6);
+INSERT INTO `role_permission` VALUES (1,1),(2,1),(3,1),(1,2),(2,2),(3,2),(3,3),(3,4),(3,5),(3,6),(4,7);
 /*!40000 ALTER TABLE `role_permission` ENABLE KEYS */;
-UNLOCK TABLES;
-
---
--- Table structure for table `role_permissions`
---
-
-DROP TABLE IF EXISTS `role_permissions`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `role_permissions` (
-  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
-  `role_id` bigint unsigned NOT NULL,
-  `permission_id` bigint unsigned NOT NULL,
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `role_permissions_role_id_permission_id_unique` (`role_id`,`permission_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
-
---
--- Dumping data for table `role_permissions`
---
-
-LOCK TABLES `role_permissions` WRITE;
-/*!40000 ALTER TABLE `role_permissions` DISABLE KEYS */;
-INSERT INTO `role_permissions` VALUES (1,4,7);
-/*!40000 ALTER TABLE `role_permissions` ENABLE KEYS */;
 UNLOCK TABLES;
 
 --
@@ -2048,7 +1915,7 @@ CREATE TABLE `search_analytics` (
   KEY `idx_query_created` (`query`,`created_at` DESC),
   KEY `idx_category_created` (`category_filter`,`created_at` DESC),
   KEY `idx_user_created` (`user_id`,`created_at` DESC)
-) ENGINE=InnoDB AUTO_INCREMENT=21 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=29 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -2057,7 +1924,7 @@ CREATE TABLE `search_analytics` (
 
 LOCK TABLES `search_analytics` WRITE;
 /*!40000 ALTER TABLE `search_analytics` DISABLE KEYS */;
-INSERT INTO `search_analytics` VALUES (1,'nike',NULL,5,21,NULL,'127.0.0.1','2026-02-23 10:31:43'),(2,'jordan',NULL,2,4,NULL,'127.0.0.1','2026-02-23 10:31:55'),(3,'Air Max',NULL,5,143,NULL,'127.0.0.1','2026-02-25 13:00:07'),(4,'Running',NULL,1,3,NULL,'127.0.0.1','2026-02-25 13:00:13'),(5,'Jordan',NULL,2,1,NULL,'127.0.0.1','2026-02-25 13:00:15'),(6,'Air Force 1',NULL,5,2,NULL,'127.0.0.1','2026-02-25 13:00:16'),(7,'Air Max',NULL,5,1,NULL,'127.0.0.1','2026-02-25 13:00:18'),(8,'Dunk',NULL,1,0,NULL,'127.0.0.1','2026-02-25 13:00:19'),(9,'nike',NULL,5,72,NULL,'127.0.0.1','2026-02-26 00:04:29'),(10,'nike',NULL,5,96,NULL,'127.0.0.1','2026-02-26 00:09:29'),(11,'Jordan',NULL,2,60,NULL,'127.0.0.1','2026-02-26 00:12:07'),(12,'Dunk',NULL,1,0,NULL,'127.0.0.1','2026-02-26 00:12:10'),(13,'Running',NULL,1,0,NULL,'127.0.0.1','2026-02-26 00:12:13'),(14,'Air Max',NULL,5,41,NULL,'127.0.0.1','2026-02-26 00:28:26'),(15,'nike',NULL,5,110,NULL,'127.0.0.1','2026-02-26 00:37:21'),(16,'sal',NULL,0,60,NULL,'127.0.0.1','2026-02-26 00:38:55'),(17,'sa',NULL,1,210,NULL,'127.0.0.1','2026-02-26 00:38:55'),(18,'sale',NULL,0,17,NULL,'127.0.0.1','2026-02-26 00:38:55'),(19,'nik',NULL,5,137,NULL,'127.0.0.1','2026-02-26 00:39:24'),(20,'nike',NULL,5,513,NULL,'127.0.0.1','2026-02-26 00:41:02');
+INSERT INTO `search_analytics` VALUES (1,'nike',NULL,5,21,NULL,'127.0.0.1','2026-02-23 10:31:43'),(2,'jordan',NULL,2,4,NULL,'127.0.0.1','2026-02-23 10:31:55'),(3,'Air Max',NULL,5,143,NULL,'127.0.0.1','2026-02-25 13:00:07'),(4,'Running',NULL,1,3,NULL,'127.0.0.1','2026-02-25 13:00:13'),(5,'Jordan',NULL,2,1,NULL,'127.0.0.1','2026-02-25 13:00:15'),(6,'Air Force 1',NULL,5,2,NULL,'127.0.0.1','2026-02-25 13:00:16'),(7,'Air Max',NULL,5,1,NULL,'127.0.0.1','2026-02-25 13:00:18'),(8,'Dunk',NULL,1,0,NULL,'127.0.0.1','2026-02-25 13:00:19'),(9,'nike',NULL,5,72,NULL,'127.0.0.1','2026-02-26 00:04:29'),(10,'nike',NULL,5,96,NULL,'127.0.0.1','2026-02-26 00:09:29'),(11,'Jordan',NULL,2,60,NULL,'127.0.0.1','2026-02-26 00:12:07'),(12,'Dunk',NULL,1,0,NULL,'127.0.0.1','2026-02-26 00:12:10'),(13,'Running',NULL,1,0,NULL,'127.0.0.1','2026-02-26 00:12:13'),(14,'Air Max',NULL,5,41,NULL,'127.0.0.1','2026-02-26 00:28:26'),(15,'nike',NULL,5,110,NULL,'127.0.0.1','2026-02-26 00:37:21'),(16,'sal',NULL,0,60,NULL,'127.0.0.1','2026-02-26 00:38:55'),(17,'sa',NULL,1,210,NULL,'127.0.0.1','2026-02-26 00:38:55'),(18,'sale',NULL,0,17,NULL,'127.0.0.1','2026-02-26 00:38:55'),(19,'nik',NULL,5,137,NULL,'127.0.0.1','2026-02-26 00:39:24'),(20,'nike',NULL,5,513,NULL,'127.0.0.1','2026-02-26 00:41:02'),(21,'Air Max',NULL,5,315,NULL,'127.0.0.1','2026-03-05 03:02:54'),(22,'Running',NULL,1,308,NULL,'127.0.0.1','2026-03-05 03:02:54'),(23,'Air Force 1',NULL,5,6,NULL,'127.0.0.1','2026-03-05 03:02:55'),(24,'Jordan',NULL,2,6,NULL,'127.0.0.1','2026-03-05 03:02:56'),(25,'Dunk',NULL,1,0,NULL,'127.0.0.1','2026-03-05 03:03:01'),(26,'Air Force 1',NULL,5,138,NULL,'127.0.0.1','2026-03-06 02:56:41'),(27,'Air Max',NULL,5,138,NULL,'127.0.0.1','2026-03-06 02:56:42'),(28,'Running',NULL,1,138,NULL,'127.0.0.1','2026-03-06 02:56:42');
 /*!40000 ALTER TABLE `search_analytics` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -2082,8 +1949,9 @@ CREATE TABLE `security_logs` (
   KEY `idx_event` (`event_type`),
   KEY `idx_ip` (`ip_address`),
   KEY `idx_user` (`user_id`),
-  KEY `idx_created` (`created_at`)
-) ENGINE=InnoDB AUTO_INCREMENT=90 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+  KEY `idx_created` (`created_at`),
+  KEY `idx_security_event_time` (`event_type`,`created_at` DESC)
+) ENGINE=InnoDB AUTO_INCREMENT=94 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -2092,7 +1960,7 @@ CREATE TABLE `security_logs` (
 
 LOCK TABLES `security_logs` WRITE;
 /*!40000 ALTER TABLE `security_logs` DISABLE KEYS */;
-INSERT INTO `security_logs` VALUES (4,NULL,NULL,'login_failed','127.0.0.1',NULL,'{\"email\": \"nonexistent@example.com\", \"reason\": \"User not found\"}',NULL,'2026-02-16 00:34:27'),(5,NULL,NULL,'login_failed','127.0.0.1',NULL,'{\"email\": \"nonexistent@example.com\", \"reason\": \"User not found\"}',NULL,'2026-02-16 01:16:01'),(6,3,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"admin@nike.com\"}',NULL,'2026-02-16 01:21:51'),(7,3,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"admin@nike.com\"}',NULL,'2026-02-16 01:32:55'),(8,3,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"admin@nike.com\"}',NULL,'2026-02-16 01:38:10'),(9,3,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"admin@nike.com\"}',NULL,'2026-02-16 01:40:19'),(10,3,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"admin@nike.com\"}',NULL,'2026-02-16 01:41:48'),(11,3,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"admin@nike.com\"}',NULL,'2026-02-16 01:44:35'),(12,3,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"admin@nike.com\"}',NULL,'2026-02-16 01:50:27'),(13,3,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"admin@nike.com\"}',NULL,'2026-02-16 02:04:58'),(14,32,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"testuser_5854@example.com\"}',NULL,'2026-02-16 02:25:59'),(15,NULL,NULL,'login_failed','127.0.0.1',NULL,'{\"email\": \"nonexistent@example.com\", \"reason\": \"User not found\"}',NULL,'2026-02-16 02:26:02'),(16,3,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"admin@nike.com\"}',NULL,'2026-02-16 02:26:09'),(17,3,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"admin@nike.com\"}',NULL,'2026-02-16 02:29:23'),(18,3,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"admin@nike.com\"}',NULL,'2026-02-16 02:30:30'),(19,3,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"admin@nike.com\"}',NULL,'2026-02-16 02:33:32'),(20,3,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"admin@nike.com\"}',NULL,'2026-02-16 02:33:41'),(21,33,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"testuser_5748@example.com\"}',NULL,'2026-02-16 02:37:11'),(22,NULL,NULL,'login_failed','127.0.0.1',NULL,'{\"email\": \"nonexistent@example.com\", \"reason\": \"User not found\"}',NULL,'2026-02-16 02:37:16'),(23,3,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"admin@nike.com\"}',NULL,'2026-02-16 02:37:23'),(24,3,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"admin@nike.com\"}',NULL,'2026-02-16 02:40:36'),(25,3,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"admin@nike.com\"}',NULL,'2026-02-16 02:42:48'),(26,3,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"admin@nike.com\"}',NULL,'2026-02-16 02:44:32'),(27,3,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"admin@nike.com\"}',NULL,'2026-02-16 02:46:02'),(28,3,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"admin@nike.com\"}',NULL,'2026-02-16 02:48:29'),(29,34,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"testuser_2318@example.com\"}',NULL,'2026-02-16 02:49:31'),(30,NULL,NULL,'login_failed','127.0.0.1',NULL,'{\"email\": \"nonexistent@example.com\", \"reason\": \"User not found\"}',NULL,'2026-02-16 02:49:39'),(31,3,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"admin@nike.com\"}',NULL,'2026-02-16 02:49:46'),(32,3,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"admin@nike.com\"}',NULL,'2026-02-16 02:53:00'),(33,3,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"admin@nike.com\"}',NULL,'2026-02-16 02:56:18'),(34,3,NULL,'login_failed','127.0.0.1',NULL,'{\"email\": \"admin@nike.com\", \"locked\": false, \"reason\": \"Invalid password\", \"failedAttempts\": 1}',NULL,'2026-02-16 03:00:06'),(35,3,NULL,'login_failed','127.0.0.1',NULL,'{\"email\": \"admin@nike.com\", \"locked\": false, \"reason\": \"Invalid password\", \"failedAttempts\": 2}',NULL,'2026-02-16 03:00:09'),(36,3,NULL,'login_failed','127.0.0.1',NULL,'{\"email\": \"admin@nike.com\", \"locked\": false, \"reason\": \"Invalid password\", \"failedAttempts\": 3}',NULL,'2026-02-16 03:00:10'),(37,3,NULL,'login_failed','127.0.0.1',NULL,'{\"email\": \"admin@nike.com\", \"reason\": \"Invalid password\"}',NULL,'2026-02-16 03:09:50'),(38,3,NULL,'login_failed','127.0.0.1',NULL,'{\"email\": \"admin@nike.com\", \"reason\": \"Invalid password\"}',NULL,'2026-02-16 03:09:55'),(39,3,NULL,'login_failed','127.0.0.1',NULL,'{\"email\": \"admin@nike.com\", \"reason\": \"Invalid password\"}',NULL,'2026-02-16 03:09:57'),(40,2,NULL,'login_failed','127.0.0.1',NULL,'{\"email\": \"dangthanhtoan06092004@gmail.com\", \"reason\": \"Invalid password\"}',NULL,'2026-02-16 03:18:00'),(41,2,NULL,'login_failed','127.0.0.1',NULL,'{\"email\": \"dangthanhtoan06092004@gmail.com\", \"reason\": \"Invalid password\"}',NULL,'2026-02-16 03:18:04'),(42,2,NULL,'login_failed','127.0.0.1',NULL,'{\"email\": \"dangthanhtoan06092004@gmail.com\", \"reason\": \"Invalid password\"}',NULL,'2026-02-16 03:18:34'),(43,2,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"dangthanhtoan06092004@gmail.com\"}',NULL,'2026-02-16 03:19:26'),(44,3,NULL,'login_failed','127.0.0.1',NULL,'{\"email\": \"admin@nike.com\", \"reason\": \"Invalid password\"}',NULL,'2026-02-16 03:22:25'),(45,3,NULL,'login_failed','127.0.0.1',NULL,'{\"email\": \"admin@nike.com\", \"reason\": \"Invalid password\"}',NULL,'2026-02-16 03:22:26'),(46,3,NULL,'login_failed','127.0.0.1',NULL,'{\"email\": \"admin@nike.com\", \"reason\": \"Invalid password\"}',NULL,'2026-02-16 03:22:26'),(47,2,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"dangthanhtoan06092004@gmail.com\"}',NULL,'2026-02-16 03:31:09'),(48,2,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"dangthanhtoan06092004@gmail.com\"}',NULL,'2026-02-16 05:16:40'),(49,2,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"dangthanhtoan06092004@gmail.com\"}',NULL,'2026-02-16 05:18:50'),(50,1,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"thanhtoan06092004@gmail.com\"}',NULL,'2026-02-16 05:22:02'),(51,1,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"thanhtoan06092004@gmail.com\"}',NULL,'2026-02-16 05:41:39'),(52,1,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"thanhtoan06092004@gmail.com\"}',NULL,'2026-02-16 06:17:13'),(53,1,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"thanhtoan06092004@gmail.com\"}',NULL,'2026-02-16 11:04:55'),(54,1,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"thanhtoan06092004@gmail.com\"}',NULL,'2026-02-16 11:22:02'),(55,1,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"thanhtoan06092004@gmail.com\"}',NULL,'2026-02-16 11:43:47'),(56,1,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"thanhtoan06092004@gmail.com\"}',NULL,'2026-02-16 12:01:51'),(57,1,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"thanhtoan06092004@gmail.com\"}',NULL,'2026-02-16 12:17:11'),(58,1,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"thanhtoan06092004@gmail.com\"}',NULL,'2026-02-16 12:17:26'),(59,1,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"thanhtoan06092004@gmail.com\"}',NULL,'2026-02-17 23:27:50'),(60,1,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"thanhtoan06092004@gmail.com\"}',NULL,'2026-02-24 03:18:30'),(61,1,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"thanhtoan06092004@gmail.com\", \"method\": \"2fa_email\"}',NULL,'2026-02-24 03:25:24'),(62,1,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"thanhtoan06092004@gmail.com\", \"method\": \"2fa_email\"}',NULL,'2026-02-24 03:31:44'),(63,1,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"thanhtoan06092004@gmail.com\", \"method\": \"2fa_email\"}',NULL,'2026-02-24 05:52:31'),(64,1,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"thanhtoan06092004@gmail.com\", \"method\": \"2fa_email\"}',NULL,'2026-02-24 12:28:54'),(65,1,NULL,'login_failed','127.0.0.1',NULL,'{\"email\": \"thanhtoan06092004@gmail.com\", \"reason\": \"Invalid OTP for 2FA\"}',NULL,'2026-02-24 12:28:58'),(66,1,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"thanhtoan06092004@gmail.com\", \"method\": \"2fa_email\"}',NULL,'2026-02-24 14:45:35'),(67,1,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"thanhtoan06092004@gmail.com\", \"method\": \"2fa_email\"}',NULL,'2026-02-24 14:55:28'),(68,1,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"thanhtoan06092004@gmail.com\", \"method\": \"2fa_email\"}',NULL,'2026-02-24 15:00:49'),(69,1,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"thanhtoan06092004@gmail.com\", \"method\": \"2fa_email\"}',NULL,'2026-02-25 00:13:44'),(70,1,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"thanhtoan06092004@gmail.com\"}',NULL,'2026-02-25 00:19:52'),(71,1,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"thanhtoan06092004@gmail.com\"}',NULL,'2026-02-25 01:38:56'),(72,1,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"thanhtoan06092004@gmail.com\"}',NULL,'2026-02-25 01:55:03'),(73,1,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"thanhtoan06092004@gmail.com\"}',NULL,'2026-02-25 07:14:30'),(74,1,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"thanhtoan06092004@gmail.com\"}',NULL,'2026-02-25 08:34:32'),(75,1,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"thanhtoan06092004@gmail.com\"}',NULL,'2026-02-25 11:10:10'),(76,1,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"thanhtoan06092004@gmail.com\"}',NULL,'2026-02-25 11:34:46'),(77,1,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"thanhtoan06092004@gmail.com\"}',NULL,'2026-02-25 11:45:46'),(78,1,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"thanhtoan06092004@gmail.com\"}',NULL,'2026-02-25 12:04:58'),(79,1,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"thanhtoan06092004@gmail.com\"}',NULL,'2026-02-25 12:22:09'),(80,1,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"thanhtoan06092004@gmail.com\"}',NULL,'2026-02-28 16:43:52'),(81,1,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"thanhtoan06092004@gmail.com\"}',NULL,'2026-03-01 02:59:32'),(82,1,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"thanhtoan06092004@gmail.com\"}',NULL,'2026-03-01 04:17:45'),(83,1,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"thanhtoan06092004@gmail.com\"}',NULL,'2026-03-01 10:11:54'),(84,1,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"thanhtoan06092004@gmail.com\"}',NULL,'2026-03-01 10:36:47'),(85,1,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"thanhtoan06092004@gmail.com\"}',NULL,'2026-03-01 10:57:01'),(86,1,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"thanhtoan06092004@gmail.com\"}',NULL,'2026-03-01 11:44:27'),(87,1,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"thanhtoan06092004@gmail.com\"}',NULL,'2026-03-01 13:40:05'),(88,1,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"thanhtoan06092004@gmail.com\"}',NULL,'2026-03-01 14:51:04'),(89,1,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"thanhtoan06092004@gmail.com\"}',NULL,'2026-03-03 07:28:46');
+INSERT INTO `security_logs` VALUES (4,NULL,NULL,'login_failed','127.0.0.1',NULL,'{\"email\": \"nonexistent@example.com\", \"reason\": \"User not found\"}',NULL,'2026-02-16 00:34:27'),(5,NULL,NULL,'login_failed','127.0.0.1',NULL,'{\"email\": \"nonexistent@example.com\", \"reason\": \"User not found\"}',NULL,'2026-02-16 01:16:01'),(6,3,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"admin@nike.com\"}',NULL,'2026-02-16 01:21:51'),(7,3,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"admin@nike.com\"}',NULL,'2026-02-16 01:32:55'),(8,3,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"admin@nike.com\"}',NULL,'2026-02-16 01:38:10'),(9,3,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"admin@nike.com\"}',NULL,'2026-02-16 01:40:19'),(10,3,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"admin@nike.com\"}',NULL,'2026-02-16 01:41:48'),(11,3,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"admin@nike.com\"}',NULL,'2026-02-16 01:44:35'),(12,3,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"admin@nike.com\"}',NULL,'2026-02-16 01:50:27'),(13,3,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"admin@nike.com\"}',NULL,'2026-02-16 02:04:58'),(14,32,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"testuser_5854@example.com\"}',NULL,'2026-02-16 02:25:59'),(15,NULL,NULL,'login_failed','127.0.0.1',NULL,'{\"email\": \"nonexistent@example.com\", \"reason\": \"User not found\"}',NULL,'2026-02-16 02:26:02'),(16,3,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"admin@nike.com\"}',NULL,'2026-02-16 02:26:09'),(17,3,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"admin@nike.com\"}',NULL,'2026-02-16 02:29:23'),(18,3,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"admin@nike.com\"}',NULL,'2026-02-16 02:30:30'),(19,3,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"admin@nike.com\"}',NULL,'2026-02-16 02:33:32'),(20,3,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"admin@nike.com\"}',NULL,'2026-02-16 02:33:41'),(21,33,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"testuser_5748@example.com\"}',NULL,'2026-02-16 02:37:11'),(22,NULL,NULL,'login_failed','127.0.0.1',NULL,'{\"email\": \"nonexistent@example.com\", \"reason\": \"User not found\"}',NULL,'2026-02-16 02:37:16'),(23,3,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"admin@nike.com\"}',NULL,'2026-02-16 02:37:23'),(24,3,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"admin@nike.com\"}',NULL,'2026-02-16 02:40:36'),(25,3,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"admin@nike.com\"}',NULL,'2026-02-16 02:42:48'),(26,3,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"admin@nike.com\"}',NULL,'2026-02-16 02:44:32'),(27,3,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"admin@nike.com\"}',NULL,'2026-02-16 02:46:02'),(28,3,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"admin@nike.com\"}',NULL,'2026-02-16 02:48:29'),(29,34,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"testuser_2318@example.com\"}',NULL,'2026-02-16 02:49:31'),(30,NULL,NULL,'login_failed','127.0.0.1',NULL,'{\"email\": \"nonexistent@example.com\", \"reason\": \"User not found\"}',NULL,'2026-02-16 02:49:39'),(31,3,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"admin@nike.com\"}',NULL,'2026-02-16 02:49:46'),(32,3,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"admin@nike.com\"}',NULL,'2026-02-16 02:53:00'),(33,3,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"admin@nike.com\"}',NULL,'2026-02-16 02:56:18'),(34,3,NULL,'login_failed','127.0.0.1',NULL,'{\"email\": \"admin@nike.com\", \"locked\": false, \"reason\": \"Invalid password\", \"failedAttempts\": 1}',NULL,'2026-02-16 03:00:06'),(35,3,NULL,'login_failed','127.0.0.1',NULL,'{\"email\": \"admin@nike.com\", \"locked\": false, \"reason\": \"Invalid password\", \"failedAttempts\": 2}',NULL,'2026-02-16 03:00:09'),(36,3,NULL,'login_failed','127.0.0.1',NULL,'{\"email\": \"admin@nike.com\", \"locked\": false, \"reason\": \"Invalid password\", \"failedAttempts\": 3}',NULL,'2026-02-16 03:00:10'),(37,3,NULL,'login_failed','127.0.0.1',NULL,'{\"email\": \"admin@nike.com\", \"reason\": \"Invalid password\"}',NULL,'2026-02-16 03:09:50'),(38,3,NULL,'login_failed','127.0.0.1',NULL,'{\"email\": \"admin@nike.com\", \"reason\": \"Invalid password\"}',NULL,'2026-02-16 03:09:55'),(39,3,NULL,'login_failed','127.0.0.1',NULL,'{\"email\": \"admin@nike.com\", \"reason\": \"Invalid password\"}',NULL,'2026-02-16 03:09:57'),(40,2,NULL,'login_failed','127.0.0.1',NULL,'{\"email\": \"dangthanhtoan06092004@gmail.com\", \"reason\": \"Invalid password\"}',NULL,'2026-02-16 03:18:00'),(41,2,NULL,'login_failed','127.0.0.1',NULL,'{\"email\": \"dangthanhtoan06092004@gmail.com\", \"reason\": \"Invalid password\"}',NULL,'2026-02-16 03:18:04'),(42,2,NULL,'login_failed','127.0.0.1',NULL,'{\"email\": \"dangthanhtoan06092004@gmail.com\", \"reason\": \"Invalid password\"}',NULL,'2026-02-16 03:18:34'),(43,2,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"dangthanhtoan06092004@gmail.com\"}',NULL,'2026-02-16 03:19:26'),(44,3,NULL,'login_failed','127.0.0.1',NULL,'{\"email\": \"admin@nike.com\", \"reason\": \"Invalid password\"}',NULL,'2026-02-16 03:22:25'),(45,3,NULL,'login_failed','127.0.0.1',NULL,'{\"email\": \"admin@nike.com\", \"reason\": \"Invalid password\"}',NULL,'2026-02-16 03:22:26'),(46,3,NULL,'login_failed','127.0.0.1',NULL,'{\"email\": \"admin@nike.com\", \"reason\": \"Invalid password\"}',NULL,'2026-02-16 03:22:26'),(47,2,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"dangthanhtoan06092004@gmail.com\"}',NULL,'2026-02-16 03:31:09'),(48,2,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"dangthanhtoan06092004@gmail.com\"}',NULL,'2026-02-16 05:16:40'),(49,2,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"dangthanhtoan06092004@gmail.com\"}',NULL,'2026-02-16 05:18:50'),(50,1,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"thanhtoan06092004@gmail.com\"}',NULL,'2026-02-16 05:22:02'),(51,1,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"thanhtoan06092004@gmail.com\"}',NULL,'2026-02-16 05:41:39'),(52,1,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"thanhtoan06092004@gmail.com\"}',NULL,'2026-02-16 06:17:13'),(53,1,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"thanhtoan06092004@gmail.com\"}',NULL,'2026-02-16 11:04:55'),(54,1,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"thanhtoan06092004@gmail.com\"}',NULL,'2026-02-16 11:22:02'),(55,1,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"thanhtoan06092004@gmail.com\"}',NULL,'2026-02-16 11:43:47'),(56,1,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"thanhtoan06092004@gmail.com\"}',NULL,'2026-02-16 12:01:51'),(57,1,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"thanhtoan06092004@gmail.com\"}',NULL,'2026-02-16 12:17:11'),(58,1,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"thanhtoan06092004@gmail.com\"}',NULL,'2026-02-16 12:17:26'),(59,1,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"thanhtoan06092004@gmail.com\"}',NULL,'2026-02-17 23:27:50'),(60,1,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"thanhtoan06092004@gmail.com\"}',NULL,'2026-02-24 03:18:30'),(61,1,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"thanhtoan06092004@gmail.com\", \"method\": \"2fa_email\"}',NULL,'2026-02-24 03:25:24'),(62,1,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"thanhtoan06092004@gmail.com\", \"method\": \"2fa_email\"}',NULL,'2026-02-24 03:31:44'),(63,1,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"thanhtoan06092004@gmail.com\", \"method\": \"2fa_email\"}',NULL,'2026-02-24 05:52:31'),(64,1,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"thanhtoan06092004@gmail.com\", \"method\": \"2fa_email\"}',NULL,'2026-02-24 12:28:54'),(65,1,NULL,'login_failed','127.0.0.1',NULL,'{\"email\": \"thanhtoan06092004@gmail.com\", \"reason\": \"Invalid OTP for 2FA\"}',NULL,'2026-02-24 12:28:58'),(66,1,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"thanhtoan06092004@gmail.com\", \"method\": \"2fa_email\"}',NULL,'2026-02-24 14:45:35'),(67,1,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"thanhtoan06092004@gmail.com\", \"method\": \"2fa_email\"}',NULL,'2026-02-24 14:55:28'),(68,1,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"thanhtoan06092004@gmail.com\", \"method\": \"2fa_email\"}',NULL,'2026-02-24 15:00:49'),(69,1,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"thanhtoan06092004@gmail.com\", \"method\": \"2fa_email\"}',NULL,'2026-02-25 00:13:44'),(70,1,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"thanhtoan06092004@gmail.com\"}',NULL,'2026-02-25 00:19:52'),(71,1,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"thanhtoan06092004@gmail.com\"}',NULL,'2026-02-25 01:38:56'),(72,1,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"thanhtoan06092004@gmail.com\"}',NULL,'2026-02-25 01:55:03'),(73,1,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"thanhtoan06092004@gmail.com\"}',NULL,'2026-02-25 07:14:30'),(74,1,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"thanhtoan06092004@gmail.com\"}',NULL,'2026-02-25 08:34:32'),(75,1,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"thanhtoan06092004@gmail.com\"}',NULL,'2026-02-25 11:10:10'),(76,1,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"thanhtoan06092004@gmail.com\"}',NULL,'2026-02-25 11:34:46'),(77,1,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"thanhtoan06092004@gmail.com\"}',NULL,'2026-02-25 11:45:46'),(78,1,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"thanhtoan06092004@gmail.com\"}',NULL,'2026-02-25 12:04:58'),(79,1,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"thanhtoan06092004@gmail.com\"}',NULL,'2026-02-25 12:22:09'),(80,1,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"thanhtoan06092004@gmail.com\"}',NULL,'2026-02-28 16:43:52'),(81,1,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"thanhtoan06092004@gmail.com\"}',NULL,'2026-03-01 02:59:32'),(82,1,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"thanhtoan06092004@gmail.com\"}',NULL,'2026-03-01 04:17:45'),(83,1,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"thanhtoan06092004@gmail.com\"}',NULL,'2026-03-01 10:11:54'),(84,1,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"thanhtoan06092004@gmail.com\"}',NULL,'2026-03-01 10:36:47'),(85,1,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"thanhtoan06092004@gmail.com\"}',NULL,'2026-03-01 10:57:01'),(86,1,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"thanhtoan06092004@gmail.com\"}',NULL,'2026-03-01 11:44:27'),(87,1,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"thanhtoan06092004@gmail.com\"}',NULL,'2026-03-01 13:40:05'),(88,1,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"thanhtoan06092004@gmail.com\"}',NULL,'2026-03-01 14:51:04'),(89,1,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"thanhtoan06092004@gmail.com\"}',NULL,'2026-03-03 07:28:46'),(90,1,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"thanhtoan06092004@gmail.com\"}',NULL,'2026-03-05 02:13:44'),(91,1,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"thanhtoan06092004@gmail.com\"}',NULL,'2026-03-06 01:48:22'),(92,1,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"thanhtoan06092004@gmail.com\"}',NULL,'2026-03-06 02:06:21'),(93,1,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"thanhtoan06092004@gmail.com\"}',NULL,'2026-03-06 02:45:05');
 /*!40000 ALTER TABLE `security_logs` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -2199,7 +2067,7 @@ CREATE TABLE `shipments` (
   `warehouse_id` bigint unsigned DEFAULT NULL,
   `tracking_code` varchar(100) DEFAULT NULL,
   `carrier` varchar(50) DEFAULT 'manual',
-  `status` enum('pending','shipped','delivered','returned','cancelled') DEFAULT 'pending',
+  `status` enum('pending','shipped','delivered','returned','cancelled') NOT NULL DEFAULT 'pending',
   `shipped_at` datetime DEFAULT NULL,
   `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
   `updated_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -2207,6 +2075,7 @@ CREATE TABLE `shipments` (
   UNIQUE KEY `tracking_code` (`tracking_code`),
   KEY `idx_order_id` (`order_id`),
   KEY `idx_tracking_code` (`tracking_code`),
+  KEY `idx_shipments_status` (`status`),
   CONSTRAINT `shipments_ibfk_1` FOREIGN KEY (`order_id`) REFERENCES `orders` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
@@ -2383,7 +2252,7 @@ CREATE TABLE `support_chats` (
   KEY `idx_status_last_message` (`status`,`last_message_at` DESC),
   KEY `idx_assigned_status` (`assigned_admin_id`,`status`),
   CONSTRAINT `support_chats_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE SET NULL,
-  CONSTRAINT `support_chats_ibfk_2` FOREIGN KEY (`assigned_admin_id`) REFERENCES `users` (`id`) ON DELETE SET NULL
+  CONSTRAINT `support_chats_ibfk_2` FOREIGN KEY (`assigned_admin_id`) REFERENCES `admin_users` (`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB AUTO_INCREMENT=20 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -2393,7 +2262,7 @@ CREATE TABLE `support_chats` (
 
 LOCK TABLES `support_chats` WRITE;
 /*!40000 ALTER TABLE `support_chats` DISABLE KEYS */;
-INSERT INTO `support_chats` VALUES (11,1,NULL,NULL,'resolved',NULL,3,'2026-02-07 14:16:44','2026-02-07 15:06:37','2026-02-07 14:19:37'),(14,1,NULL,NULL,'resolved',NULL,1,'2026-02-09 00:04:26','2026-02-10 09:17:35','2026-02-10 09:17:28'),(15,1,NULL,NULL,'resolved',NULL,1,'2026-02-09 00:04:26','2026-02-10 09:17:46','2026-02-10 09:15:55'),(16,1,NULL,NULL,'resolved',NULL,1,'2026-02-10 09:24:24','2026-02-10 09:30:34','2026-02-10 09:24:32'),(17,1,NULL,NULL,'resolved',NULL,1,'2026-02-10 09:24:24','2026-02-10 09:30:44','2026-02-10 09:24:24'),(18,1,NULL,NULL,'resolved',NULL,1,'2026-02-10 09:30:56','2026-02-10 09:32:01','2026-02-10 09:31:12'),(19,1,NULL,NULL,'resolved',NULL,1,'2026-02-10 09:32:14','2026-02-10 09:32:37','2026-02-10 09:32:14');
+INSERT INTO `support_chats` VALUES (11,1,NULL,NULL,'resolved',NULL,NULL,'2026-02-07 14:16:44','2026-03-06 06:52:16','2026-02-07 14:19:37'),(14,1,NULL,NULL,'resolved',NULL,1,'2026-02-09 00:04:26','2026-02-10 09:17:35','2026-02-10 09:17:28'),(15,1,NULL,NULL,'resolved',NULL,1,'2026-02-09 00:04:26','2026-02-10 09:17:46','2026-02-10 09:15:55'),(16,1,NULL,NULL,'resolved',NULL,1,'2026-02-10 09:24:24','2026-02-10 09:30:34','2026-02-10 09:24:32'),(17,1,NULL,NULL,'resolved',NULL,1,'2026-02-10 09:24:24','2026-02-10 09:30:44','2026-02-10 09:24:24'),(18,1,NULL,NULL,'resolved',NULL,1,'2026-02-10 09:30:56','2026-02-10 09:32:01','2026-02-10 09:31:12'),(19,1,NULL,NULL,'resolved',NULL,1,'2026-02-10 09:32:14','2026-02-10 09:32:37','2026-02-10 09:32:14');
 /*!40000 ALTER TABLE `support_chats` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -2498,19 +2367,20 @@ DROP TABLE IF EXISTS `transactions`;
 CREATE TABLE `transactions` (
   `id` bigint unsigned NOT NULL AUTO_INCREMENT,
   `order_id` bigint unsigned NOT NULL,
-  `user_id` bigint unsigned NOT NULL,
+  `user_id` bigint unsigned DEFAULT NULL,
   `payment_provider` enum('vnpay','momo') NOT NULL,
   `transaction_code` varchar(100) DEFAULT NULL,
   `amount` decimal(15,2) NOT NULL,
-  `status` enum('pending','success','failed','refunded') DEFAULT 'pending',
+  `status` enum('pending','success','failed','refunded') NOT NULL DEFAULT 'pending',
   `response_data` json DEFAULT NULL,
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   KEY `order_id` (`order_id`),
   KEY `user_id` (`user_id`),
-  CONSTRAINT `transactions_ibfk_1` FOREIGN KEY (`order_id`) REFERENCES `orders` (`id`),
-  CONSTRAINT `transactions_ibfk_2` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`)
+  KEY `idx_transactions_order_status` (`order_id`,`status`),
+  CONSTRAINT `transactions_fk_order` FOREIGN KEY (`order_id`) REFERENCES `orders` (`id`) ON DELETE RESTRICT,
+  CONSTRAINT `transactions_fk_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -2552,6 +2422,7 @@ CREATE TABLE `user_addresses` (
   PRIMARY KEY (`id`),
   KEY `user_id` (`user_id`),
   KEY `idx_is_encrypted` (`is_encrypted`),
+  KEY `idx_user_addr_default` (`user_id`,`is_default`),
   CONSTRAINT `user_addresses_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB AUTO_INCREMENT=44 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
@@ -2562,7 +2433,7 @@ CREATE TABLE `user_addresses` (
 
 LOCK TABLES `user_addresses` WRITE;
 /*!40000 ALTER TABLE `user_addresses` DISABLE KEYS */;
-INSERT INTO `user_addresses` VALUES (7,1,'Nhà','DANG THANH TOAN',NULL,'***','ffa83cdbcb1b1472c6ec47843907ca39:f64d6fc1770c3083d980f57517f6e2ae:90c90a1da42480a162db','***','6c9c812ffda41885f1468570b2b7d5b2:0c37282187a598677c1ff70f06b51a84:e0219908a951dbd9d999aade3a2c2b2103402f4e80b405c1b14159',NULL,NULL,'TP. Hồ Chí Minh','Hóc Môn','700000','Vietnam',1,'2025-12-07 07:43:38',1),(8,1,'Văn Phòng','DANG THANH TOAN',NULL,'***','11f99b594c9b286430d944ffe5a7c43a:4ce62b2d708ff0c3c32e24c1ac565e98:e13a8264398123672009','***','e820023428351283aba33618c286136a:b547ad79df4a76537283743b73ff7a96:50b779dd92d7349d735775e882a791d9c7a7166f39e499a69ef00c',NULL,NULL,'TP. Hồ Chí Minh','Hóc Môn','700000','Vietnam',0,'2025-12-07 09:49:27',1),(9,2,'Nhà','DANG THANH TOAN',NULL,'***','aee729f3f203d643ec580b4475cbc06d:70c92a4099335887a733f0e839619267:66483ffb17cedad30705','***','a3eb68dcb7ca4152051a771b81815703:612ca8cbb0011e9bf11c84d9302e3a7d:75c010b16e',NULL,NULL,'HO CHI MINH','Thành phố Hồ Chí Minh','700000','Vietnam',1,'2025-12-08 02:05:25',1);
+INSERT INTO `user_addresses` VALUES (7,1,'Nhà','DANG THANH TOAN',NULL,'***','c6f1d298e6eda39fa6ddba9fd34b0ed4:ddcbf087e4f95e569947104605bfe024:f55e83b437a0e4d39f6d','***','c7a71b8f694f4906c3a614b9cdaea2cf:022dddc2ddc29fe8337649285df9243a:562856a6b9',NULL,NULL,'TP. Hồ Chí Minh','Hóc Môn','700000','Vietnam',1,'2025-12-07 07:43:38',1),(8,1,'Văn Phòng','DANG THANH TOAN',NULL,'***','3586a7313cc9ac770af8bfd459e49c2f:1e2ea923c9a81043d614f2019d86567a:728edf05ac460c490754','***','90f8094757225ef71c3fad03a09e8c9a:1ba4a91a84be96d3ce503d7c481d325b:40ddb15bcb',NULL,NULL,'TP. Hồ Chí Minh','Hóc Môn','700000','Vietnam',0,'2025-12-07 09:49:27',1),(9,2,'Nhà','DANG THANH TOAN',NULL,'***','aee729f3f203d643ec580b4475cbc06d:70c92a4099335887a733f0e839619267:66483ffb17cedad30705','***','a3eb68dcb7ca4152051a771b81815703:612ca8cbb0011e9bf11c84d9302e3a7d:75c010b16e',NULL,NULL,'HO CHI MINH','Thành phố Hồ Chí Minh','700000','Vietnam',1,'2025-12-08 02:05:25',1);
 /*!40000 ALTER TABLE `user_addresses` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -2600,63 +2471,6 @@ LOCK TABLES `user_consents` WRITE;
 UNLOCK TABLES;
 
 --
--- Table structure for table `user_roles`
---
-
-DROP TABLE IF EXISTS `user_roles`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `user_roles` (
-  `user_id` bigint unsigned NOT NULL,
-  `role_id` bigint unsigned NOT NULL,
-  PRIMARY KEY (`user_id`,`role_id`),
-  KEY `role_id` (`role_id`),
-  CONSTRAINT `user_roles_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE,
-  CONSTRAINT `user_roles_ibfk_2` FOREIGN KEY (`role_id`) REFERENCES `roles` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
-
---
--- Dumping data for table `user_roles`
---
-
-LOCK TABLES `user_roles` WRITE;
-/*!40000 ALTER TABLE `user_roles` DISABLE KEYS */;
-/*!40000 ALTER TABLE `user_roles` ENABLE KEYS */;
-UNLOCK TABLES;
-
---
--- Table structure for table `user_sessions`
---
-
-DROP TABLE IF EXISTS `user_sessions`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `user_sessions` (
-  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
-  `user_id` bigint unsigned NOT NULL,
-  `session_token` varchar(255) NOT NULL,
-  `ip_address` varchar(45) DEFAULT NULL,
-  `user_agent` text,
-  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
-  `expires_at` timestamp NULL DEFAULT NULL,
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `session_token` (`session_token`),
-  KEY `user_id` (`user_id`),
-  CONSTRAINT `user_sessions_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
-
---
--- Dumping data for table `user_sessions`
---
-
-LOCK TABLES `user_sessions` WRITE;
-/*!40000 ALTER TABLE `user_sessions` DISABLE KEYS */;
-/*!40000 ALTER TABLE `user_sessions` ENABLE KEYS */;
-UNLOCK TABLES;
-
---
 -- Table structure for table `users`
 --
 
@@ -2666,7 +2480,6 @@ DROP TABLE IF EXISTS `users`;
 CREATE TABLE `users` (
   `id` bigint unsigned NOT NULL AUTO_INCREMENT,
   `email` varchar(255) NOT NULL,
-  `is_admin` tinyint(1) DEFAULT '0',
   `password` varchar(255) DEFAULT NULL,
   `first_name` varchar(100) DEFAULT NULL,
   `last_name` varchar(100) DEFAULT NULL,
@@ -2683,7 +2496,6 @@ CREATE TABLE `users` (
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   `is_banned` tinyint(1) DEFAULT '0' COMMENT 'User banned status: 0 = active, 1 = banned',
-  `accumulated_points` int DEFAULT '0',
   `membership_tier` enum('bronze','silver','gold','platinum') DEFAULT 'bronze',
   `deleted_at` timestamp NULL DEFAULT NULL,
   `google_id` varchar(255) DEFAULT NULL,
@@ -2701,6 +2513,10 @@ CREATE TABLE `users` (
   `data_persistence` tinyint(1) DEFAULT '1',
   `public_profile` tinyint(1) DEFAULT '1',
   `sms_order_notifications` tinyint(1) DEFAULT '0',
+  `lifetime_points` int NOT NULL DEFAULT '0',
+  `available_points` int NOT NULL DEFAULT '0',
+  `tier_updated_at` datetime DEFAULT NULL,
+  `points_expiry_date` date DEFAULT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `email` (`email`),
   UNIQUE KEY `google_id` (`google_id`),
@@ -2709,8 +2525,10 @@ CREATE TABLE `users` (
   KEY `idx_deleted_at` (`deleted_at`),
   KEY `idx_is_encrypted` (`is_encrypted`),
   KEY `idx_email_verified` (`email`,`is_verified`),
-  KEY `idx_tier_points` (`membership_tier`,`accumulated_points` DESC),
-  KEY `idx_active_created` (`is_active`,`created_at` DESC)
+  KEY `idx_active_created` (`is_active`,`created_at` DESC),
+  KEY `idx_users_tier` (`membership_tier`),
+  KEY `idx_users_lifetime` (`lifetime_points`),
+  KEY `idx_tier_points` (`membership_tier`,`lifetime_points` DESC)
 ) ENGINE=InnoDB AUTO_INCREMENT=35 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -2720,7 +2538,7 @@ CREATE TABLE `users` (
 
 LOCK TABLES `users` WRITE;
 /*!40000 ALTER TABLE `users` DISABLE KEYS */;
-INSERT INTO `users` VALUES (1,'thanhtoan06092004@gmail.com',0,'$2b$10$nLRY6Uyu.3TgJzUP2GuyG.U7c1uVa0C4hFBMfw8hzWubSVRO7vZti','TOAN','DANG','DANG TOAN','***','5a5b891ebf6450e1c4269d19de71797a:53f9b188e7dc0aef34a529bf46fb4c73d79bec3dc4095969e8c2adfe8ca8b384835c1aa8e3be385449bf8c78ad3c58af24f97da5b4b192630d1f4aa2d59f9193f8dbaa466daef7c7cd6e828e49704e243f1ad1ccd699745a178d0ffa9b91d598','2004-09-06','45cb8f955c939db557bac47062cfa35e:0cca5d556fb0f82da3e96b316bf8f73b43fc485757eb8373942d0c08dd0c75a9',1,'male',1,0,'{\"gender\": \"male\", \"dateOfBirth\": \"2004-09-06\"}','2025-12-06 14:42:48','2026-03-02 03:12:16',0,2497,'silver',NULL,NULL,NULL,'https://res.cloudinary.com/dbhfn2hqs/image/upload/v1772334121/nike-clone/products/qs2iayd7nebiv26grp9h.jpg',0,NULL,2,0,1,1,1,1,1,1,1,1),(2,'dangthanhtoan06092004@gmail.com',0,'$2b$10$ckcKXxzPwAkzxq/qhxNeKOMM4MBJbkyBRTe3D.FpPB28Ux4OTbm2S','DANG','TOAN',NULL,'***','1d75fbce47802ae6e58172865e570e4d:f1663a5b955d8f5e8f24d9f8c79dc1a50ef796009453de3b72685186b2fbb9901f0cc6ff264d5a86607ee12f2ee98674a8fb2166ee260b4938cee9541af64f6ccc21698cbb88067335c949ec1bc5c2a0cbb284686d34a02c62f6769ff88a46f4','2004-09-06','a23907ae38e4b138d8739e78a4496df0:87ce800b207ee81cf1bc00968eb1504d3ef42257454217ef24ce299726cc0270',1,'male',1,0,NULL,'2025-12-08 01:37:41','2026-03-02 03:12:16',0,0,'bronze',NULL,NULL,NULL,NULL,0,NULL,1,0,1,0,1,0,1,1,1,0),(3,'admin@nike.com',1,'$2b$10$x/r1eBhvynV/RiUAFxS2n.r0Gqm4iA/Q7W5DoCWbUaiWPBigs2rWC',NULL,NULL,'Admin Nike','***',NULL,NULL,NULL,1,NULL,1,0,NULL,'2025-12-10 04:21:46','2026-03-02 03:12:16',0,0,'bronze',NULL,NULL,NULL,NULL,0,NULL,1,0,1,0,1,0,1,1,1,0),(6,'test_verification_1770196152084_865@test.com',0,'$2b$10$ixRrk79ACe7/H3UWZ60QzOrGAQywqL.AyaTYYfcNX8xIrehr6JhK2','Test','User',NULL,'***','61b90a7575744b0681c7137315dda493:805dfb604b3fec89783d94d955e5949a6bc45ac3f9a4797f9ee653f7ddbc4b4b466288a8130b59ba07a98376a48855a94699cdc8eb985fd25374dfc0ea1bc1da766a6dcd586442062b7739c0bc01798a0cad943670431fd9086d650705f2f69d','2000-01-01','0a6232e703517842bef32c175a5ee3d2:50e24b3b30685d0fcf829063321d91994f6e1ba423cc6b694e417984dd206dc7',1,'male',1,0,NULL,'2026-02-04 09:09:15','2026-03-02 03:12:16',0,0,'bronze',NULL,NULL,NULL,NULL,0,NULL,1,0,1,0,1,0,1,1,1,0),(7,'test_verification_1770196177715_183@test.com',0,'$2b$10$q/TyR5q1a1yauf1z10abO.E1dvGpNo9mzdMbVBxIA/9JG9wUmUgs.','Test','User',NULL,'***','0fdddce3a3e4097a6d724d908b1eca70:a0ba8bdc7dc0f663d601832a04dfa5a118fa0475b314ad14c8111f30ecea558857dea95e6184f4d38c5b40184b2a044c7aa848c12860aa8add875c7f9e4d8a00cfc685abca610227a4ba8001f1e60555c654a6d6362b96d7bcbf31f5d403a258','2000-01-01','34eced1d3d9b9c0fdc4517652b624504:1e715842bb53ec51d9b1ba12e4808738bcbc63f8feb679edd5f18ef821e2c44d',1,'male',1,0,NULL,'2026-02-04 09:09:38','2026-03-02 03:12:16',0,0,'bronze',NULL,NULL,NULL,NULL,0,NULL,1,0,1,0,1,0,1,1,1,0),(8,'test_verification_1770196190324_704@test.com',0,'$2b$10$pdDY9p.PpKbYBqVnsG9tPe6z7cx5TMIqazl21FepE8hxMkpMdy3xO','Test','User',NULL,'***','9fed4fc5a5c3d447b6841fcb4f9caa4b:1670df54f6e84276882fd2080b2e0b84fa949835b4366c7c0f99f5d082e378f239d8e9f8876a52ed7434c3cb49982048314d6cc609c357b47ab16b5091614af5e16d2515954350798e5f877d817512197cddd29419886bed95228fe4322e706e','2000-01-01','0718e585bc8a05980919ee627c49ff72:6eff0172abc2c0ac8148192832f0532bb04f9a8ad07058aecf498aa36296ff1f',1,'male',1,0,NULL,'2026-02-04 09:09:50','2026-03-02 03:12:16',0,0,'bronze',NULL,NULL,NULL,NULL,0,NULL,1,0,1,0,1,0,1,1,1,0),(9,'test_verification_1770196218804_939@test.com',0,'$2b$10$IWN2xYVQ3Sg9xohSblnlWeQeXoi3Hpud02B6Iw0eHxSQ.Ppl92RlC','Test','User',NULL,'***','ff1a83a0ac9ef5417ce299866854d238:717222b199bc9817079d710dcb9c4d9440c369a5ae6c4b93790fa4bc7d3aef1468afb8021ff5ee9486fffdba553b94d454411c6fdf718cedead3442abf69d5d9bec819e7e6955153433f7f6bd46003a7d3efeaaa4b897d82646208ea1acf8f43','2000-01-01','c8f8ded98eddac741bbb22dfa378ed8e:dfc9cf1c3e4ea52ec95377099bb675d5bac67be3647cb79e34442260dfbeab22',1,'male',1,0,NULL,'2026-02-04 09:10:19','2026-03-02 03:12:16',0,0,'bronze',NULL,NULL,NULL,NULL,0,NULL,1,0,1,0,1,0,1,1,1,0),(10,'test_verification_1770196270063_142@test.com',0,'$2b$10$8NSrH36.Z11mF.9q9GrgvO8QYN0RKQhW5oEmuR9aEvX8X501/CGMO','Test','User',NULL,'***','01190ff77931de51b421cc4b1714c969:3349051ba2a91a9f1d5a1c3424b1a9a6142a954a28d086e4a9d02ed4a6c787fd5db36b0313dc6f504e2cb120c641e50c2bd12e90a6df403b9511f479af0ce5ec7b80205205ac052beb63d1b8f7cfdb8b58ed1f9a266571a2a2dd10f84bb63d9c','2000-01-01','62747cf3a999e97fab76ebd16c777758:9a3786fb167a7f1d18b510bfd92fa0a7bab20542381a1fae17a72e7f2d9966e9',1,'male',1,0,NULL,'2026-02-04 09:11:10','2026-03-02 03:12:16',0,0,'bronze',NULL,NULL,NULL,NULL,0,NULL,1,0,1,0,1,0,1,1,1,0),(11,'test_verification_1770196336710_629@test.com',0,'$2b$10$UmSzkSJNbZxGw4RSeYcfQOxrAzjSbS2jBTCtnQsdSLbvSRs/SYNBK','Test','User',NULL,'***','34e6b3e159418b5487d1b295793560d2:bc9ad3562deed7306ad906a57ba15c824230fdae80d2820b3c6d21b5233f516955f278d2352b5082dea5928db30018653fa81b8e1cddd6d1e735a60e4f87fc15f5f40f70c3d69ae62d60f182b62ca2db9901a748d88ec6af97d730b2feebcc66','2000-01-01','ed38f924ec685b9d91b5f9a49a489f8d:0d29b847b7cb55f5e8ceb944a64d85cd9a79fcd49ce99056373e30bbe5990e1f',1,'male',1,0,NULL,'2026-02-04 09:12:17','2026-03-02 03:12:16',0,0,'bronze',NULL,NULL,NULL,NULL,0,NULL,1,0,1,0,1,0,1,1,1,0),(12,'test_verification_1770196388962_527@test.com',0,'$2b$10$dkDoNZkpWd6BEpSC3eFEKuqOXzLpJTsf65jkJU/okIYJQpOmkjYTu','Test','User',NULL,'***','333374c8772b2d14b5975120b9de63ab:41b7949254c510bd78cb504e665beb133d7cb7e81e69c0214fcc08fba0341c81670e9ceada76f99645c68f9d2e6f7993bcc396caa3749ad1641ec42e4363e5bd6a0bcd64d6e0d7d25553f96c687e91bea18daf4fe7293e9276e5458c16f30332','2000-01-01','40946c17e34abc7b61280205322ce8bf:f62746570fc8f117b19de69e38af3441a6de6040ed43c78ef963399fd70ac658',1,'male',1,0,NULL,'2026-02-04 09:13:09','2026-03-02 03:12:16',0,0,'bronze',NULL,NULL,NULL,NULL,0,NULL,1,0,1,0,1,0,1,1,1,0),(13,'test_verification_1770196420886_291@test.com',0,'$2b$10$QTcw9lV.1ttFIDtZyXnppO2VBvxld71Ts8Xfv11yyAHEl5v3F/Cu.','Test','User',NULL,'***','42c5cea366f8cd8ed49d86a7842b5d59:a5c3d222f1b47d8463d3b5d0e41aa3ed7588e877d52537b7d3c02a89c70f575528d5b4b67ef123e98890178b693415c60a58094d9e0a7359c15cfd9e8f6bad62f508b2d83cfb9df45f692ad010dfa9c630258fbfaf9b8450c6e0c3c709838985','2000-01-01','50f4cdeaf370699ca2cdde3fb342cee8:885a310444fcbb48d8fccdea9ecec40bdc0c942c814c31a0a3edee49ebdea9f9',1,'male',1,0,NULL,'2026-02-04 09:13:41','2026-03-02 03:12:16',0,0,'bronze',NULL,NULL,NULL,NULL,0,NULL,1,0,1,0,1,0,1,1,1,0),(14,'test_verification_1770196438232_890@test.com',0,'$2b$10$OdLmHOdv0r1jhYnwg42/4ej/FAXcWJESUcqLR36zPdy5hNEnQ0kRS','Test','User',NULL,'***','0f295473655d31f6a547f6bbcc27b1f1:e04babe7607a8115853ddf67408d6b2b0a70222588ffdc224d90e20e177809891d586604971fb14bd5de9b3210fb3ae4173402b8340058abff3f54cdf54c1576a23487af27fdfdc2ec8a2d67a9dc71772d9a7955705f7a9be73c17ae9d4891a6','2000-01-01','79f0cbd4e660f73dae0bb5296786e4d6:9f353c214a017dec75efb004bd88866fe52f4c15da8b80020394799848ef1920',1,'male',1,0,NULL,'2026-02-04 09:13:58','2026-03-02 03:12:16',0,0,'bronze',NULL,NULL,NULL,NULL,0,NULL,1,0,1,0,1,0,1,1,1,0),(15,'test_verification_1770196522682_861@test.com',0,'$2b$10$f9NucRiBNuNTK/jMlJtMF.0o6lgGwVmtiUjGk5xLV3lzeAIM4idz2','Test','User',NULL,'***','abf429333346fb2f4863621a700dfb90:bbc383a10b05c22912ade70db72c35313d94796e07fc2c7df2f93e4d7e5626b8c6faeba040fc94d0eafab827de326cc961183797e3eca698fcc1ba7a6e386405ff5b2784bbe7709b1489850dfb4f1c243a17ace4d9e716ac8863f62901913581','2000-01-01','0a78b1b6a65c6dd76a52dbfdac0a1ce7:592c213c386391f592fbddd19bf24d4f1033bbfd2d24ebe14cdcb5bbc7dd53e4',1,'male',1,0,NULL,'2026-02-04 09:15:23','2026-03-02 03:12:16',0,0,'bronze',NULL,NULL,NULL,NULL,0,NULL,1,0,1,0,1,0,1,1,1,0),(16,'test_verification_1770196530276_629@test.com',0,'$2b$10$pCFXt/cYQX44E0nEwIyxqOgszs31SCAdaTwY5fvQTmwGgomAJHOk.','Test','User',NULL,'***','efe7545da5a22974e4697c57c8e4ccf9:5e8f2b1f7a14746cea4d03b26d61feef3710fa21c0def297ff62f3438ec40c6f8dafc37e3e64de47b59bfbc6908615fef36ecd69b4c8c58a67e044ddf5dff1606d29f02d4673a376fb868e26ae34439f34c8815f404507a10b900972546a4dd9','2000-01-01','68dc0e479808ef74217e65d9ec3af47d:6578db032960ba73dfa4d982a1abe3e477fa58c0d18364bb877fd310c5d357a3',1,'male',1,0,NULL,'2026-02-04 09:15:30','2026-03-02 03:12:16',0,0,'bronze',NULL,NULL,NULL,NULL,0,NULL,1,0,1,0,1,0,1,1,1,0),(17,'test_verification_1770196576327_351@test.com',0,'$2b$10$qcdHBfSITdl9dqazlK.9geJ/fziSX/nrkS2gHyX7NPFtHwB/7lokG','Test','User',NULL,'***','2ca12ef8db6ed508420fa37b1d393796:7c8fe8914be13a678ea46906279870f4d0af63b6a3a82a7828d1090ddb9abb89ba06abc75b2b9bc9a61f6a1a98b2841f6a9bfae7ccaacc2653ff076e689509012ce05122bc615236c7a18164f796f4e532ab58056e04de896d889aa9724b4123','2000-01-01','abd5d50b390665036f492d46c85208ac:4661d1a2000680d3b0d414a7c1be7ef4c97cd9d451e5ea43c6c7c0cd20aed39e',1,'male',1,0,NULL,'2026-02-04 09:16:16','2026-03-02 03:12:16',0,0,'bronze',NULL,NULL,NULL,NULL,0,NULL,1,0,1,0,1,0,1,1,1,0),(18,'test_verification_1770196690357_898@test.com',0,'$2b$10$Tsb2SsftLQUvkR96AvUdd.gscRe9LUgglq7IL3G.2xADHGQdhMeqO','Test','User',NULL,'***','b5bf225e22e3c2d47923fe659d6dc338:97e01cb537e5b82ef6aef3900b01a07657f886e9019e470d375c9698898823b0dd9267f708fd8e635f39627f515b10d03afbfafa527240e3a80371f26877625263840e6060f07b5fa4eaf48e1a3e2356715c39926de1543cf324a0e417b9951c','2000-01-01','1c9be76bdb371641c5563de6e711066a:ce7eb7945c5dc61399befcee9b8e71c9461c5e4c6845c39b1de68ca65692f1ea',1,'male',1,0,NULL,'2026-02-04 09:18:10','2026-03-02 03:12:16',0,0,'bronze',NULL,NULL,NULL,NULL,0,NULL,1,0,1,0,1,0,1,1,1,0),(19,'test_verification_1770196781445_673@test.com',0,'$2b$10$V5vwmZRtJsIw2M2.QBiFVOpRqyLekUOIWSw99ByS6gwy1WTLVPPVy','Test','User',NULL,'***','04f15fb3e821d2e17673ec2a27621b8d:539cbd063ed65ac9b5191d4cc76d5d1c2b296c950cd835bf9f15a510831b7233675ce5808f4738d6c35cb4a13f42cc706841922094743a23a0cdc22e1d4ebfa326c0f8e686685dae791af961b1d1e3e19b62e7f3071918ddcefde76baf623724','2000-01-01','6aba90c36940680eacacf11f4f66a1d2:0a22548eaf3e360a18ebe2dc3321318471252d4279be9d7b6261c7193c3e91da',1,'male',1,0,NULL,'2026-02-04 09:19:41','2026-03-02 03:12:16',0,0,'bronze',NULL,NULL,NULL,NULL,0,NULL,1,0,1,0,1,0,1,1,1,0),(20,'test_verification_1770196799493_188@test.com',0,'$2b$10$lmy9tAAYkrYAhttZHyB9duVXwcjRCMBI4kNaCPO2C0L6fAAMxzpFi','Test','User',NULL,'***','1d6462c3f75933ec1dd42ca5a6d8bdcb:5e974c125ba58fadb29f6fcd10c145cd2fffdfad5860e0c2e163e49233a7ed0c5bcfe19dbd661e2a2c7c8165b616433bc6e47a988afff4ddb38bffbe57e58da1e00113ec1e31facb44f2072752030b77d72ea2b7f1e2023b3d8c7adc1d64bc5c','2000-01-01','daf74b0c6de0893f8d37102ffda21c0d:372b8b3a3e188b78bd0f927c4564b98f51ec2869c8efb9e69b0a8534b2ab7dd9',1,'male',1,0,NULL,'2026-02-04 09:19:59','2026-03-02 03:12:16',0,0,'bronze',NULL,NULL,NULL,NULL,0,NULL,1,0,1,0,1,0,1,1,1,0),(21,'test_verification_1770196814420_499@test.com',0,'$2b$10$iRDO4qMTFLWAFtQaZ/H2vutptNbam8TNQkWdY0Nmqpfm5UyyHSeOS','Test','User',NULL,'***','99efc4a83f1b4d7e07b431107f313621:dc0cce892011346dd192255f1744ae3067efef726c75d4af401de7d584b304e126820d529d573ffcdfadd3ecd8c342a4b65c10b49dd8b252d55ca5c253b8e5f80810008972dda80cbf246e042e07989521a579fdd15bb75c4ea4e1d1aad72c16','2000-01-01','23ccd51c237977b6bacb052aba0c7e6c:0fb75931db8143be697d73f519116ab58683d7551140ae8a809318fa8046f036',1,'male',1,0,NULL,'2026-02-04 09:20:14','2026-03-02 03:12:16',0,0,'bronze',NULL,NULL,NULL,NULL,0,NULL,1,0,1,0,1,0,1,1,1,0),(22,'test_verification_1770196849510_99@test.com',0,'$2b$10$1q6RwkRAN3hUHX6bsPwo7ebQcUKllqlPkXsH0pMBA3qU0PX1GqThW','Test','User',NULL,'***','4c191cd716ace14e733b89f0b0d901d4:cf16ea2e80722e6941de0a179a86ec6a044a03b04816f9173be5739468c96325bd2b16222a5b761a9d7942da253e2398cb094e0c4147a3b93d0535f29d1b9436a200b00da2ef4dd8b58049764056fe44efae9ff092ea19fc32519dc0af47b8e6','2000-01-01','da9fa6ec39cfb91904df7fde7a0bb4db:751bf60b706c1277afa806bdf3f3606b4e0e7faa36f43658b264b791d36c4807',1,'male',1,0,NULL,'2026-02-04 09:20:49','2026-03-02 03:12:16',0,0,'bronze',NULL,NULL,NULL,NULL,0,NULL,1,0,1,0,1,0,1,1,1,0),(23,'test_verification_1770196885236_666@test.com',0,'$2b$10$IeqQBcR.2Kz8qh9YCbQVXOLifFosOwrrx25wIOeMvsYFlgbQJsRhO','Test','User',NULL,'***','ac876fa344eb5135ec3a278ea69e0a52:f891f939377d92373b3e078264b4de2fc1e72b5033f444589b4de9d698943b005156ea0921dde3fd44183f40639bc7af2b84faff824c3a377a829ee75729d4aadc198c7c3f7d5f7a34bf51f8821c99a5759415eaf619dd8b5f9138517a772b4f','2000-01-01','69f3bd3b14cfb7a19393aa3b0acc435b:8bb454f7b883591f1204fb0eca0525a74408123e7fd443eb9c68a8abf1196892',1,'male',1,0,NULL,'2026-02-04 09:21:28','2026-03-02 03:12:16',0,0,'bronze',NULL,NULL,NULL,NULL,0,NULL,1,0,1,0,1,0,1,1,1,0),(24,'test_verification_1770196911554_987@test.com',0,'$2b$10$DSk/.W0ad56g6PoqotIZmutwA8yDleA6byel3gPF3ruRnvnRQR.Za','Test','User',NULL,'***','048c267188de174305a7cd833c34a3e7:dd65657b3c58fea849532fbbdc6f2e03740075d9b2991a48c625418fe1fdaf95d0a4b388a4e33eed2f1e066bb527562e44d1cc2ffaa5d2b8397e4a3a3b870744231d439c7aff8bb32b4aaaf6ec82c8dafae8ad6af161750898aa24c1c9a96cf4','2000-01-01','f3dc60734de5282f472816837ecfc1a8:7414aa7f393fdb5a09ef6c3dae928680a1d7c5fc376ed1aedaec1c5a93172b95',1,'male',1,0,NULL,'2026-02-04 09:21:51','2026-03-02 03:12:16',0,0,'bronze',NULL,NULL,NULL,NULL,0,NULL,1,0,1,0,1,0,1,1,1,0),(25,'test_verification_1770196924005_936@test.com',0,'$2b$10$2vQwvrg4qmrBKUMl66qLoe5iOe/XVx4376qUPOVKc1.sNkYOnlzk.','Test','User',NULL,'***','4344df5fa16cc787961018c6292cadbe:667db841cb1947c78d3a808ba380d8b575b61d24e317fad92a5fe0eb43df67ae655d1a6ed760318d176a7c8a290456068f7c9dd7ada5f44738b7d4f8e15fec6d48d386f5e44895ead18e51c2f65c2974a9c61bd79387cfe2530af2d1b6847461','2000-01-01','4d109bc17fd735111072a84cb4cc29e5:dced26915b5e4e6f7a0907377f945613603341b9c11cca47a21dab4a9dc534cb',1,'male',1,0,NULL,'2026-02-04 09:22:04','2026-03-02 03:12:16',0,0,'bronze',NULL,NULL,NULL,NULL,0,NULL,1,0,1,0,1,0,1,1,1,0),(26,'test_verification_1770196939766_998@test.com',0,'$2b$10$MCsptWJx27pccKvfV.GjnutzyVttsYt.d3EB5aZ9zPgwPuHl1Yase','Test','User',NULL,'***','09176a6550acbf1593582a42161e6ead:06bd3a5b6c7945c297ea372d9bf6547eb02e9d5cfa552f24fb6d42d9b3853d292e2aad4a549303a7a99be6c43a18653a88de9c286640eb85b7f289b6a2546dbc49db62e43521a04746b5147e2dc75d2869d4f8ae07f8da093966c28ca1a59ad0','2000-01-01','dd0356defac5aabe850c2951bb17d9b3:f51c75fe8af76f511c582fe8ac634d5ae253b9840c6f2af8b3e399d44785a703',1,'male',1,0,NULL,'2026-02-04 09:22:20','2026-03-02 03:12:16',0,0,'bronze',NULL,NULL,NULL,NULL,0,NULL,1,0,1,0,1,0,1,1,1,0),(27,'test_verification_1770196957823_475@test.com',0,'$2b$10$oDNdSJQMPejY.XK4xIxNcOGJMl.WtrjH7dzwWT/AvLiladpAWJqiS','Test','User',NULL,'***','a1c0828a7b69a670defa4c9c705b04a6:2956e1f577a1cf2c23c17f8068cce22b2afacdc604e8f3016de99d2a744617c7aa4879605e482db97b07d977323a76f6e64e17fe4335018993fe40c7782ae30b4b22a00520f8868de9edab6fd65d5e59835398d0b678c092a6cd4953e282de66','2000-01-01','7c7d609399e6e1625e96833003b928a0:3f35ae616f4cff6c510b9af496ae50a4430878ca4dfdcc90af1d3a050018fce8',1,'male',1,0,NULL,'2026-02-04 09:22:38','2026-03-02 03:12:16',0,0,'bronze',NULL,NULL,NULL,NULL,0,NULL,1,0,1,0,1,0,1,1,1,0),(28,'test_verification_1770197057100_972@test.com',0,'$2b$10$rymyee6vtqVLbKSozOQto.4z.VBogfjfeQLp3840Siz4VKsnLMMta','Test','User',NULL,'***','a5029d671c3f442b9efe8d75cf0f2f56:98847524a31e13713b72a298aab0d828fca7a95eb2e3c8a7d9563c2c08976ede5d8ef104fc4e35e4e2b637d1a824d45aa564e030463f1829d0cd6aef607aa91339a5180ec95ff0a95dadd43f39927d5c46f4ee2a894d2c2845bbfc155fada894','2000-01-01','78e2cf8c3f88e92f70ddbf7d16bba69a:06ede4df99d6e4f5b54f8515b540386512ce8cea3868ad1c1cfca978fac2e3b5',1,'male',1,0,NULL,'2026-02-04 09:24:17','2026-03-02 03:12:16',0,0,'bronze',NULL,NULL,NULL,NULL,0,NULL,1,0,1,0,1,0,1,1,1,0),(29,'test_verification_1770197147670_418@test.com',0,'$2b$10$vDEbwbBMfif1SvJTlypppuYTV9ziv2Tw.DrHK.kTIMVy4jk8C4rQ2','Test','User',NULL,'***','d0a3d1e4daa5465212926113dad16039:2aecf0a166c3dac712f70b89c681537032031c295747689f4bc0810587d0ad1705d12c84a6148d050f8fbad6a91120c321c8eff0c0c61dfb1124a3c41b33830768328143344c36b83242e81ebe2edd40b519d236d739d6e837a9581e7c498c89','2000-01-01','bf77aa804ba8691cd2df7931ffa0de24:ac9c3b72d30faa2360ef6837dbfdf39e445e6a0b8ac9e4810042979962ce3c5a',1,'male',1,0,NULL,'2026-02-04 09:25:50','2026-03-02 03:12:16',0,0,'bronze',NULL,NULL,NULL,NULL,0,NULL,1,0,1,0,1,0,1,1,1,0),(30,'test_verification_1770198110548_875@test.com',0,'$2b$10$kaXB15Smuy1KsPQKsrP2QeW2cRt./2Kw9QIcpgx6WkNMpljRpjsDK','Test','User',NULL,'***','e25244b8e3a6e012e9676b73fd0bd3d5:b6c7d7db095a8b2a12b92ce9ca5da11586ac7ee71e2651ea694e4e55f3772ba1fbf5a9567c517ba3df37e0b4308d327c2008f879aec2b19bb45cc0e01c761e8319a3d838a7719ee199550160f89510ea5f89b5647bc0127eb2cfb843d71d91f0','2000-01-01','7b1b5c2688016e8ba608b16ed0b12442:f0ad6ceb3886f6d5ff0b04ad915abd9f6a6403ff9069115bb1e561acfdb13ce2',1,'male',1,0,NULL,'2026-02-04 09:41:51','2026-03-02 03:12:16',0,0,'bronze',NULL,NULL,NULL,NULL,0,NULL,1,0,1,0,1,0,1,1,1,0),(31,'test@example.com',0,'$2b$10$EpIx.i.vS/WvL5.z/S.t.e',NULL,NULL,'Test User','***',NULL,NULL,NULL,1,NULL,1,0,NULL,'2026-02-11 00:30:23','2026-03-02 03:12:16',0,0,'bronze',NULL,NULL,NULL,NULL,0,NULL,1,0,1,0,1,0,1,1,1,0),(32,'testuser_5854@example.com',0,'$2b$10$jNyav8FX7zFsoL.CyTSX5.4ImBnFnJtZa2.TpGjSfN7TAidUealCS','Test','User',NULL,'***',NULL,'1995-01-01','f17b804e88a17e18e2fa368401c1a265:8c85876915f6b3ef734996c4b01e4d20af32b105f0b8782363c29f499cb5662d',1,'male',1,0,NULL,'2026-02-16 02:25:32','2026-03-02 03:12:16',0,0,'bronze',NULL,NULL,NULL,NULL,0,NULL,1,0,1,0,1,0,1,1,1,0),(33,'testuser_5748@example.com',0,'$2b$10$uArypps7cu6Y1d/6KG0Wc.9BfxSdknoeRotUt8Kews/U0A4Faci5y','Test','User',NULL,'***',NULL,'1995-01-01','fd3c67969f160464cd304594c02a178b:8ad0edd9e31a5d920b9a9c00d2f2c216aa11414b262b583c94da464a40da1843',1,'male',1,0,NULL,'2026-02-16 02:37:05','2026-03-02 03:12:16',0,0,'bronze',NULL,NULL,NULL,NULL,0,NULL,1,0,1,0,1,0,1,1,1,0),(34,'testuser_2318@example.com',0,'$2b$10$UNI12WDcUHiJvseune6dROAKna6x/7TR4zu8Kuf.aDGiUPleqGvZK','Test','User',NULL,'***',NULL,'1995-01-01','30cd657a1713bd7870c46220d577b54e:107c95cec351e448267e09aff32cbe640990e4430ec01e0a1d9b890128d111da',1,'male',1,0,NULL,'2026-02-16 02:49:24','2026-03-02 03:12:16',0,0,'bronze',NULL,NULL,NULL,NULL,0,NULL,1,0,1,0,1,0,1,1,1,0);
+INSERT INTO `users` VALUES (1,'thanhtoan06092004@gmail.com','$2b$10$nLRY6Uyu.3TgJzUP2GuyG.U7c1uVa0C4hFBMfw8hzWubSVRO7vZti','TOAN','DANG','DANG TOAN','***','bd041ef4cf217505728fdf70ec81f3a4:c92d4421cff5f64fd973efa865df1153:663c8776dd7e66e403d8','2004-09-06','45cb8f955c939db557bac47062cfa35e:0cca5d556fb0f82da3e96b316bf8f73b43fc485757eb8373942d0c08dd0c75a9',1,'male',1,0,'{\"gender\": \"male\", \"dateOfBirth\": \"2004-09-06\"}','2025-12-06 14:42:48','2026-03-06 04:51:28',0,'silver',NULL,NULL,NULL,'https://res.cloudinary.com/dbhfn2hqs/image/upload/v1772334121/nike-clone/products/qs2iayd7nebiv26grp9h.jpg',0,NULL,2,0,1,1,1,1,1,1,1,1,2447,2397,NULL,NULL),(2,'dangthanhtoan06092004@gmail.com','$2b$10$ckcKXxzPwAkzxq/qhxNeKOMM4MBJbkyBRTe3D.FpPB28Ux4OTbm2S','DANG','TOAN',NULL,'***','1d75fbce47802ae6e58172865e570e4d:f1663a5b955d8f5e8f24d9f8c79dc1a50ef796009453de3b72685186b2fbb9901f0cc6ff264d5a86607ee12f2ee98674a8fb2166ee260b4938cee9541af64f6ccc21698cbb88067335c949ec1bc5c2a0cbb284686d34a02c62f6769ff88a46f4','2004-09-06','a23907ae38e4b138d8739e78a4496df0:87ce800b207ee81cf1bc00968eb1504d3ef42257454217ef24ce299726cc0270',1,'male',1,0,NULL,'2025-12-08 01:37:41','2026-03-02 03:12:16',0,'bronze',NULL,NULL,NULL,NULL,0,NULL,1,0,1,0,1,0,1,1,1,0,0,0,NULL,NULL),(3,'admin@nike.com','$2b$10$x/r1eBhvynV/RiUAFxS2n.r0Gqm4iA/Q7W5DoCWbUaiWPBigs2rWC',NULL,NULL,'Admin Nike','***',NULL,NULL,NULL,1,NULL,1,0,NULL,'2025-12-10 04:21:46','2026-03-02 03:12:16',0,'bronze',NULL,NULL,NULL,NULL,0,NULL,1,0,1,0,1,0,1,1,1,0,0,0,NULL,NULL),(6,'test_verification_1770196152084_865@test.com','$2b$10$ixRrk79ACe7/H3UWZ60QzOrGAQywqL.AyaTYYfcNX8xIrehr6JhK2','Test','User',NULL,'***','61b90a7575744b0681c7137315dda493:805dfb604b3fec89783d94d955e5949a6bc45ac3f9a4797f9ee653f7ddbc4b4b466288a8130b59ba07a98376a48855a94699cdc8eb985fd25374dfc0ea1bc1da766a6dcd586442062b7739c0bc01798a0cad943670431fd9086d650705f2f69d','2000-01-01','0a6232e703517842bef32c175a5ee3d2:50e24b3b30685d0fcf829063321d91994f6e1ba423cc6b694e417984dd206dc7',1,'male',1,0,NULL,'2026-02-04 09:09:15','2026-03-02 03:12:16',0,'bronze',NULL,NULL,NULL,NULL,0,NULL,1,0,1,0,1,0,1,1,1,0,0,0,NULL,NULL),(7,'test_verification_1770196177715_183@test.com','$2b$10$q/TyR5q1a1yauf1z10abO.E1dvGpNo9mzdMbVBxIA/9JG9wUmUgs.','Test','User',NULL,'***','0fdddce3a3e4097a6d724d908b1eca70:a0ba8bdc7dc0f663d601832a04dfa5a118fa0475b314ad14c8111f30ecea558857dea95e6184f4d38c5b40184b2a044c7aa848c12860aa8add875c7f9e4d8a00cfc685abca610227a4ba8001f1e60555c654a6d6362b96d7bcbf31f5d403a258','2000-01-01','34eced1d3d9b9c0fdc4517652b624504:1e715842bb53ec51d9b1ba12e4808738bcbc63f8feb679edd5f18ef821e2c44d',1,'male',1,0,NULL,'2026-02-04 09:09:38','2026-03-02 03:12:16',0,'bronze',NULL,NULL,NULL,NULL,0,NULL,1,0,1,0,1,0,1,1,1,0,0,0,NULL,NULL),(8,'test_verification_1770196190324_704@test.com','$2b$10$pdDY9p.PpKbYBqVnsG9tPe6z7cx5TMIqazl21FepE8hxMkpMdy3xO','Test','User',NULL,'***','9fed4fc5a5c3d447b6841fcb4f9caa4b:1670df54f6e84276882fd2080b2e0b84fa949835b4366c7c0f99f5d082e378f239d8e9f8876a52ed7434c3cb49982048314d6cc609c357b47ab16b5091614af5e16d2515954350798e5f877d817512197cddd29419886bed95228fe4322e706e','2000-01-01','0718e585bc8a05980919ee627c49ff72:6eff0172abc2c0ac8148192832f0532bb04f9a8ad07058aecf498aa36296ff1f',1,'male',1,0,NULL,'2026-02-04 09:09:50','2026-03-02 03:12:16',0,'bronze',NULL,NULL,NULL,NULL,0,NULL,1,0,1,0,1,0,1,1,1,0,0,0,NULL,NULL),(9,'test_verification_1770196218804_939@test.com','$2b$10$IWN2xYVQ3Sg9xohSblnlWeQeXoi3Hpud02B6Iw0eHxSQ.Ppl92RlC','Test','User',NULL,'***','ff1a83a0ac9ef5417ce299866854d238:717222b199bc9817079d710dcb9c4d9440c369a5ae6c4b93790fa4bc7d3aef1468afb8021ff5ee9486fffdba553b94d454411c6fdf718cedead3442abf69d5d9bec819e7e6955153433f7f6bd46003a7d3efeaaa4b897d82646208ea1acf8f43','2000-01-01','c8f8ded98eddac741bbb22dfa378ed8e:dfc9cf1c3e4ea52ec95377099bb675d5bac67be3647cb79e34442260dfbeab22',1,'male',1,0,NULL,'2026-02-04 09:10:19','2026-03-02 03:12:16',0,'bronze',NULL,NULL,NULL,NULL,0,NULL,1,0,1,0,1,0,1,1,1,0,0,0,NULL,NULL),(10,'test_verification_1770196270063_142@test.com','$2b$10$8NSrH36.Z11mF.9q9GrgvO8QYN0RKQhW5oEmuR9aEvX8X501/CGMO','Test','User',NULL,'***','01190ff77931de51b421cc4b1714c969:3349051ba2a91a9f1d5a1c3424b1a9a6142a954a28d086e4a9d02ed4a6c787fd5db36b0313dc6f504e2cb120c641e50c2bd12e90a6df403b9511f479af0ce5ec7b80205205ac052beb63d1b8f7cfdb8b58ed1f9a266571a2a2dd10f84bb63d9c','2000-01-01','62747cf3a999e97fab76ebd16c777758:9a3786fb167a7f1d18b510bfd92fa0a7bab20542381a1fae17a72e7f2d9966e9',1,'male',1,0,NULL,'2026-02-04 09:11:10','2026-03-02 03:12:16',0,'bronze',NULL,NULL,NULL,NULL,0,NULL,1,0,1,0,1,0,1,1,1,0,0,0,NULL,NULL),(11,'test_verification_1770196336710_629@test.com','$2b$10$UmSzkSJNbZxGw4RSeYcfQOxrAzjSbS2jBTCtnQsdSLbvSRs/SYNBK','Test','User',NULL,'***','34e6b3e159418b5487d1b295793560d2:bc9ad3562deed7306ad906a57ba15c824230fdae80d2820b3c6d21b5233f516955f278d2352b5082dea5928db30018653fa81b8e1cddd6d1e735a60e4f87fc15f5f40f70c3d69ae62d60f182b62ca2db9901a748d88ec6af97d730b2feebcc66','2000-01-01','ed38f924ec685b9d91b5f9a49a489f8d:0d29b847b7cb55f5e8ceb944a64d85cd9a79fcd49ce99056373e30bbe5990e1f',1,'male',1,0,NULL,'2026-02-04 09:12:17','2026-03-02 03:12:16',0,'bronze',NULL,NULL,NULL,NULL,0,NULL,1,0,1,0,1,0,1,1,1,0,0,0,NULL,NULL),(12,'test_verification_1770196388962_527@test.com','$2b$10$dkDoNZkpWd6BEpSC3eFEKuqOXzLpJTsf65jkJU/okIYJQpOmkjYTu','Test','User',NULL,'***','333374c8772b2d14b5975120b9de63ab:41b7949254c510bd78cb504e665beb133d7cb7e81e69c0214fcc08fba0341c81670e9ceada76f99645c68f9d2e6f7993bcc396caa3749ad1641ec42e4363e5bd6a0bcd64d6e0d7d25553f96c687e91bea18daf4fe7293e9276e5458c16f30332','2000-01-01','40946c17e34abc7b61280205322ce8bf:f62746570fc8f117b19de69e38af3441a6de6040ed43c78ef963399fd70ac658',1,'male',1,0,NULL,'2026-02-04 09:13:09','2026-03-02 03:12:16',0,'bronze',NULL,NULL,NULL,NULL,0,NULL,1,0,1,0,1,0,1,1,1,0,0,0,NULL,NULL),(13,'test_verification_1770196420886_291@test.com','$2b$10$QTcw9lV.1ttFIDtZyXnppO2VBvxld71Ts8Xfv11yyAHEl5v3F/Cu.','Test','User',NULL,'***','42c5cea366f8cd8ed49d86a7842b5d59:a5c3d222f1b47d8463d3b5d0e41aa3ed7588e877d52537b7d3c02a89c70f575528d5b4b67ef123e98890178b693415c60a58094d9e0a7359c15cfd9e8f6bad62f508b2d83cfb9df45f692ad010dfa9c630258fbfaf9b8450c6e0c3c709838985','2000-01-01','50f4cdeaf370699ca2cdde3fb342cee8:885a310444fcbb48d8fccdea9ecec40bdc0c942c814c31a0a3edee49ebdea9f9',1,'male',1,0,NULL,'2026-02-04 09:13:41','2026-03-02 03:12:16',0,'bronze',NULL,NULL,NULL,NULL,0,NULL,1,0,1,0,1,0,1,1,1,0,0,0,NULL,NULL),(14,'test_verification_1770196438232_890@test.com','$2b$10$OdLmHOdv0r1jhYnwg42/4ej/FAXcWJESUcqLR36zPdy5hNEnQ0kRS','Test','User',NULL,'***','0f295473655d31f6a547f6bbcc27b1f1:e04babe7607a8115853ddf67408d6b2b0a70222588ffdc224d90e20e177809891d586604971fb14bd5de9b3210fb3ae4173402b8340058abff3f54cdf54c1576a23487af27fdfdc2ec8a2d67a9dc71772d9a7955705f7a9be73c17ae9d4891a6','2000-01-01','79f0cbd4e660f73dae0bb5296786e4d6:9f353c214a017dec75efb004bd88866fe52f4c15da8b80020394799848ef1920',1,'male',1,0,NULL,'2026-02-04 09:13:58','2026-03-02 03:12:16',0,'bronze',NULL,NULL,NULL,NULL,0,NULL,1,0,1,0,1,0,1,1,1,0,0,0,NULL,NULL),(15,'test_verification_1770196522682_861@test.com','$2b$10$f9NucRiBNuNTK/jMlJtMF.0o6lgGwVmtiUjGk5xLV3lzeAIM4idz2','Test','User',NULL,'***','abf429333346fb2f4863621a700dfb90:bbc383a10b05c22912ade70db72c35313d94796e07fc2c7df2f93e4d7e5626b8c6faeba040fc94d0eafab827de326cc961183797e3eca698fcc1ba7a6e386405ff5b2784bbe7709b1489850dfb4f1c243a17ace4d9e716ac8863f62901913581','2000-01-01','0a78b1b6a65c6dd76a52dbfdac0a1ce7:592c213c386391f592fbddd19bf24d4f1033bbfd2d24ebe14cdcb5bbc7dd53e4',1,'male',1,0,NULL,'2026-02-04 09:15:23','2026-03-02 03:12:16',0,'bronze',NULL,NULL,NULL,NULL,0,NULL,1,0,1,0,1,0,1,1,1,0,0,0,NULL,NULL),(16,'test_verification_1770196530276_629@test.com','$2b$10$pCFXt/cYQX44E0nEwIyxqOgszs31SCAdaTwY5fvQTmwGgomAJHOk.','Test','User',NULL,'***','efe7545da5a22974e4697c57c8e4ccf9:5e8f2b1f7a14746cea4d03b26d61feef3710fa21c0def297ff62f3438ec40c6f8dafc37e3e64de47b59bfbc6908615fef36ecd69b4c8c58a67e044ddf5dff1606d29f02d4673a376fb868e26ae34439f34c8815f404507a10b900972546a4dd9','2000-01-01','68dc0e479808ef74217e65d9ec3af47d:6578db032960ba73dfa4d982a1abe3e477fa58c0d18364bb877fd310c5d357a3',1,'male',1,0,NULL,'2026-02-04 09:15:30','2026-03-02 03:12:16',0,'bronze',NULL,NULL,NULL,NULL,0,NULL,1,0,1,0,1,0,1,1,1,0,0,0,NULL,NULL),(17,'test_verification_1770196576327_351@test.com','$2b$10$qcdHBfSITdl9dqazlK.9geJ/fziSX/nrkS2gHyX7NPFtHwB/7lokG','Test','User',NULL,'***','2ca12ef8db6ed508420fa37b1d393796:7c8fe8914be13a678ea46906279870f4d0af63b6a3a82a7828d1090ddb9abb89ba06abc75b2b9bc9a61f6a1a98b2841f6a9bfae7ccaacc2653ff076e689509012ce05122bc615236c7a18164f796f4e532ab58056e04de896d889aa9724b4123','2000-01-01','abd5d50b390665036f492d46c85208ac:4661d1a2000680d3b0d414a7c1be7ef4c97cd9d451e5ea43c6c7c0cd20aed39e',1,'male',1,0,NULL,'2026-02-04 09:16:16','2026-03-02 03:12:16',0,'bronze',NULL,NULL,NULL,NULL,0,NULL,1,0,1,0,1,0,1,1,1,0,0,0,NULL,NULL),(18,'test_verification_1770196690357_898@test.com','$2b$10$Tsb2SsftLQUvkR96AvUdd.gscRe9LUgglq7IL3G.2xADHGQdhMeqO','Test','User',NULL,'***','b5bf225e22e3c2d47923fe659d6dc338:97e01cb537e5b82ef6aef3900b01a07657f886e9019e470d375c9698898823b0dd9267f708fd8e635f39627f515b10d03afbfafa527240e3a80371f26877625263840e6060f07b5fa4eaf48e1a3e2356715c39926de1543cf324a0e417b9951c','2000-01-01','1c9be76bdb371641c5563de6e711066a:ce7eb7945c5dc61399befcee9b8e71c9461c5e4c6845c39b1de68ca65692f1ea',1,'male',1,0,NULL,'2026-02-04 09:18:10','2026-03-02 03:12:16',0,'bronze',NULL,NULL,NULL,NULL,0,NULL,1,0,1,0,1,0,1,1,1,0,0,0,NULL,NULL),(19,'test_verification_1770196781445_673@test.com','$2b$10$V5vwmZRtJsIw2M2.QBiFVOpRqyLekUOIWSw99ByS6gwy1WTLVPPVy','Test','User',NULL,'***','04f15fb3e821d2e17673ec2a27621b8d:539cbd063ed65ac9b5191d4cc76d5d1c2b296c950cd835bf9f15a510831b7233675ce5808f4738d6c35cb4a13f42cc706841922094743a23a0cdc22e1d4ebfa326c0f8e686685dae791af961b1d1e3e19b62e7f3071918ddcefde76baf623724','2000-01-01','6aba90c36940680eacacf11f4f66a1d2:0a22548eaf3e360a18ebe2dc3321318471252d4279be9d7b6261c7193c3e91da',1,'male',1,0,NULL,'2026-02-04 09:19:41','2026-03-02 03:12:16',0,'bronze',NULL,NULL,NULL,NULL,0,NULL,1,0,1,0,1,0,1,1,1,0,0,0,NULL,NULL),(20,'test_verification_1770196799493_188@test.com','$2b$10$lmy9tAAYkrYAhttZHyB9duVXwcjRCMBI4kNaCPO2C0L6fAAMxzpFi','Test','User',NULL,'***','1d6462c3f75933ec1dd42ca5a6d8bdcb:5e974c125ba58fadb29f6fcd10c145cd2fffdfad5860e0c2e163e49233a7ed0c5bcfe19dbd661e2a2c7c8165b616433bc6e47a988afff4ddb38bffbe57e58da1e00113ec1e31facb44f2072752030b77d72ea2b7f1e2023b3d8c7adc1d64bc5c','2000-01-01','daf74b0c6de0893f8d37102ffda21c0d:372b8b3a3e188b78bd0f927c4564b98f51ec2869c8efb9e69b0a8534b2ab7dd9',1,'male',1,0,NULL,'2026-02-04 09:19:59','2026-03-02 03:12:16',0,'bronze',NULL,NULL,NULL,NULL,0,NULL,1,0,1,0,1,0,1,1,1,0,0,0,NULL,NULL),(21,'test_verification_1770196814420_499@test.com','$2b$10$iRDO4qMTFLWAFtQaZ/H2vutptNbam8TNQkWdY0Nmqpfm5UyyHSeOS','Test','User',NULL,'***','99efc4a83f1b4d7e07b431107f313621:dc0cce892011346dd192255f1744ae3067efef726c75d4af401de7d584b304e126820d529d573ffcdfadd3ecd8c342a4b65c10b49dd8b252d55ca5c253b8e5f80810008972dda80cbf246e042e07989521a579fdd15bb75c4ea4e1d1aad72c16','2000-01-01','23ccd51c237977b6bacb052aba0c7e6c:0fb75931db8143be697d73f519116ab58683d7551140ae8a809318fa8046f036',1,'male',1,0,NULL,'2026-02-04 09:20:14','2026-03-02 03:12:16',0,'bronze',NULL,NULL,NULL,NULL,0,NULL,1,0,1,0,1,0,1,1,1,0,0,0,NULL,NULL),(22,'test_verification_1770196849510_99@test.com','$2b$10$1q6RwkRAN3hUHX6bsPwo7ebQcUKllqlPkXsH0pMBA3qU0PX1GqThW','Test','User',NULL,'***','4c191cd716ace14e733b89f0b0d901d4:cf16ea2e80722e6941de0a179a86ec6a044a03b04816f9173be5739468c96325bd2b16222a5b761a9d7942da253e2398cb094e0c4147a3b93d0535f29d1b9436a200b00da2ef4dd8b58049764056fe44efae9ff092ea19fc32519dc0af47b8e6','2000-01-01','da9fa6ec39cfb91904df7fde7a0bb4db:751bf60b706c1277afa806bdf3f3606b4e0e7faa36f43658b264b791d36c4807',1,'male',1,0,NULL,'2026-02-04 09:20:49','2026-03-02 03:12:16',0,'bronze',NULL,NULL,NULL,NULL,0,NULL,1,0,1,0,1,0,1,1,1,0,0,0,NULL,NULL),(23,'test_verification_1770196885236_666@test.com','$2b$10$IeqQBcR.2Kz8qh9YCbQVXOLifFosOwrrx25wIOeMvsYFlgbQJsRhO','Test','User',NULL,'***','ac876fa344eb5135ec3a278ea69e0a52:f891f939377d92373b3e078264b4de2fc1e72b5033f444589b4de9d698943b005156ea0921dde3fd44183f40639bc7af2b84faff824c3a377a829ee75729d4aadc198c7c3f7d5f7a34bf51f8821c99a5759415eaf619dd8b5f9138517a772b4f','2000-01-01','69f3bd3b14cfb7a19393aa3b0acc435b:8bb454f7b883591f1204fb0eca0525a74408123e7fd443eb9c68a8abf1196892',1,'male',1,0,NULL,'2026-02-04 09:21:28','2026-03-02 03:12:16',0,'bronze',NULL,NULL,NULL,NULL,0,NULL,1,0,1,0,1,0,1,1,1,0,0,0,NULL,NULL),(24,'test_verification_1770196911554_987@test.com','$2b$10$DSk/.W0ad56g6PoqotIZmutwA8yDleA6byel3gPF3ruRnvnRQR.Za','Test','User',NULL,'***','048c267188de174305a7cd833c34a3e7:dd65657b3c58fea849532fbbdc6f2e03740075d9b2991a48c625418fe1fdaf95d0a4b388a4e33eed2f1e066bb527562e44d1cc2ffaa5d2b8397e4a3a3b870744231d439c7aff8bb32b4aaaf6ec82c8dafae8ad6af161750898aa24c1c9a96cf4','2000-01-01','f3dc60734de5282f472816837ecfc1a8:7414aa7f393fdb5a09ef6c3dae928680a1d7c5fc376ed1aedaec1c5a93172b95',1,'male',1,0,NULL,'2026-02-04 09:21:51','2026-03-02 03:12:16',0,'bronze',NULL,NULL,NULL,NULL,0,NULL,1,0,1,0,1,0,1,1,1,0,0,0,NULL,NULL),(25,'test_verification_1770196924005_936@test.com','$2b$10$2vQwvrg4qmrBKUMl66qLoe5iOe/XVx4376qUPOVKc1.sNkYOnlzk.','Test','User',NULL,'***','4344df5fa16cc787961018c6292cadbe:667db841cb1947c78d3a808ba380d8b575b61d24e317fad92a5fe0eb43df67ae655d1a6ed760318d176a7c8a290456068f7c9dd7ada5f44738b7d4f8e15fec6d48d386f5e44895ead18e51c2f65c2974a9c61bd79387cfe2530af2d1b6847461','2000-01-01','4d109bc17fd735111072a84cb4cc29e5:dced26915b5e4e6f7a0907377f945613603341b9c11cca47a21dab4a9dc534cb',1,'male',1,0,NULL,'2026-02-04 09:22:04','2026-03-02 03:12:16',0,'bronze',NULL,NULL,NULL,NULL,0,NULL,1,0,1,0,1,0,1,1,1,0,0,0,NULL,NULL),(26,'test_verification_1770196939766_998@test.com','$2b$10$MCsptWJx27pccKvfV.GjnutzyVttsYt.d3EB5aZ9zPgwPuHl1Yase','Test','User',NULL,'***','09176a6550acbf1593582a42161e6ead:06bd3a5b6c7945c297ea372d9bf6547eb02e9d5cfa552f24fb6d42d9b3853d292e2aad4a549303a7a99be6c43a18653a88de9c286640eb85b7f289b6a2546dbc49db62e43521a04746b5147e2dc75d2869d4f8ae07f8da093966c28ca1a59ad0','2000-01-01','dd0356defac5aabe850c2951bb17d9b3:f51c75fe8af76f511c582fe8ac634d5ae253b9840c6f2af8b3e399d44785a703',1,'male',1,0,NULL,'2026-02-04 09:22:20','2026-03-02 03:12:16',0,'bronze',NULL,NULL,NULL,NULL,0,NULL,1,0,1,0,1,0,1,1,1,0,0,0,NULL,NULL),(27,'test_verification_1770196957823_475@test.com','$2b$10$oDNdSJQMPejY.XK4xIxNcOGJMl.WtrjH7dzwWT/AvLiladpAWJqiS','Test','User',NULL,'***','a1c0828a7b69a670defa4c9c705b04a6:2956e1f577a1cf2c23c17f8068cce22b2afacdc604e8f3016de99d2a744617c7aa4879605e482db97b07d977323a76f6e64e17fe4335018993fe40c7782ae30b4b22a00520f8868de9edab6fd65d5e59835398d0b678c092a6cd4953e282de66','2000-01-01','7c7d609399e6e1625e96833003b928a0:3f35ae616f4cff6c510b9af496ae50a4430878ca4dfdcc90af1d3a050018fce8',1,'male',1,0,NULL,'2026-02-04 09:22:38','2026-03-02 03:12:16',0,'bronze',NULL,NULL,NULL,NULL,0,NULL,1,0,1,0,1,0,1,1,1,0,0,0,NULL,NULL),(28,'test_verification_1770197057100_972@test.com','$2b$10$rymyee6vtqVLbKSozOQto.4z.VBogfjfeQLp3840Siz4VKsnLMMta','Test','User',NULL,'***','a5029d671c3f442b9efe8d75cf0f2f56:98847524a31e13713b72a298aab0d828fca7a95eb2e3c8a7d9563c2c08976ede5d8ef104fc4e35e4e2b637d1a824d45aa564e030463f1829d0cd6aef607aa91339a5180ec95ff0a95dadd43f39927d5c46f4ee2a894d2c2845bbfc155fada894','2000-01-01','78e2cf8c3f88e92f70ddbf7d16bba69a:06ede4df99d6e4f5b54f8515b540386512ce8cea3868ad1c1cfca978fac2e3b5',1,'male',1,0,NULL,'2026-02-04 09:24:17','2026-03-02 03:12:16',0,'bronze',NULL,NULL,NULL,NULL,0,NULL,1,0,1,0,1,0,1,1,1,0,0,0,NULL,NULL),(29,'test_verification_1770197147670_418@test.com','$2b$10$vDEbwbBMfif1SvJTlypppuYTV9ziv2Tw.DrHK.kTIMVy4jk8C4rQ2','Test','User',NULL,'***','d0a3d1e4daa5465212926113dad16039:2aecf0a166c3dac712f70b89c681537032031c295747689f4bc0810587d0ad1705d12c84a6148d050f8fbad6a91120c321c8eff0c0c61dfb1124a3c41b33830768328143344c36b83242e81ebe2edd40b519d236d739d6e837a9581e7c498c89','2000-01-01','bf77aa804ba8691cd2df7931ffa0de24:ac9c3b72d30faa2360ef6837dbfdf39e445e6a0b8ac9e4810042979962ce3c5a',1,'male',1,0,NULL,'2026-02-04 09:25:50','2026-03-02 03:12:16',0,'bronze',NULL,NULL,NULL,NULL,0,NULL,1,0,1,0,1,0,1,1,1,0,0,0,NULL,NULL),(30,'test_verification_1770198110548_875@test.com','$2b$10$kaXB15Smuy1KsPQKsrP2QeW2cRt./2Kw9QIcpgx6WkNMpljRpjsDK','Test','User',NULL,'***','e25244b8e3a6e012e9676b73fd0bd3d5:b6c7d7db095a8b2a12b92ce9ca5da11586ac7ee71e2651ea694e4e55f3772ba1fbf5a9567c517ba3df37e0b4308d327c2008f879aec2b19bb45cc0e01c761e8319a3d838a7719ee199550160f89510ea5f89b5647bc0127eb2cfb843d71d91f0','2000-01-01','7b1b5c2688016e8ba608b16ed0b12442:f0ad6ceb3886f6d5ff0b04ad915abd9f6a6403ff9069115bb1e561acfdb13ce2',1,'male',1,0,NULL,'2026-02-04 09:41:51','2026-03-02 03:12:16',0,'bronze',NULL,NULL,NULL,NULL,0,NULL,1,0,1,0,1,0,1,1,1,0,0,0,NULL,NULL),(31,'test@example.com','$2b$10$EpIx.i.vS/WvL5.z/S.t.e',NULL,NULL,'Test User','***',NULL,NULL,NULL,1,NULL,1,0,NULL,'2026-02-11 00:30:23','2026-03-02 03:12:16',0,'bronze',NULL,NULL,NULL,NULL,0,NULL,1,0,1,0,1,0,1,1,1,0,0,0,NULL,NULL),(32,'testuser_5854@example.com','$2b$10$jNyav8FX7zFsoL.CyTSX5.4ImBnFnJtZa2.TpGjSfN7TAidUealCS','Test','User',NULL,'***',NULL,'1995-01-01','f17b804e88a17e18e2fa368401c1a265:8c85876915f6b3ef734996c4b01e4d20af32b105f0b8782363c29f499cb5662d',1,'male',1,0,NULL,'2026-02-16 02:25:32','2026-03-02 03:12:16',0,'bronze',NULL,NULL,NULL,NULL,0,NULL,1,0,1,0,1,0,1,1,1,0,0,0,NULL,NULL),(33,'testuser_5748@example.com','$2b$10$uArypps7cu6Y1d/6KG0Wc.9BfxSdknoeRotUt8Kews/U0A4Faci5y','Test','User',NULL,'***',NULL,'1995-01-01','fd3c67969f160464cd304594c02a178b:8ad0edd9e31a5d920b9a9c00d2f2c216aa11414b262b583c94da464a40da1843',1,'male',1,0,NULL,'2026-02-16 02:37:05','2026-03-02 03:12:16',0,'bronze',NULL,NULL,NULL,NULL,0,NULL,1,0,1,0,1,0,1,1,1,0,0,0,NULL,NULL),(34,'testuser_2318@example.com','$2b$10$UNI12WDcUHiJvseune6dROAKna6x/7TR4zu8Kuf.aDGiUPleqGvZK','Test','User',NULL,'***',NULL,'1995-01-01','30cd657a1713bd7870c46220d577b54e:107c95cec351e448267e09aff32cbe640990e4430ec01e0a1d9b890128d111da',1,'male',1,0,NULL,'2026-02-16 02:49:24','2026-03-02 03:12:16',0,'bronze',NULL,NULL,NULL,NULL,0,NULL,1,0,1,0,1,0,1,1,1,0,0,0,NULL,NULL);
 /*!40000 ALTER TABLE `users` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -2757,9 +2575,11 @@ CREATE TABLE `vouchers` (
   KEY `status` (`status`),
   KEY `idx_deleted_at` (`deleted_at`),
   KEY `idx_status_valid` (`status`,`valid_until`),
+  KEY `fk_vouchers_issuer` (`issued_by_user_id`),
+  CONSTRAINT `fk_vouchers_issuer` FOREIGN KEY (`issued_by_user_id`) REFERENCES `admin_users` (`id`) ON DELETE SET NULL,
   CONSTRAINT `vouchers_ibfk_1` FOREIGN KEY (`recipient_user_id`) REFERENCES `users` (`id`) ON DELETE SET NULL,
   CONSTRAINT `vouchers_ibfk_2` FOREIGN KEY (`redeemed_by_user_id`) REFERENCES `users` (`id`) ON DELETE SET NULL
-) ENGINE=InnoDB AUTO_INCREMENT=9 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=12 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -2768,7 +2588,7 @@ CREATE TABLE `vouchers` (
 
 LOCK TABLES `vouchers` WRITE;
 /*!40000 ALTER TABLE `vouchers` DISABLE KEYS */;
-INSERT INTO `vouchers` VALUES (1,'GIFT2024-001',100000.00,'bronze',0.00,NULL,'fixed','Gift code $100k credits',NULL,1,NULL,'active','2026-01-27 04:20:51','2026-12-30 17:00:00',NULL,'2026-01-27 04:20:51','2026-02-14 06:42:32',NULL),(2,'REF-SIGN100',50000.00,'bronze',0.00,NULL,'fixed','Referral sign up reward',NULL,1,NULL,'active','2026-01-27 04:20:51','2026-12-26 17:00:00',NULL,'2026-01-27 04:20:51','2026-03-01 13:36:57',NULL),(3,'WELCOME-NEW',200000.00,'bronze',0.00,NULL,'fixed','Welcome new customer',NULL,1,NULL,'active','2026-01-27 04:20:51','2026-06-29 17:00:00',NULL,'2026-01-27 04:20:51','2026-02-14 06:38:49',NULL),(4,'TOAN',100000.00,'silver',0.00,NULL,'fixed','Qùa Sinh Nhật',NULL,1,NULL,'active','2026-03-01 13:38:09','2026-10-09 17:00:00',NULL,'2026-03-01 13:38:09','2026-03-01 13:38:09',NULL),(5,'THANHTOAN',100000.00,'silver',0.00,NULL,'fixed','TEST',NULL,1,NULL,'active','2026-03-01 14:17:46','2026-12-30 17:00:00',NULL,'2026-03-01 14:17:46','2026-03-01 14:20:33','2026-03-01 14:20:33'),(8,'ABCD',10000000.00,'bronze',0.00,NULL,'fixed','test',NULL,1,NULL,'active','2026-03-01 14:53:56','2026-12-30 17:00:00',NULL,'2026-03-01 14:53:56','2026-03-01 14:53:56',NULL);
+INSERT INTO `vouchers` VALUES (1,'GIFT2024-001',100000.00,'bronze',0.00,NULL,'fixed','Gift code $100k credits',NULL,1,NULL,'active','2026-01-27 04:20:51','2026-12-30 17:00:00',NULL,'2026-01-27 04:20:51','2026-02-14 06:42:32',NULL),(2,'REF-SIGN100',50000.00,'bronze',0.00,NULL,'fixed','Referral sign up reward',NULL,1,NULL,'active','2026-01-27 04:20:51','2026-12-26 17:00:00',NULL,'2026-01-27 04:20:51','2026-03-01 13:36:57',NULL),(3,'WELCOME-NEW',200000.00,'bronze',0.00,NULL,'fixed','Welcome new customer',NULL,1,NULL,'active','2026-01-27 04:20:51','2026-06-29 17:00:00',NULL,'2026-01-27 04:20:51','2026-02-14 06:38:49',NULL),(4,'TOAN',100000.00,'silver',0.00,NULL,'fixed','Qùa Sinh Nhật',NULL,1,NULL,'active','2026-03-01 13:38:09','2026-10-09 17:00:00',NULL,'2026-03-01 13:38:09','2026-03-01 13:38:09',NULL),(5,'THANHTOAN',100000.00,'silver',0.00,NULL,'fixed','TEST',NULL,1,NULL,'active','2026-03-01 14:17:46','2026-12-30 17:00:00',NULL,'2026-03-01 14:17:46','2026-03-01 14:20:33','2026-03-01 14:20:33'),(8,'ABCD',10000000.00,'bronze',0.00,NULL,'fixed','test',NULL,1,NULL,'active','2026-03-01 14:53:56','2026-12-30 17:00:00',NULL,'2026-03-01 14:53:56','2026-03-01 14:53:56',NULL),(9,'REDEEM50K',50000.00,'bronze',0.00,NULL,'fixed','Giảm 50K cho đơn hàng bất kỳ',NULL,1,NULL,'active','2026-03-06 02:04:59','2026-04-05 02:04:59',NULL,'2026-03-06 02:04:59','2026-03-06 02:19:07',NULL),(10,'REDEEM100K',100000.00,'bronze',0.00,NULL,'fixed','Giảm 100K cho đơn hàng bất kỳ',NULL,NULL,NULL,'active','2026-03-06 02:04:59','2026-04-05 02:04:59',NULL,'2026-03-06 02:04:59','2026-03-06 02:04:59',NULL),(11,'REDEEM10',10.00,'bronze',0.00,NULL,'percent','Giảm 10% cho đơn hàng bất kỳ',NULL,NULL,NULL,'active','2026-03-06 02:04:59','2026-04-05 02:04:59',NULL,'2026-03-06 02:04:59','2026-03-06 02:04:59',NULL);
 /*!40000 ALTER TABLE `vouchers` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -2869,4 +2689,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2026-03-04 18:39:43
+-- Dump completed on 2026-03-06 20:46:43

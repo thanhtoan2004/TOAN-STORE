@@ -11,11 +11,11 @@ export interface User {
   gender?: string;
   is_active?: number | string | boolean;
   is_verified?: number | string | boolean;
-  is_admin?: number | string | boolean;
   is_banned?: number | string | boolean;
   failed_login_attempts: number;
   lockout_until?: string | null;
-  accumulatedPoints?: number;
+  availablePoints?: number;
+  lifetimePoints?: number;
   membershipTier?: string;
   token_version: number;
   created_at?: string;
@@ -33,8 +33,8 @@ export interface UserWithoutPassword {
   gender?: string;
   isActive?: boolean;
   isVerified?: boolean;
-  is_admin?: boolean;
-  accumulatedPoints?: number;
+  availablePoints?: number;
+  lifetimePoints?: number;
   membershipTier?: string;
   created_at?: string;
   updated_at?: string;

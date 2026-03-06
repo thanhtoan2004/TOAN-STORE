@@ -46,7 +46,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
           return;
         }
         const data = await response.json();
-        const isAdmin = !!(data?.user?.is_admin === 1 || data?.user?.is_admin === true);
+        const isAdmin = !!(data?.user?.role === 'admin' || data?.user?.roleId);
         if (!isAdmin) {
           document.cookie = 'toan_admin_session=; Max-Age=0; path=/;';
           router.replace('/admin/login');
@@ -93,10 +93,11 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
               <Link
                 key={item.name}
                 href={item.href}
-                className={`block px-6 py-3 text-sm font-medium transition-colors ${isActive
-                  ? 'bg-gray-900 text-white border-l-4 border-white'
-                  : 'text-gray-300 hover:bg-gray-900 hover:text-white'
-                  }`}
+                className={`block px-6 py-3 text-sm font-medium transition-colors ${
+                  isActive
+                    ? 'bg-gray-900 text-white border-l-4 border-white'
+                    : 'text-gray-300 hover:bg-gray-900 hover:text-white'
+                }`}
               >
                 {item.name}
               </Link>
@@ -118,9 +119,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
 
       {/* Main Content */}
       <div className="ml-64">
-        <div className="py-6 px-8">
-          {children}
-        </div>
+        <div className="py-6 px-8">{children}</div>
       </div>
     </div>
   );

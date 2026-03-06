@@ -13,31 +13,34 @@ export async function GET() {
     const session = await verifyAuth();
 
     if (!session) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     // Lấy thông tin người dùng từ CSDL
-    const users = await executeQuery(
-      `SELECT id, email, first_name, last_name, phone, date_of_birth, gender, 
-              is_active, is_verified, is_admin, accumulated_points, membership_tier, 
+    const users = (await executeQuery(
+      `SELECT id, email, first_name, last_name, phone, phone_encrypted, is_encrypted,
+              date_of_birth, gender, 
+              is_active, is_verified, available_points, lifetime_points, membership_tier, 
               two_factor_enabled, avatar_url, email_notifications, sms_notifications, 
               sms_order_notifications, push_notifications, promo_notifications, 
               order_notifications, data_persistence, public_profile 
        FROM users WHERE id = ? AND deleted_at IS NULL`,
       [session.userId]
-    ) as any[];
+    )) as any[];
 
     if (users.length === 0) {
-      return NextResponse.json(
-        { error: 'Không tìm thấy người dùng' },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: 'Không tìm thấy người dùng' }, { status: 404 });
     }
 
     const user = users[0];
+
+    // Giải mã SĐT: Nếu is_encrypted=true thì decrypt cột phone_encrypted, không thì lấy phone gốc
+    const decryptedPhone =
+      user.is_encrypted && user.phone_encrypted
+        ? decrypt(user.phone_encrypted)
+        : user.phone !== '***'
+          ? user.phone
+          : '';
 
     return NextResponse.json({
       user: {
@@ -45,15 +48,18 @@ export async function GET() {
         email: user.email,
         firstName: user.first_name,
         lastName: user.last_name,
-        phone: decrypt(user.phone),
+        phone: decryptedPhone,
         dateOfBirth: user.date_of_birth,
         gender: user.gender,
         isActive: user.is_active,
         isVerified: user.is_verified,
-        is_admin: user.is_admin,
-        accumulatedPoints: user.accumulated_points || 0,
+        availablePoints: user.available_points || 0,
+        lifetimePoints: user.lifetime_points || 0,
         membershipTier: user.membership_tier || 'bronze',
-        two_factor_enabled: user.two_factor_enabled === 1 || user.two_factor_enabled === '1' || user.two_factor_enabled === true,
+        two_factor_enabled:
+          user.two_factor_enabled === 1 ||
+          user.two_factor_enabled === '1' ||
+          user.two_factor_enabled === true,
         avatarUrl: user.avatar_url,
         email_notifications: !!user.email_notifications,
         sms_notifications: !!user.sms_notifications,
@@ -62,14 +68,11 @@ export async function GET() {
         promo_notifications: !!user.promo_notifications,
         order_notifications: !!user.order_notifications,
         data_persistence: !!user.data_persistence,
-        public_profile: !!user.public_profile
-      }
+        public_profile: !!user.public_profile,
+      },
     });
   } catch (error) {
     console.error('Lỗi xác thực người dùng:', error);
-    return NextResponse.json(
-      { error: 'Phiên đăng nhập không hợp lệ' },
-      { status: 401 }
-    );
+    return NextResponse.json({ error: 'Phiên đăng nhập không hợp lệ' }, { status: 401 });
   }
-} 
+}

@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { executeQuery } from '@/lib/db/mysql';
 import { checkAdminAuth, verifyAuth } from '@/lib/auth';
 
+export const dynamic = 'force-dynamic';
+
 // GET - Lấy danh sách reviews của sản phẩm
 /**
  * API Lấy danh sách đánh giá của sản phẩm.
@@ -28,7 +30,7 @@ export async function GET(request: NextRequest) {
 
       const status = statusParam || 'pending';
       const reviews = await executeQuery<any[]>(
-        `SELECT r.*, u.full_name as user_name, u.avatar_url as user_avatar, p.name as product_name,
+        `SELECT r.*, TRIM(CONCAT(COALESCE(u.first_name, ''), ' ', COALESCE(u.last_name, ''))) as user_name, u.avatar_url as user_avatar, p.name as product_name,
          (SELECT url FROM product_images WHERE product_id = p.id AND is_main = 1 LIMIT 1) as product_image
          FROM product_reviews r
          LEFT JOIN users u ON r.user_id = u.id
@@ -112,7 +114,7 @@ export async function GET(request: NextRequest) {
       `SELECT 
          r.id, r.product_id, r.user_id, r.rating, r.title, r.comment, 
          r.admin_reply, r.created_at, r.is_verified_purchase, r.helpful_count,
-         u.full_name as user_name, u.email as user_email, u.avatar_url as user_avatar
+         TRIM(CONCAT(COALESCE(u.first_name, ''), ' ', COALESCE(u.last_name, ''))) as user_name, u.email as user_email, u.avatar_url as user_avatar
        FROM product_reviews r
        LEFT JOIN users u ON r.user_id = u.id
        WHERE r.product_id = ? AND r.status = 'approved'
