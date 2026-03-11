@@ -37,8 +37,8 @@ interface Product {
   category: string;
   price: number;
   sale_price?: number;
-  base_price?: number;
-  retail_price?: number;
+  price_cache?: number;
+  msrp_price?: number;
   image_url: string;
   description?: string;
   is_new_arrival: boolean;
@@ -221,10 +221,10 @@ export default function ProductDetailClient({
           slug: (product as any).slug || String(product.id),
           name: product.name,
           category: product.category,
-          price: product.retail_price || product.price,
+          price: product.msrp_price || product.price,
           sale_price:
-            product.base_price && product.retail_price && product.base_price < product.retail_price
-              ? product.base_price
+            product.price_cache && product.msrp_price && product.price_cache < product.msrp_price
+              ? product.price_cache
               : undefined,
           image_url: product.image_url,
           is_new_arrival: product.is_new_arrival,
@@ -287,12 +287,12 @@ export default function ProductDetailClient({
   const activeProduct = product || productData;
 
   // Xác định giá hiển thị
-  const displayPrice = activeProduct.retail_price || activeProduct.price || 0;
+  const displayPrice = activeProduct.msrp_price || activeProduct.price || 0;
   const salePrice =
-    activeProduct.base_price &&
-    activeProduct.retail_price &&
-    activeProduct.base_price < activeProduct.retail_price
-      ? activeProduct.base_price
+    activeProduct.price_cache &&
+    activeProduct.msrp_price &&
+    activeProduct.price_cache < activeProduct.msrp_price
+      ? activeProduct.price_cache
       : activeProduct.sale_price;
 
   const discountPercent =
@@ -325,7 +325,7 @@ export default function ProductDetailClient({
           slug: activeProduct.slug,
           name: activeProduct.name,
           category: activeProduct.category,
-          price: activeProduct.retail_price || activeProduct.price,
+          price: activeProduct.msrp_price || activeProduct.price,
           sale_price: salePrice,
           image_url: activeProduct.image_url,
           is_new_arrival: activeProduct.is_new_arrival,
@@ -351,8 +351,8 @@ export default function ProductDetailClient({
         slug: activeProduct.slug,
         name: activeProduct.name,
         category: activeProduct.category,
-        price: activeProduct.retail_price || activeProduct.price,
-        retail_price: activeProduct.retail_price,
+        price: activeProduct.msrp_price || activeProduct.price,
+        msrp_price: activeProduct.msrp_price,
         sale_price: salePrice,
         image_url: activeProduct.image_url,
         is_new_arrival: activeProduct.is_new_arrival,
@@ -1387,8 +1387,8 @@ function ProductPrintSection({
           </div>
 
           <div className="text-2xl font-bold text-black border-y border-gray-100 py-4">
-            {product.retail_price || product.price
-              ? formatCurrency(product.retail_price || product.price)
+            {product.msrp_price || product.price
+              ? formatCurrency(product.msrp_price || product.price)
               : 'Liên hệ'}
           </div>
 

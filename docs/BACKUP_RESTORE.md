@@ -40,6 +40,7 @@ echo "✅ Backup completed: ${DB_NAME}_${TIMESTAMP}.sql.gz"
 ## Docker Backup
 
 ### MySQL Container
+
 ```bash
 # Backup
 docker exec toan-store-db mysqldump -u root toan_store | gzip > backup_$(date +%F).sql.gz
@@ -49,6 +50,7 @@ gunzip < backup_2026-03-04.sql.gz | docker exec -i toan-store-db mysql -u root t
 ```
 
 ### Redis Container
+
 ```bash
 # Backup (RDB snapshot)
 docker exec toan-store-redis redis-cli BGSAVE
@@ -60,6 +62,7 @@ docker restart toan-store-redis
 ```
 
 ### Meilisearch
+
 ```bash
 # Backup (dump)
 curl -X POST 'http://localhost:7700/dumps' -H 'Authorization: Bearer masterKey'
@@ -73,27 +76,32 @@ curl -X POST 'http://localhost:7700/snapshots' -H 'Authorization: Bearer masterK
 ## Manual Restore
 
 ### Step 1: Stop Application
+
 ```bash
 docker compose stop app  # Nếu dùng Docker
 pm2 stop toan-store      # Nếu dùng PM2
 ```
 
 ### Step 2: Restore MySQL
+
 ```bash
 mysql -u root -p toan_store < backup_file.sql
 ```
 
 ### Step 3: Verify Data
+
 ```bash
 mysql -u root -p toan_store -e "SELECT COUNT(*) FROM users; SELECT COUNT(*) FROM orders; SELECT COUNT(*) FROM products;"
 ```
 
 ### Step 4: Re-sync Meilisearch
+
 ```bash
 npm run meilisearch:sync
 ```
 
 ### Step 5: Start Application
+
 ```bash
 docker compose up -d app
 pm2 start toan-store
@@ -101,16 +109,22 @@ pm2 start toan-store
 
 ---
 
-## Backup Checklist
-
-| Item | Frequency | Retention |
-|------|-----------|-----------|
-| MySQL Full Dump | Daily 2:00 AM | 30 days |
-| MySQL Binlog | Real-time | 7 days |
-| Redis RDB | Every 6 hours | 7 days |
-| Meilisearch Dump | Weekly | 4 weeks |
-| `.env` secrets | On change | Encrypted vault |
 | Cloudinary images | N/A | Managed by Cloudinary |
+
+## 🧪 Restore Verification Checklist
+
+Để đảm bảo RPO và RTO, quy trình phục hồi phải được kiểm tra định kỳ trong môi trường biệt lập (Staging/Isolated):
+
+- [ ] **Monthly Test Restore**: Thực hiện restore bản backup gần nhất vào DB Staging.
+- [ ] **Row Count Validation**: So sánh số lượng record giữa Production và Staging (users, orders, products).
+- [ ] **PII Decryption Check**: Xác nhận dữ liệu nhạy cảm (email, phone) có thể giải mã bằng `ENCRYPTION_KEY` của môi trường mới.
+- [ ] **Triggers & Procedures**: Kiểm tra các Triggers (metrics, logs) và Stored Procedures hoạt động chính xác.
+- [ ] **Data Integrity**: Kiểm tra các quan hệ Foreign Key không bị mồ côi (orphaned cases).
+- [ ] **App Connection**: Đảm bảo ứng dụng (Staging) có thể kết nối và truy vấn bình thường sau restore.
+- [ ] **RTO Benchmarking**: Ghi lại thời gian thực hiện phục hồi (Mục tiêu < 30 phút).
+
+> [!IMPORTANT]
+> Không bao giờ thực hiện kiểm tra restore trực tiếp lên Database Production. Always use an isolated instance.
 
 ## Disaster Recovery
 

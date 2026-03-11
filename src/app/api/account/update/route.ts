@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { executeQuery } from '@/lib/db/mysql';
 import { verifyAuth } from '@/lib/auth';
-import { encrypt } from '@/lib/encryption';
+import { encrypt, decrypt } from '@/lib/encryption';
 
 /**
  * API Cập nhật thông tin cá nhân (Profile Update).
@@ -54,8 +54,8 @@ export async function PUT(request: NextRequest) {
     }
 
     if (dateOfBirth !== undefined) {
-      updates.push('date_of_birth = ?');
-      values.push(dateOfBirth || null);
+      updates.push(`date_of_birth = '0001-01-01'`, 'date_of_birth_encrypted = ?');
+      values.push(dateOfBirth ? encrypt(dateOfBirth) : null);
     }
     if (gender !== undefined) {
       updates.push('gender = ?');
@@ -101,14 +101,44 @@ export async function PUT(request: NextRequest) {
 
     if (updates.length > 0) {
       updates.push('updated_at = CURRENT_TIMESTAMP');
-      values.push(session.userId); // For WHERE id = ?
+      values.push(session.userId);
 
       await executeQuery(`UPDATE users SET ${updates.join(', ')} WHERE id = ?`, values);
     }
 
+    // Lấy thông tin đã cập nhật để trả về (đảm bảo frontend đồng bộ)
+    const users = (await executeQuery(
+      `SELECT id, email, email_encrypted, first_name, last_name, phone, phone_encrypted, is_encrypted,
+              avatar_url, gender, date_of_birth, available_points, membership_tier
+       FROM users WHERE id = ?`,
+      [session.userId]
+    )) as any[];
+
+    const user = users[0];
+
     return NextResponse.json({
       success: true,
       message: 'Cập nhật thông tin thành công',
+      user: user
+        ? {
+            id: user.id,
+            email:
+              user.is_encrypted && user.email_encrypted
+                ? decrypt(user.email_encrypted)
+                : user.email,
+            firstName: user.first_name,
+            lastName: user.last_name,
+            phone:
+              user.is_encrypted && user.phone_encrypted
+                ? decrypt(user.phone_encrypted)
+                : user.phone,
+            gender: user.gender,
+            dateOfBirth: user.date_of_birth,
+            avatarUrl: user.avatar_url,
+            availablePoints: user.available_points || 0,
+            membershipTier: user.membership_tier || 'bronze',
+          }
+        : null,
     });
   } catch (error) {
     console.error('Lỗi cập nhật thông tin:', error);

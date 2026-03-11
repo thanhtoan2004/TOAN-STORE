@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { executeQuery } from '@/lib/db/mysql';
 import { checkAdminAuth } from '@/lib/auth';
 import { logAdminAction } from '@/lib/audit';
+import { hashEmail, decrypt } from '@/lib/encryption';
 
 /**
  * API Lấy danh sách Voucher (Mã giảm giá cá nhân).
@@ -21,7 +22,8 @@ export async function GET(request: NextRequest) {
 
     const vouchers = (await executeQuery(
       `SELECT v.id, v.code, v.value, v.discount_type, v.description, v.status,
-              v.recipient_user_id, u.email as recipient_email, v.redeemed_by_user_id, 
+              v.recipient_user_id, u.email_encrypted as recipient_email_enc, u.is_encrypted as u_enc,
+              v.redeemed_by_user_id, 
               v.min_order_value, v.applicable_categories, v.applicable_tier,
               v.valid_from, v.valid_until, v.redeemed_at, v.created_at, v.updated_at
        FROM vouchers v
@@ -31,6 +33,13 @@ export async function GET(request: NextRequest) {
       [limit, offset]
     )) as any[];
 
+    // Decrypt emails for display
+    const processedVouchers = vouchers.map((v) => ({
+      ...v,
+      recipient_email:
+        v.u_enc && v.recipient_email_enc ? decrypt(v.recipient_email_enc) : v.recipient_email,
+    }));
+
     const [countRow] = (await executeQuery(
       `SELECT COUNT(*) as total FROM vouchers WHERE deleted_at IS NULL`
     )) as any[];
@@ -39,7 +48,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      data: vouchers,
+      data: processedVouchers,
       pagination: {
         page,
         limit,
@@ -105,8 +114,9 @@ export async function POST(request: NextRequest) {
     // Validate and lookup recipient_email if provided
     let targetUserId = null;
     if (recipient_email) {
-      const userResult = (await executeQuery('SELECT id FROM users WHERE email = ?', [
-        recipient_email,
+      const emailHash = hashEmail(recipient_email);
+      const userResult = (await executeQuery('SELECT id FROM users WHERE email_hash = ?', [
+        emailHash,
       ])) as any[];
       if (userResult.length === 0) {
         return NextResponse.json(
@@ -309,8 +319,9 @@ export async function PUT(request: NextRequest) {
     let targetUserId = undefined; // Use undefined to check if it was even passed
     if (recipient_email !== undefined) {
       if (recipient_email) {
-        const userResult = (await executeQuery('SELECT id FROM users WHERE email = ?', [
-          recipient_email,
+        const emailHash = hashEmail(recipient_email);
+        const userResult = (await executeQuery('SELECT id FROM users WHERE email_hash = ?', [
+          emailHash,
         ])) as any[];
         if (userResult.length === 0) {
           return NextResponse.json(
@@ -436,9 +447,11 @@ export async function PUT(request: NextRequest) {
         const { sendVoucherReceivedEmail } = await import('@/lib/mail');
 
         // Fetch full name to use as greeting
-        const userDetails = (await executeQuery('SELECT full_name FROM users WHERE email = ?', [
-          recipient_email,
-        ])) as any[];
+        const emailHash = hashEmail(recipient_email);
+        const userDetails = (await executeQuery(
+          'SELECT full_name FROM users WHERE email_hash = ?',
+          [emailHash]
+        )) as any[];
         const recipientName =
           userDetails[0]?.full_name?.trim().split(' ')[0] || recipient_email.split('@')[0];
 

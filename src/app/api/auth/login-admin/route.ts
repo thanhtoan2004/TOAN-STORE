@@ -5,6 +5,7 @@ import { executeQuery } from '@/lib/db/mysql';
 import { cookies } from 'next/headers';
 import { User, UserWithoutPassword, LoginRequest, AuthResponse } from '@/types/auth';
 import { ADMIN_TOKEN, getJwtSecret } from '@/lib/auth';
+import { hashEmail } from '@/lib/encryption';
 
 /**
  * API Đăng nhập dành riêng cho quản trị viên (Admin).
@@ -14,10 +15,13 @@ export async function POST(req: Request) {
   try {
     const { email, password }: LoginRequest = await req.json();
 
-    // Tìm người dùng theo email trong bảng admin_users
+    // Hăm email để tìm kiếm (PII Blind Index)
+    const emailHash = hashEmail(email);
+
+    // Tìm người dùng theo email_hash trong bảng admin_users
     const users = (await executeQuery(
-      'SELECT * FROM admin_users WHERE email = ? AND is_active = 1',
-      [email]
+      'SELECT * FROM admin_users WHERE email_hash = ? AND is_active = 1',
+      [emailHash]
     )) as any[];
 
     if (users.length === 0) {

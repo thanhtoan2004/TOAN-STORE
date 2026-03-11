@@ -4,7 +4,7 @@ import { executeQuery } from '@/lib/db/mysql';
 import { RegisterRequest, User } from '@/types/auth';
 import { sendWelcomeEmail } from '@/lib/mail';
 import { withRateLimit } from '@/lib/with-rate-limit';
-import { encrypt } from '@/lib/encryption';
+import { encrypt, hashEmail } from '@/lib/encryption';
 
 /**
  * API Đăng ký tài khoản người mới.
@@ -34,44 +34,46 @@ async function registerHandler(req: Request) {
     }
 
     // Sanitize text inputs (strip HTML tags)
-    const sanitize = (str: string | null) => str ? str.replace(/<[^>]*>/g, '').trim() : null;
+    const sanitize = (str: string | null) => (str ? str.replace(/<[^>]*>/g, '').trim() : null);
 
-    // Kiểm tra email đã tồn tại chưa
-    const existingUser = await executeQuery(
-      'SELECT * FROM users WHERE email = ? AND deleted_at IS NULL',
-      [email.toLowerCase().trim()]
-    ) as User[];
+    // Check if email hash already exists
+    const emailHash = hashEmail(email);
+    const existingUser = (await executeQuery(
+      'SELECT * FROM users WHERE email_hash = ? AND deleted_at IS NULL',
+      [emailHash]
+    )) as User[];
 
     if (existingUser.length > 0) {
-      return NextResponse.json(
-        { error: 'Email đã được sử dụng' },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: 'Email đã được sử dụng' }, { status: 400 });
     }
 
     // Mã hóa mật khẩu
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // Thêm người dùng mới vào CSDL (Mặc định is_active = 1)
+    // Save user with email_hash and email_encrypted
     await executeQuery(
-      'INSERT INTO users (email, password, first_name, last_name, phone, date_of_birth, gender, is_active) VALUES (?, ?, ?, ?, ?, ?, ?, 1)',
-      [email.toLowerCase().trim(), hashedPassword, sanitize(firstName), sanitize(lastName), encrypt(phone || null), dateOfBirth || null, gender || null]
+      'INSERT INTO users (email, email_hash, email_encrypted, password, first_name, last_name, phone, date_of_birth, gender, is_active, is_encrypted) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, TRUE)',
+      [
+        '***',
+        emailHash,
+        encrypt(email.toLowerCase().trim()),
+        hashedPassword,
+        sanitize(firstName),
+        sanitize(lastName),
+        encrypt(phone || null),
+        dateOfBirth || null,
+        gender || null,
+      ]
     );
 
     // Gửi email chào mừng
     const fullName = [firstName, lastName].filter(Boolean).join(' ') || 'Member';
     sendWelcomeEmail(email, fullName).catch(console.error);
 
-    return NextResponse.json(
-      { success: true, message: 'Đăng ký thành công' },
-      { status: 201 }
-    );
+    return NextResponse.json({ success: true, message: 'Đăng ký thành công' }, { status: 201 });
   } catch (error) {
     console.error('Lỗi đăng ký:', error);
-    return NextResponse.json(
-      { error: 'Đã xảy ra lỗi khi đăng ký' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Đã xảy ra lỗi khi đăng ký' }, { status: 500 });
   }
 }
 

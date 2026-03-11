@@ -18,7 +18,7 @@ export async function GET() {
 
     // Lấy thông tin người dùng từ CSDL
     const users = (await executeQuery(
-      `SELECT id, email, first_name, last_name, phone, phone_encrypted, is_encrypted,
+      `SELECT id, email, email_encrypted, first_name, last_name, phone, phone_encrypted, is_encrypted,
               date_of_birth, gender, 
               is_active, is_verified, available_points, lifetime_points, membership_tier, 
               two_factor_enabled, avatar_url, email_notifications, sms_notifications, 
@@ -34,6 +34,14 @@ export async function GET() {
 
     const user = users[0];
 
+    // Giải mã Email if encrypted
+    const decryptedEmail =
+      user.is_encrypted && user.email_encrypted
+        ? decrypt(user.email_encrypted)
+        : user.email !== '***'
+          ? user.email
+          : '';
+
     // Giải mã SĐT: Nếu is_encrypted=true thì decrypt cột phone_encrypted, không thì lấy phone gốc
     const decryptedPhone =
       user.is_encrypted && user.phone_encrypted
@@ -45,7 +53,7 @@ export async function GET() {
     return NextResponse.json({
       user: {
         id: user.id,
-        email: user.email,
+        email: decryptedEmail,
         firstName: user.first_name,
         lastName: user.last_name,
         phone: decryptedPhone,

@@ -1,11 +1,12 @@
 import { NextRequest } from 'next/server';
 import { checkAdminAuth } from '@/lib/auth';
-import { decrypt } from '@/lib/encryption';
+import { encrypt, decrypt } from '@/lib/encryption';
 import { db } from '@/lib/db/drizzle';
 import { users as usersSchema } from '@/lib/db/schema';
 import { eq, and, sql, desc, count } from 'drizzle-orm';
 import { ResponseWrapper } from '@/lib/api-response';
 import { logger } from '@/lib/logger';
+import { logAdminAction } from '@/lib/audit';
 
 // GET - Lấy danh sách users (Admin)
 /**
@@ -100,17 +101,35 @@ export async function PUT(request: NextRequest) {
       'phone',
       'isActive',
       'isVerified',
+      'isBanned',
       'membershipTier',
     ];
+
     const filteredUpdates: any = {};
+    let shouldRevokeTokens = false;
+
     Object.keys(updates).forEach((key) => {
       if (allowedFields.includes(key)) {
-        filteredUpdates[key] = updates[key];
+        if (key === 'phone') {
+          filteredUpdates.phone = '***';
+          filteredUpdates.phoneEncrypted = encrypt(updates[key]);
+          filteredUpdates.isEncrypted = 1;
+        } else {
+          filteredUpdates[key] = updates[key];
+        }
+
+        if (key === 'isActive' || key === 'isBanned') {
+          shouldRevokeTokens = true;
+        }
       }
     });
 
     if (Object.keys(filteredUpdates).length === 0) {
       return ResponseWrapper.error('No valid fields to update', 400);
+    }
+
+    if (shouldRevokeTokens) {
+      filteredUpdates.tokenVersion = sql`${usersSchema.tokenVersion} + 1`;
     }
 
     await db
@@ -120,6 +139,22 @@ export async function PUT(request: NextRequest) {
         updatedAt: sql`CURRENT_TIMESTAMP`,
       })
       .where(eq(usersSchema.id, id));
+
+    const [updatedUser] = await db
+      .select()
+      .from(usersSchema)
+      .where(eq(usersSchema.id, id))
+      .limit(1);
+
+    await logAdminAction(
+      admin.userId,
+      'UPDATE_USER',
+      'users',
+      id,
+      null, // old value not easily available here
+      filteredUpdates,
+      request
+    );
 
     return ResponseWrapper.success(null, 'User updated successfully');
   } catch (error) {
@@ -147,8 +182,19 @@ export async function DELETE(request: NextRequest) {
       .set({
         deletedAt: sql`CURRENT_TIMESTAMP`,
         isActive: 0,
+        tokenVersion: sql`${usersSchema.tokenVersion} + 1`,
       })
       .where(eq(usersSchema.id, Number(id)));
+
+    await logAdminAction(
+      admin.userId,
+      'SOFT_DELETE_USER',
+      'users',
+      id,
+      null,
+      { deleted: true },
+      request
+    );
 
     return ResponseWrapper.success(null, 'Người dùng đã được xóa tạm thời (Soft Deleted)');
   } catch (error) {

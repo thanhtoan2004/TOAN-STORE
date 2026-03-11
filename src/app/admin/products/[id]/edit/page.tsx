@@ -10,8 +10,8 @@ interface ProductFormData {
   name: string;
   sku: string;
   description: string;
-  base_price: number;
-  retail_price: number;
+  price_cache: number;
+  msrp_price: number;
   category_id: number;
   brand_id: number;
   is_new_arrival: boolean;
@@ -33,8 +33,8 @@ export default function EditProductPage() {
     name: '',
     sku: '',
     description: '',
-    base_price: 0,
-    retail_price: 0,
+    price_cache: 0,
+    msrp_price: 0,
     category_id: 1,
     brand_id: 1,
     is_new_arrival: false,
@@ -54,7 +54,6 @@ export default function EditProductPage() {
 
         if (result.success || response.ok) {
           const product = result.data || result;
-
 
           // Extract image URL from various sources
           let imageUrl = '';
@@ -77,7 +76,7 @@ export default function EditProductPage() {
               if (img.is_main === 0) {
                 galleryData.push({
                   url: img.url,
-                  type: img.media_type || 'image'
+                  type: img.media_type || 'image',
                 });
               }
             });
@@ -91,8 +90,8 @@ export default function EditProductPage() {
             name: product.name || '',
             sku: product.sku || '',
             description: product.description || '',
-            base_price: product.base_price || 0,
-            retail_price: product.retail_price || 0,
+            price_cache: product.price_cache || 0,
+            msrp_price: product.msrp_price || 0,
             category_id: product.category_id || 1,
             brand_id: product.brand_id || 1,
             is_new_arrival: product.is_new_arrival === 1 || product.is_new_arrival === true,
@@ -113,23 +112,25 @@ export default function EditProductPage() {
     fetchProduct();
   }, [productId]);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+  const handleChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
+  ) => {
     const { name, value, type } = e.target;
 
     if (type === 'checkbox') {
-      setFormData(prev => ({
+      setFormData((prev) => ({
         ...prev,
-        [name]: (e.target as HTMLInputElement).checked
+        [name]: (e.target as HTMLInputElement).checked,
       }));
     } else if (type === 'number') {
-      setFormData(prev => ({
+      setFormData((prev) => ({
         ...prev,
-        [name]: parseFloat(value)
+        [name]: parseFloat(value),
       }));
     } else {
-      setFormData(prev => ({
+      setFormData((prev) => ({
         ...prev,
-        [name]: value
+        [name]: value,
       }));
     }
   };
@@ -137,19 +138,19 @@ export default function EditProductPage() {
   const handleGalleryUpdate = (index: number, url: string, type: 'image' | 'video') => {
     const newGallery = [...formData.gallery_images];
     newGallery[index] = { url, type };
-    setFormData(prev => ({ ...prev, gallery_images: newGallery }));
+    setFormData((prev) => ({ ...prev, gallery_images: newGallery }));
   };
 
   const addGalleryImage = () => {
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
-      gallery_images: [...prev.gallery_images, { url: '', type: 'image' }]
+      gallery_images: [...prev.gallery_images, { url: '', type: 'image' }],
     }));
   };
 
   const removeGalleryImage = (index: number) => {
     const newGallery = formData.gallery_images.filter((_, i) => i !== index);
-    setFormData(prev => ({ ...prev, gallery_images: newGallery }));
+    setFormData((prev) => ({ ...prev, gallery_images: newGallery }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -162,13 +163,13 @@ export default function EditProductPage() {
       const submissionData = {
         ...formData,
         is_new_arrival: formData.is_new_arrival ? 1 : 0,
-        is_active: formData.is_active ? 1 : 0
+        is_active: formData.is_active ? 1 : 0,
       };
 
       const response = await fetch(`/api/admin/products/${productId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(submissionData)
+        body: JSON.stringify(submissionData),
       });
 
       const result = await response.json();
@@ -226,9 +227,7 @@ export default function EditProductPage() {
           <form onSubmit={handleSubmit} className="space-y-6">
             {/* Tên sản phẩm */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Tên sản phẩm *
-              </label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Tên sản phẩm *</label>
               <input
                 type="text"
                 name="name"
@@ -241,9 +240,7 @@ export default function EditProductPage() {
 
             {/* SKU */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                SKU *
-              </label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">SKU *</label>
               <input
                 type="text"
                 name="sku"
@@ -256,9 +253,7 @@ export default function EditProductPage() {
 
             {/* Mô tả */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Mô tả
-              </label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Mô tả</label>
               <textarea
                 name="description"
                 value={formData.description}
@@ -276,8 +271,8 @@ export default function EditProductPage() {
                 </label>
                 <input
                   type="number"
-                  name="base_price"
-                  value={formData.base_price}
+                  name="price_cache"
+                  value={formData.price_cache}
                   onChange={handleChange}
                   required
                   step="0.01"
@@ -291,8 +286,8 @@ export default function EditProductPage() {
                 </label>
                 <input
                   type="number"
-                  name="retail_price"
-                  value={formData.retail_price}
+                  name="msrp_price"
+                  value={formData.msrp_price}
                   onChange={handleChange}
                   step="0.01"
                   min="0"
@@ -304,9 +299,7 @@ export default function EditProductPage() {
             {/* Danh mục và Brand */}
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Danh mục *
-                </label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Danh mục *</label>
                 <select
                   name="category_id"
                   value={formData.category_id}
@@ -323,9 +316,7 @@ export default function EditProductPage() {
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Brand *
-                </label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Brand *</label>
                 <select
                   name="brand_id"
                   value={formData.brand_id}
@@ -349,8 +340,12 @@ export default function EditProductPage() {
                   label="Ảnh/Video chính *"
                   initialUrl={formData.image_url}
                   initialType={formData.main_media_type || 'image'}
-                  onUploadComplete={(url, type) => setFormData(prev => ({ ...prev, image_url: url, main_media_type: type }))}
-                  onRemove={() => setFormData(prev => ({ ...prev, image_url: '', main_media_type: 'image' }))}
+                  onUploadComplete={(url, type) =>
+                    setFormData((prev) => ({ ...prev, image_url: url, main_media_type: type }))
+                  }
+                  onRemove={() =>
+                    setFormData((prev) => ({ ...prev, image_url: '', main_media_type: 'image' }))
+                  }
                 />
               </div>
 
@@ -371,7 +366,10 @@ export default function EditProductPage() {
 
                 <div className="space-y-4">
                   {formData.gallery_images.map((item, index) => (
-                    <div key={index} className="flex flex-col gap-2 p-3 bg-white rounded border border-gray-200">
+                    <div
+                      key={index}
+                      className="flex flex-col gap-2 p-3 bg-white rounded border border-gray-200"
+                    >
                       <AdminMediaUpload
                         label={`Ảnh phụ ${index + 1}`}
                         initialUrl={typeof item === 'string' ? item : item.url}

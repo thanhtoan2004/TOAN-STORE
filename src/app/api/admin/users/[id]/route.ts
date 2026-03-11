@@ -3,6 +3,7 @@ import { executeQuery } from '@/lib/db/mysql';
 
 import { checkAdminAuth } from '@/lib/auth';
 import { encrypt, decrypt } from '@/lib/encryption';
+import { logAdminAction } from '@/lib/audit';
 
 // PATCH /api/admin/users/[id] - Update user (admin role, status, etc.)
 /**
@@ -28,7 +29,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
 
     // Build dynamic update query based on provided fields
     if (body.is_active !== undefined) {
-      updates.push('is_active = ?');
+      updates.push('is_active = ?', 'token_version = token_version + 1');
       values.push(body.is_active ? 1 : 0);
     }
 
@@ -43,12 +44,12 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     }
 
     if (body.phone !== undefined) {
-      updates.push('phone = ?');
-      values.push(encrypt(body.phone));
+      updates.push('phone = ?', 'phone_encrypted = ?', 'is_encrypted = TRUE');
+      values.push('***', encrypt(body.phone));
     }
 
     if (body.is_banned !== undefined) {
-      updates.push('is_banned = ?');
+      updates.push('is_banned = ?', 'token_version = token_version + 1');
       values.push(body.is_banned ? 1 : 0);
     }
 
@@ -64,6 +65,8 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       `UPDATE users SET ${updates.join(', ')}, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
       values
     );
+
+    await logAdminAction(admin.userId, 'PATCH_USER', 'users', userId, null, body, request);
 
     const [user]: any = (await executeQuery(
       'SELECT id, email, first_name, last_name, phone, is_active, is_banned, created_at FROM users WHERE id = ?',
@@ -109,8 +112,18 @@ export async function DELETE(
 
     // Soft delete
     await executeQuery(
-      'UPDATE users SET deleted_at = CURRENT_TIMESTAMP, is_active = 0, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+      'UPDATE users SET deleted_at = CURRENT_TIMESTAMP, is_active = 0, token_version = token_version + 1, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
       [userId]
+    );
+
+    await logAdminAction(
+      admin.userId,
+      'SOFT_DELETE_USER',
+      'users',
+      userId,
+      null,
+      { deleted: true },
+      request
     );
 
     return NextResponse.json({

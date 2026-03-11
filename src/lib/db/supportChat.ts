@@ -1,5 +1,6 @@
 import { pool } from './mysql';
 import { randomUUID } from 'crypto';
+import { hashEmail } from '../encryption';
 
 // ==================== SUPPORT CHAT FUNCTIONS ====================
 
@@ -28,10 +29,11 @@ export async function createSupportChat(data: {
     const accessToken = randomUUID();
 
     // Create chat session
+    const guestEmailHash = data.guestEmail ? hashEmail(data.guestEmail) : null;
     const [result]: any = await connection.execute(
-      `INSERT INTO support_chats (user_id, guest_email, guest_name, status, access_token, last_message_at)
-       VALUES (?, ?, ?, 'waiting', ?, NOW())`,
-      [data.userId || null, data.guestEmail || null, data.guestName || null, accessToken]
+      `INSERT INTO support_chats (user_id, guest_email, guest_email_hash, guest_name, status, access_token, last_message_at)
+       VALUES (?, ?, ?, ?, 'waiting', ?, NOW())`,
+      [data.userId || null, '***', guestEmailHash, data.guestName || null, accessToken]
     );
 
     const chatId = result.insertId;
@@ -96,12 +98,13 @@ export async function getUserActiveChat(userId: number): Promise<any> {
  * Get guest's active chat by email
  */
 export async function getGuestActiveChat(email: string): Promise<any> {
+  const emailHash = hashEmail(email);
   const [rows]: any = await pool.execute(
     `SELECT * FROM support_chats
-     WHERE guest_email = ? AND status IN ('waiting', 'active')
+     WHERE guest_email_hash = ? AND status IN ('waiting', 'active')
      ORDER BY created_at DESC
      LIMIT 1`,
-    [email]
+    [emailHash]
   );
 
   return rows[0] || null;

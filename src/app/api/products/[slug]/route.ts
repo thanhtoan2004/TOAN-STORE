@@ -9,10 +9,7 @@ import { getCache, setCache } from '@/lib/cache';
  * - Tính toán trạng thái In-Stock và các size khả dụng thực tế.
  * - Caching: Lưu kết quả vào Redis trong 1 giờ để tối ưu tốc độ tải trang.
  */
-export async function GET(
-  request: NextRequest,
-  { params }: { params: Promise<{ slug: string }> }
-) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ slug: string }> }) {
   try {
     const { slug } = await params;
 
@@ -35,10 +32,7 @@ export async function GET(
     }
 
     if (!product) {
-      return NextResponse.json(
-        { success: false, error: 'Product not found' },
-        { status: 404 }
-      );
+      return NextResponse.json({ success: false, error: 'Product not found' }, { status: 404 });
     }
 
     const productId = product.id;
@@ -52,29 +46,32 @@ export async function GET(
         'SELECT id, url, alt_text, position, is_main, media_type FROM product_images WHERE product_id = ? ORDER BY position',
         [productId]
       ),
-      getProductAttributes(productId)
+      getProductAttributes(productId),
     ]);
 
     // Calculate available stock
-    const availableSizes = sizes.filter((s: any) => (s.stock - s.reserved) > 0 || s.allow_backorder === 1);
+    const availableSizes = sizes.filter(
+      (s: any) => s.stock - s.reserved > 0 || s.allow_backorder === 1
+    );
 
     const response = {
       success: true,
       data: {
         ...product,
-        base_price: product.base_price ? parseFloat(product.base_price) : 0,
-        retail_price: product.retail_price ? parseFloat(product.retail_price) : 0,
+        price_cache: product.price_cache ? parseFloat(product.price_cache) : 0,
+        msrp_price: product.msrp_price ? parseFloat(product.msrp_price) : 0,
         sizes: sizes.map((s: any) => ({
           ...s,
           available: (s.stock || 0) - (s.reserved || 0),
-          sku: s.sku
+          sku: s.sku,
         })),
         images: images,
         attributes: attributes,
-        image_url: images.find((img: any) => img.is_main)?.url || images[0]?.url || '/placeholder.png',
+        image_url:
+          images.find((img: any) => img.is_main)?.url || images[0]?.url || '/placeholder.png',
         availableSizes: availableSizes.map((s: any) => s.size),
-        inStock: availableSizes.length > 0
-      }
+        inStock: availableSizes.length > 0,
+      },
     };
 
     // Save to cache for 1 hour
@@ -83,9 +80,6 @@ export async function GET(
     return NextResponse.json(response);
   } catch (error) {
     console.error('Error fetching product:', error);
-    return NextResponse.json(
-      { success: false, error: 'Internal server error' },
-      { status: 500 }
-    );
+    return NextResponse.json({ success: false, error: 'Internal server error' }, { status: 500 });
   }
 }

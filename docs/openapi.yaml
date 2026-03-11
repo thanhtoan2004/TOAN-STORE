@@ -6,7 +6,7 @@ info:
     
     **Authentication**: JWT via HTTP-Only Cookies (`toan_auth_session` / `toan_admin_session`)  
     **Rate Limiting**: Redis-backed sliding window, Fail-Closed for sensitive endpoints.
-  version: 2.5.0
+  version: 2.13.0
   contact:
     email: admin@toanstore.com
 
@@ -16,7 +16,7 @@ servers:
 
 tags:
   - name: Auth
-    description: Authentication & session management
+    description: Authentication & session management (2FA included)
   - name: Account
     description: User account management
   - name: Products
@@ -24,17 +24,21 @@ tags:
   - name: Cart
     description: Shopping cart operations
   - name: Orders
-    description: Order management
+    description: Order management & tracking
   - name: Payment
-    description: Payment processing
+    description: Payment processing (VNPay, MoMo)
   - name: Reviews
     description: Product reviews
   - name: Promotions
     description: Vouchers, promo codes & gift cards
   - name: Content
-    description: CMS content (news, FAQ, banners, etc.)
+    description: CMS content (news, FAQ, banners, author profiles, etc.)
+  - name: Notifications
+    description: User notification system
   - name: Admin
-    description: Admin-only endpoints (requires admin JWT)
+    description: Admin-only management APIs (requires admin JWT + RBAC)
+  - name: System
+    description: Health checks & maintenance
 
 paths:
   # ═══════════════════════════════════
@@ -117,6 +121,13 @@ paths:
       responses:
         '200': { $ref: '#/components/responses/Success' }
 
+  /api/auth/logout-all:
+    post:
+      tags: [Auth]
+      summary: Logout from ALL devices (rotates token_version)
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+
   /api/auth/refresh:
     post:
       tags: [Auth]
@@ -160,6 +171,81 @@ paths:
         '200': { $ref: '#/components/responses/Success' }
         '400': { $ref: '#/components/responses/BadRequest' }
 
+  /api/auth/google:
+    get:
+      tags: [Auth]
+      summary: Initiate Google OAuth2 flow
+      responses:
+        '302': { description: Redirect to Google }
+
+  /api/auth/facebook:
+    get:
+      tags: [Auth]
+      summary: Initiate Facebook OAuth2 flow
+      responses:
+        '302': { description: Redirect to Facebook }
+
+  /api/auth/2fa/send:
+    post:
+      tags: [Auth]
+      summary: Send OTP via email (5m expiry)
+      security: [{ cookieAuth: [] }]
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+
+  /api/auth/2fa/verify:
+    post:
+      tags: [Auth]
+      summary: Verify OTP to complete login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [otp]
+              properties:
+                otp: { type: string, pattern: '^\d{6}$' }
+      responses:
+        '200': { description: Success, returns JWT }
+
+  /api/auth/2fa/toggle:
+    post:
+      tags: [Auth]
+      summary: Enable/Disable 2FA for account
+      security: [{ cookieAuth: [] }]
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+
+  # ═══════════════════════════════════
+  # NOTIFICATIONS
+  # ═══════════════════════════════════
+  /api/notifications:
+    get:
+      tags: [Notifications]
+      summary: Get user notifications
+      security: [{ cookieAuth: [] }]
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+
+  /api/notifications/read-all:
+    post:
+      tags: [Notifications]
+      summary: Mark all notifications as read
+      security: [{ cookieAuth: [] }]
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+
+  /api/notifications/{id}/read:
+    patch:
+      tags: [Notifications]
+      summary: Mark specific notification as read
+      security: [{ cookieAuth: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer } }
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+
   # ═══════════════════════════════════
   # ACCOUNT
   # ═══════════════════════════════════
@@ -187,7 +273,24 @@ paths:
       summary: Export personal data (GDPR)
       security: [{ cookieAuth: [] }]
       responses:
-        '200': { description: Personal data export }
+        '200': { description: Personal data export (JSON/ZIP) }
+
+  /api/account/consent:
+    post:
+      tags: [Account]
+      summary: Update GDPR consent preferences
+      security: [{ cookieAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                marketing: { type: boolean }
+                analytics: { type: boolean }
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
 
   # ═══════════════════════════════════
   # PRODUCTS
@@ -509,14 +612,110 @@ paths:
         '200': { $ref: '#/components/responses/Success' }
         '401': { $ref: '#/components/responses/Unauthorized' }
 
-  /api/cron/cleanup-reservations:
+  /api/user/redeem:
     get:
-      tags: [Admin]
-      summary: Cleanup expired stock reservations (requires CRON_SECRET)
-      security: [{ bearerAuth: [] }]
+      tags: [Promotions]
+      summary: List available vouchers for redemption
+      security: [{ cookieAuth: [] }]
       responses:
         '200': { $ref: '#/components/responses/Success' }
-        '401': { $ref: '#/components/responses/Unauthorized' }
+    post:
+      tags: [Promotions]
+      summary: Redeem points for a voucher
+      security: [{ cookieAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [voucherId]
+              properties:
+                voucherId: { type: integer }
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+
+  # ═══════════════════════════════════
+  # SYSTEM
+  # ═══════════════════════════════════
+  /api/health:
+    get:
+      tags: [System]
+      summary: Check system health (DB/Redis)
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+
+  /api/maintenance-check:
+    get:
+      tags: [System]
+      summary: Check if system is in maintenance mode
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+
+  # ═══════════════════════════════════
+  # ADMIN
+  # ═══════════════════════════════════
+  /api/admin/dashboard:
+    get:
+      tags: [Admin]
+      summary: Admin dashboard statistics
+      security: [{ adminCookieAuth: [] }]
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+
+  /api/admin/products:
+    get:
+      tags: [Admin]
+      summary: List products (Admin view)
+      security: [{ adminCookieAuth: [] }]
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+    post:
+      tags: [Admin]
+      summary: Create small product
+      security: [{ adminCookieAuth: [] }]
+      responses:
+        '201': { description: Created }
+
+  /api/admin/inventory/transfers/{id}:
+    patch:
+      tags: [Admin]
+      summary: Approve/Reject inventory transfer
+      security: [{ adminCookieAuth: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer } }
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+
+  /api/admin/audit-logs:
+    get:
+      tags: [Admin]
+      summary: Review admin action logs
+      security: [{ adminCookieAuth: [] }]
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+
+  /api/admin/roles:
+    get:
+      tags: [Admin]
+      summary: List all roles & assigned permissions
+      security: [{ adminCookieAuth: [] }]
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+    post:
+      tags: [Admin]
+      summary: Create new role
+      security: [{ adminCookieAuth: [] }]
+      responses:
+        '201': { description: Role created }
+
+  /api/admin/permissions:
+    get:
+      tags: [Admin]
+      summary: List all system permissions
+      security: [{ adminCookieAuth: [] }]
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
 
 # ═══════════════════════════════════════════
 # COMPONENTS
@@ -549,11 +748,34 @@ components:
         id: { type: integer }
         name: { type: string }
         slug: { type: string }
-        base_price: { type: number }
-        retail_price: { type: number }
+        price_cache: { type: number, description: 'Denormalized MIN(variant price)' }
+        msrp_price: { type: number, description: 'Manufacturer Suggested Retail Price' }
+        weight: { type: number, description: 'Product weight in grams' }
         image_url: { type: string }
         category_name: { type: string }
         brand_name: { type: string }
+
+    Order:
+      type: object
+      properties:
+        id: { type: integer }
+        orderNumber: { type: string }
+        status: { type: string }
+        totalAmount: { type: number }
+        placed_at: { type: string, format: date-time }
+        cancelled_at: { type: string, format: date-time, nullable: true }
+
+    AdminUser:
+      type: object
+      properties:
+        id: { type: integer }
+        email: { type: string }
+        role: { type: string }
+        bio: { type: string, nullable: true }
+        avatar_url: { type: string, nullable: true }
+        social_links: { type: object, nullable: true }
+        is_active: { type: boolean }
+        deleted_at: { type: string, format: date-time, nullable: true }
 
     ErrorResponse:
       type: object

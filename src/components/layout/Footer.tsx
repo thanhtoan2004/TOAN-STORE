@@ -1,21 +1,15 @@
 'use client';
 
-import React, { useState, useEffect } from 'react'
-import Link from 'next/link'
-import LanguageSwitcher from '../ui/LanguageSwitcher'
+import React, { useState, useEffect } from 'react';
+import Link from 'next/link';
+import LanguageSwitcher from '../ui/LanguageSwitcher';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { Twitter, Facebook, Youtube, Instagram, MapPin } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormMessage,
-} from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
+import { Form, FormControl, FormField, FormItem, FormMessage } from '@/components/ui/form';
+import { Input } from '@/components/ui/input';
 
 /**
  * Footer Component
@@ -43,7 +37,7 @@ const Footer = () => {
   // Schema Validation (Xác thực dữ liệu form sử dụng thư viện Zod)
   const formSchema = z.object({
     email: z.string().email({
-      message: t.common.error || "Email không hợp lệ.",
+      message: t.common.error || 'Email không hợp lệ.',
     }),
   });
 
@@ -51,7 +45,7 @@ const Footer = () => {
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      email: "", // Giá trị mặc định khi form rỗng
+      email: '', // Giá trị mặc định khi form rỗng
     },
   });
 
@@ -65,7 +59,7 @@ const Footer = () => {
       const response = await fetch('/api/newsletter', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: values.email })
+        body: JSON.stringify({ email: values.email }),
       });
 
       const data = await response.json();
@@ -139,16 +133,14 @@ const Footer = () => {
       { name: t.footer.students, href: '/promo/student' },
       { name: t.footer.teachers, href: '/promo/teacher' },
       { name: t.footer.birthday, href: '/promo/birthday' },
-    ]
+    ],
   };
 
   return (
     <footer className="bg-[#111] text-white pt-10">
       <div className="toan-container">
-
         {/* Chia lưới (Grid) thành 4 cột trên màn hình lớn */}
         <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-8 pb-10">
-
           {/* Cột 1: Các liên kết nổi bật (Featured - Larger links) */}
           <div className="space-y-4">
             <nav className="flex flex-col space-y-2">
@@ -216,7 +208,9 @@ const Footer = () => {
 
             {/* Newsletter Form Box */}
             <div className="pt-4 border-t border-gray-700 mt-6">
-              <h4 className="font-helvetica-medium text-xs mb-2 text-white">{t.footer.signup_news}</h4>
+              <h4 className="font-helvetica-medium text-xs mb-2 text-white">
+                {t.footer.signup_news}
+              </h4>
               <p className="text-gray-400 text-xs mb-3">
                 Nhận thông tin về sản phẩm mới, ưu đãi độc quyền
               </p>
@@ -251,7 +245,9 @@ const Footer = () => {
 
               {/* Hiển thị thông báo trạng thái Gửi Email */}
               {isMounted && message && (
-                <p className={`text-xs mt-2 ${messageType === 'success' ? 'text-green-400' : 'text-red-400'}`}>
+                <p
+                  className={`text-xs mt-2 ${messageType === 'success' ? 'text-green-400' : 'text-red-400'}`}
+                >
                   {message}
                 </p>
               )}
@@ -261,16 +257,36 @@ const Footer = () => {
 
         {/* Khối biểu tượng Mạng xã hội (Social Media Links) */}
         <div className="flex space-x-4 py-5">
-          <a href="https://twitter.com/_thanhhTOAN Storen_" target="_blank" rel="noopener noreferrer" className="bg-gray-500 rounded-full p-2 hover:bg-white hover:text-gray-800 transition">
+          <a
+            href="https://twitter.com/dttoan69"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="bg-gray-500 rounded-full p-2 hover:bg-white hover:text-gray-800 transition"
+          >
             <Twitter className="w-6 h-6" />
           </a>
-          <a href="https://www.facebook.com/dtt6924" target="_blank" rel="noopener noreferrer" className="bg-gray-500 rounded-full p-2 hover:bg-white hover:text-gray-800 transition">
+          <a
+            href="https://www.facebook.com/dtt694"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="bg-gray-500 rounded-full p-2 hover:bg-white hover:text-gray-800 transition"
+          >
             <Facebook className="w-6 h-6" />
           </a>
-          <a href="https://www.youtube.com/@thanhhTOAN Storen" target="_blank" rel="noopener noreferrer" className="bg-gray-500 rounded-full p-2 hover:bg-white hover:text-gray-800 transition">
+          <a
+            href="https://www.youtube.com/@thanhhtoann"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="bg-gray-500 rounded-full p-2 hover:bg-white hover:text-gray-800 transition"
+          >
             <Youtube className="w-6 h-6" />
           </a>
-          <a href="https://www.instagram.com/_thanhhTOAN Storen_/" target="_blank" rel="noopener noreferrer" className="bg-gray-500 rounded-full p-2 hover:bg-white hover:text-gray-800 transition">
+          <a
+            href="https://www.instagram.com/dt.toan69"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="bg-gray-500 rounded-full p-2 hover:bg-white hover:text-gray-800 transition"
+          >
             <Instagram className="w-6 h-6" />
           </a>
         </div>
@@ -292,16 +308,26 @@ const Footer = () => {
           </div>
 
           <div className="flex flex-wrap gap-x-4 gap-y-2">
-            <Link href="/guides" className="hover:text-white">{t.footer.guides}</Link>
-            <Link href="/terms" className="hover:text-white">{t.footer.terms_sale}</Link>
-            <Link href="/terms-of-use" className="hover:text-white">{t.footer.terms_use}</Link>
-            <Link href="/privacy-policy" className="hover:text-white">{t.footer.privacy}</Link>
-            <Link href="/csr" className="hover:text-white">{t.footer.csr}</Link>
+            <Link href="/guides" className="hover:text-white">
+              {t.footer.guides}
+            </Link>
+            <Link href="/terms" className="hover:text-white">
+              {t.footer.terms_sale}
+            </Link>
+            <Link href="/terms-of-use" className="hover:text-white">
+              {t.footer.terms_use}
+            </Link>
+            <Link href="/privacy-policy" className="hover:text-white">
+              {t.footer.privacy}
+            </Link>
+            <Link href="/csr" className="hover:text-white">
+              {t.footer.csr}
+            </Link>
           </div>
         </div>
       </div>
     </footer>
-  )
-}
+  );
+};
 
-export default Footer
+export default Footer;

@@ -11,7 +11,7 @@ function SearchContent() {
   const query = searchParams?.get('q') || '';
   const { data: searchData, isLoading: loading } = useProductSearch({
     q: query,
-    limit: 12
+    limit: 12,
   });
 
   const products = searchData?.products || [];
@@ -75,8 +75,14 @@ function SearchContent() {
                       slug={product.slug}
                       name={product.name}
                       category={product.category || ''}
-                      price={product.retail_price || product.base_price || 0}
-                      sale_price={product.base_price && product.retail_price && product.base_price < product.retail_price ? product.base_price : undefined}
+                      price={product.msrp_price || product.price_cache || 0}
+                      sale_price={
+                        product.price_cache &&
+                        product.msrp_price &&
+                        product.price_cache < product.msrp_price
+                          ? product.price_cache
+                          : undefined
+                      }
                       image_url={product.image_url || '/placeholder.png'}
                       is_new_arrival={Boolean(product.is_new_arrival)}
                     />
@@ -104,9 +110,12 @@ function SearchContent() {
 
 export default function SearchPage() {
   return (
-    <Suspense fallback={<div className="min-h-screen bg-gray-50 flex items-center justify-center">Loading...</div>}>
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-gray-50 flex items-center justify-center">Loading...</div>
+      }
+    >
       <SearchContent />
     </Suspense>
   );
 }
-

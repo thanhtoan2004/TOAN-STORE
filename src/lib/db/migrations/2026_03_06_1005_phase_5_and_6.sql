@@ -7,13 +7,13 @@ PREPARE stmt FROM @s; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 SET @s = (SELECT IF((SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS WHERE TABLE_NAME = 'orders' AND INDEX_NAME = 'idx_orders_payment_method' AND TABLE_SCHEMA = DATABASE()) = 0, 'CREATE INDEX idx_orders_payment_method ON orders (payment_method)', 'SELECT 1'));
 PREPARE stmt FROM @s; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
-SET @s = (SELECT IF((SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS WHERE TABLE_NAME = 'shipments' AND INDEX_NAME = 'idx_shipments_status' AND TABLE_SCHEMA = DATABASE()) = 0, 'CREATE INDEX idx_shipments_status ON shipments (status)', 'SELECT 1'));
-PREPARE stmt FROM @s; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+-- SET @s = (SELECT IF((SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS WHERE TABLE_NAME = 'shipments' AND INDEX_NAME = 'idx_shipments_status' AND TABLE_SCHEMA = DATABASE()) = 0, 'CREATE INDEX idx_shipments_status ON shipments (status)', 'SELECT 1'));
+-- PREPARE stmt FROM @s; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
 SET @s = (SELECT IF((SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS WHERE TABLE_NAME = 'gift_cards' AND INDEX_NAME = 'idx_gift_cards_status' AND TABLE_SCHEMA = DATABASE()) = 0, 'CREATE INDEX idx_gift_cards_status ON gift_cards (status)', 'SELECT 1'));
 PREPARE stmt FROM @s; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
-SET @s = (SELECT IF((SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS WHERE TABLE_NAME = 'news' AND INDEX_NAME = 'idx_news_active' AND TABLE_SCHEMA = DATABASE()) = 0, 'CREATE INDEX idx_news_active ON news (is_active)', 'SELECT 1'));
+SET @s = (SELECT IF((SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS WHERE TABLE_NAME = 'news' AND INDEX_NAME = 'idx_news_published' AND TABLE_SCHEMA = DATABASE()) = 0, 'CREATE INDEX idx_news_published ON news (is_published)', 'SELECT 1'));
 PREPARE stmt FROM @s; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
 SET @s = (SELECT IF((SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS WHERE TABLE_NAME = 'news' AND INDEX_NAME = 'idx_news_published_at' AND TABLE_SCHEMA = DATABASE()) = 0, 'CREATE INDEX idx_news_published_at ON news (published_at)', 'SELECT 1'));

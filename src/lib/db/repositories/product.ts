@@ -76,12 +76,12 @@ export async function getProducts(filters: {
   }
 
   if (filters.minPrice !== undefined) {
-    whereClause += ' AND (p.retail_price >= ? OR (p.retail_price IS NULL AND p.base_price >= ?))';
+    whereClause += ' AND (p.msrp_price >= ? OR (p.msrp_price IS NULL AND p.price_cache >= ?))';
     params.push(filters.minPrice, filters.minPrice);
   }
 
   if (filters.maxPrice !== undefined) {
-    whereClause += ' AND (p.retail_price <= ? OR (p.retail_price IS NULL AND p.base_price <= ?))';
+    whereClause += ' AND (p.msrp_price <= ? OR (p.msrp_price IS NULL AND p.price_cache <= ?))';
     params.push(filters.maxPrice, filters.maxPrice);
   }
 
@@ -110,9 +110,9 @@ export async function getProducts(filters: {
 
   // FIX H3: SQL ORDER BY via whitelist (sort BEFORE LIMIT for correct pagination)
   const sortMap: Record<string, string> = {
-    'price-asc': 'COALESCE(p.retail_price, p.base_price) ASC',
-    'price-desc': 'COALESCE(p.retail_price, p.base_price) DESC',
-    discount: '(p.base_price - COALESCE(p.retail_price, p.base_price)) DESC',
+    'price-asc': 'p.price_cache ASC',
+    'price-desc': 'p.price_cache DESC',
+    discount: '(COALESCE(p.msrp_price, p.price_cache) - p.price_cache) DESC',
     name: 'p.name ASC',
     newest: 'p.created_at DESC',
   };
@@ -139,7 +139,7 @@ export async function searchProductsForChat(keyword: string) {
   try {
     // Search products by name (limit 5) using Full-Text Search
     const products = await executeQuery<any[]>(
-      `SELECT p.id, p.name, p.base_price, p.retail_price, p.slug, p.short_description,
+      `SELECT p.id, p.name, p.price_cache, p.msrp_price, p.slug, p.short_description,
                (SELECT url FROM product_images WHERE product_id = p.id AND is_main = 1 LIMIT 1) as image_url,
                MATCH(p.name, p.sku, p.description) AGAINST(?) as relevance
         FROM products p
@@ -156,7 +156,7 @@ export async function searchProductsForChat(keyword: string) {
     console.error('Chatbot Search Error:', error);
     // Fallback to LIKE if FTS fails
     const products = await executeQuery<any[]>(
-      `SELECT p.id, p.name, p.base_price, p.retail_price, p.slug, p.short_description,
+      `SELECT p.id, p.name, p.price_cache, p.msrp_price, p.slug, p.short_description,
                (SELECT url FROM product_images WHERE product_id = p.id AND is_main = 1 LIMIT 1) as image_url
         FROM products p
         WHERE p.name LIKE ? AND p.is_active = 1 AND p.deleted_at IS NULL
@@ -170,7 +170,7 @@ export async function searchProductsForChat(keyword: string) {
 export async function getNewArrivalsForChat() {
   try {
     const products = await executeQuery<any[]>(
-      `SELECT p.id, p.name, p.base_price, p.retail_price, p.slug,
+      `SELECT p.id, p.name, p.price_cache, p.msrp_price, p.slug,
                (SELECT url FROM product_images WHERE product_id = p.id AND is_main = 1 LIMIT 1) as image_url
         FROM products p
         WHERE p.is_active = 1 AND p.deleted_at IS NULL
@@ -187,11 +187,11 @@ export async function getNewArrivalsForChat() {
 export async function getDiscountedProductsForChat() {
   try {
     const products = await executeQuery<any[]>(
-      `SELECT id, name, base_price, retail_price, slug,
+      `SELECT id, name, price_cache, msrp_price, slug,
                (SELECT url FROM product_images WHERE product_id = p.id AND is_main = 1 LIMIT 1) as image_url
         FROM products p
-        WHERE p.is_active = 1 AND p.retail_price < p.base_price AND p.deleted_at IS NULL
-        ORDER BY (p.base_price - p.retail_price) DESC 
+        WHERE p.is_active = 1 AND p.msrp_price < p.price_cache AND p.deleted_at IS NULL
+        ORDER BY (p.price_cache - p.msrp_price) DESC 
         LIMIT 5`
     );
     return formatProductsForChat(products);
@@ -204,7 +204,7 @@ export async function getDiscountedProductsForChat() {
 export async function getProductsByCategoryForChat(categorySlug: string) {
   try {
     const products = await executeQuery<any[]>(
-      `SELECT p.id, p.name, p.base_price, p.retail_price, p.slug,
+      `SELECT p.id, p.name, p.price_cache, p.msrp_price, p.slug,
                (SELECT url FROM product_images WHERE product_id = p.id AND is_main = 1 LIMIT 1) as image_url
         FROM products p
         JOIN categories c ON p.category_id = c.id
@@ -245,8 +245,9 @@ export async function formatProductsForChat(products: any[]) {
 
   return products.map((p) => {
     const availableSizes = (sizesByProduct[p.id] || []).join(', ');
-    const price = p.retail_price || p.base_price;
-    const originalPrice = p.retail_price ? p.base_price : null;
+    const price = p.price_cache;
+    const originalPrice =
+      p.msrp_price && Number(p.msrp_price) > Number(p.price_cache) ? p.msrp_price : null;
 
     return {
       id: p.id,

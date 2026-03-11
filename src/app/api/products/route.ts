@@ -93,8 +93,8 @@ export async function GET(request: Request) {
     // Convert string prices to numbers
     const products = productsData.map((p) => ({
       ...p,
-      base_price: p.base_price ? parseFloat(p.base_price) : 0,
-      retail_price: p.retail_price ? parseFloat(p.retail_price) : 0,
+      price_cache: p.price_cache ? parseFloat(p.price_cache) : 0,
+      msrp_price: p.msrp_price ? parseFloat(p.msrp_price) : 0,
     }));
 
     // FIX H3: Sorting now done at SQL level via getProducts() — no JS sort needed

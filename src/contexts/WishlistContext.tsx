@@ -1,4 +1,4 @@
-"use client";
+'use client';
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { useAuth } from './AuthContext';
 import { useModal } from './ModalContext';
@@ -22,11 +22,11 @@ export interface WishlistItem {
  * WishlistContextType: Các hàm và state được bộc lộ ra cho các Component con sử dụng.
  */
 interface WishlistContextType {
-  wishlist: WishlistItem[];                                     // Danh sách sản phẩm thả tim
-  loading: boolean;                                             // Trạng thái đang tải từ API
-  addToWishlist: (item: WishlistItem) => Promise<void>;         // Hàm thêm mới (gửi API POST)
-  removeFromWishlist: (id: string | number) => Promise<void>;   // Hàm xóa bỏ (gửi API DELETE)
-  isInWishlist: (id: string | number) => boolean;               // Kiểm tra sản phẩm đã nằm trong Wishlist chưa (đổi màu trái tim)
+  wishlist: WishlistItem[]; // Danh sách sản phẩm thả tim
+  loading: boolean; // Trạng thái đang tải từ API
+  addToWishlist: (item: WishlistItem) => Promise<void>; // Hàm thêm mới (gửi API POST)
+  removeFromWishlist: (id: string | number) => Promise<void>; // Hàm xóa bỏ (gửi API DELETE)
+  isInWishlist: (id: string | number) => boolean; // Kiểm tra sản phẩm đã nằm trong Wishlist chưa (đổi màu trái tim)
 }
 
 // Khởi tạo Context
@@ -48,21 +48,21 @@ export const WishlistProvider = ({ children }: { children: ReactNode }) => {
   // Helper to map and sanitize wishlist data
   const mapWishlistData = (data: any[]): WishlistItem[] => {
     return data.map((item: any) => {
-      const basePrice = Number(item.price);
-      const retailPrice = item.sale_price ? Number(item.sale_price) : 0;
+      const priceCache = Number(item.price);
+      const msrpPrice = item.sale_price ? Number(item.sale_price) : 0;
 
-      if (retailPrice && retailPrice > basePrice) {
+      if (msrpPrice && msrpPrice > priceCache) {
         return {
           ...item,
-          price: retailPrice,      // Original Price (Crossed out)
-          sale_price: basePrice    // Selling Price (Red)
+          price: msrpPrice, // Original Price (Crossed out)
+          sale_price: priceCache, // Selling Price (Red)
         };
       }
 
       return {
         ...item,
-        price: basePrice,
-        sale_price: undefined
+        price: priceCache,
+        sale_price: undefined,
       };
     });
   };
@@ -99,7 +99,7 @@ export const WishlistProvider = ({ children }: { children: ReactNode }) => {
         title: 'Xác nhận thông tin',
         message: 'Vui lòng đăng nhập để thêm sản phẩm vào danh sách yêu thích của bạn.',
         type: 'auth',
-        onConfirm: () => router.push('/sign-in')
+        onConfirm: () => router.push('/sign-in'),
       });
       return;
     }
@@ -108,7 +108,7 @@ export const WishlistProvider = ({ children }: { children: ReactNode }) => {
       const response = await fetch('/api/wishlist', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: user.id, productId: item.id })
+        body: JSON.stringify({ userId: user.id, productId: item.id }),
       });
 
       if (response.ok) {
@@ -125,7 +125,7 @@ export const WishlistProvider = ({ children }: { children: ReactNode }) => {
       showAlert({
         title: 'Thông báo',
         message: 'Có lỗi xảy ra khi thêm vào yêu thích. Vui lòng thử lại sau.',
-        type: 'error'
+        type: 'error',
       });
     }
   };
@@ -137,7 +137,7 @@ export const WishlistProvider = ({ children }: { children: ReactNode }) => {
 
     try {
       const response = await fetch(`/api/wishlist?userId=${user.id}&productId=${id}`, {
-        method: 'DELETE'
+        method: 'DELETE',
       });
 
       if (response.ok) {
@@ -155,15 +155,18 @@ export const WishlistProvider = ({ children }: { children: ReactNode }) => {
       showAlert({
         title: 'Thông báo',
         message: 'Có lỗi xảy ra khi xóa khỏi yêu thích. Vui lòng thử lại sau.',
-        type: 'error'
+        type: 'error',
       });
     }
   };
 
-  const isInWishlist = (id: string | number) => wishlist.some((item) => String(item.id) === String(id));
+  const isInWishlist = (id: string | number) =>
+    wishlist.some((item) => String(item.id) === String(id));
 
   return (
-    <WishlistContext.Provider value={{ wishlist, loading, addToWishlist, removeFromWishlist, isInWishlist }}>
+    <WishlistContext.Provider
+      value={{ wishlist, loading, addToWishlist, removeFromWishlist, isInWishlist }}
+    >
       {children}
     </WishlistContext.Provider>
   );

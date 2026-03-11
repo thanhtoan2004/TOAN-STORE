@@ -27,7 +27,7 @@ CREATE TABLE `_migrations` (
   `name` varchar(255) NOT NULL,
   `executed_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=13 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=41 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -36,7 +36,7 @@ CREATE TABLE `_migrations` (
 
 LOCK TABLES `_migrations` WRITE;
 /*!40000 ALTER TABLE `_migrations` DISABLE KEYS */;
-INSERT INTO `_migrations` VALUES (1,'001_baseline.sql','2026-02-13 07:03:50'),(2,'002_create_warehouses_table.sql','2026-02-13 07:06:12'),(3,'003_add_inventory_column.sql','2026-02-13 07:08:54'),(4,'004_update_inventory_data.sql','2026-02-13 07:08:54'),(5,'003_skip.sql','2026-02-13 07:10:57'),(6,'0000_reflective_lady_vermin.sql','2026-02-15 12:20:10'),(7,'0001_reflective_iceman.sql','2026-02-15 12:20:10'),(8,'2026_03_06_1001_phase_1_low_risk.sql','2026-03-06 06:43:13'),(9,'2026_03_06_1002_phase_2_auth_support.sql','2026-03-06 07:02:00'),(10,'2026_03_06_1003_phase_3_high_risk.sql','2026-03-06 07:04:13'),(11,'2026_03_06_1004_phase_4_cleanup.sql','2026-03-06 10:02:47'),(12,'2026_03_06_1005_final_optimization_and_seed.sql','2026-03-06 13:42:19');
+INSERT INTO `_migrations` VALUES (1,'001_baseline.sql','2026-02-13 07:03:50'),(2,'002_create_warehouses_table.sql','2026-02-13 07:06:12'),(3,'003_add_inventory_column.sql','2026-02-13 07:08:54'),(4,'004_update_inventory_data.sql','2026-02-13 07:08:54'),(5,'003_skip.sql','2026-02-13 07:10:57'),(6,'0000_reflective_lady_vermin.sql','2026-02-15 12:20:10'),(7,'0001_reflective_iceman.sql','2026-02-15 12:20:10'),(8,'2026_03_06_1001_phase_1_low_risk.sql','2026-03-06 06:43:13'),(9,'2026_03_06_1002_phase_2_auth_support.sql','2026-03-06 07:02:00'),(10,'2026_03_06_1003_phase_3_high_risk.sql','2026-03-06 07:04:13'),(11,'2026_03_06_1004_phase_4_cleanup.sql','2026-03-06 10:02:47'),(12,'2026_03_06_1005_final_optimization_and_seed.sql','2026-03-06 13:42:19'),(13,'004_b_fix_warehouse_type.sql','2026-03-08 01:15:11'),(14,'005_add_inventory_fk.sql','2026-03-08 01:15:11'),(15,'006_create_system_logs.sql','2026-03-08 01:15:11'),(16,'2026_02_14_ai_embeddings.sql','2026-03-08 01:15:11'),(17,'2026_02_14_tier_vouchers.sql','2026-03-08 01:15:11'),(18,'2026_03_06_1005_phase_5_and_6.sql','2026-03-08 01:16:57'),(19,'2026_03_06_1005_phase_5_optimization.sql','2026-03-08 01:17:35'),(26,'2026_03_08_1101_step1_cleanup.sql','2026-03-08 01:47:06'),(27,'2026_03_08_1102_step2_constraints.sql','2026-03-08 01:47:07'),(28,'2026_03_08_1103_step3_orders_pricing.sql','2026-03-08 01:47:07'),(29,'2026_03_08_1104_step4_giftcard_security.sql','2026-03-08 01:47:08'),(30,'2026_03_08_1105_step5_infra_performance.sql','2026-03-08 01:47:08'),(33,'2026_03_08_1106_step6_deep_cleanup.sql','2026-03-08 02:43:03'),(34,'2026_03_08_1107_step7_soft_delete_parity.sql','2026-03-08 02:43:03'),(35,'2026_03_08_1108_step10_audit_hardening.sql','2026-03-08 03:15:30'),(36,'2026_03_08_1200_step11_audit_refinement.sql','2026-03-08 06:16:40'),(37,'2026_03_08_1315_step12_final_optimization.sql','2026-03-08 06:16:41'),(38,'2026_03_08_1400_step13_security_and_normalization.sql','2026-03-08 06:54:04'),(39,'2026_03_08_1430_step14_final_normalization_cleanup.sql','2026-03-08 07:34:54'),(40,'2026_03_08_2000_step15_advanced_audit_fixes.sql','2026-03-08 12:49:27');
 /*!40000 ALTER TABLE `_migrations` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -88,18 +88,23 @@ CREATE TABLE `admin_users` (
   `id` bigint unsigned NOT NULL AUTO_INCREMENT,
   `username` varchar(100) NOT NULL,
   `email` varchar(255) NOT NULL,
-  `password` varchar(255) NOT NULL,
+  `password` varchar(255) DEFAULT NULL,
   `full_name` varchar(255) DEFAULT NULL,
+  `bio` text,
+  `avatar_url` varchar(1000) DEFAULT NULL,
+  `social_links` json DEFAULT NULL,
   `is_active` tinyint(1) DEFAULT '1',
   `last_login` timestamp NULL DEFAULT NULL,
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `deleted_at` timestamp NULL DEFAULT NULL COMMENT 'Soft delete timestamp — NULL = active, NOT NULL = deleted',
   `role_id` bigint unsigned DEFAULT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `username` (`username`),
   UNIQUE KEY `email` (`email`),
-  KEY `idx_username` (`username`),
-  KEY `idx_email` (`email`)
+  KEY `idx_admin_deleted_at` (`deleted_at`),
+  KEY `fk_admin_users_role` (`role_id`),
+  CONSTRAINT `fk_admin_users_role` FOREIGN KEY (`role_id`) REFERENCES `roles` (`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -109,8 +114,114 @@ CREATE TABLE `admin_users` (
 
 LOCK TABLES `admin_users` WRITE;
 /*!40000 ALTER TABLE `admin_users` DISABLE KEYS */;
-INSERT INTO `admin_users` VALUES (1,'admin','admin@toanstore.com','$2b$10$CTpJGqihD7OewkHcHf8rXuvQ/uLWlC3Imm6AoMpIv06db78INhiWi','System Administrator',1,NULL,'2025-12-06 14:11:35','2026-02-15 12:29:37',4),(2,'manager','manager@toanstore.com','$2a$10$YourHashedPasswordHere','Store Manager',1,NULL,'2025-12-06 14:11:35','2025-12-06 14:11:35',NULL);
+INSERT INTO `admin_users` VALUES (1,'admin','admin@toanstore.com','$2b$10$CTpJGqihD7OewkHcHf8rXuvQ/uLWlC3Imm6AoMpIv06db78INhiWi','System Administrator',NULL,NULL,NULL,1,NULL,'2025-12-06 14:11:35','2026-02-15 12:29:37',NULL,4),(2,'manager','manager@toanstore.com',NULL,'Store Manager',NULL,NULL,NULL,0,NULL,'2025-12-06 14:11:35','2026-03-09 01:32:37',NULL,NULL);
 /*!40000 ALTER TABLE `admin_users` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
+-- Table structure for table `archive_admin_activity_logs`
+--
+
+DROP TABLE IF EXISTS `archive_admin_activity_logs`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `archive_admin_activity_logs` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `admin_user_id` bigint unsigned NOT NULL,
+  `action` varchar(255) NOT NULL,
+  `entity_type` varchar(100) DEFAULT NULL,
+  `entity_id` bigint unsigned DEFAULT NULL,
+  `old_values` json DEFAULT NULL,
+  `new_values` json DEFAULT NULL,
+  `ip_address` varchar(45) DEFAULT NULL,
+  `user_agent` text,
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_admin_user` (`admin_user_id`),
+  KEY `idx_created_at` (`created_at`),
+  KEY `idx_entity_created` (`entity_type`,`entity_id`,`created_at` DESC),
+  KEY `idx_action_created` (`action`,`created_at` DESC),
+  KEY `fk_archive_admin_user` (`admin_user_id`),
+  CONSTRAINT `fk_archive_admin_user_id` FOREIGN KEY (`admin_user_id`) REFERENCES `admin_users` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `archive_admin_activity_logs`
+--
+
+LOCK TABLES `archive_admin_activity_logs` WRITE;
+/*!40000 ALTER TABLE `archive_admin_activity_logs` DISABLE KEYS */;
+/*!40000 ALTER TABLE `archive_admin_activity_logs` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
+-- Table structure for table `archive_search_analytics`
+--
+
+DROP TABLE IF EXISTS `archive_search_analytics`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `archive_search_analytics` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `query` varchar(255) NOT NULL,
+  `category_filter` varchar(100) DEFAULT NULL,
+  `results_count` int DEFAULT '0',
+  `processing_time_ms` int DEFAULT '0',
+  `user_id` bigint unsigned DEFAULT NULL,
+  `ip_address` varchar(45) DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_query` (`query`),
+  KEY `idx_created_at` (`created_at`),
+  KEY `idx_query_created` (`query`,`created_at` DESC),
+  KEY `idx_category_created` (`category_filter`,`created_at` DESC),
+  KEY `idx_user_created` (`user_id`,`created_at` DESC)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `archive_search_analytics`
+--
+
+LOCK TABLES `archive_search_analytics` WRITE;
+/*!40000 ALTER TABLE `archive_search_analytics` DISABLE KEYS */;
+/*!40000 ALTER TABLE `archive_search_analytics` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
+-- Table structure for table `archive_security_logs`
+--
+
+DROP TABLE IF EXISTS `archive_security_logs`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `archive_security_logs` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `user_id` bigint unsigned DEFAULT NULL,
+  `admin_id` bigint unsigned DEFAULT NULL,
+  `event_type` varchar(100) NOT NULL,
+  `ip_address` varchar(45) DEFAULT NULL,
+  `user_agent` text,
+  `details` json DEFAULT NULL,
+  `status` varchar(50) DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_event` (`event_type`),
+  KEY `idx_ip` (`ip_address`),
+  KEY `idx_user` (`user_id`),
+  KEY `idx_created` (`created_at`),
+  KEY `idx_security_event_time` (`event_type`,`created_at` DESC)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `archive_security_logs`
+--
+
+LOCK TABLES `archive_security_logs` WRITE;
+/*!40000 ALTER TABLE `archive_security_logs` DISABLE KEYS */;
+/*!40000 ALTER TABLE `archive_security_logs` ENABLE KEYS */;
 UNLOCK TABLES;
 
 --
@@ -272,7 +383,7 @@ CREATE TABLE `cart_items` (
 
 LOCK TABLES `cart_items` WRITE;
 /*!40000 ALTER TABLE `cart_items` DISABLE KEYS */;
-INSERT INTO `cart_items` VALUES (22,3,1,3,'40',9,3829000.00,'2026-02-16 01:38:30','2026-02-16 02:56:25'),(28,1,3,19,'40',3,3519000.00,'2026-02-16 11:54:19','2026-03-03 07:32:56');
+INSERT INTO `cart_items` VALUES (28,1,3,19,'40',3,3519000.00,'2026-02-16 11:54:19','2026-03-03 07:32:56');
 /*!40000 ALTER TABLE `cart_items` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -302,7 +413,7 @@ CREATE TABLE `carts` (
 
 LOCK TABLES `carts` WRITE;
 /*!40000 ALTER TABLE `carts` DISABLE KEYS */;
-INSERT INTO `carts` VALUES (1,1,NULL,'2025-12-06 15:36:05','2025-12-06 15:36:05',NULL),(2,2,NULL,'2025-12-08 01:58:20','2025-12-08 01:58:20',NULL),(3,3,NULL,'2026-02-16 01:38:30','2026-02-16 01:38:30',NULL);
+INSERT INTO `carts` VALUES (1,1,NULL,'2025-12-06 15:36:05','2025-12-06 15:36:05',NULL),(2,2,NULL,'2025-12-08 01:58:20','2025-12-08 01:58:20',NULL);
 /*!40000 ALTER TABLE `carts` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -475,19 +586,18 @@ DROP TABLE IF EXISTS `coupon_usage`;
 CREATE TABLE `coupon_usage` (
   `id` bigint unsigned NOT NULL AUTO_INCREMENT,
   `coupon_id` bigint unsigned DEFAULT NULL,
-  `coupon_code` varchar(100) DEFAULT NULL,
   `user_id` bigint unsigned DEFAULT NULL,
   `order_id` bigint unsigned DEFAULT NULL,
   `used_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_user_coupon` (`user_id`,`coupon_id`),
   KEY `user_id` (`user_id`),
   KEY `order_id` (`order_id`),
   KEY `coupon_usage_ibfk_1` (`coupon_id`),
-  KEY `idx_coupon_usage_check` (`user_id`,`coupon_id`),
   CONSTRAINT `coupon_usage_ibfk_1` FOREIGN KEY (`coupon_id`) REFERENCES `coupons` (`id`) ON DELETE SET NULL,
   CONSTRAINT `coupon_usage_ibfk_2` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE SET NULL,
   CONSTRAINT `coupon_usage_ibfk_3` FOREIGN KEY (`order_id`) REFERENCES `orders` (`id`) ON DELETE SET NULL
-) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=9 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -496,7 +606,7 @@ CREATE TABLE `coupon_usage` (
 
 LOCK TABLES `coupon_usage` WRITE;
 /*!40000 ALTER TABLE `coupon_usage` DISABLE KEYS */;
-INSERT INTO `coupon_usage` VALUES (2,12,NULL,1,11,'2026-01-30 12:10:01'),(3,10,NULL,1,12,'2026-01-30 12:29:22'),(4,9,NULL,1,13,'2026-01-30 12:40:00'),(5,12,NULL,1,53,'2026-02-14 02:45:08');
+INSERT INTO `coupon_usage` VALUES (2,12,1,11,'2026-01-30 12:10:01'),(3,10,1,12,'2026-01-30 12:29:22'),(4,9,1,13,'2026-01-30 12:40:00');
 /*!40000 ALTER TABLE `coupon_usage` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -509,7 +619,7 @@ DROP TABLE IF EXISTS `coupons`;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `coupons` (
   `id` bigint unsigned NOT NULL AUTO_INCREMENT,
-  `code` varchar(100) NOT NULL,
+  `code` varchar(100) NOT NULL COMMENT 'Publicly shareable discount code. Applied at checkout for all eligible users.',
   `description` varchar(255) DEFAULT NULL,
   `discount_type` enum('fixed','percent') DEFAULT 'fixed',
   `discount_value` decimal(12,2) NOT NULL,
@@ -523,6 +633,7 @@ CREATE TABLE `coupons` (
   `usage_limit_per_user` int DEFAULT NULL,
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   `deleted_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   UNIQUE KEY `code` (`code`),
   KEY `idx_deleted_at` (`deleted_at`),
@@ -537,7 +648,7 @@ CREATE TABLE `coupons` (
 
 LOCK TABLES `coupons` WRITE;
 /*!40000 ALTER TABLE `coupons` DISABLE KEYS */;
-INSERT INTO `coupons` VALUES (1,'WELCOME10','Giảm 10% cho đơn hàng đầu tiên','percent',10.00,'bronze',NULL,NULL,NULL,'2025-12-06 14:11:35','2026-01-05 14:11:35',1000,NULL,'2025-12-06 14:11:35',NULL),(2,'SALE50K','Giảm 50,000đ cho đơn hàng từ 500,000đ','fixed',50000.00,'bronze',NULL,NULL,NULL,'2025-12-06 14:11:35','2025-12-13 14:11:35',500,NULL,'2025-12-06 14:11:35',NULL),(3,'VIP20','Giảm 20% cho thành viên VIP','percent',20.00,'bronze',NULL,NULL,NULL,'2025-12-06 14:11:35','2026-03-06 14:11:35',NULL,NULL,'2025-12-06 14:11:35',NULL),(4,'NEWYEAR2025','Giảm 15% chào năm mới 2025','percent',15.00,'bronze',NULL,NULL,NULL,'2025-12-07 03:52:09','2026-01-06 03:52:09',2000,NULL,'2025-12-06 14:11:35',NULL),(9,'NIKE2024','Giảm 10% cho đơn hàng từ 2 triệu','percent',10.00,'bronze',2000000.00,NULL,500000.00,'2025-12-31 17:00:00','2026-12-31 03:00:00',100,1,'2025-12-09 06:01:59',NULL),(10,'WELCOME50','Giảm 50K cho khách hàng mới','fixed',50000.00,'bronze',500000.00,NULL,NULL,'2025-12-09 06:01:59','2026-02-07 06:01:59',500,1,'2025-12-09 06:01:59',NULL),(11,'FREESHIP','Miễn phí vận chuyển','fixed',30000.00,'bronze',1000000.00,NULL,30000.00,'2025-12-09 06:01:59','2026-03-09 06:01:59',NULL,NULL,'2025-12-09 06:01:59',NULL),(12,'TOAN','Giảm 10% cho đơn hàng từ 1 triệu','percent',10.00,'bronze',1000000.00,NULL,100000.00,'2026-01-01 04:11:00','2026-12-30 17:00:00',10,1,'2026-01-25 03:41:00',NULL);
+INSERT INTO `coupons` VALUES (1,'WELCOME10','Giảm 10% cho đơn hàng đầu tiên','percent',10.00,'bronze',NULL,NULL,NULL,'2025-12-06 14:11:35','2026-01-05 14:11:35',1000,NULL,'2025-12-06 14:11:35','2026-03-09 04:50:32','2026-03-09 04:50:32'),(2,'SALE50K','Giảm 50,000đ cho đơn hàng từ 500,000đ','fixed',50000.00,'bronze',NULL,NULL,NULL,'2025-12-06 14:11:35','2025-12-13 14:11:35',500,NULL,'2025-12-06 14:11:35','2026-03-09 04:50:32','2026-03-09 04:50:32'),(3,'VIP20','Giảm 20% cho thành viên VIP','percent',20.00,'bronze',NULL,NULL,NULL,'2025-12-06 14:11:35','2026-03-06 14:11:35',NULL,NULL,'2025-12-06 14:11:35','2026-03-09 04:50:32','2026-03-09 04:50:32'),(4,'NEWYEAR2025','Giảm 15% chào năm mới 2025','percent',15.00,'bronze',NULL,NULL,NULL,'2025-12-07 03:52:09','2026-01-06 03:52:09',2000,NULL,'2025-12-06 14:11:35','2026-03-09 04:50:32','2026-03-09 04:50:32'),(9,'NIKE2024','Giảm 10% cho đơn hàng từ 2 triệu','percent',10.00,'bronze',2000000.00,NULL,500000.00,'2025-12-31 17:00:00','2026-12-31 03:00:00',100,1,'2025-12-09 06:01:59',NULL,'2026-03-08 06:54:04'),(10,'WELCOME50','Giảm 50K cho khách hàng mới','fixed',50000.00,'bronze',500000.00,NULL,NULL,'2025-12-09 06:01:59','2026-02-07 06:01:59',500,1,'2025-12-09 06:01:59','2026-03-09 04:50:32','2026-03-09 04:50:32'),(11,'FREESHIP','Miễn phí vận chuyển','fixed',30000.00,'bronze',1000000.00,NULL,30000.00,'2025-12-09 06:01:59','2026-03-09 06:01:59',NULL,NULL,'2025-12-09 06:01:59',NULL,'2026-03-08 06:54:04'),(12,'TOAN','Giảm 10% cho đơn hàng từ 1 triệu','percent',10.00,'bronze',1000000.00,NULL,100000.00,'2026-01-01 04:11:00','2026-12-30 17:00:00',10,1,'2026-01-25 03:41:00',NULL,'2026-03-08 06:54:04');
 /*!40000 ALTER TABLE `coupons` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -567,7 +678,7 @@ CREATE TABLE `daily_metrics` (
 
 LOCK TABLES `daily_metrics` WRITE;
 /*!40000 ALTER TABLE `daily_metrics` DISABLE KEYS */;
-INSERT INTO `daily_metrics` VALUES ('2026-02-07',0.00,0,0,0,0.00,0.00,'2026-02-15 09:13:56'),('2026-02-08',0.00,0,0,0,0.00,0.00,'2026-02-15 09:13:56'),('2026-02-09',0.00,0,0,0,0.00,0.00,'2026-02-15 09:13:56'),('2026-02-10',1000000.00,1,1,0,0.00,1000000.00,'2026-02-15 09:13:56'),('2026-02-11',0.00,0,0,0,0.00,0.00,'2026-02-15 09:13:56'),('2026-02-12',9030000.00,7,1,2,0.00,9030000.00,'2026-02-15 09:13:56'),('2026-02-13',4170260.00,1,1,0,0.00,4170260.00,'2026-02-15 09:13:56'),('2026-02-14',0.00,0,0,0,0.00,0.00,'2026-02-15 09:13:56');
+INSERT INTO `daily_metrics` VALUES ('2025-12-06',2929000.00,1,0,0,2050300.00,878700.00,'2026-03-08 14:18:11'),('2025-12-07',36788240.00,3,1,3,20503000.00,16285240.00,'2026-03-08 14:21:25'),('2026-01-31',13309700.00,4,1,0,0.00,13309700.00,'2026-03-07 19:55:18'),('2026-02-05',2970450.00,1,1,0,0.00,2970450.00,'2026-03-07 19:55:18'),('2026-02-14',4170260.00,1,1,0,0.00,4170260.00,'2026-03-07 19:55:18'),('2026-02-16',4500000.00,1,0,0,0.00,4500000.00,'2026-03-07 19:55:18'),('2026-03-08',0.00,0,0,0,0.00,0.00,'2026-03-08 13:34:36');
 /*!40000 ALTER TABLE `daily_metrics` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -684,13 +795,16 @@ CREATE TABLE `flash_sale_items` (
   `quantity_sold` int DEFAULT '0',
   `per_user_limit` int DEFAULT '1' COMMENT 'Max quantity per user',
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `deleted_at` timestamp NULL DEFAULT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `unique_flash_product` (`flash_sale_id`,`product_id`),
   KEY `flash_sale_id` (`flash_sale_id`),
   KEY `product_id` (`product_id`),
   KEY `idx_sale_product` (`flash_sale_id`,`product_id`),
+  KEY `idx_flash_items_deleted` (`deleted_at`),
   CONSTRAINT `flash_sale_items_ibfk_1` FOREIGN KEY (`flash_sale_id`) REFERENCES `flash_sales` (`id`) ON DELETE CASCADE,
-  CONSTRAINT `flash_sale_items_ibfk_2` FOREIGN KEY (`product_id`) REFERENCES `products` (`id`) ON DELETE CASCADE
+  CONSTRAINT `flash_sale_items_ibfk_2` FOREIGN KEY (`product_id`) REFERENCES `products` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `chk_flash_sold_not_exceed` CHECK (((`quantity_sold` <= `quantity_limit`) or (`quantity_limit` is null)))
 ) ENGINE=InnoDB AUTO_INCREMENT=15 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -700,7 +814,7 @@ CREATE TABLE `flash_sale_items` (
 
 LOCK TABLES `flash_sale_items` WRITE;
 /*!40000 ALTER TABLE `flash_sale_items` DISABLE KEYS */;
-INSERT INTO `flash_sale_items` VALUES (1,1,1,48.00,1999000.00,50,12,1,'2026-02-12 11:36:04'),(2,1,2,49.00,1499000.00,100,45,1,'2026-02-12 11:36:04'),(3,1,3,31.00,2419000.00,30,8,1,'2026-02-12 11:36:04'),(4,1,4,52.00,1829000.00,20,15,1,'2026-02-12 11:36:04'),(5,1,5,36.00,3589000.00,10,2,1,'2026-02-12 11:36:04'),(6,2,7,50.00,2927500.00,10,0,1,'2026-02-12 12:21:16');
+INSERT INTO `flash_sale_items` VALUES (1,1,1,48.00,1999000.00,50,12,1,'2026-02-12 11:36:04',NULL),(2,1,2,49.00,1499000.00,100,45,1,'2026-02-12 11:36:04',NULL),(3,1,3,31.00,2419000.00,30,8,1,'2026-02-12 11:36:04',NULL),(4,1,4,52.00,1829000.00,20,15,1,'2026-02-12 11:36:04',NULL),(5,1,5,36.00,3589000.00,10,2,1,'2026-02-12 11:36:04',NULL),(6,2,7,50.00,2927500.00,10,0,1,'2026-02-12 12:21:16',NULL);
 /*!40000 ALTER TABLE `flash_sale_items` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -733,7 +847,7 @@ CREATE TABLE `flash_sales` (
 
 LOCK TABLES `flash_sales` WRITE;
 /*!40000 ALTER TABLE `flash_sales` DISABLE KEYS */;
-INSERT INTO `flash_sales` VALUES (1,'SIÊU SALE CUỐI TUẦN','Giảm giá cực sốc lên đến 50% cho các sản phẩm TOAN Store hot nhất hiện nay!','2026-02-12 10:36:03','2026-02-13 10:36:03',0,'2026-02-12 11:36:03','2026-02-12 12:23:46',NULL),(2,'toan','toan là toi','2026-02-12 06:00:00','2026-02-19 06:00:00',1,'2026-02-12 12:18:38','2026-02-12 12:23:32',NULL),(3,'Test Flash Sale','Testing E2E','2026-02-12 06:01:30','2026-02-12 07:01:30',1,'2026-02-12 13:01:30','2026-02-13 09:15:34','2026-02-13 09:15:34'),(4,'Test Flash Sale','Testing E2E','2026-02-12 06:04:53','2026-02-12 07:04:53',1,'2026-02-12 13:04:53','2026-02-13 09:15:40','2026-02-13 09:15:40'),(5,'Test Flash Sale','Testing E2E','2026-02-12 06:06:03','2026-02-12 07:06:03',1,'2026-02-12 13:06:03','2026-02-13 12:16:46','2026-02-13 12:16:46'),(6,'Test Flash Sale','Testing E2E','2026-02-12 06:07:26','2026-02-12 07:07:26',1,'2026-02-12 13:07:26','2026-02-13 12:16:40','2026-02-13 12:16:40'),(7,'Test Flash Sale','Testing E2E','2026-02-12 13:09:24','2026-02-12 14:09:24',1,'2026-02-12 13:09:24','2026-02-13 12:16:36','2026-02-13 12:16:36'),(8,'Test Flash Sale','Testing E2E','2026-02-12 13:11:27','2026-02-12 14:11:27',1,'2026-02-12 13:11:27','2026-02-13 09:15:43','2026-02-13 09:15:43'),(9,'Test Flash Sale','Testing E2E','2026-02-12 13:14:27','2026-02-12 14:14:27',1,'2026-02-12 13:14:27','2026-02-13 12:16:32','2026-02-13 12:16:32'),(10,'Test Flash Sale','Testing E2E','2026-02-12 13:15:34','2026-02-12 14:15:34',1,'2026-02-12 13:15:34','2026-02-13 12:16:28','2026-02-13 12:16:28'),(11,'Test Flash Sale','Testing E2E','2026-02-13 00:56:52','2026-02-13 01:56:52',1,'2026-02-13 00:56:52','2026-02-13 09:15:28','2026-02-13 09:15:28');
+INSERT INTO `flash_sales` VALUES (1,'SIÊU SALE CUỐI TUẦN','Giảm giá cực sốc lên đến 50% cho các sản phẩm TOAN Store hot nhất hiện nay!','2026-02-12 10:36:03','2026-02-13 10:36:03',0,'2026-02-12 11:36:03','2026-02-12 12:23:46',NULL),(2,'toan','toan là toi','2026-02-12 06:00:00','2026-02-19 06:00:00',0,'2026-02-12 12:18:38','2026-03-09 04:50:32',NULL);
 /*!40000 ALTER TABLE `flash_sales` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -750,7 +864,7 @@ CREATE TABLE `gift_card_lockouts` (
   `card_number` varchar(16) DEFAULT NULL,
   `attempt_count` int DEFAULT '1',
   `last_attempt` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  `locked_until` timestamp NULL DEFAULT NULL,
+  `lockout_until` timestamp NULL DEFAULT NULL,
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   KEY `idx_ip_last_attempt` (`ip_address`,`last_attempt`)
@@ -810,7 +924,8 @@ DROP TABLE IF EXISTS `gift_cards`;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `gift_cards` (
   `id` bigint unsigned NOT NULL AUTO_INCREMENT,
-  `card_number` varchar(16) NOT NULL,
+  `card_number_hash` varchar(64) NOT NULL,
+  `card_number_last4` char(4) NOT NULL,
   `pin` varchar(255) NOT NULL,
   `initial_balance` decimal(12,2) NOT NULL DEFAULT '0.00',
   `current_balance` decimal(12,2) NOT NULL DEFAULT '0.00',
@@ -823,9 +938,8 @@ CREATE TABLE `gift_cards` (
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
-  UNIQUE KEY `card_number` (`card_number`),
+  UNIQUE KEY `uk_card_number_hash` (`card_number_hash`),
   KEY `purchased_by` (`purchased_by`),
-  KEY `idx_card_number` (`card_number`),
   KEY `idx_gift_cards_status` (`status`),
   CONSTRAINT `gift_cards_ibfk_1` FOREIGN KEY (`purchased_by`) REFERENCES `users` (`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB AUTO_INCREMENT=16 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
@@ -837,7 +951,7 @@ CREATE TABLE `gift_cards` (
 
 LOCK TABLES `gift_cards` WRITE;
 /*!40000 ALTER TABLE `gift_cards` DISABLE KEYS */;
-INSERT INTO `gift_cards` VALUES (2,'2345678901234567','$2b$10$jKLc3TIFYZzp6wMGgI1NPud/Jl/Gv.rScynI7G3iIn/MtrpMdGtsS',1000000.00,1000000.00,'VND','active',0,NULL,NULL,'2026-12-06 14:11:35','2025-12-06 14:11:35','2026-03-06 05:40:42'),(3,'3456789012345678','$2b$10$pgI/Qxf/ZT2BgQLhMooXrOliZoOcfEjtPprrLfo5kCY/BORlg.XF2',2000000.00,2000000.00,'VND','active',0,NULL,NULL,'2026-12-06 14:11:35','2025-12-06 14:11:35','2026-03-06 05:40:42'),(4,'4567890123456789','$2b$10$Ae5WPDcu93PDobkvnn5EuuLpvkw5p03uCqmOLap.cb/GbbSSXxMni',500000.00,300000.00,'VND','active',0,NULL,NULL,'2026-12-06 14:11:35','2025-12-06 14:11:35','2026-03-06 05:40:43'),(9,'1234567890123456','$2b$10$Ntzc8iKZ1n3mftvuZJy89Ou53.VQFelU7DsDQNINcrfZuAAJP6Bt2',500000.00,500000.00,'VND','active',0,NULL,NULL,'2026-12-07 02:25:17','2025-12-07 02:25:17','2026-03-06 05:40:43'),(10,'9876543210987654','$2b$10$z19dTdgRvoBrjrvqAUMe0ekPMJ9sSCf86t8Al1HkzyVqvXqjdPXd2',1000000.00,1000000.00,'VND','active',0,NULL,NULL,'2026-12-07 02:25:17','2025-12-07 02:25:17','2026-03-06 05:40:43'),(11,'1111222233334444','$2b$10$WSg34bQT3S0D8TAOEsHvU.iurGW/0VdqUkN0kv/pW54/U/eq1W0l6',250000.00,250000.00,'VND','active',0,NULL,NULL,'2026-12-07 02:25:17','2025-12-07 02:25:17','2026-03-06 05:40:43'),(12,'1234567891012131','$2b$10$1WQTM.6Oj87TlombdxWJi.cvF1EbqnYl18nvVerfZPTWpa5PX4/hS',1000000.00,1000000.00,'VND','active',0,NULL,NULL,'2026-12-31 17:00:00','2026-01-29 14:57:02','2026-03-06 05:40:43'),(13,'1122334455667788','$2b$10$tlieXhxOfjxnko2qPiVmpu30aBg5WNSFMJaxyKWWnxnSSllFIjpMa',1000000.00,0.00,'VND','used',0,NULL,NULL,'2027-01-01 03:00:00','2026-01-29 15:13:24','2026-03-06 05:40:44'),(14,'6969696969696969','$2b$10$RXx/A/yUbhSi6x3FSyA5FujcG7BgNXWQmFkcshyqes75MS7ygA046',100000.00,0.00,'VND','used',0,NULL,NULL,'2026-09-05 23:09:00','2026-02-14 02:04:53','2026-02-14 02:45:08'),(15,'9696969696969696','$2b$10$oNt715nLT0kZzKYwSCh7jeDMWCWBwBto/bm9aADbjhDALlHzKpouG',100000.00,100000.00,'VND','active',0,NULL,NULL,'2026-06-09 02:06:00','2026-02-14 06:16:29','2026-03-06 05:40:44');
+INSERT INTO `gift_cards` VALUES (2,'0ffc6ee5675f9b75b238768af6752f70372dc2c8719c9a6e3d8ff21a3183b478','4567','$2b$10$jKLc3TIFYZzp6wMGgI1NPud/Jl/Gv.rScynI7G3iIn/MtrpMdGtsS',1000000.00,1000000.00,'VND','active',0,1,NULL,'2026-12-06 14:11:35','2025-12-06 14:11:35','2026-03-08 16:23:24'),(3,'ed59c712b738f408a826dd1ad2c9b8a2353efd882ae7b973f0315c0ba5faa661','5678','$2b$10$pgI/Qxf/ZT2BgQLhMooXrOliZoOcfEjtPprrLfo5kCY/BORlg.XF2',2000000.00,2000000.00,'VND','active',0,1,NULL,'2026-12-06 14:11:35','2025-12-06 14:11:35','2026-03-08 16:23:24'),(4,'40b70c58bd6487e565946e75b890351dfb4cfd8307660912e8d06c97a7ef3bc7','6789','$2b$10$Ae5WPDcu93PDobkvnn5EuuLpvkw5p03uCqmOLap.cb/GbbSSXxMni',500000.00,300000.00,'VND','active',0,1,NULL,'2026-12-06 14:11:35','2025-12-06 14:11:35','2026-03-08 16:23:24'),(9,'7a51d064a1a216a692f753fcdab276e4ff201a01d8b66f56d50d4d719fd0dc87','3456','$2b$10$Ntzc8iKZ1n3mftvuZJy89Ou53.VQFelU7DsDQNINcrfZuAAJP6Bt2',500000.00,500000.00,'VND','active',0,1,NULL,'2026-12-07 02:25:17','2025-12-07 02:25:17','2026-03-08 16:23:24'),(10,'d958ce38a6d281743f29567cccb0e359fc59a48155cb2754cd4025178fc866f7','7654','$2b$10$z19dTdgRvoBrjrvqAUMe0ekPMJ9sSCf86t8Al1HkzyVqvXqjdPXd2',1000000.00,1000000.00,'VND','active',0,1,NULL,'2026-12-07 02:25:17','2025-12-07 02:25:17','2026-03-08 16:23:24'),(11,'c6b25ffac5d2c50f41af3ac4d97d07d95fd4f2d5f9fcef98dc709e5741060508','4444','$2b$10$WSg34bQT3S0D8TAOEsHvU.iurGW/0VdqUkN0kv/pW54/U/eq1W0l6',250000.00,250000.00,'VND','active',0,1,NULL,'2026-12-07 02:25:17','2025-12-07 02:25:17','2026-03-08 16:23:24'),(12,'2ef49739ca90a5d43977aaed126641af6c4cac3751aec17e7659435e74920469','2131','$2b$10$1WQTM.6Oj87TlombdxWJi.cvF1EbqnYl18nvVerfZPTWpa5PX4/hS',1000000.00,1000000.00,'VND','active',0,1,NULL,'2026-12-31 17:00:00','2026-01-29 14:57:02','2026-03-08 16:23:24'),(13,'e84b13afb5cfae594fc82220524769f84cfff079e2f561426266d1b40863adb1','7788','$2b$10$tlieXhxOfjxnko2qPiVmpu30aBg5WNSFMJaxyKWWnxnSSllFIjpMa',1000000.00,0.00,'VND','used',0,1,NULL,'2027-01-01 03:00:00','2026-01-29 15:13:24','2026-03-08 16:23:24'),(14,'627ad44348dccd623a8fa4a9324c8350e2970b627269596c50b2476c98a45198','6969','$2b$10$RXx/A/yUbhSi6x3FSyA5FujcG7BgNXWQmFkcshyqes75MS7ygA046',100000.00,0.00,'VND','used',0,1,NULL,'2026-09-05 23:09:00','2026-02-14 02:04:53','2026-03-08 16:23:24'),(15,'e5c2b79da69915d0108c687d97457107cc43962f1d88f03052929121e2cd359c','9696','$2b$10$oNt715nLT0kZzKYwSCh7jeDMWCWBwBto/bm9aADbjhDALlHzKpouG',100000.00,100000.00,'VND','active',0,1,NULL,'2026-06-09 02:06:00','2026-02-14 06:16:29','2026-03-08 16:23:24');
 /*!40000 ALTER TABLE `gift_cards` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -851,7 +965,7 @@ DROP TABLE IF EXISTS `inventory`;
 CREATE TABLE `inventory` (
   `id` bigint unsigned NOT NULL AUTO_INCREMENT,
   `product_variant_id` bigint unsigned NOT NULL,
-  `warehouse_id` bigint unsigned DEFAULT NULL COMMENT 'NULL means default/main warehouse',
+  `warehouse_id` bigint unsigned NOT NULL,
   `quantity` int NOT NULL DEFAULT '0',
   `reserved` int NOT NULL DEFAULT '0' COMMENT 'Items in pending orders',
   `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -864,12 +978,13 @@ CREATE TABLE `inventory` (
   KEY `idx_quantity` (`quantity`),
   KEY `idx_warehouse_quantity` (`warehouse_id`,`quantity`),
   KEY `idx_quantity_reserved` (`quantity`,`reserved`),
-  KEY `idx_variant_warehouse` (`product_variant_id`,`warehouse_id`),
+  CONSTRAINT `fk_inventory_warehouse` FOREIGN KEY (`warehouse_id`) REFERENCES `warehouses` (`id`),
   CONSTRAINT `inventory_ibfk_1` FOREIGN KEY (`product_variant_id`) REFERENCES `product_variants` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `chk_inventory_backorder_logic` CHECK ((((`allow_backorder` = 0) and (`quantity` >= 0)) or (`allow_backorder` = 1))),
   CONSTRAINT `chk_inventory_quantity_non_negative` CHECK ((`quantity` >= 0)),
   CONSTRAINT `chk_inventory_reserved_non_negative` CHECK ((`reserved` >= 0)),
   CONSTRAINT `chk_inventory_reserved_not_exceed` CHECK ((`reserved` <= `quantity`))
-) ENGINE=InnoDB AUTO_INCREMENT=64 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=127 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -878,7 +993,7 @@ CREATE TABLE `inventory` (
 
 LOCK TABLES `inventory` WRITE;
 /*!40000 ALTER TABLE `inventory` DISABLE KEYS */;
-INSERT INTO `inventory` VALUES (1,1,1,49,0,'2026-02-13 07:03:50',10,0,NULL),(2,2,1,45,0,'2026-02-13 07:03:50',10,0,NULL),(3,3,1,59,0,'2026-03-02 03:03:17',10,0,NULL),(4,4,1,55,0,'2026-02-13 07:03:50',10,0,NULL),(5,5,1,22,0,'2026-03-02 03:03:17',10,0,NULL),(6,6,1,40,0,'2026-02-13 07:03:50',10,0,NULL),(7,7,1,29,0,'2026-02-14 02:47:45',10,0,NULL),(8,8,1,20,0,'2026-02-13 07:03:50',10,0,NULL),(9,9,1,55,0,'2026-02-13 07:03:50',10,0,NULL),(10,10,1,50,0,'2026-02-13 07:03:50',10,0,NULL),(11,11,1,60,0,'2026-03-02 03:03:17',10,0,NULL),(12,12,1,60,0,'2026-02-13 07:03:50',10,0,NULL),(13,13,1,55,0,'2026-02-13 07:03:50',10,0,NULL),(14,14,1,45,0,'2026-02-13 07:03:50',10,0,NULL),(15,15,1,34,0,'2026-03-02 03:03:17',10,0,NULL),(16,16,1,15,0,'2026-03-02 03:03:17',10,0,NULL),(17,17,1,40,0,'2026-02-13 07:03:50',10,0,NULL),(18,18,1,35,0,'2026-02-13 07:03:50',10,0,NULL),(19,19,1,49,0,'2026-03-02 03:03:17',10,0,NULL),(20,20,1,45,0,'2026-02-13 07:03:50',10,0,NULL),(21,21,1,40,0,'2026-02-13 07:03:50',10,0,NULL),(22,22,1,30,0,'2026-02-13 07:03:50',10,0,NULL),(23,23,1,25,0,'2026-02-13 07:03:50',10,0,NULL),(24,24,1,15,0,'2026-02-13 07:03:50',10,0,NULL),(25,25,1,30,0,'2026-02-13 07:03:50',10,0,NULL),(26,26,1,24,0,'2026-03-02 03:03:17',10,0,NULL),(27,27,1,35,0,'2026-02-13 07:03:50',10,0,NULL),(28,28,1,30,0,'2026-02-13 07:03:50',10,0,NULL),(29,29,1,25,0,'2026-02-13 07:03:50',10,0,NULL),(30,30,1,20,0,'2026-02-13 07:03:50',10,0,NULL),(31,31,1,15,0,'2026-02-13 07:03:50',10,0,NULL),(32,32,1,10,0,'2026-02-13 07:03:50',10,0,NULL),(33,33,1,20,0,'2026-02-13 07:03:50',10,0,NULL),(34,34,1,18,0,'2026-02-13 07:03:50',10,0,NULL),(35,35,1,24,0,'2026-03-02 03:03:17',10,0,NULL),(36,36,1,22,0,'2026-02-13 07:03:50',10,0,NULL),(37,37,1,20,0,'2026-02-13 07:03:50',10,0,NULL),(38,38,1,15,0,'2026-02-13 07:03:50',10,0,NULL),(39,39,1,10,0,'2026-02-13 07:03:50',10,0,NULL),(40,40,1,0,0,'2026-02-13 07:03:50',10,0,NULL),(41,41,1,35,0,'2026-02-13 07:03:50',10,0,NULL),(42,42,1,31,0,'2026-03-02 03:03:17',10,0,NULL),(43,43,1,40,0,'2026-02-13 07:03:50',10,0,NULL),(44,44,1,38,0,'2026-02-13 07:03:50',10,0,NULL),(45,45,1,35,0,'2026-02-13 07:03:50',10,0,NULL),(46,46,1,28,0,'2026-02-13 07:03:50',10,0,NULL),(47,47,1,22,0,'2026-02-13 07:03:50',10,0,NULL),(48,48,1,18,0,'2026-02-13 07:03:50',10,0,NULL),(49,64,1,15,0,'2026-02-13 07:03:50',10,0,NULL),(50,65,1,20,0,'2026-02-13 07:03:50',10,0,NULL),(51,66,1,20,0,'2026-02-13 07:03:50',10,0,NULL),(52,67,1,30,0,'2026-02-13 07:03:50',10,0,NULL),(53,68,1,50,0,'2026-02-13 07:03:50',10,0,NULL);
+INSERT INTO `inventory` VALUES (1,1,1,49,0,'2026-02-13 07:03:50',10,0,NULL),(2,2,1,45,0,'2026-02-13 07:03:50',10,0,NULL),(3,3,1,59,0,'2026-03-02 03:03:17',10,0,NULL),(4,4,1,55,0,'2026-02-13 07:03:50',10,0,NULL),(5,5,1,22,0,'2026-03-02 03:03:17',10,0,NULL),(6,6,1,40,0,'2026-02-13 07:03:50',10,0,NULL),(7,7,1,29,0,'2026-02-14 02:47:45',10,0,NULL),(8,8,1,20,0,'2026-02-13 07:03:50',10,0,NULL),(9,9,1,55,0,'2026-02-13 07:03:50',10,0,NULL),(10,10,1,50,0,'2026-02-13 07:03:50',10,0,NULL),(11,11,1,60,0,'2026-03-02 03:03:17',10,0,NULL),(12,12,1,60,0,'2026-02-13 07:03:50',10,0,NULL),(13,13,1,55,0,'2026-02-13 07:03:50',10,0,NULL),(14,14,1,45,0,'2026-02-13 07:03:50',10,0,NULL),(15,15,1,34,0,'2026-03-02 03:03:17',10,0,NULL),(16,16,1,15,0,'2026-03-02 03:03:17',10,0,NULL),(17,17,1,40,0,'2026-02-13 07:03:50',10,0,NULL),(18,18,1,35,0,'2026-02-13 07:03:50',10,0,NULL),(19,19,1,49,0,'2026-03-02 03:03:17',10,0,NULL),(20,20,1,45,0,'2026-02-13 07:03:50',10,0,NULL),(21,21,1,40,0,'2026-02-13 07:03:50',10,0,NULL),(22,22,1,30,0,'2026-02-13 07:03:50',10,0,NULL),(23,23,1,25,0,'2026-02-13 07:03:50',10,0,NULL),(24,24,1,15,0,'2026-02-13 07:03:50',10,0,NULL),(25,25,1,30,0,'2026-02-13 07:03:50',10,0,NULL),(26,26,1,24,0,'2026-03-02 03:03:17',10,0,NULL),(27,27,1,35,0,'2026-02-13 07:03:50',10,0,NULL),(28,28,1,30,0,'2026-02-13 07:03:50',10,0,NULL),(29,29,1,25,0,'2026-02-13 07:03:50',10,0,NULL),(30,30,1,20,0,'2026-02-13 07:03:50',10,0,NULL),(31,31,1,15,0,'2026-02-13 07:03:50',10,0,NULL),(32,32,1,10,0,'2026-02-13 07:03:50',10,0,NULL),(33,33,1,20,0,'2026-02-13 07:03:50',10,0,NULL),(34,34,1,18,0,'2026-02-13 07:03:50',10,0,NULL),(35,35,1,24,0,'2026-03-02 03:03:17',10,0,NULL),(36,36,1,22,0,'2026-02-13 07:03:50',10,0,NULL),(37,37,1,20,0,'2026-02-13 07:03:50',10,0,NULL),(38,38,1,15,0,'2026-02-13 07:03:50',10,0,NULL),(39,39,1,10,0,'2026-02-13 07:03:50',10,0,NULL),(40,40,1,0,0,'2026-02-13 07:03:50',10,0,NULL),(41,41,1,35,0,'2026-02-13 07:03:50',10,0,NULL),(42,42,1,31,0,'2026-03-02 03:03:17',10,0,NULL),(43,43,1,40,0,'2026-02-13 07:03:50',10,0,NULL),(44,44,1,38,0,'2026-02-13 07:03:50',10,0,NULL),(45,45,1,35,0,'2026-02-13 07:03:50',10,0,NULL),(46,46,1,28,0,'2026-02-13 07:03:50',10,0,NULL),(47,47,1,22,0,'2026-02-13 07:03:50',10,0,NULL),(48,48,1,18,0,'2026-02-13 07:03:50',10,0,NULL),(49,64,1,15,0,'2026-02-13 07:03:50',10,0,NULL),(50,65,1,20,0,'2026-02-13 07:03:50',10,0,NULL),(51,66,1,20,0,'2026-02-13 07:03:50',10,0,NULL),(52,67,1,30,0,'2026-02-13 07:03:50',10,0,NULL),(53,68,1,50,0,'2026-02-13 07:03:50',10,0,NULL),(64,41,2,0,0,'2026-03-08 14:17:00',10,0,NULL),(65,42,2,0,0,'2026-03-08 14:17:00',10,0,NULL),(66,43,2,0,0,'2026-03-08 14:17:00',10,0,NULL),(67,44,2,0,0,'2026-03-08 14:17:00',10,0,NULL),(68,45,2,0,0,'2026-03-08 14:17:00',10,0,NULL),(69,46,2,0,0,'2026-03-08 14:17:00',10,0,NULL),(70,47,2,0,0,'2026-03-08 14:17:00',10,0,NULL),(71,48,2,0,0,'2026-03-08 14:17:00',10,0,NULL),(72,9,2,0,0,'2026-03-08 14:17:00',10,0,NULL),(73,10,2,0,0,'2026-03-08 14:17:00',10,0,NULL),(74,11,2,0,0,'2026-03-08 14:17:00',10,0,NULL),(75,12,2,0,0,'2026-03-08 14:17:00',10,0,NULL),(76,13,2,0,0,'2026-03-08 14:17:00',10,0,NULL),(77,14,2,0,0,'2026-03-08 14:17:00',10,0,NULL),(78,15,2,0,0,'2026-03-08 14:17:00',10,0,NULL),(79,16,2,0,0,'2026-03-08 14:17:00',10,0,NULL),(80,17,2,0,0,'2026-03-08 14:17:00',10,0,NULL),(81,18,2,0,0,'2026-03-08 14:17:00',10,0,NULL),(82,19,2,0,0,'2026-03-08 14:17:00',10,0,NULL),(83,20,2,0,0,'2026-03-08 14:17:00',10,0,NULL),(84,21,2,0,0,'2026-03-08 14:17:00',10,0,NULL),(85,22,2,0,0,'2026-03-08 14:17:00',10,0,NULL),(86,23,2,0,0,'2026-03-08 14:17:00',10,0,NULL),(87,24,2,0,0,'2026-03-08 14:17:00',10,0,NULL),(88,1,2,0,0,'2026-03-08 14:17:00',10,0,NULL),(89,2,2,0,0,'2026-03-08 14:17:00',10,0,NULL),(90,3,2,0,0,'2026-03-08 14:17:00',10,0,NULL),(91,4,2,0,0,'2026-03-08 14:17:00',10,0,NULL),(92,5,2,0,0,'2026-03-08 14:17:00',10,0,NULL),(93,6,2,0,0,'2026-03-08 14:17:00',10,0,NULL),(94,7,2,0,0,'2026-03-08 14:17:00',10,0,NULL),(95,8,2,0,0,'2026-03-08 14:17:00',10,0,NULL),(96,25,2,0,0,'2026-03-08 14:17:00',10,0,NULL),(97,26,2,0,0,'2026-03-08 14:17:00',10,0,NULL),(98,27,2,0,0,'2026-03-08 14:17:00',10,0,NULL),(99,28,2,0,0,'2026-03-08 14:17:00',10,0,NULL),(100,29,2,0,0,'2026-03-08 14:17:00',10,0,NULL),(101,30,2,0,0,'2026-03-08 14:17:00',10,0,NULL),(102,31,2,0,0,'2026-03-08 14:17:00',10,0,NULL),(103,32,2,0,0,'2026-03-08 14:17:00',10,0,NULL),(104,33,2,0,0,'2026-03-08 14:17:00',10,0,NULL),(105,34,2,0,0,'2026-03-08 14:17:00',10,0,NULL),(106,35,2,0,0,'2026-03-08 14:17:00',10,0,NULL),(107,36,2,0,0,'2026-03-08 14:17:00',10,0,NULL),(108,37,2,0,0,'2026-03-08 14:17:00',10,0,NULL),(109,38,2,0,0,'2026-03-08 14:17:00',10,0,NULL),(110,39,2,0,0,'2026-03-08 14:17:00',10,0,NULL),(111,40,2,0,0,'2026-03-08 14:17:00',10,0,NULL),(112,64,2,0,0,'2026-03-08 14:17:00',10,0,NULL),(113,65,2,0,0,'2026-03-08 14:17:00',10,0,NULL),(114,66,2,0,0,'2026-03-08 14:17:00',10,0,NULL),(115,67,2,0,0,'2026-03-08 14:17:00',10,0,NULL),(116,68,2,0,0,'2026-03-08 14:17:00',10,0,NULL);
 /*!40000 ALTER TABLE `inventory` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -910,7 +1025,7 @@ CREATE TABLE `inventory_logs` (
 
 LOCK TABLES `inventory_logs` WRITE;
 /*!40000 ALTER TABLE `inventory_logs` DISABLE KEYS */;
-INSERT INTO `inventory_logs` VALUES (1,1,50,'initial_migration','product_size_1','2025-12-06 14:32:12'),(2,2,45,'initial_migration','product_size_2','2025-12-06 14:32:12'),(3,3,60,'initial_migration','product_size_3','2025-12-06 14:32:12'),(4,4,55,'initial_migration','product_size_4','2025-12-06 14:32:12'),(5,5,50,'initial_migration','product_size_5','2025-12-06 14:32:12'),(6,6,40,'initial_migration','product_size_6','2025-12-06 14:32:12'),(7,7,30,'initial_migration','product_size_7','2025-12-06 14:32:12'),(8,8,20,'initial_migration','product_size_8','2025-12-06 14:32:12'),(9,9,55,'initial_migration','product_size_9','2025-12-06 14:32:12'),(10,10,50,'initial_migration','product_size_10','2025-12-06 14:32:12'),(11,11,65,'initial_migration','product_size_11','2025-12-06 14:32:12'),(12,12,60,'initial_migration','product_size_12','2025-12-06 14:32:12'),(13,13,55,'initial_migration','product_size_13','2025-12-06 14:32:12'),(14,14,45,'initial_migration','product_size_14','2025-12-06 14:32:12'),(15,15,35,'initial_migration','product_size_15','2025-12-06 14:32:12'),(16,16,25,'initial_migration','product_size_16','2025-12-06 14:32:12'),(17,17,40,'initial_migration','product_size_17','2025-12-06 14:32:12'),(18,18,35,'initial_migration','product_size_18','2025-12-06 14:32:12'),(19,19,50,'initial_migration','product_size_19','2025-12-06 14:32:12'),(20,20,45,'initial_migration','product_size_20','2025-12-06 14:32:12'),(21,21,40,'initial_migration','product_size_21','2025-12-06 14:32:12'),(22,22,30,'initial_migration','product_size_22','2025-12-06 14:32:12'),(23,23,25,'initial_migration','product_size_23','2025-12-06 14:32:12'),(24,24,15,'initial_migration','product_size_24','2025-12-06 14:32:12'),(25,25,30,'initial_migration','product_size_25','2025-12-06 14:32:12'),(26,26,25,'initial_migration','product_size_26','2025-12-06 14:32:12'),(27,27,35,'initial_migration','product_size_27','2025-12-06 14:32:12'),(28,28,30,'initial_migration','product_size_28','2025-12-06 14:32:12'),(29,29,25,'initial_migration','product_size_29','2025-12-06 14:32:12'),(30,30,20,'initial_migration','product_size_30','2025-12-06 14:32:12'),(31,31,15,'initial_migration','product_size_31','2025-12-06 14:32:12'),(32,32,10,'initial_migration','product_size_32','2025-12-06 14:32:12'),(33,33,20,'initial_migration','product_size_33','2025-12-06 14:32:12'),(34,34,18,'initial_migration','product_size_34','2025-12-06 14:32:12'),(35,35,25,'initial_migration','product_size_35','2025-12-06 14:32:12'),(36,36,22,'initial_migration','product_size_36','2025-12-06 14:32:12'),(37,37,20,'initial_migration','product_size_37','2025-12-06 14:32:12'),(38,38,15,'initial_migration','product_size_38','2025-12-06 14:32:12'),(39,39,10,'initial_migration','product_size_39','2025-12-06 14:32:12'),(40,40,8,'initial_migration','product_size_40','2025-12-06 14:32:12'),(41,41,35,'initial_migration','product_size_41','2025-12-06 14:32:12'),(42,42,32,'initial_migration','product_size_42','2025-12-06 14:32:12'),(43,43,40,'initial_migration','product_size_43','2025-12-06 14:32:12'),(44,44,38,'initial_migration','product_size_44','2025-12-06 14:32:12'),(45,45,35,'initial_migration','product_size_45','2025-12-06 14:32:12'),(46,46,28,'initial_migration','product_size_46','2025-12-06 14:32:12'),(47,47,22,'initial_migration','product_size_47','2025-12-06 14:32:12'),(48,48,18,'initial_migration','product_size_48','2025-12-06 14:32:12'),(59,5,-1,'order_placed','TEST-EMAIL-1770946266829','2026-02-13 01:31:06'),(60,7,-1,'order_reserved','NK1771037108210_9KMI','2026-02-14 02:45:08'),(61,5,-1,'order_reserved','NK1771209986111_U8W9','2026-02-16 02:46:26');
+INSERT INTO `inventory_logs` VALUES (59,5,-1,'order_placed','TEST-EMAIL-1770946266829','2026-02-13 01:31:06'),(60,7,-1,'order_reserved','NK1771037108210_9KMI','2026-02-14 02:45:08'),(61,5,-1,'order_reserved','NK1771209986111_U8W9','2026-02-16 02:46:26');
 /*!40000 ALTER TABLE `inventory_logs` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -933,7 +1048,17 @@ CREATE TABLE `inventory_transfers` (
   `notes` text,
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   `completed_at` timestamp NULL DEFAULT NULL,
-  PRIMARY KEY (`id`)
+  PRIMARY KEY (`id`),
+  KEY `fk_transfers_requested_by` (`requested_by`),
+  KEY `fk_transfers_approved_by` (`approved_by`),
+  KEY `fk_transfers_from_warehouse` (`from_warehouse_id`),
+  KEY `fk_transfers_to_warehouse` (`to_warehouse_id`),
+  KEY `fk_transfers_variant` (`product_variant_id`),
+  CONSTRAINT `fk_transfers_approved_by` FOREIGN KEY (`approved_by`) REFERENCES `admin_users` (`id`) ON DELETE SET NULL,
+  CONSTRAINT `fk_transfers_from_warehouse` FOREIGN KEY (`from_warehouse_id`) REFERENCES `warehouses` (`id`),
+  CONSTRAINT `fk_transfers_requested_by` FOREIGN KEY (`requested_by`) REFERENCES `admin_users` (`id`) ON DELETE SET NULL,
+  CONSTRAINT `fk_transfers_to_warehouse` FOREIGN KEY (`to_warehouse_id`) REFERENCES `warehouses` (`id`),
+  CONSTRAINT `fk_transfers_variant` FOREIGN KEY (`product_variant_id`) REFERENCES `product_variants` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -961,7 +1086,7 @@ CREATE TABLE `news` (
   `content` longtext NOT NULL,
   `image_url` varchar(500) DEFAULT NULL,
   `category` varchar(100) DEFAULT NULL,
-  `author_id` bigint unsigned DEFAULT NULL,
+  `author_id` bigint unsigned DEFAULT '1',
   `published_at` timestamp NULL DEFAULT NULL,
   `is_published` tinyint(1) DEFAULT '0',
   `views` int DEFAULT '0',
@@ -982,7 +1107,7 @@ CREATE TABLE `news` (
 
 LOCK TABLES `news` WRITE;
 /*!40000 ALTER TABLE `news` DISABLE KEYS */;
-INSERT INTO `news` VALUES (3,'TOAN','toan','DANG THANH TOAN','TOAN','https://static.nike.com/a/images/q_auto:eco/t_product_v1/f_auto/dpr_1.5/h_381,c_limit/f9f098e2-5a18-4e52-990f-b9cc09357fbc/air-max-dn8-leather-shoes-bYfKK6Qb.png','Sản Phẩm',3,'2026-02-01 05:40:49',1,34,'2026-02-01 12:40:48','2026-03-05 03:06:56');
+INSERT INTO `news` VALUES (3,'TOAN','toan','DANG THANH TOAN','TOAN','https://static.nike.com/a/images/q_auto:eco/t_product_v1/f_auto/dpr_1.5/h_381,c_limit/f9f098e2-5a18-4e52-990f-b9cc09357fbc/air-max-dn8-leather-shoes-bYfKK6Qb.png','Sản Phẩm',1,'2026-02-01 05:40:49',1,34,'2026-02-01 12:40:48','2026-03-08 06:16:38');
 /*!40000 ALTER TABLE `news` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -1165,7 +1290,7 @@ CREATE TABLE `order_items` (
 
 LOCK TABLES `order_items` WRITE;
 /*!40000 ALTER TABLE `order_items` DISABLE KEYS */;
-INSERT INTO `order_items` VALUES (1,3,2,NULL,NULL,'Nike Air Force 1 \'07',NULL,'40',1,2929000.00,0.00,2929000.00,NULL),(2,4,2,NULL,NULL,'Nike Air Force 1 \'07',NULL,'45',10,2929000.00,0.00,29290000.00,NULL),(3,5,2,NULL,NULL,'Nike Air Force 1 \'07',NULL,'40',1,2929000.00,0.00,2929000.00,NULL),(4,6,2,NULL,NULL,'Nike Air Force 1 \'07',NULL,'40',1,2929000.00,0.00,2929000.00,NULL),(5,6,2,NULL,NULL,'Nike Air Force 1 \'07',NULL,'44',1,2929000.00,0.00,2929000.00,NULL),(6,7,2,NULL,NULL,'Nike Air Force 1 \'07',NULL,'40',1,2929000.00,0.00,2929000.00,NULL),(7,8,2,NULL,NULL,'Nike Air Force 1 \'07',NULL,'40',1,2929000.00,0.00,2929000.00,NULL),(8,9,1,NULL,NULL,'Nike Air Max 270',NULL,'40',1,3829000.00,0.00,3829000.00,NULL),(10,11,4,NULL,NULL,'Air Jordan 1 Mid',NULL,'39',1,3829000.00,0.00,3829000.00,NULL),(11,12,3,NULL,NULL,'Nike Pegasus 40',NULL,'40',1,3519000.00,0.00,3519000.00,NULL),(12,13,5,NULL,NULL,'Air Jordan 4 Retro',NULL,'40',1,5589000.00,0.00,5589000.00,NULL),(14,15,1,NULL,NULL,'Test Product',NULL,'42',1,1000000.00,0.00,1000000.00,NULL),(15,16,1,NULL,NULL,'Test Product',NULL,'42',1,1000000.00,0.00,1000000.00,NULL),(16,17,1,NULL,NULL,'Test Product',NULL,'42',1,1000000.00,0.00,1000000.00,NULL),(17,18,1,NULL,NULL,'Test Product',NULL,'42',1,1000000.00,0.00,1000000.00,NULL),(18,19,1,NULL,NULL,'Test Product',NULL,'42',1,1000000.00,0.00,1000000.00,NULL),(19,20,1,NULL,NULL,'Test Product',NULL,'42',1,1000000.00,0.00,1000000.00,NULL),(20,21,1,NULL,NULL,'Test Product',NULL,'42',1,1000000.00,0.00,1000000.00,NULL),(21,22,1,NULL,NULL,'Test Product',NULL,'42',1,1000000.00,0.00,1000000.00,NULL),(22,23,1,NULL,NULL,'Test Product',NULL,'42',1,1000000.00,0.00,1000000.00,NULL),(23,24,1,NULL,NULL,'Test Product',NULL,'42',1,1000000.00,0.00,1000000.00,NULL),(24,25,1,NULL,NULL,'Test Product',NULL,'42',1,1000000.00,0.00,1000000.00,NULL),(25,26,1,NULL,NULL,'Test Product',NULL,'42',1,1000000.00,0.00,1000000.00,NULL),(26,27,1,NULL,NULL,'Test Product',NULL,'42',1,1000000.00,0.00,1000000.00,NULL),(27,28,1,NULL,NULL,'Test Product',NULL,'42',1,1000000.00,0.00,1000000.00,NULL),(28,29,1,NULL,NULL,'Test Product',NULL,'42',1,1000000.00,0.00,1000000.00,NULL),(29,30,1,NULL,NULL,'Test Product',NULL,'42',1,1000000.00,0.00,1000000.00,NULL),(30,31,1,NULL,NULL,'Test Product',NULL,'42',1,1000000.00,0.00,1000000.00,NULL),(31,32,1,NULL,NULL,'Test Product',NULL,'42',1,1000000.00,0.00,1000000.00,NULL),(32,33,1,NULL,NULL,'Test Product',NULL,'42',1,1000000.00,0.00,1000000.00,NULL),(33,34,1,NULL,NULL,'Test Product',NULL,'42',1,1000000.00,0.00,1000000.00,NULL),(34,35,1,NULL,NULL,'Test Product',NULL,'42',1,1000000.00,0.00,1000000.00,NULL),(35,36,1,NULL,NULL,'Test Product',NULL,'42',1,1000000.00,0.00,1000000.00,NULL),(36,37,1,NULL,NULL,'Test Product',NULL,'42',1,1000000.00,0.00,1000000.00,NULL),(37,38,1,NULL,NULL,'Test Product',NULL,'42',1,1000000.00,0.00,1000000.00,NULL),(38,39,1,NULL,NULL,'Test Product',NULL,'42',1,1000000.00,0.00,1000000.00,NULL),(39,40,6,NULL,NULL,'Nike Dunk Low',NULL,'39',1,2829000.00,0.00,2829000.00,NULL),(40,42,1,1,NULL,'Nike Air Max 270',NULL,'38',1,1000000.00,0.00,1000000.00,NULL),(41,43,NULL,NULL,NULL,'Test Product Flash Sale','TEST-FS-1770901492725','42',1,1000000.00,0.00,1000000.00,NULL),(42,44,NULL,NULL,NULL,'Test Product Flash Sale','TEST-FS-1770901562442','42',1,1000000.00,0.00,1000000.00,NULL),(43,45,NULL,NULL,NULL,'Test Product Flash Sale','TEST-FS-1770901646528','42',1,1000000.00,0.00,1000000.00,NULL),(44,46,NULL,NULL,NULL,'Test Product Flash Sale','TEST-FS-1770901763475','42',1,500000.00,0.00,500000.00,NULL),(45,47,NULL,NULL,NULL,'Test Product Flash Sale','TEST-FS-1770901887369','42',1,500000.00,0.00,500000.00,NULL),(46,48,NULL,NULL,NULL,'Test Product Flash Sale','TEST-FS-1770902066999','42',1,500000.00,0.00,500000.00,NULL),(47,49,NULL,NULL,NULL,'Test Product Flash Sale','TEST-FS-1770902133761','42',1,500000.00,0.00,500000.00,NULL),(48,50,NULL,NULL,NULL,'Test Product Flash Sale','TEST-FS-1770944212477','42',1,500000.00,0.00,500000.00,NULL),(49,51,1,5,NULL,'Test Shoe','NK-AM270-BLK-42','42',1,4500000.00,0.00,4500000.00,NULL),(50,53,1,7,7,'Nike Air Max 270','NK-AM270-BLK-44','44',1,4500000.00,0.00,4500000.00,NULL),(51,54,1,5,5,'Nike Air Max 270','NK-AM270-BLK-42','42',1,4500000.00,0.00,4500000.00,NULL);
+INSERT INTO `order_items` VALUES (1,3,2,NULL,NULL,'Nike Air Force 1 \'07',NULL,'40',1,2929000.00,2050300.00,2929000.00,NULL),(2,4,2,NULL,NULL,'Nike Air Force 1 \'07',NULL,'45',10,2929000.00,2050300.00,29290000.00,NULL),(3,5,2,NULL,NULL,'Nike Air Force 1 \'07',NULL,'40',1,2929000.00,2050300.00,2929000.00,NULL),(4,6,2,NULL,NULL,'Nike Air Force 1 \'07',NULL,'40',1,2929000.00,2050300.00,2929000.00,NULL),(5,6,2,NULL,NULL,'Nike Air Force 1 \'07',NULL,'44',1,2929000.00,2050300.00,2929000.00,NULL),(6,7,2,NULL,NULL,'Nike Air Force 1 \'07',NULL,'40',1,2929000.00,2050300.00,2929000.00,NULL),(7,8,2,NULL,NULL,'Nike Air Force 1 \'07',NULL,'40',1,2929000.00,2050300.00,2929000.00,NULL),(8,9,1,NULL,NULL,'Nike Air Max 270',NULL,'40',1,3829000.00,2680300.00,3829000.00,NULL),(10,11,4,NULL,NULL,'Air Jordan 1 Mid',NULL,'39',1,3829000.00,2680300.00,3829000.00,NULL),(11,12,3,NULL,NULL,'Nike Pegasus 40',NULL,'40',1,3519000.00,2463300.00,3519000.00,NULL),(12,13,5,NULL,NULL,'Air Jordan 4 Retro',NULL,'40',1,5589000.00,3912300.00,5589000.00,NULL),(39,40,6,NULL,NULL,'Nike Dunk Low',NULL,'39',1,2829000.00,1980300.00,2829000.00,NULL),(50,53,1,7,7,'Nike Air Max 270','NK-AM270-BLK-44','44',1,4500000.00,3150000.00,4500000.00,NULL),(51,54,1,5,5,'Nike Air Max 270','NK-AM270-BLK-42','42',1,4500000.00,3150000.00,4500000.00,NULL);
 /*!40000 ALTER TABLE `order_items` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -1180,36 +1305,32 @@ CREATE TABLE `orders` (
   `id` bigint unsigned NOT NULL AUTO_INCREMENT,
   `order_number` varchar(100) NOT NULL,
   `user_id` bigint unsigned DEFAULT NULL,
-  `shipping_address_id` bigint unsigned DEFAULT NULL,
-  `billing_address_id` bigint unsigned DEFAULT NULL,
-  `billing_phone_encrypted` text,
   `subtotal` decimal(12,2) NOT NULL DEFAULT '0.00',
   `shipping_fee` decimal(12,2) DEFAULT '0.00',
   `discount` decimal(12,2) DEFAULT '0.00',
-  `voucher_code` varchar(50) DEFAULT NULL,
+  `promotion_code` varchar(50) DEFAULT NULL,
+  `promotion_type` enum('voucher','coupon','none') DEFAULT 'none',
+  `coupon_id` bigint unsigned DEFAULT NULL,
+  `voucher_id` bigint unsigned DEFAULT NULL,
   `voucher_discount` decimal(12,2) DEFAULT '0.00',
-  `giftcard_number` varchar(16) DEFAULT NULL,
   `giftcard_discount` decimal(12,2) DEFAULT '0.00',
+  `giftcard_id` bigint unsigned DEFAULT NULL COMMENT 'FK to gift_cards.id. Replaces plaintext giftcard_number.',
+  `membership_discount` decimal(12,2) DEFAULT '0.00',
   `tax` decimal(12,2) DEFAULT '0.00',
   `total` decimal(12,2) NOT NULL DEFAULT '0.00',
   `currency` varchar(10) DEFAULT 'VND',
   `shipping_address_snapshot` json DEFAULT NULL,
-  `shipping_phone_encrypted` text,
-  `shipping_address_encrypted` text,
   `status` enum('pending','pending_payment_confirmation','payment_received','confirmed','processing','shipped','delivered','cancelled','refunded') NOT NULL DEFAULT 'pending',
   `placed_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   `payment_method` varchar(50) DEFAULT 'cod',
   `payment_status` enum('pending','paid','failed','refunded') DEFAULT 'pending',
-  `phone` varchar(255) DEFAULT NULL,
-  `phone_encrypted` text,
-  `email` varchar(255) DEFAULT NULL,
-  `email_encrypted` text,
   `tracking_number` varchar(100) DEFAULT NULL,
   `carrier` varchar(100) DEFAULT NULL,
   `shipped_at` timestamp NULL DEFAULT NULL,
   `delivered_at` timestamp NULL DEFAULT NULL,
   `payment_confirmed_at` timestamp NULL DEFAULT NULL,
+  `cancelled_at` timestamp NULL DEFAULT NULL COMMENT 'Timestamp khi đơn hàng bị hủy (status → cancelled)',
   `notes` text,
   `has_gift_wrapping` tinyint(1) DEFAULT '0',
   `gift_wrap_cost` decimal(12,2) DEFAULT '0.00',
@@ -1217,19 +1338,20 @@ CREATE TABLE `orders` (
   PRIMARY KEY (`id`),
   UNIQUE KEY `order_number` (`order_number`),
   KEY `user_id` (`user_id`),
-  KEY `idx_order_number` (`order_number`),
-  KEY `idx_shipping_address` (`shipping_address_id`),
-  KEY `idx_billing_address` (`billing_address_id`),
-  KEY `idx_tracking_number` (`tracking_number`),
   KEY `idx_is_encrypted` (`is_encrypted`),
   KEY `idx_user_status_placed` (`user_id`,`status`,`placed_at` DESC),
   KEY `idx_status_placed` (`status`,`placed_at` DESC),
-  KEY `idx_payment_status_placed` (`payment_status`,`placed_at` DESC),
   KEY `idx_tracking_carrier` (`tracking_number`,`carrier`),
-  KEY `idx_orders_voucher_code` (`voucher_code`),
+  KEY `idx_orders_voucher_code` (`promotion_code`),
   KEY `idx_orders_payment_method` (`payment_method`),
-  CONSTRAINT `fk_orders_billing_address` FOREIGN KEY (`billing_address_id`) REFERENCES `user_addresses` (`id`) ON DELETE SET NULL,
-  CONSTRAINT `fk_orders_shipping_address` FOREIGN KEY (`shipping_address_id`) REFERENCES `user_addresses` (`id`) ON DELETE SET NULL,
+  KEY `fk_orders_giftcard_id` (`giftcard_id`),
+  KEY `idx_orders_placed_at` (`placed_at`),
+  KEY `idx_orders_cancelled_at` (`cancelled_at`),
+  KEY `idx_orders_coupon_id` (`coupon_id`),
+  KEY `idx_orders_voucher_id` (`voucher_id`),
+  CONSTRAINT `fk_orders_coupon_id` FOREIGN KEY (`coupon_id`) REFERENCES `coupons` (`id`) ON DELETE SET NULL,
+  CONSTRAINT `fk_orders_giftcard_id` FOREIGN KEY (`giftcard_id`) REFERENCES `gift_cards` (`id`) ON DELETE SET NULL,
+  CONSTRAINT `fk_orders_voucher_id` FOREIGN KEY (`voucher_id`) REFERENCES `vouchers` (`id`) ON DELETE SET NULL,
   CONSTRAINT `orders_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB AUTO_INCREMENT=55 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
@@ -1240,7 +1362,7 @@ CREATE TABLE `orders` (
 
 LOCK TABLES `orders` WRITE;
 /*!40000 ALTER TABLE `orders` DISABLE KEYS */;
-INSERT INTO `orders` VALUES (3,'NK1765037039892',1,NULL,NULL,NULL,2929000.00,0.00,0.00,NULL,0.00,NULL,0.00,0.00,2929000.00,'VND',NULL,NULL,NULL,'cancelled','2025-12-06 16:03:59','2026-03-02 03:12:16','cod','pending','***',NULL,'***',NULL,NULL,NULL,NULL,NULL,NULL,NULL,0,0.00,1),(4,'NK1765087390746',1,NULL,NULL,NULL,29290000.00,0.00,0.00,NULL,0.00,NULL,0.00,0.00,29290000.00,'VND',NULL,NULL,NULL,'cancelled','2025-12-07 06:03:10','2026-03-02 03:12:16','cod','pending','***',NULL,'***',NULL,NULL,NULL,NULL,NULL,NULL,NULL,0,0.00,1),(5,'NK1765088272959',1,NULL,NULL,NULL,2929000.00,0.00,0.00,NULL,0.00,NULL,0.00,0.00,2929000.00,'VND',NULL,NULL,NULL,'delivered','2025-12-07 06:17:52','2026-03-02 03:12:16','cod','pending','***',NULL,'***',NULL,NULL,NULL,NULL,NULL,NULL,NULL,0,0.00,1),(6,'NK1765089059778',1,NULL,NULL,NULL,5858000.00,0.00,1288760.00,'VIP20',1288760.00,NULL,0.00,0.00,4569240.00,'VND',NULL,NULL,NULL,'delivered','2025-12-07 06:30:59','2026-03-02 03:12:16','cod','pending','***',NULL,'***',NULL,NULL,NULL,NULL,NULL,NULL,NULL,0,0.00,1),(7,'NK1765093418497',1,7,NULL,NULL,2929000.00,0.00,1644380.00,'VIP20',644380.00,'2345678901234567',1000000.00,0.00,1284620.00,'VND',NULL,NULL,NULL,'cancelled','2025-12-07 07:43:38','2026-03-02 03:12:16','cod','pending','***',NULL,'***',NULL,NULL,NULL,NULL,NULL,NULL,NULL,0,0.00,1),(8,'NK1767443489937',1,NULL,NULL,NULL,2929000.00,0.00,0.00,NULL,0.00,NULL,0.00,0.00,2929000.00,'VND',NULL,NULL,NULL,'cancelled','2026-01-03 12:31:29','2026-03-02 03:12:16','cod','pending','***',NULL,'***',NULL,NULL,NULL,NULL,NULL,NULL,NULL,0,0.00,1),(9,'NK1769773670916',1,NULL,NULL,NULL,3829000.00,0.00,1100000.00,'TOAN',100000.00,'1122334455667788',1000000.00,0.00,2729000.00,'VND',NULL,NULL,NULL,'delivered','2026-01-30 11:47:50','2026-03-02 03:12:16','cod','pending','***',NULL,'***',NULL,NULL,NULL,NULL,NULL,NULL,NULL,0,0.00,1),(11,'NK1769775001613',1,NULL,NULL,NULL,3829000.00,0.00,1100000.00,'TOAN',100000.00,'1122334455667788',1000000.00,382900.00,3111900.00,'VND',NULL,NULL,NULL,'delivered','2026-01-30 12:10:01','2026-03-02 03:12:16','cod','pending','***',NULL,'***',NULL,NULL,NULL,NULL,NULL,NULL,NULL,0,0.00,1),(12,'NK1769776162375',1,NULL,NULL,NULL,3519000.00,0.00,1050000.00,'WELCOME50',50000.00,'1122334455667788',1000000.00,351900.00,2820900.00,'VND',NULL,NULL,NULL,'delivered','2026-01-30 12:29:22','2026-03-02 03:12:16','cod','pending','***',NULL,'***',NULL,NULL,NULL,NULL,NULL,NULL,NULL,0,0.00,1),(13,'NK1769776799944',1,NULL,NULL,NULL,5589000.00,0.00,1500000.00,'NIKE2024',500000.00,'1122334455667788',1000000.00,558900.00,4647900.00,'VND',NULL,NULL,NULL,'delivered','2026-01-30 12:39:59','2026-03-02 03:12:16','cod','pending','***',NULL,'***',NULL,NULL,NULL,NULL,NULL,NULL,NULL,0,0.00,1),(15,'NK1770196157999',1,NULL,NULL,NULL,1000000.00,0.00,50000.00,NULL,0.00,NULL,0.00,0.00,950000.00,'VND',NULL,NULL,NULL,'pending','2026-02-04 09:09:18','2026-03-02 03:12:16','cod','pending','***',NULL,'***',NULL,NULL,NULL,NULL,NULL,NULL,NULL,0,0.00,1),(16,'NK1770196178560',1,NULL,NULL,NULL,1000000.00,0.00,50000.00,NULL,0.00,NULL,0.00,0.00,950000.00,'VND',NULL,NULL,NULL,'pending','2026-02-04 09:09:38','2026-03-02 03:12:16','cod','pending','***',NULL,'***',NULL,NULL,NULL,NULL,NULL,NULL,NULL,0,0.00,1),(17,'NK1770196191139',1,NULL,NULL,NULL,1000000.00,0.00,50000.00,NULL,0.00,NULL,0.00,0.00,950000.00,'VND',NULL,NULL,NULL,'pending','2026-02-04 09:09:51','2026-03-02 03:12:16','cod','pending','***',NULL,'***',NULL,NULL,NULL,NULL,NULL,NULL,NULL,0,0.00,1),(18,'NK1770196219646',1,NULL,NULL,NULL,1000000.00,0.00,50000.00,NULL,0.00,NULL,0.00,0.00,950000.00,'VND',NULL,NULL,NULL,'pending','2026-02-04 09:10:19','2026-03-02 03:12:16','cod','pending','***',NULL,'***',NULL,NULL,NULL,NULL,NULL,NULL,NULL,0,0.00,1),(19,'NK1770196270843',1,NULL,NULL,NULL,1000000.00,0.00,50000.00,NULL,0.00,NULL,0.00,0.00,950000.00,'VND',NULL,NULL,NULL,'pending','2026-02-04 09:11:10','2026-03-02 03:12:16','cod','pending','***',NULL,'***',NULL,NULL,NULL,NULL,NULL,NULL,NULL,0,0.00,1),(20,'NK1770196337590',1,NULL,NULL,NULL,1000000.00,0.00,50000.00,NULL,0.00,NULL,0.00,0.00,950000.00,'VND',NULL,NULL,NULL,'pending','2026-02-04 09:12:17','2026-03-02 03:12:16','cod','pending','***',NULL,'***',NULL,NULL,NULL,NULL,NULL,NULL,NULL,0,0.00,1),(21,'NK1770196389744',1,NULL,NULL,NULL,1000000.00,0.00,50000.00,NULL,0.00,NULL,0.00,0.00,950000.00,'VND',NULL,NULL,NULL,'pending','2026-02-04 09:13:09','2026-03-02 03:12:16','cod','pending','***',NULL,'***',NULL,NULL,NULL,NULL,NULL,NULL,NULL,0,0.00,1),(22,'NK1770196421706',1,NULL,NULL,NULL,1000000.00,0.00,50000.00,NULL,0.00,NULL,0.00,0.00,950000.00,'VND',NULL,NULL,NULL,'pending','2026-02-04 09:13:41','2026-03-02 03:12:16','cod','pending','***',NULL,'***',NULL,NULL,NULL,NULL,NULL,NULL,NULL,0,0.00,1),(23,'NK1770196439024',1,NULL,NULL,NULL,1000000.00,0.00,50000.00,NULL,0.00,NULL,0.00,0.00,950000.00,'VND',NULL,NULL,NULL,'pending','2026-02-04 09:13:59','2026-03-02 03:12:16','cod','pending','***',NULL,'***',NULL,NULL,NULL,NULL,NULL,NULL,NULL,0,0.00,1),(24,'NK1770196523454',1,NULL,NULL,NULL,1000000.00,0.00,50000.00,NULL,0.00,NULL,0.00,0.00,950000.00,'VND',NULL,NULL,NULL,'pending','2026-02-04 09:15:23','2026-03-02 03:12:16','cod','pending','***',NULL,'***',NULL,NULL,NULL,NULL,NULL,NULL,NULL,0,0.00,1),(25,'NK1770196531049',1,NULL,NULL,NULL,1000000.00,0.00,50000.00,NULL,0.00,NULL,0.00,0.00,950000.00,'VND',NULL,NULL,NULL,'pending','2026-02-04 09:15:31','2026-03-02 03:12:16','cod','pending','***',NULL,'***',NULL,NULL,NULL,NULL,NULL,NULL,NULL,0,0.00,1),(26,'NK1770196577187',1,NULL,NULL,NULL,1000000.00,0.00,50000.00,NULL,0.00,NULL,0.00,0.00,950000.00,'VND',NULL,NULL,NULL,'pending','2026-02-04 09:16:17','2026-03-02 03:12:16','cod','pending','***',NULL,'***',NULL,NULL,NULL,NULL,NULL,NULL,NULL,0,0.00,1),(27,'NK1770196691103',1,NULL,NULL,NULL,1000000.00,0.00,50000.00,NULL,0.00,NULL,0.00,0.00,950000.00,'VND',NULL,NULL,NULL,'pending','2026-02-04 09:18:11','2026-03-02 03:12:16','cod','pending','***',NULL,'***',NULL,NULL,NULL,NULL,NULL,NULL,NULL,0,0.00,1),(28,'NK1770196782235',1,NULL,NULL,NULL,1000000.00,0.00,50000.00,NULL,0.00,NULL,0.00,0.00,950000.00,'VND',NULL,NULL,NULL,'pending','2026-02-04 09:19:42','2026-03-02 03:12:16','cod','pending','***',NULL,'***',NULL,NULL,NULL,NULL,NULL,NULL,NULL,0,0.00,1),(29,'NK1770196800262',1,NULL,NULL,NULL,1000000.00,0.00,50000.00,NULL,0.00,NULL,0.00,0.00,950000.00,'VND',NULL,NULL,NULL,'pending','2026-02-04 09:20:00','2026-03-02 03:12:16','cod','pending','***',NULL,'***',NULL,NULL,NULL,NULL,NULL,NULL,NULL,0,0.00,1),(30,'NK1770196815188',1,NULL,NULL,NULL,1000000.00,0.00,50000.00,NULL,0.00,NULL,0.00,0.00,950000.00,'VND',NULL,NULL,NULL,'pending','2026-02-04 09:20:15','2026-03-02 03:12:16','cod','pending','***',NULL,'***',NULL,NULL,NULL,NULL,NULL,NULL,NULL,0,0.00,1),(31,'NK1770196850291',1,NULL,NULL,NULL,1000000.00,0.00,50000.00,NULL,0.00,NULL,0.00,0.00,950000.00,'VND',NULL,NULL,NULL,'pending','2026-02-04 09:20:50','2026-03-02 03:12:16','cod','pending','***',NULL,'***',NULL,NULL,NULL,NULL,NULL,NULL,NULL,0,0.00,1),(32,'NK1770196890568',1,NULL,NULL,NULL,1000000.00,0.00,50000.00,NULL,0.00,NULL,0.00,0.00,950000.00,'VND',NULL,NULL,NULL,'pending','2026-02-04 09:21:30','2026-03-02 03:12:16','cod','pending','***',NULL,'***',NULL,NULL,NULL,NULL,NULL,NULL,NULL,0,0.00,1),(33,'NK1770196912386',1,NULL,NULL,NULL,1000000.00,0.00,50000.00,NULL,0.00,NULL,0.00,0.00,950000.00,'VND',NULL,NULL,NULL,'pending','2026-02-04 09:21:52','2026-03-02 03:12:16','cod','pending','***',NULL,'***',NULL,NULL,NULL,NULL,NULL,NULL,NULL,0,0.00,1),(34,'NK1770196924822',1,NULL,NULL,NULL,1000000.00,0.00,50000.00,NULL,0.00,NULL,0.00,0.00,950000.00,'VND',NULL,NULL,NULL,'pending','2026-02-04 09:22:04','2026-03-02 03:12:16','cod','pending','***',NULL,'***',NULL,NULL,NULL,NULL,NULL,NULL,NULL,0,0.00,1),(35,'NK1770196940529',1,NULL,NULL,NULL,1000000.00,0.00,50000.00,NULL,0.00,NULL,0.00,0.00,950000.00,'VND',NULL,NULL,NULL,'pending','2026-02-04 09:22:20','2026-03-02 03:12:16','cod','pending','***',NULL,'***',NULL,NULL,NULL,NULL,NULL,NULL,NULL,0,0.00,1),(36,'NK1770196958574',1,NULL,NULL,NULL,1000000.00,0.00,50000.00,NULL,0.00,NULL,0.00,0.00,950000.00,'VND',NULL,NULL,NULL,'pending','2026-02-04 09:22:38','2026-03-02 03:12:16','cod','pending','***',NULL,'***',NULL,NULL,NULL,NULL,NULL,NULL,NULL,0,0.00,1),(37,'NK1770197057864',1,NULL,NULL,NULL,1000000.00,0.00,50000.00,NULL,0.00,NULL,0.00,0.00,950000.00,'VND',NULL,NULL,NULL,'pending','2026-02-04 09:24:17','2026-03-02 03:12:16','cod','pending','***',NULL,'***',NULL,NULL,NULL,NULL,NULL,NULL,NULL,0,0.00,1),(38,'NK1770197152721',1,NULL,NULL,NULL,1000000.00,0.00,50000.00,NULL,0.00,NULL,0.00,0.00,950000.00,'VND',NULL,NULL,NULL,'pending_payment_confirmation','2026-02-04 09:25:52','2026-03-02 03:12:16','Ví MoMo','pending','***',NULL,'***',NULL,NULL,NULL,NULL,NULL,'2026-02-04 09:25:53','\n[Xác nhận thanh toán] SĐT: 0987654321, Số tiền: 950.000₫, Ghi chú: Test Payment',0,0.00,1),(39,'NK1770198112101',1,NULL,NULL,NULL,1000000.00,0.00,50000.00,NULL,0.00,NULL,0.00,0.00,950000.00,'VND',NULL,NULL,NULL,'pending_payment_confirmation','2026-02-04 09:41:52','2026-03-02 03:12:16','Ví MoMo','pending','***',NULL,'***',NULL,NULL,NULL,NULL,NULL,'2026-02-04 09:41:52','\n[Xác nhận thanh toán] SĐT: 0987654321, Số tiền: 950.000₫, Ghi chú: Test Payment',0,0.00,1),(40,'NK1770253823973',1,NULL,NULL,NULL,2829000.00,0.00,141450.00,NULL,0.00,NULL,0.00,282900.00,2970450.00,'VND',NULL,NULL,NULL,'delivered','2026-02-05 01:10:24','2026-03-02 03:12:16','Thanh toán khi nhận hàng','pending','***',NULL,'***',NULL,NULL,NULL,NULL,NULL,NULL,NULL,0,0.00,1),(42,'TEST-1770769999102',1,NULL,NULL,NULL,1000000.00,0.00,0.00,NULL,0.00,NULL,0.00,0.00,1000000.00,'VND','{\"city\": \"Test City\", \"name\": \"Test Receiver\", \"ward\": \"Test Ward\", \"phone\": \"7dbf4cb3cba938239279cf804e7747e9:1ad79d49cb590d3aaf53ef723c9f9d23:979168000b081768f3fb\", \"address\": \"485ab85a96b0d88a2fb1ae67e60f9fd5:a68d260a2fc106d35c81f98c3b2b425b:73eb37223f1ecfec1f9be4\", \"district\": \"Test District\"}',NULL,NULL,'pending','2026-02-11 00:33:19','2026-03-02 03:12:16','cod','pending','***','b69a88a28327e0036129f8f85ef34181:f05f82ea7e73a494775aeed9cfcbbb50','***','e0f94e6659f1e0b11c270b18b3779fba:6238a7277db1e3bc1903a2dd16e59f7a',NULL,NULL,NULL,NULL,NULL,NULL,0,0.00,1),(43,'TEST-ORD-1770901493436',NULL,NULL,NULL,NULL,1000000.00,0.00,0.00,NULL,0.00,NULL,0.00,0.00,1000000.00,'VND','{\"city\": \"\", \"name\": \"0123456789\", \"ward\": \"\", \"phone\": \"60f41f16b8ee2647742360e83addc3aa:664959fa7fb065df55c6ced3f9013541:1c6d8b0f7d7abdc9e114\", \"address\": \"10a5e1c539e53e107b05845f29f2febe:7b86aa6ee11aa23b227371b774b568b5:f69541e637bf5355147997\", \"district\": \"\"}',NULL,NULL,'pending','2026-02-12 13:04:53','2026-03-02 03:12:16','cod','pending','***','a31fdcd4174729d73ffe87e46b25fef2:1a16bce28efad202f6da0bfae92f6a04','***','e1e3238b47f4315b3512511bfd3e9ad1:fca325748e09c962f21194b6f7773d15',NULL,NULL,NULL,NULL,NULL,NULL,0,0.00,1),(44,'TEST-ORD-1770901563158',NULL,NULL,NULL,NULL,1000000.00,0.00,0.00,NULL,0.00,NULL,0.00,0.00,1000000.00,'VND','{\"city\": \"\", \"name\": \"0123456789\", \"ward\": \"\", \"phone\": \"ea2f7ce0b2e329751821921b29835d4e:60231b68b3d0f0b7bbaed1d78c30d81f:4bbaed76560772edbcc4\", \"address\": \"42ec7c1c84c95686aff55a649981f9b3:e834e691f8277d3c75d247de8ba5317c:25e728b02ba125fe13c84f\", \"district\": \"\"}',NULL,NULL,'pending','2026-02-12 13:06:03','2026-03-02 03:12:16','cod','pending','***','ca4e7298760c4fb266d8dbaed9a7c358:ea80534133f33eaaec3ebc2e098529ea','***','893991c2650e5f22848988c13f7cc2c8:1dadba8d53bf909d2511221c8cf16fef',NULL,NULL,NULL,NULL,NULL,NULL,0,0.00,1),(45,'TEST-ORD-1770901646849',NULL,NULL,NULL,NULL,1000000.00,0.00,0.00,NULL,0.00,NULL,0.00,0.00,1000000.00,'VND','{\"city\": \"\", \"name\": \"0123456789\", \"ward\": \"\", \"phone\": \"8831dfb6569ede5d20d17893eb28cc9d:cbd45bd242a18c0f14ec6c231a4a49dc:112620d70d3d2d51efbe\", \"address\": \"cceafabd03ec23aa07f6169420902d7e:978e919204dcf6249983f8b71106c2ed:e8a7b1cd7f5bba6c03a96a\", \"district\": \"\"}',NULL,NULL,'pending','2026-02-12 13:07:26','2026-03-02 03:12:16','cod','pending','***','06484a6041646709ad1fa7aec3d0ec30:40331b33d6da3209f33b05dfb5d94a02','***','a0e814ed0170865c1a82d4217fc367ed:a3d447a7e092333bbabae344eafe6cb1',NULL,NULL,NULL,NULL,NULL,NULL,0,0.00,1),(46,'TEST-ORD-1770901764124',NULL,NULL,NULL,NULL,500000.00,0.00,0.00,NULL,0.00,NULL,0.00,0.00,500000.00,'VND','{\"city\": \"\", \"name\": \"0123456789\", \"ward\": \"\", \"phone\": \"e5b5b7b6454e9c089a9d0403cb1fc8c0:dc1f17430426e91c40807fe90dae0d71:f0224d611e449f38d1bd\", \"address\": \"019886d30b45e4d2979d3d23d3123bb3:e50f80b0207829725c89907e4290ea6c:0f8442e9ddb243f9c9b5c6\", \"district\": \"\"}',NULL,NULL,'pending','2026-02-12 13:09:24','2026-03-02 03:12:16','cod','pending','***','8ba642bf3bd4264d608dc8c204a6735d:f42ada0a585442eb325fa55283a4100b','***','342f179b2ecbd67cd7250071b3fc6a29:052fd0b587892bd49dd6f099e30bd6b8',NULL,NULL,NULL,NULL,NULL,NULL,0,0.00,1),(47,'TEST-ORD-1770901887784',NULL,NULL,NULL,NULL,500000.00,0.00,0.00,NULL,0.00,NULL,0.00,0.00,500000.00,'VND','{\"city\": \"\", \"name\": \"0123456789\", \"ward\": \"\", \"phone\": \"6e5bf9f019ecd13a0f6916b0b1135004:c8b879a0159328befa7816777438b7da:eb86c4e6c061641bbb02\", \"address\": \"9dade872567183364294a30ba21ef2d7:99802c63209b891f0f9b2c0a96cb3648:4ebb117a9d8cfdb17704b1\", \"district\": \"\"}',NULL,NULL,'pending','2026-02-12 13:11:27','2026-03-02 03:12:16','cod','pending','***','d9c28993b202aefc085785fab00772c4:60a783823766975e46e592cd51f75297','***','5347467ae61b37472fe56d7643ef298e:82b234eca0d6e8c891791b5ea9d3ae5b',NULL,NULL,NULL,NULL,NULL,NULL,0,0.00,1),(48,'TEST-ORD-1770902067869',NULL,NULL,NULL,NULL,500000.00,0.00,0.00,NULL,0.00,NULL,0.00,0.00,500000.00,'VND','{\"city\": \"\", \"name\": \"0123456789\", \"ward\": \"\", \"phone\": \"057c1704117ed1bee8460d299a10f433:6e55709b6b422f5c83d275e0f0542f99:152a7a99d122ebb8141b\", \"address\": \"f377d867c5970e77a9d7341e4e502a81:2d1d3facde58223e771fd43a0870d9b3:517d6d5e878e5f578760d8\", \"district\": \"\"}',NULL,NULL,'pending','2026-02-12 13:14:27','2026-03-02 03:12:16','cod','pending','***','6ff4e9fb5da3a356100eb9d2df7d702e:ede4804d5750cb487eddd66bf989a4aa','***','34f32c7fd7a51ee10811b05d96f226c8:393a49b0e04dc7d2e32033b4427d13b5',NULL,NULL,NULL,NULL,NULL,NULL,0,0.00,1),(49,'TEST-ORD-1770902134346',NULL,NULL,NULL,NULL,500000.00,0.00,0.00,NULL,0.00,NULL,0.00,0.00,500000.00,'VND','{\"city\": \"\", \"name\": \"0123456789\", \"ward\": \"\", \"phone\": \"d0bbcf4830569a62e4759a63dac06f48:a97082054c09b8148eb4b4e6be431201:95dbcc776c19ab472442\", \"address\": \"50848bd745095d652b8cf1c830584cb9:a75085a59270048175e47fe92f4f026d:16bed05ca0348f2d2c3395\", \"district\": \"\"}',NULL,NULL,'cancelled','2026-02-12 13:15:34','2026-03-02 03:12:16','cod','pending','***','3edaacfae10e94f09a5179da9f156853:481ea9598e552c2de75510723bd59b77','***','1b0bc078b0539fd67488d500d9aafb89:91a9f4f175bf44dc9d86c60bbd286d6e',NULL,NULL,NULL,NULL,NULL,NULL,0,0.00,1),(50,'TEST-ORD-1770944212731',NULL,NULL,NULL,NULL,500000.00,0.00,0.00,NULL,0.00,NULL,0.00,0.00,500000.00,'VND','{\"city\": \"\", \"name\": \"0123456789\", \"ward\": \"\", \"phone\": \"999bf6fc207bd61ad0f6390ea176444a:52e75499f80afab084108a3c943cc38f:6e312ad879c5b9f2b628\", \"address\": \"5feaa715e614928f993171385216a5ea:404bebb6c5a06b145c7aa49d44abca7a:44e0aab931759829a70fd4\", \"district\": \"\"}',NULL,NULL,'cancelled','2026-02-13 00:56:52','2026-03-02 03:12:16','cod','pending','***','5285470d457c042acc35ab28c7419a32:e458bbc6037e717dc8ac6442e2ff344d','***','a3c2973b5755b3f6657ac17f03bebb71:e226b24f50e83dda00336ac27fbac131',NULL,NULL,NULL,NULL,NULL,NULL,0,0.00,1),(51,'TEST-EMAIL-1770946266829',1,NULL,NULL,NULL,4500000.00,30000.00,0.00,NULL,0.00,NULL,0.00,0.00,4530000.00,'VND','{\"city\": \"Test City\", \"name\": \"Test User\", \"ward\": \"Test Ward\", \"phone\": \"6709895ad0fbdb2681463bb0da59c8ed:1938f72275c55fe8efc85475df4726b1:12da843661ef3aed3b7d\", \"address\": \"3acadf3795503ec1cc5afee0209e68cd:a4c16031d71e0e6a992370541caae52e:3ea036ba0e650c81ceb175\", \"district\": \"Test District\"}',NULL,NULL,'pending','2026-02-13 01:31:06','2026-03-02 03:12:16','cod','pending','***','b35ecbb34ed340f6f3df19006287cb59:4d22af8747bff2eb87ce7cdfc1b46de4','***','17c0cf1ff9a31b925233721623d1d313:db3638be8030e792740663546643eefe',NULL,NULL,NULL,NULL,NULL,NULL,0,0.00,1),(53,'NK1771037108210_9KMI',1,NULL,NULL,NULL,4500000.00,0.00,712640.00,'TOAN',421190.00,'6969696969696969',100000.00,382900.00,4170260.00,'VND','{\"city\": \"TP. Hồ Chí Minh\", \"name\": \"DANG THANH TOAN\", \"ward\": \"700000\", \"phone\": \"a9f98b18f57a56cff37ff166045ab792:3260be462131d60fcc4fc42184870499:2b2814eb7641c9609553\", \"address\": \"14bd1d5f0f4d5dbba320b85df0fb65e9:021af053ee4f588e6678041b64a974ba:ffe5c4ff9aee66cbb36e8d3a8dfa418cc3d454527f72c819ec7e25\", \"district\": \"Hóc Môn\", \"address_line\": \"fb2f9369ad06e444b3f4f866437de1be:43087caca0661b0a2343817bfe7923f9:3533329219da69f84a412878fd19cba13d3bc611c67719dc4da43b\"}',NULL,NULL,'delivered','2026-02-14 02:45:08','2026-02-28 00:06:02','Thanh toán khi nhận hàng','pending','***','7f465fe056d84b1c019a8fecf0e08127:64fce2a42053e28f0b3304352b8bf54f:082b572395a66463a678','***','2109f2bad4481ba13ea56aef7a1ecd0f:ee40aa5daf9122db0b0ea88dc77ff54f:e7b8ff5f5e9e9d8d6559dd82276affbcce25ceddd448b59d1852a9',NULL,NULL,'2026-02-14 02:48:10','2026-02-14 02:48:48','2026-02-14 02:47:45',NULL,0,0.00,1),(54,'NK1771209986111_U8W9',NULL,NULL,NULL,NULL,4500000.00,0.00,0.00,NULL,0.00,NULL,0.00,0.00,4500000.00,'VND','{\"city\": \"\", \"name\": \"0123456789\", \"ward\": \"\", \"phone\": \"22fc1204e89a0fc1d14cc58ea56b11e0:27fe7aa54961f8e99eb43c0b4cbd9698:34a793e9576885bd8ddb\", \"address\": \"265f1e9b643633abde8cd1dd44560dbc:c2936b87b392dd2f66121361fcfbaae3:ed3291a92143e095f4ad10bce50e723e30d00ff32e12f5cc11512df9ff7441919fb04f2195b85babe24d3ba7ca58406bc15ff6859e\", \"district\": \"\", \"address_line\": \"569f70f943d2aa5b5280d6b534ede8ae:a592dd0c7c568c69b5fb6f5cc4e32735:0f2e2c6941d70e6cfb2a04ad6b61967f30880f79feaa50b178e9810a3075f6e79aec1f47c0a671558e52cdb427d0c619a7ebf4b8b8\"}',NULL,NULL,'pending','2026-02-16 02:46:26','2026-02-28 00:06:02','cod','pending','***','bbc8ffe30281bc923554fd7aae506f58:60a659413a2d94bb29be85a5807abae1:247eb702f4646ca5ba35','***','5a6ff6fe06a826f832d95ac35a316c87:58beff57db9a2393d069e99ca9846ab6:17439d211de26b1e9febaa4728d2',NULL,NULL,NULL,NULL,NULL,NULL,0,0.00,1);
+INSERT INTO `orders` VALUES (3,'NK1765037039892',1,2929000.00,0.00,160.00,NULL,'none',NULL,NULL,100.00,50.00,NULL,10.00,0.00,2928840.00,'VND','{\"city\": \"TP. Hồ Chí Minh\", \"name\": \"DANG THANH TOAN (Historical)\", \"ward\": \"700000\", \"phone\": \"***HIDDEN***\", \"address\": \"Hẻm 123, Đường ABC\", \"district\": \"Quận 1\", \"address_line\": \"123 ABC Street, District 1\"}','delivered','2025-12-06 16:03:59','2026-03-09 04:50:31','cod','paid',NULL,NULL,NULL,NULL,NULL,'2026-03-02 03:12:16',NULL,0,0.00,1),(4,'NK1765087390746',1,29290000.00,0.00,0.00,NULL,'none',NULL,NULL,0.00,0.00,NULL,0.00,0.00,29290000.00,'VND','{\"city\": \"TP. Hồ Chí Minh\", \"name\": \"DANG THANH TOAN (Historical)\", \"ward\": \"700000\", \"phone\": \"***HIDDEN***\", \"address\": \"Hẻm 123, Đường ABC\", \"district\": \"Quận 1\", \"address_line\": \"123 ABC Street, District 1\"}','delivered','2025-12-07 06:03:10','2026-03-09 02:09:58','cod','paid',NULL,NULL,NULL,NULL,NULL,'2026-03-02 03:12:16',NULL,0,0.00,1),(5,'NK1765088272959',1,2929000.00,0.00,0.00,NULL,'none',NULL,NULL,0.00,0.00,NULL,0.00,0.00,2929000.00,'VND','{\"city\": \"TP. Hồ Chí Minh\", \"name\": \"DANG THANH TOAN (Historical)\", \"ward\": \"700000\", \"phone\": \"***HIDDEN***\", \"address\": \"Hẻm 123, Đường ABC\", \"district\": \"Quận 1\", \"address_line\": \"123 ABC Street, District 1\"}','delivered','2025-12-07 06:17:52','2026-03-09 02:09:58','cod','paid',NULL,NULL,NULL,NULL,NULL,NULL,NULL,0,0.00,1),(6,'NK1765089059778',1,5858000.00,0.00,1288760.00,NULL,'none',NULL,NULL,1288760.00,0.00,NULL,0.00,0.00,4569240.00,'VND','{\"city\": \"TP. Hồ Chí Minh\", \"name\": \"DANG THANH TOAN (Historical)\", \"ward\": \"700000\", \"phone\": \"***HIDDEN***\", \"address\": \"Hẻm 123, Đường ABC\", \"district\": \"Quận 1\", \"address_line\": \"123 ABC Street, District 1\"}','delivered','2025-12-07 06:30:59','2026-03-09 02:09:58','cod','paid',NULL,NULL,NULL,NULL,NULL,NULL,NULL,0,0.00,1),(7,'NK1765093418497',1,2929000.00,0.00,1644380.00,NULL,'none',NULL,NULL,644380.00,1000000.00,2,0.00,0.00,1284620.00,'VND','{\"city\": \"TP. Hồ Chí Minh\", \"name\": \"DANG THANH TOAN (Historical)\", \"ward\": \"700000\", \"phone\": \"***HIDDEN***\", \"address\": \"Hẻm 123, Đường ABC\", \"district\": \"Quận 1\", \"address_line\": \"123 ABC Street, District 1\"}','cancelled','2025-12-07 07:43:38','2026-03-08 14:17:00','cod','pending',NULL,NULL,NULL,NULL,NULL,'2026-03-08 01:42:56',NULL,0,0.00,1),(8,'NK1767443489937',1,2929000.00,0.00,0.00,NULL,'none',NULL,NULL,0.00,0.00,NULL,0.00,0.00,2929000.00,'VND','{\"city\": \"TP. Hồ Chí Minh\", \"name\": \"DANG THANH TOAN (Historical)\", \"ward\": \"700000\", \"phone\": \"***HIDDEN***\", \"address\": \"Hẻm 123, Đường ABC\", \"district\": \"Quận 1\", \"address_line\": \"123 ABC Street, District 1\"}','cancelled','2026-01-03 12:31:29','2026-03-08 14:17:00','cod','pending',NULL,NULL,NULL,NULL,NULL,'2026-03-02 03:12:16',NULL,0,0.00,1),(9,'NK1769773670916',1,3829000.00,0.00,1100000.00,'TOAN','voucher',NULL,4,100000.00,1000000.00,13,0.00,0.00,2729000.00,'VND','{\"city\": \"TP. Hồ Chí Minh\", \"name\": \"DANG THANH TOAN (Historical)\", \"ward\": \"700000\", \"phone\": \"***HIDDEN***\", \"address\": \"Hẻm 123, Đường ABC\", \"district\": \"Quận 1\", \"address_line\": \"123 ABC Street, District 1\"}','delivered','2026-01-30 11:47:50','2026-03-09 02:09:58','cod','paid',NULL,NULL,NULL,NULL,NULL,NULL,NULL,0,0.00,1),(11,'NK1769775001613',1,3829000.00,0.00,1100000.00,'TOAN','voucher',NULL,4,100000.00,1000000.00,13,0.00,382900.00,3111900.00,'VND','{\"city\": \"TP. Hồ Chí Minh\", \"name\": \"DANG THANH TOAN (Historical)\", \"ward\": \"700000\", \"phone\": \"***HIDDEN***\", \"address\": \"Hẻm 123, Đường ABC\", \"district\": \"Quận 1\", \"address_line\": \"123 ABC Street, District 1\"}','delivered','2026-01-30 12:10:01','2026-03-09 02:09:58','cod','paid',NULL,NULL,NULL,NULL,NULL,NULL,NULL,0,0.00,1),(12,'NK1769776162375',1,3519000.00,0.00,1050000.00,NULL,'none',NULL,NULL,50000.00,1000000.00,13,0.00,351900.00,2820900.00,'VND','{\"city\": \"TP. Hồ Chí Minh\", \"name\": \"DANG THANH TOAN (Historical)\", \"ward\": \"700000\", \"phone\": \"***HIDDEN***\", \"address\": \"Hẻm 123, Đường ABC\", \"district\": \"Quận 1\", \"address_line\": \"123 ABC Street, District 1\"}','delivered','2026-01-30 12:29:22','2026-03-09 02:09:58','cod','paid',NULL,NULL,NULL,NULL,NULL,NULL,NULL,0,0.00,1),(13,'NK1769776799944',1,5589000.00,0.00,1500000.00,NULL,'none',NULL,NULL,500000.00,1000000.00,13,0.00,558900.00,4647900.00,'VND','{\"city\": \"TP. Hồ Chí Minh\", \"name\": \"DANG THANH TOAN (Historical)\", \"ward\": \"700000\", \"phone\": \"***HIDDEN***\", \"address\": \"Hẻm 123, Đường ABC\", \"district\": \"Quận 1\", \"address_line\": \"123 ABC Street, District 1\"}','delivered','2026-01-30 12:39:59','2026-03-09 02:09:58','cod','paid',NULL,NULL,NULL,NULL,NULL,NULL,NULL,0,0.00,1),(40,'NK1770253823973',1,2829000.00,0.00,0.00,NULL,'none',NULL,NULL,0.00,0.00,NULL,0.00,282900.00,2970450.00,'VND',NULL,'delivered','2026-02-05 01:10:24','2026-03-09 04:50:32','cod','paid',NULL,NULL,NULL,NULL,NULL,NULL,NULL,0,0.00,1),(53,'NK1771037108210_9KMI',1,4500000.00,0.00,521190.00,'TOAN','voucher',NULL,4,421190.00,100000.00,14,0.00,382900.00,4170260.00,'VND','{\"city\": \"TP. Hồ Chí Minh\", \"name\": \"DANG THANH TOAN\", \"ward\": \"700000\", \"phone\": \"a9f98b18f57a56cff37ff166045ab792:3260be462131d60fcc4fc42184870499:2b2814eb7641c9609553\", \"address\": \"14bd1d5f0f4d5dbba320b85df0fb65e9:021af053ee4f588e6678041b64a974ba:ffe5c4ff9aee66cbb36e8d3a8dfa418cc3d454527f72c819ec7e25\", \"district\": \"Hóc Môn\", \"address_line\": \"fb2f9369ad06e444b3f4f866437de1be:43087caca0661b0a2343817bfe7923f9:3533329219da69f84a412878fd19cba13d3bc611c67719dc4da43b\"}','delivered','2026-02-14 02:45:08','2026-03-09 04:50:32','cod','paid',NULL,NULL,'2026-02-14 02:48:10','2026-02-14 02:48:48','2026-02-14 02:47:45',NULL,NULL,0,0.00,1),(54,'NK1771209986111_U8W9',NULL,4500000.00,0.00,0.00,NULL,'none',NULL,NULL,0.00,0.00,NULL,0.00,0.00,4500000.00,'VND','{\"city\": \"\", \"name\": \"0123456789\", \"ward\": \"\", \"phone\": \"22fc1204e89a0fc1d14cc58ea56b11e0:27fe7aa54961f8e99eb43c0b4cbd9698:34a793e9576885bd8ddb\", \"address\": \"265f1e9b643633abde8cd1dd44560dbc:c2936b87b392dd2f66121361fcfbaae3:ed3291a92143e095f4ad10bce50e723e30d00ff32e12f5cc11512df9ff7441919fb04f2195b85babe24d3ba7ca58406bc15ff6859e\", \"district\": \"\", \"address_line\": \"569f70f943d2aa5b5280d6b534ede8ae:a592dd0c7c568c69b5fb6f5cc4e32735:0f2e2c6941d70e6cfb2a04ad6b61967f30880f79feaa50b178e9810a3075f6e79aec1f47c0a671558e52cdb427d0c619a7ebf4b8b8\"}','pending','2026-02-16 02:46:26','2026-02-28 00:06:02','cod','pending',NULL,NULL,NULL,NULL,NULL,NULL,NULL,0,0.00,1);
 /*!40000 ALTER TABLE `orders` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -1482,7 +1604,7 @@ CREATE TABLE `product_colors` (
   PRIMARY KEY (`id`),
   KEY `idx_product_id` (`product_id`),
   CONSTRAINT `product_colors_ibfk_1` FOREIGN KEY (`product_id`) REFERENCES `products` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=10 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -1491,7 +1613,7 @@ CREATE TABLE `product_colors` (
 
 LOCK TABLES `product_colors` WRITE;
 /*!40000 ALTER TABLE `product_colors` DISABLE KEYS */;
-INSERT INTO `product_colors` VALUES (1,1,'Black','#000000',NULL,0),(2,1,'White','#FFFFFF',NULL,0),(3,2,'White','#FFFFFF',NULL,0),(4,2,'Triple White','#FFFFFF',NULL,0);
+INSERT INTO `product_colors` VALUES (1,1,'Black','#000000',NULL,0),(2,1,'White','#FFFFFF',NULL,0),(3,2,'White','#FFFFFF',NULL,0),(4,2,'Triple White','#FFFFFF',NULL,0),(5,4,'Bred','#000000',NULL,0),(6,6,'Panda','#000000',NULL,0),(7,3,'Grey','#808080',NULL,0),(8,5,'White','#FFFFFF',NULL,0),(9,7,'Volt/Black','#CEFF00',NULL,0);
 /*!40000 ALTER TABLE `product_colors` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -1510,7 +1632,7 @@ CREATE TABLE `product_embeddings` (
   PRIMARY KEY (`id`),
   UNIQUE KEY `product_id` (`product_id`),
   CONSTRAINT `product_embeddings_ibfk_1` FOREIGN KEY (`product_id`) REFERENCES `products` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -1605,6 +1727,7 @@ CREATE TABLE `product_reviews` (
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   `admin_reply` text,
+  `deleted_at` timestamp NULL DEFAULT NULL,
   PRIMARY KEY (`id`),
   KEY `idx_product_id` (`product_id`),
   KEY `idx_status` (`status`),
@@ -1613,6 +1736,7 @@ CREATE TABLE `product_reviews` (
   KEY `idx_product_approved_created` (`product_id`,`status`,`created_at` DESC),
   KEY `idx_product_rating` (`product_id`,`rating` DESC),
   KEY `idx_user_created` (`user_id`,`created_at` DESC),
+  KEY `idx_reviews_deleted` (`deleted_at`),
   CONSTRAINT `product_reviews_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE SET NULL,
   CONSTRAINT `product_reviews_ibfk_2` FOREIGN KEY (`product_id`) REFERENCES `products` (`id`) ON DELETE CASCADE,
   CONSTRAINT `product_reviews_chk_1` CHECK ((`rating` between 1 and 5))
@@ -1625,7 +1749,7 @@ CREATE TABLE `product_reviews` (
 
 LOCK TABLES `product_reviews` WRITE;
 /*!40000 ALTER TABLE `product_reviews` DISABLE KEYS */;
-INSERT INTO `product_reviews` VALUES (2,2,2,1,'OK','xấu','approved',0,4,0,'2026-01-27 07:36:19','2026-03-05 03:10:10','ok'),(3,1,2,5,'hàng ok','ok','approved',1,1,0,'2026-03-01 11:49:23','2026-03-05 03:13:03',NULL),(4,1,6,5,'ok','okkkkkkk','approved',1,1,0,'2026-03-05 03:21:29','2026-03-05 03:25:05',NULL);
+INSERT INTO `product_reviews` VALUES (2,2,2,1,'OK','xấu','approved',0,4,0,'2026-01-27 07:36:19','2026-03-05 03:10:10','ok',NULL),(3,1,2,5,'hàng ok','ok','approved',1,1,0,'2026-03-01 11:49:23','2026-03-05 03:13:03',NULL,NULL),(4,1,6,5,'ok','okkkkkkk','approved',1,1,0,'2026-03-05 03:21:29','2026-03-05 03:25:05',NULL,NULL);
 /*!40000 ALTER TABLE `product_reviews` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -1650,6 +1774,7 @@ CREATE TABLE `product_variants` (
   `width` decimal(10,3) DEFAULT '0.000',
   `depth` decimal(10,3) DEFAULT '0.000',
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   UNIQUE KEY `sku` (`sku`),
   KEY `idx_product_id` (`product_id`),
@@ -1659,7 +1784,8 @@ CREATE TABLE `product_variants` (
   KEY `product_variants_ibfk_2` (`color_id`),
   KEY `idx_product_color` (`product_id`,`color_id`),
   CONSTRAINT `product_variants_ibfk_1` FOREIGN KEY (`product_id`) REFERENCES `products` (`id`) ON DELETE CASCADE,
-  CONSTRAINT `product_variants_ibfk_2` FOREIGN KEY (`color_id`) REFERENCES `product_colors` (`id`) ON DELETE SET NULL
+  CONSTRAINT `product_variants_ibfk_2` FOREIGN KEY (`color_id`) REFERENCES `product_colors` (`id`) ON DELETE SET NULL,
+  CONSTRAINT `chk_variant_price_non_negative` CHECK ((`price` >= 0))
 ) ENGINE=InnoDB AUTO_INCREMENT=78 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -1669,7 +1795,7 @@ CREATE TABLE `product_variants` (
 
 LOCK TABLES `product_variants` WRITE;
 /*!40000 ALTER TABLE `product_variants` DISABLE KEYS */;
-INSERT INTO `product_variants` VALUES (1,1,'NK-AM270-BLK-38','38',1,NULL,'{\"size\": \"38\"}',3829000.00,0.000,0.000,0.000,0.000,'2025-12-06 14:11:35'),(2,1,'NK-AM270-BLK-39','39',1,NULL,'{\"size\": \"39\"}',3829000.00,0.000,0.000,0.000,0.000,'2025-12-06 14:11:35'),(3,1,'NK-AM270-BLK-40','40',1,NULL,'{\"size\": \"40\"}',3829000.00,0.000,0.000,0.000,0.000,'2025-12-06 14:11:35'),(4,1,'NK-AM270-BLK-41','41',1,NULL,'{\"size\": \"41\"}',3829000.00,0.000,0.000,0.000,0.000,'2025-12-06 14:11:35'),(5,1,'NK-AM270-BLK-42','42',1,NULL,'{\"size\": \"42\"}',3829000.00,0.000,0.000,0.000,0.000,'2025-12-06 14:11:35'),(6,1,'NK-AM270-BLK-43','43',1,NULL,'{\"size\": \"43\"}',3829000.00,0.000,0.000,0.000,0.000,'2025-12-06 14:11:35'),(7,1,'NK-AM270-BLK-44','44',1,NULL,'{\"size\": \"44\"}',3829000.00,0.000,0.000,0.000,0.000,'2025-12-06 14:11:35'),(8,1,'NK-AM270-BLK-45','45',1,NULL,'{\"size\": \"45\"}',3829000.00,0.000,0.000,0.000,0.000,'2025-12-06 14:11:35'),(9,2,'NK-AF1-WHT-38','38',NULL,NULL,'{\"size\": \"38\"}',2929000.00,0.000,0.000,0.000,0.000,'2025-12-06 14:11:35'),(10,2,'NK-AF1-WHT-39','39',NULL,NULL,'{\"size\": \"39\"}',2929000.00,0.000,0.000,0.000,0.000,'2025-12-06 14:11:35'),(11,2,'NK-AF1-WHT-40','40',NULL,NULL,'{\"size\": \"40\"}',2929000.00,0.000,0.000,0.000,0.000,'2025-12-06 14:11:35'),(12,2,'NK-AF1-WHT-41','41',NULL,NULL,'{\"size\": \"41\"}',2929000.00,0.000,0.000,0.000,0.000,'2025-12-06 14:11:35'),(13,2,'NK-AF1-WHT-42','42',NULL,NULL,'{\"size\": \"42\"}',2929000.00,0.000,0.000,0.000,0.000,'2025-12-06 14:11:35'),(14,2,'NK-AF1-WHT-43','43',NULL,NULL,'{\"size\": \"43\"}',2929000.00,0.000,0.000,0.000,0.000,'2025-12-06 14:11:35'),(15,2,'NK-AF1-WHT-44','44',NULL,NULL,'{\"size\": \"44\"}',2929000.00,0.000,0.000,0.000,0.000,'2025-12-06 14:11:35'),(16,2,'NK-AF1-WHT-45','45',NULL,NULL,'{\"size\": \"45\"}',2929000.00,0.000,0.000,0.000,0.000,'2025-12-06 14:11:35'),(17,3,'NK-PEG40-38','38',NULL,NULL,'{\"size\": \"38\"}',3519000.00,0.000,0.000,0.000,0.000,'2025-12-06 14:11:35'),(18,3,'NK-PEG40-39','39',NULL,NULL,'{\"size\": \"39\"}',3519000.00,0.000,0.000,0.000,0.000,'2025-12-06 14:11:35'),(19,3,'NK-PEG40-40','40',NULL,NULL,'{\"size\": \"40\"}',3519000.00,0.000,0.000,0.000,0.000,'2025-12-06 14:11:35'),(20,3,'NK-PEG40-41','41',NULL,NULL,'{\"size\": \"41\"}',3519000.00,0.000,0.000,0.000,0.000,'2025-12-06 14:11:35'),(21,3,'NK-PEG40-42','42',NULL,NULL,'{\"size\": \"42\"}',3519000.00,0.000,0.000,0.000,0.000,'2025-12-06 14:11:35'),(22,3,'NK-PEG40-43','43',NULL,NULL,'{\"size\": \"43\"}',3519000.00,0.000,0.000,0.000,0.000,'2025-12-06 14:11:35'),(23,3,'NK-PEG40-44','44',NULL,NULL,'{\"size\": \"44\"}',3519000.00,0.000,0.000,0.000,0.000,'2025-12-06 14:11:35'),(24,3,'NK-PEG40-45','45',NULL,NULL,'{\"size\": \"45\"}',3519000.00,0.000,0.000,0.000,0.000,'2025-12-06 14:11:35'),(25,4,'JD-J1MID-BRD-38','38',NULL,NULL,'{\"size\": \"38\"}',3829000.00,0.000,0.000,0.000,0.000,'2025-12-06 14:11:35'),(26,4,'JD-J1MID-BRD-39','39',NULL,NULL,'{\"size\": \"39\"}',3829000.00,0.000,0.000,0.000,0.000,'2025-12-06 14:11:35'),(27,4,'JD-J1MID-BRD-40','40',NULL,NULL,'{\"size\": \"40\"}',3829000.00,0.000,0.000,0.000,0.000,'2025-12-06 14:11:35'),(28,4,'JD-J1MID-BRD-41','41',NULL,NULL,'{\"size\": \"41\"}',3829000.00,0.000,0.000,0.000,0.000,'2025-12-06 14:11:35'),(29,4,'JD-J1MID-BRD-42','42',NULL,NULL,'{\"size\": \"42\"}',3829000.00,0.000,0.000,0.000,0.000,'2025-12-06 14:11:35'),(30,4,'JD-J1MID-BRD-43','43',NULL,NULL,'{\"size\": \"43\"}',3829000.00,0.000,0.000,0.000,0.000,'2025-12-06 14:11:35'),(31,4,'JD-J1MID-BRD-44','44',NULL,NULL,'{\"size\": \"44\"}',3829000.00,0.000,0.000,0.000,0.000,'2025-12-06 14:11:35'),(32,4,'JD-J1MID-BRD-45','45',NULL,NULL,'{\"size\": \"45\"}',3829000.00,0.000,0.000,0.000,0.000,'2025-12-06 14:11:35'),(33,5,'JD-J4-WHT-38','38',NULL,NULL,'{\"size\": \"38\"}',5589000.00,0.000,0.000,0.000,0.000,'2025-12-06 14:11:35'),(34,5,'JD-J4-WHT-39','39',NULL,NULL,'{\"size\": \"39\"}',5589000.00,0.000,0.000,0.000,0.000,'2025-12-06 14:11:35'),(35,5,'JD-J4-WHT-40','40',NULL,NULL,'{\"size\": \"40\"}',5589000.00,0.000,0.000,0.000,0.000,'2025-12-06 14:11:35'),(36,5,'JD-J4-WHT-41','41',NULL,NULL,'{\"size\": \"41\"}',5589000.00,0.000,0.000,0.000,0.000,'2025-12-06 14:11:35'),(37,5,'JD-J4-WHT-42','42',NULL,NULL,'{\"size\": \"42\"}',5589000.00,0.000,0.000,0.000,0.000,'2025-12-06 14:11:35'),(38,5,'JD-J4-WHT-43','43',NULL,NULL,'{\"size\": \"43\"}',5589000.00,0.000,0.000,0.000,0.000,'2025-12-06 14:11:35'),(39,5,'JD-J4-WHT-44','44',NULL,NULL,'{\"size\": \"44\"}',5589000.00,0.000,0.000,0.000,0.000,'2025-12-06 14:11:35'),(40,5,'JD-J4-WHT-45','45',NULL,NULL,'{\"size\": \"45\"}',5589000.00,0.000,0.000,0.000,0.000,'2025-12-06 14:11:35'),(41,6,'NK-DUNK-PND-38','38',NULL,NULL,'{\"size\": \"38\"}',2829000.00,0.000,0.000,0.000,0.000,'2025-12-06 14:11:35'),(42,6,'NK-DUNK-PND-39','39',NULL,NULL,'{\"size\": \"39\"}',2829000.00,0.000,0.000,0.000,0.000,'2025-12-06 14:11:35'),(43,6,'NK-DUNK-PND-40','40',NULL,NULL,'{\"size\": \"40\"}',2829000.00,0.000,0.000,0.000,0.000,'2025-12-06 14:11:35'),(44,6,'NK-DUNK-PND-41','41',NULL,NULL,'{\"size\": \"41\"}',2829000.00,0.000,0.000,0.000,0.000,'2025-12-06 14:11:35'),(45,6,'NK-DUNK-PND-42','42',NULL,NULL,'{\"size\": \"42\"}',2829000.00,0.000,0.000,0.000,0.000,'2025-12-06 14:11:35'),(46,6,'NK-DUNK-PND-43','43',NULL,NULL,'{\"size\": \"43\"}',2829000.00,0.000,0.000,0.000,0.000,'2025-12-06 14:11:35'),(47,6,'NK-DUNK-PND-44','44',NULL,NULL,'{\"size\": \"44\"}',2829000.00,0.000,0.000,0.000,0.000,'2025-12-06 14:11:35'),(48,6,'NK-DUNK-PND-45','45',NULL,NULL,'{\"size\": \"45\"}',2829000.00,0.000,0.000,0.000,0.000,'2025-12-06 14:11:35'),(64,7,NULL,'38',NULL,NULL,NULL,0.00,0.000,0.000,0.000,0.000,'2026-02-04 13:58:24'),(65,7,NULL,'39',NULL,NULL,NULL,0.00,0.000,0.000,0.000,0.000,'2026-02-04 13:59:36'),(66,7,NULL,'40',NULL,NULL,NULL,0.00,0.000,0.000,0.000,0.000,'2026-02-04 14:00:15'),(67,7,NULL,'41',NULL,NULL,NULL,0.00,0.000,0.000,0.000,0.000,'2026-02-04 14:00:32'),(68,7,NULL,'42',NULL,NULL,NULL,0.00,0.000,0.000,0.000,0.000,'2026-02-04 14:00:45');
+INSERT INTO `product_variants` VALUES (1,1,'NK-AM270-BLK-38','38',1,NULL,'{\"size\": \"38\"}',3829000.00,0.000,0.000,0.000,0.000,'2025-12-06 14:11:35','2026-03-09 04:50:30'),(2,1,'NK-AM270-BLK-39','39',1,NULL,'{\"size\": \"39\"}',3829000.00,0.000,0.000,0.000,0.000,'2025-12-06 14:11:35','2026-03-09 01:34:05'),(3,1,'NK-AM270-BLK-40','40',1,NULL,'{\"size\": \"40\"}',3829000.00,0.000,0.000,0.000,0.000,'2025-12-06 14:11:35','2026-03-09 01:34:05'),(4,1,'NK-AM270-BLK-41','41',1,NULL,'{\"size\": \"41\"}',3829000.00,0.000,0.000,0.000,0.000,'2025-12-06 14:11:35','2026-03-09 01:34:05'),(5,1,'NK-AM270-BLK-42','42',1,NULL,'{\"size\": \"42\"}',3829000.00,0.000,0.000,0.000,0.000,'2025-12-06 14:11:35','2026-03-09 01:34:05'),(6,1,'NK-AM270-BLK-43','43',1,NULL,'{\"size\": \"43\"}',3829000.00,0.000,0.000,0.000,0.000,'2025-12-06 14:11:35','2026-03-09 01:34:05'),(7,1,'NK-AM270-BLK-44','44',1,NULL,'{\"size\": \"44\"}',3829000.00,0.000,0.000,0.000,0.000,'2025-12-06 14:11:35','2026-03-09 01:34:05'),(8,1,'NK-AM270-BLK-45','45',1,NULL,'{\"size\": \"45\"}',3829000.00,0.000,0.000,0.000,0.000,'2025-12-06 14:11:35','2026-03-09 01:34:05'),(9,2,'NK-AF1-WHT-38','38',3,NULL,'{\"size\": \"38\"}',2929000.00,0.000,0.000,0.000,0.000,'2025-12-06 14:11:35','2026-03-09 01:34:05'),(10,2,'NK-AF1-WHT-39','39',3,NULL,'{\"size\": \"39\"}',2929000.00,0.000,0.000,0.000,0.000,'2025-12-06 14:11:35','2026-03-09 01:34:05'),(11,2,'NK-AF1-WHT-40','40',3,NULL,'{\"size\": \"40\"}',2929000.00,0.000,0.000,0.000,0.000,'2025-12-06 14:11:35','2026-03-09 01:34:05'),(12,2,'NK-AF1-WHT-41','41',3,NULL,'{\"size\": \"41\"}',2929000.00,0.000,0.000,0.000,0.000,'2025-12-06 14:11:35','2026-03-09 01:34:05'),(13,2,'NK-AF1-WHT-42','42',3,NULL,'{\"size\": \"42\"}',2929000.00,0.000,0.000,0.000,0.000,'2025-12-06 14:11:35','2026-03-09 01:34:05'),(14,2,'NK-AF1-WHT-43','43',3,NULL,'{\"size\": \"43\"}',2929000.00,0.000,0.000,0.000,0.000,'2025-12-06 14:11:35','2026-03-09 01:34:05'),(15,2,'NK-AF1-WHT-44','44',3,NULL,'{\"size\": \"44\"}',2929000.00,0.000,0.000,0.000,0.000,'2025-12-06 14:11:35','2026-03-09 01:34:05'),(16,2,'NK-AF1-WHT-45','45',3,NULL,'{\"size\": \"45\"}',2929000.00,0.000,0.000,0.000,0.000,'2025-12-06 14:11:35','2026-03-09 01:34:05'),(17,3,'NK-PEG40-38','38',7,NULL,'{\"size\": \"38\"}',3519000.00,0.000,0.000,0.000,0.000,'2025-12-06 14:11:35','2026-03-09 01:34:05'),(18,3,'NK-PEG40-39','39',7,NULL,'{\"size\": \"39\"}',3519000.00,0.000,0.000,0.000,0.000,'2025-12-06 14:11:35','2026-03-09 01:34:05'),(19,3,'NK-PEG40-40','40',7,NULL,'{\"size\": \"40\"}',3519000.00,0.000,0.000,0.000,0.000,'2025-12-06 14:11:35','2026-03-09 01:34:05'),(20,3,'NK-PEG40-41','41',7,NULL,'{\"size\": \"41\"}',3519000.00,0.000,0.000,0.000,0.000,'2025-12-06 14:11:35','2026-03-09 01:34:05'),(21,3,'NK-PEG40-42','42',7,NULL,'{\"size\": \"42\"}',3519000.00,0.000,0.000,0.000,0.000,'2025-12-06 14:11:35','2026-03-09 01:34:05'),(22,3,'NK-PEG40-43','43',7,NULL,'{\"size\": \"43\"}',3519000.00,0.000,0.000,0.000,0.000,'2025-12-06 14:11:35','2026-03-09 01:34:05'),(23,3,'NK-PEG40-44','44',7,NULL,'{\"size\": \"44\"}',3519000.00,0.000,0.000,0.000,0.000,'2025-12-06 14:11:35','2026-03-09 01:34:05'),(24,3,'NK-PEG40-45','45',7,NULL,'{\"size\": \"45\"}',3519000.00,0.000,0.000,0.000,0.000,'2025-12-06 14:11:35','2026-03-09 01:34:05'),(25,4,'JD-J1MID-BRD-38','38',5,NULL,'{\"size\": \"38\"}',3829000.00,0.000,0.000,0.000,0.000,'2025-12-06 14:11:35','2026-03-09 01:34:05'),(26,4,'JD-J1MID-BRD-39','39',5,NULL,'{\"size\": \"39\"}',3829000.00,0.000,0.000,0.000,0.000,'2025-12-06 14:11:35','2026-03-09 01:34:05'),(27,4,'JD-J1MID-BRD-40','40',5,NULL,'{\"size\": \"40\"}',3829000.00,0.000,0.000,0.000,0.000,'2025-12-06 14:11:35','2026-03-09 01:34:05'),(28,4,'JD-J1MID-BRD-41','41',5,NULL,'{\"size\": \"41\"}',3829000.00,0.000,0.000,0.000,0.000,'2025-12-06 14:11:35','2026-03-09 01:34:05'),(29,4,'JD-J1MID-BRD-42','42',5,NULL,'{\"size\": \"42\"}',3829000.00,0.000,0.000,0.000,0.000,'2025-12-06 14:11:35','2026-03-09 01:34:05'),(30,4,'JD-J1MID-BRD-43','43',5,NULL,'{\"size\": \"43\"}',3829000.00,0.000,0.000,0.000,0.000,'2025-12-06 14:11:35','2026-03-09 01:34:05'),(31,4,'JD-J1MID-BRD-44','44',5,NULL,'{\"size\": \"44\"}',3829000.00,0.000,0.000,0.000,0.000,'2025-12-06 14:11:35','2026-03-09 01:34:05'),(32,4,'JD-J1MID-BRD-45','45',5,NULL,'{\"size\": \"45\"}',3829000.00,0.000,0.000,0.000,0.000,'2025-12-06 14:11:35','2026-03-09 01:34:05'),(33,5,'JD-J4-WHT-38','38',8,NULL,'{\"size\": \"38\"}',5589000.00,0.000,0.000,0.000,0.000,'2025-12-06 14:11:35','2026-03-09 01:34:05'),(34,5,'JD-J4-WHT-39','39',8,NULL,'{\"size\": \"39\"}',5589000.00,0.000,0.000,0.000,0.000,'2025-12-06 14:11:35','2026-03-09 01:34:05'),(35,5,'JD-J4-WHT-40','40',8,NULL,'{\"size\": \"40\"}',5589000.00,0.000,0.000,0.000,0.000,'2025-12-06 14:11:35','2026-03-09 01:34:05'),(36,5,'JD-J4-WHT-41','41',8,NULL,'{\"size\": \"41\"}',5589000.00,0.000,0.000,0.000,0.000,'2025-12-06 14:11:35','2026-03-09 01:34:05'),(37,5,'JD-J4-WHT-42','42',8,NULL,'{\"size\": \"42\"}',5589000.00,0.000,0.000,0.000,0.000,'2025-12-06 14:11:35','2026-03-09 01:34:05'),(38,5,'JD-J4-WHT-43','43',8,NULL,'{\"size\": \"43\"}',5589000.00,0.000,0.000,0.000,0.000,'2025-12-06 14:11:35','2026-03-09 01:34:05'),(39,5,'JD-J4-WHT-44','44',8,NULL,'{\"size\": \"44\"}',5589000.00,0.000,0.000,0.000,0.000,'2025-12-06 14:11:35','2026-03-09 01:34:05'),(40,5,'JD-J4-WHT-45','45',8,NULL,'{\"size\": \"45\"}',5589000.00,0.000,0.000,0.000,0.000,'2025-12-06 14:11:35','2026-03-09 01:34:05'),(41,6,'NK-DUNK-PND-38','38',6,NULL,'{\"size\": \"38\"}',2829000.00,0.000,0.000,0.000,0.000,'2025-12-06 14:11:35','2026-03-09 01:34:05'),(42,6,'NK-DUNK-PND-39','39',6,NULL,'{\"size\": \"39\"}',2829000.00,0.000,0.000,0.000,0.000,'2025-12-06 14:11:35','2026-03-09 01:34:05'),(43,6,'NK-DUNK-PND-40','40',6,NULL,'{\"size\": \"40\"}',2829000.00,0.000,0.000,0.000,0.000,'2025-12-06 14:11:35','2026-03-09 01:34:05'),(44,6,'NK-DUNK-PND-41','41',6,NULL,'{\"size\": \"41\"}',2829000.00,0.000,0.000,0.000,0.000,'2025-12-06 14:11:35','2026-03-09 01:34:05'),(45,6,'NK-DUNK-PND-42','42',6,NULL,'{\"size\": \"42\"}',2829000.00,0.000,0.000,0.000,0.000,'2025-12-06 14:11:35','2026-03-09 01:34:05'),(46,6,'NK-DUNK-PND-43','43',6,NULL,'{\"size\": \"43\"}',2829000.00,0.000,0.000,0.000,0.000,'2025-12-06 14:11:35','2026-03-09 01:34:05'),(47,6,'NK-DUNK-PND-44','44',6,NULL,'{\"size\": \"44\"}',2829000.00,0.000,0.000,0.000,0.000,'2025-12-06 14:11:35','2026-03-09 01:34:05'),(48,6,'NK-DUNK-PND-45','45',6,NULL,'{\"size\": \"45\"}',2829000.00,0.000,0.000,0.000,0.000,'2025-12-06 14:11:35','2026-03-09 01:34:05'),(64,7,'NK-MERC-VAP-38','38',9,NULL,'{\"sole\": \"FG\", \"material\": \"Flyknit\", \"speed_type\": \"Vapor\"}',5855000.00,0.000,0.000,0.000,0.000,'2026-02-04 13:58:24','2026-03-09 01:34:05'),(65,7,'NK-MERC-VAP-39','39',9,NULL,'{\"sole\": \"FG\", \"material\": \"Flyknit\", \"speed_type\": \"Vapor\"}',5855000.00,0.000,0.000,0.000,0.000,'2026-02-04 13:59:36','2026-03-09 01:34:05'),(66,7,'NK-MERC-VAP-40','40',9,NULL,'{\"sole\": \"FG\", \"material\": \"Flyknit\", \"speed_type\": \"Vapor\"}',5855000.00,0.000,0.000,0.000,0.000,'2026-02-04 14:00:15','2026-03-09 01:34:05'),(67,7,'NK-MERC-VAP-41','41',9,NULL,'{\"sole\": \"FG\", \"material\": \"Flyknit\", \"speed_type\": \"Vapor\"}',5855000.00,0.000,0.000,0.000,0.000,'2026-02-04 14:00:32','2026-03-09 01:34:05'),(68,7,'NK-MERC-VAP-42','42',9,NULL,'{\"sole\": \"FG\", \"material\": \"Flyknit\", \"speed_type\": \"Vapor\"}',5855000.00,0.000,0.000,0.000,0.000,'2026-02-04 14:00:45','2026-03-09 01:34:05');
 /*!40000 ALTER TABLE `product_variants` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -1684,14 +1810,15 @@ CREATE TABLE `products` (
   `id` bigint unsigned NOT NULL AUTO_INCREMENT,
   `sku` varchar(100) DEFAULT NULL,
   `name` varchar(500) NOT NULL,
+  `gender` enum('men','women','kids','unisex') DEFAULT 'unisex',
   `slug` varchar(512) NOT NULL,
   `short_description` text,
   `description` longtext,
   `brand_id` bigint unsigned DEFAULT NULL,
   `category_id` bigint unsigned DEFAULT NULL,
   `collection_id` bigint unsigned DEFAULT NULL,
-  `base_price` decimal(12,2) NOT NULL DEFAULT '0.00',
-  `retail_price` decimal(12,2) DEFAULT NULL,
+  `price_cache` decimal(12,2) NOT NULL DEFAULT '0.00' COMMENT 'Denormalized: MIN(product_variants.price). Updated by app on variant change.',
+  `msrp_price` decimal(12,2) DEFAULT NULL COMMENT 'Original retail price for display purposes only. Not used in checkout logic.',
   `cost_price` decimal(12,2) DEFAULT '0.00',
   `is_active` tinyint(1) DEFAULT '1',
   `is_featured` tinyint(1) DEFAULT '0',
@@ -1710,8 +1837,6 @@ CREATE TABLE `products` (
   KEY `brand_id` (`brand_id`),
   KEY `category_id` (`category_id`),
   KEY `collection_id` (`collection_id`),
-  KEY `idx_sku` (`sku`),
-  KEY `idx_slug` (`slug`),
   KEY `fk_product_sport` (`sport_id`),
   KEY `idx_deleted_at` (`deleted_at`),
   KEY `idx_category_active_created` (`category_id`,`is_active`,`created_at` DESC),
@@ -1732,7 +1857,7 @@ CREATE TABLE `products` (
 
 LOCK TABLES `products` WRITE;
 /*!40000 ALTER TABLE `products` DISABLE KEYS */;
-INSERT INTO `products` VALUES (1,'NK-AM270-BLK','Nike Air Max 270','nike-air-max-270-black','Comfortable all-day wear','The Nike Air Max 270 is inspired by two icons of big Air: the Air Max 180 and Air Max 93. It features Nike\'s biggest heel Air unit yet for a super-soft ride that feels as impossible as it looks.',1,4,1,3829000.00,4500000.00,0.00,1,0,1,0,0,NULL,NULL,'2025-12-06 14:11:35','2026-02-28 14:27:29',NULL,NULL),(2,'NK-AF1-WHT','Nike Air Force 1 \'07','nike-air-force-1-07-white','Classic basketball style','The radiance lives on in the Nike Air Force 1 \'07, the basketball original that puts a fresh spin on what you know best: durably stitched overlays, clean finishes and the perfect amount of flash to make you shine.',1,4,2,2929000.00,3500000.00,0.00,1,0,0,0,0,NULL,NULL,'2025-12-06 14:11:35','2025-12-06 14:11:35',NULL,NULL),(3,'NK-PEG40','Nike Pegasus 40','nike-pegasus-40','Running made responsive','A springy ride for every run, the Peg\'s familiar, just-for-you feel returns to help you accomplish your goals. This version has the same responsiveness and neutral support you love but with improved comfort in those sensitive areas of your foot, like the arch and toes.',1,1,4,3519000.00,4200000.00,0.00,1,0,0,0,0,NULL,NULL,'2025-12-06 14:11:35','2026-02-10 08:38:18',1,NULL),(4,'JD-J1MID-BRD','Air Jordan 1 Mid','air-jordan-1-mid-bred','Iconic basketball style','Inspired by the original AJ1, this mid-top edition maintains the iconic look you love while choice colours and crisp leather give it a distinct identity. With an encapsulated Air-Sole unit for cushioning and a Jumpman logo for heritage, this sneaker delivers on all counts.',2,2,NULL,3829000.00,4500000.00,0.00,1,0,0,0,0,NULL,NULL,'2025-12-06 14:11:35','2025-12-06 14:11:35',NULL,NULL),(5,'JD-J4-WHT','Air Jordan 4 Retro','air-jordan-4-retro-white-cement','Legendary performance','The Air Jordan 4 Retro brings back the iconic design with premium materials and Air cushioning. Featuring visible Air units and unique mesh panels, this shoe delivers the legendary look with modern comfort.',2,2,NULL,5589000.00,6500000.00,0.00,1,0,0,0,0,NULL,NULL,'2025-12-06 14:11:35','2025-12-06 14:11:35',NULL,NULL),(6,'NK-DUNK-PND','Nike Dunk Low','nike-dunk-low-panda','Streetwear classic','Created for the hardwood but taken to the streets, the Nike Dunk Low Retro returns with crisp overlays and original team colours. This basketball icon channels \'80s vibes with premium leather in the upper that looks good and breaks in even better.',1,4,3,2829000.00,3300000.00,0.00,1,0,0,0,0,NULL,NULL,'2025-12-06 14:11:35','2026-02-13 01:09:38',NULL,NULL),(7,'NK-MV16-ELT','Nike Mercurial Vapor 16 Elite','nike-mercurial-vapor-16-elite','','Obsessed with speed? So are the game\'s biggest stars. That\'s why we made this Elite boot with an improved 3/4-length Air Zoom unit. It gives you and the sport\'s fastest players the propulsive feel needed to break through the back line. The result is the most responsive Mercurial we\'ve ever made, because you demand greatness from yourself and your footwear.',1,6,NULL,5855000.00,7319000.00,0.00,1,0,1,0,0,NULL,NULL,'2026-02-04 11:02:44','2026-02-04 14:04:31',NULL,NULL);
+INSERT INTO `products` VALUES (1,'NK-AM270-BLK','Nike Air Max 270','unisex','nike-air-max-270-black','Comfortable all-day wear','The Nike Air Max 270 is inspired by two icons of big Air: the Air Max 180 and Air Max 93. It features Nike\'s biggest heel Air unit yet for a super-soft ride that feels as impossible as it looks.',1,4,1,3829000.00,4500000.00,0.00,1,0,1,0,0,NULL,NULL,'2025-12-06 14:11:35','2026-03-09 04:50:30',NULL,NULL),(2,'NK-AF1-WHT','Nike Air Force 1 \'07','unisex','nike-air-force-1-07-white','Classic basketball style','The radiance lives on in the Nike Air Force 1 \'07, the basketball original that puts a fresh spin on what you know best: durably stitched overlays, clean finishes and the perfect amount of flash to make you shine.',1,4,2,2929000.00,3500000.00,0.00,1,0,0,0,0,NULL,NULL,'2025-12-06 14:11:35','2025-12-06 14:11:35',NULL,NULL),(3,'NK-PEG40','Nike Pegasus 40','unisex','nike-pegasus-40','Running made responsive','A springy ride for every run, the Peg\'s familiar, just-for-you feel returns to help you accomplish your goals. This version has the same responsiveness and neutral support you love but with improved comfort in those sensitive areas of your foot, like the arch and toes.',1,1,4,3519000.00,4200000.00,0.00,1,0,0,0,0,NULL,NULL,'2025-12-06 14:11:35','2026-02-10 08:38:18',1,NULL),(4,'JD-J1MID-BRD','Air Jordan 1 Mid','unisex','air-jordan-1-mid-bred','Iconic basketball style','Inspired by the original AJ1, this mid-top edition maintains the iconic look you love while choice colours and crisp leather give it a distinct identity. With an encapsulated Air-Sole unit for cushioning and a Jumpman logo for heritage, this sneaker delivers on all counts.',2,2,NULL,3829000.00,4500000.00,0.00,1,0,0,0,0,NULL,NULL,'2025-12-06 14:11:35','2025-12-06 14:11:35',NULL,NULL),(5,'JD-J4-WHT','Air Jordan 4 Retro','unisex','air-jordan-4-retro-white-cement','Legendary performance','The Air Jordan 4 Retro brings back the iconic design with premium materials and Air cushioning. Featuring visible Air units and unique mesh panels, this shoe delivers the legendary look with modern comfort.',2,2,NULL,5589000.00,6500000.00,0.00,1,0,0,0,0,NULL,NULL,'2025-12-06 14:11:35','2025-12-06 14:11:35',NULL,NULL),(6,'NK-DUNK-PND','Nike Dunk Low','unisex','nike-dunk-low-panda','Streetwear classic','Created for the hardwood but taken to the streets, the Nike Dunk Low Retro returns with crisp overlays and original team colours. This basketball icon channels \'80s vibes with premium leather in the upper that looks good and breaks in even better.',1,4,3,2829000.00,3300000.00,0.00,1,0,0,0,0,NULL,NULL,'2025-12-06 14:11:35','2026-02-13 01:09:38',NULL,NULL),(7,'NK-MV16-ELT','Nike Mercurial Vapor 16 Elite','unisex','nike-mercurial-vapor-16-elite','','Obsessed with speed? So are the game\'s biggest stars. That\'s why we made this Elite boot with an improved 3/4-length Air Zoom unit. It gives you and the sport\'s fastest players the propulsive feel needed to break through the back line. The result is the most responsive Mercurial we\'ve ever made, because you demand greatness from yourself and your footwear.',1,6,NULL,5855000.00,7319000.00,0.00,1,0,1,0,0,NULL,NULL,'2026-02-04 11:02:44','2026-02-04 14:04:31',NULL,NULL);
 /*!40000 ALTER TABLE `products` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -1960,7 +2085,7 @@ CREATE TABLE `security_logs` (
 
 LOCK TABLES `security_logs` WRITE;
 /*!40000 ALTER TABLE `security_logs` DISABLE KEYS */;
-INSERT INTO `security_logs` VALUES (4,NULL,NULL,'login_failed','127.0.0.1',NULL,'{\"email\": \"nonexistent@example.com\", \"reason\": \"User not found\"}',NULL,'2026-02-16 00:34:27'),(5,NULL,NULL,'login_failed','127.0.0.1',NULL,'{\"email\": \"nonexistent@example.com\", \"reason\": \"User not found\"}',NULL,'2026-02-16 01:16:01'),(6,3,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"admin@nike.com\"}',NULL,'2026-02-16 01:21:51'),(7,3,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"admin@nike.com\"}',NULL,'2026-02-16 01:32:55'),(8,3,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"admin@nike.com\"}',NULL,'2026-02-16 01:38:10'),(9,3,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"admin@nike.com\"}',NULL,'2026-02-16 01:40:19'),(10,3,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"admin@nike.com\"}',NULL,'2026-02-16 01:41:48'),(11,3,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"admin@nike.com\"}',NULL,'2026-02-16 01:44:35'),(12,3,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"admin@nike.com\"}',NULL,'2026-02-16 01:50:27'),(13,3,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"admin@nike.com\"}',NULL,'2026-02-16 02:04:58'),(14,32,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"testuser_5854@example.com\"}',NULL,'2026-02-16 02:25:59'),(15,NULL,NULL,'login_failed','127.0.0.1',NULL,'{\"email\": \"nonexistent@example.com\", \"reason\": \"User not found\"}',NULL,'2026-02-16 02:26:02'),(16,3,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"admin@nike.com\"}',NULL,'2026-02-16 02:26:09'),(17,3,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"admin@nike.com\"}',NULL,'2026-02-16 02:29:23'),(18,3,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"admin@nike.com\"}',NULL,'2026-02-16 02:30:30'),(19,3,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"admin@nike.com\"}',NULL,'2026-02-16 02:33:32'),(20,3,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"admin@nike.com\"}',NULL,'2026-02-16 02:33:41'),(21,33,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"testuser_5748@example.com\"}',NULL,'2026-02-16 02:37:11'),(22,NULL,NULL,'login_failed','127.0.0.1',NULL,'{\"email\": \"nonexistent@example.com\", \"reason\": \"User not found\"}',NULL,'2026-02-16 02:37:16'),(23,3,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"admin@nike.com\"}',NULL,'2026-02-16 02:37:23'),(24,3,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"admin@nike.com\"}',NULL,'2026-02-16 02:40:36'),(25,3,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"admin@nike.com\"}',NULL,'2026-02-16 02:42:48'),(26,3,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"admin@nike.com\"}',NULL,'2026-02-16 02:44:32'),(27,3,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"admin@nike.com\"}',NULL,'2026-02-16 02:46:02'),(28,3,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"admin@nike.com\"}',NULL,'2026-02-16 02:48:29'),(29,34,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"testuser_2318@example.com\"}',NULL,'2026-02-16 02:49:31'),(30,NULL,NULL,'login_failed','127.0.0.1',NULL,'{\"email\": \"nonexistent@example.com\", \"reason\": \"User not found\"}',NULL,'2026-02-16 02:49:39'),(31,3,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"admin@nike.com\"}',NULL,'2026-02-16 02:49:46'),(32,3,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"admin@nike.com\"}',NULL,'2026-02-16 02:53:00'),(33,3,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"admin@nike.com\"}',NULL,'2026-02-16 02:56:18'),(34,3,NULL,'login_failed','127.0.0.1',NULL,'{\"email\": \"admin@nike.com\", \"locked\": false, \"reason\": \"Invalid password\", \"failedAttempts\": 1}',NULL,'2026-02-16 03:00:06'),(35,3,NULL,'login_failed','127.0.0.1',NULL,'{\"email\": \"admin@nike.com\", \"locked\": false, \"reason\": \"Invalid password\", \"failedAttempts\": 2}',NULL,'2026-02-16 03:00:09'),(36,3,NULL,'login_failed','127.0.0.1',NULL,'{\"email\": \"admin@nike.com\", \"locked\": false, \"reason\": \"Invalid password\", \"failedAttempts\": 3}',NULL,'2026-02-16 03:00:10'),(37,3,NULL,'login_failed','127.0.0.1',NULL,'{\"email\": \"admin@nike.com\", \"reason\": \"Invalid password\"}',NULL,'2026-02-16 03:09:50'),(38,3,NULL,'login_failed','127.0.0.1',NULL,'{\"email\": \"admin@nike.com\", \"reason\": \"Invalid password\"}',NULL,'2026-02-16 03:09:55'),(39,3,NULL,'login_failed','127.0.0.1',NULL,'{\"email\": \"admin@nike.com\", \"reason\": \"Invalid password\"}',NULL,'2026-02-16 03:09:57'),(40,2,NULL,'login_failed','127.0.0.1',NULL,'{\"email\": \"dangthanhtoan06092004@gmail.com\", \"reason\": \"Invalid password\"}',NULL,'2026-02-16 03:18:00'),(41,2,NULL,'login_failed','127.0.0.1',NULL,'{\"email\": \"dangthanhtoan06092004@gmail.com\", \"reason\": \"Invalid password\"}',NULL,'2026-02-16 03:18:04'),(42,2,NULL,'login_failed','127.0.0.1',NULL,'{\"email\": \"dangthanhtoan06092004@gmail.com\", \"reason\": \"Invalid password\"}',NULL,'2026-02-16 03:18:34'),(43,2,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"dangthanhtoan06092004@gmail.com\"}',NULL,'2026-02-16 03:19:26'),(44,3,NULL,'login_failed','127.0.0.1',NULL,'{\"email\": \"admin@nike.com\", \"reason\": \"Invalid password\"}',NULL,'2026-02-16 03:22:25'),(45,3,NULL,'login_failed','127.0.0.1',NULL,'{\"email\": \"admin@nike.com\", \"reason\": \"Invalid password\"}',NULL,'2026-02-16 03:22:26'),(46,3,NULL,'login_failed','127.0.0.1',NULL,'{\"email\": \"admin@nike.com\", \"reason\": \"Invalid password\"}',NULL,'2026-02-16 03:22:26'),(47,2,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"dangthanhtoan06092004@gmail.com\"}',NULL,'2026-02-16 03:31:09'),(48,2,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"dangthanhtoan06092004@gmail.com\"}',NULL,'2026-02-16 05:16:40'),(49,2,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"dangthanhtoan06092004@gmail.com\"}',NULL,'2026-02-16 05:18:50'),(50,1,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"thanhtoan06092004@gmail.com\"}',NULL,'2026-02-16 05:22:02'),(51,1,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"thanhtoan06092004@gmail.com\"}',NULL,'2026-02-16 05:41:39'),(52,1,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"thanhtoan06092004@gmail.com\"}',NULL,'2026-02-16 06:17:13'),(53,1,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"thanhtoan06092004@gmail.com\"}',NULL,'2026-02-16 11:04:55'),(54,1,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"thanhtoan06092004@gmail.com\"}',NULL,'2026-02-16 11:22:02'),(55,1,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"thanhtoan06092004@gmail.com\"}',NULL,'2026-02-16 11:43:47'),(56,1,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"thanhtoan06092004@gmail.com\"}',NULL,'2026-02-16 12:01:51'),(57,1,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"thanhtoan06092004@gmail.com\"}',NULL,'2026-02-16 12:17:11'),(58,1,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"thanhtoan06092004@gmail.com\"}',NULL,'2026-02-16 12:17:26'),(59,1,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"thanhtoan06092004@gmail.com\"}',NULL,'2026-02-17 23:27:50'),(60,1,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"thanhtoan06092004@gmail.com\"}',NULL,'2026-02-24 03:18:30'),(61,1,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"thanhtoan06092004@gmail.com\", \"method\": \"2fa_email\"}',NULL,'2026-02-24 03:25:24'),(62,1,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"thanhtoan06092004@gmail.com\", \"method\": \"2fa_email\"}',NULL,'2026-02-24 03:31:44'),(63,1,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"thanhtoan06092004@gmail.com\", \"method\": \"2fa_email\"}',NULL,'2026-02-24 05:52:31'),(64,1,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"thanhtoan06092004@gmail.com\", \"method\": \"2fa_email\"}',NULL,'2026-02-24 12:28:54'),(65,1,NULL,'login_failed','127.0.0.1',NULL,'{\"email\": \"thanhtoan06092004@gmail.com\", \"reason\": \"Invalid OTP for 2FA\"}',NULL,'2026-02-24 12:28:58'),(66,1,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"thanhtoan06092004@gmail.com\", \"method\": \"2fa_email\"}',NULL,'2026-02-24 14:45:35'),(67,1,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"thanhtoan06092004@gmail.com\", \"method\": \"2fa_email\"}',NULL,'2026-02-24 14:55:28'),(68,1,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"thanhtoan06092004@gmail.com\", \"method\": \"2fa_email\"}',NULL,'2026-02-24 15:00:49'),(69,1,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"thanhtoan06092004@gmail.com\", \"method\": \"2fa_email\"}',NULL,'2026-02-25 00:13:44'),(70,1,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"thanhtoan06092004@gmail.com\"}',NULL,'2026-02-25 00:19:52'),(71,1,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"thanhtoan06092004@gmail.com\"}',NULL,'2026-02-25 01:38:56'),(72,1,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"thanhtoan06092004@gmail.com\"}',NULL,'2026-02-25 01:55:03'),(73,1,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"thanhtoan06092004@gmail.com\"}',NULL,'2026-02-25 07:14:30'),(74,1,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"thanhtoan06092004@gmail.com\"}',NULL,'2026-02-25 08:34:32'),(75,1,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"thanhtoan06092004@gmail.com\"}',NULL,'2026-02-25 11:10:10'),(76,1,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"thanhtoan06092004@gmail.com\"}',NULL,'2026-02-25 11:34:46'),(77,1,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"thanhtoan06092004@gmail.com\"}',NULL,'2026-02-25 11:45:46'),(78,1,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"thanhtoan06092004@gmail.com\"}',NULL,'2026-02-25 12:04:58'),(79,1,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"thanhtoan06092004@gmail.com\"}',NULL,'2026-02-25 12:22:09'),(80,1,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"thanhtoan06092004@gmail.com\"}',NULL,'2026-02-28 16:43:52'),(81,1,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"thanhtoan06092004@gmail.com\"}',NULL,'2026-03-01 02:59:32'),(82,1,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"thanhtoan06092004@gmail.com\"}',NULL,'2026-03-01 04:17:45'),(83,1,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"thanhtoan06092004@gmail.com\"}',NULL,'2026-03-01 10:11:54'),(84,1,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"thanhtoan06092004@gmail.com\"}',NULL,'2026-03-01 10:36:47'),(85,1,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"thanhtoan06092004@gmail.com\"}',NULL,'2026-03-01 10:57:01'),(86,1,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"thanhtoan06092004@gmail.com\"}',NULL,'2026-03-01 11:44:27'),(87,1,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"thanhtoan06092004@gmail.com\"}',NULL,'2026-03-01 13:40:05'),(88,1,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"thanhtoan06092004@gmail.com\"}',NULL,'2026-03-01 14:51:04'),(89,1,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"thanhtoan06092004@gmail.com\"}',NULL,'2026-03-03 07:28:46'),(90,1,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"thanhtoan06092004@gmail.com\"}',NULL,'2026-03-05 02:13:44'),(91,1,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"thanhtoan06092004@gmail.com\"}',NULL,'2026-03-06 01:48:22'),(92,1,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"thanhtoan06092004@gmail.com\"}',NULL,'2026-03-06 02:06:21'),(93,1,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"thanhtoan06092004@gmail.com\"}',NULL,'2026-03-06 02:45:05');
+INSERT INTO `security_logs` VALUES (4,NULL,NULL,'login_failed','127.0.0.1',NULL,'{\"email\": \"nonexistent@example.com\", \"reason\": \"User not found\"}',NULL,'2026-02-16 00:34:27'),(5,NULL,NULL,'login_failed','127.0.0.1',NULL,'{\"email\": \"nonexistent@example.com\", \"reason\": \"User not found\"}',NULL,'2026-02-16 01:16:01'),(15,NULL,NULL,'login_failed','127.0.0.1',NULL,'{\"email\": \"nonexistent@example.com\", \"reason\": \"User not found\"}',NULL,'2026-02-16 02:26:02'),(22,NULL,NULL,'login_failed','127.0.0.1',NULL,'{\"email\": \"nonexistent@example.com\", \"reason\": \"User not found\"}',NULL,'2026-02-16 02:37:16'),(30,NULL,NULL,'login_failed','127.0.0.1',NULL,'{\"email\": \"nonexistent@example.com\", \"reason\": \"User not found\"}',NULL,'2026-02-16 02:49:39'),(40,2,NULL,'login_failed','127.0.0.1',NULL,'{\"email\": \"dangthanhtoan06092004@gmail.com\", \"reason\": \"Invalid password\"}',NULL,'2026-02-16 03:18:00'),(41,2,NULL,'login_failed','127.0.0.1',NULL,'{\"email\": \"dangthanhtoan06092004@gmail.com\", \"reason\": \"Invalid password\"}',NULL,'2026-02-16 03:18:04'),(42,2,NULL,'login_failed','127.0.0.1',NULL,'{\"email\": \"dangthanhtoan06092004@gmail.com\", \"reason\": \"Invalid password\"}',NULL,'2026-02-16 03:18:34'),(43,2,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"dangthanhtoan06092004@gmail.com\"}',NULL,'2026-02-16 03:19:26'),(47,2,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"dangthanhtoan06092004@gmail.com\"}',NULL,'2026-02-16 03:31:09'),(48,2,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"dangthanhtoan06092004@gmail.com\"}',NULL,'2026-02-16 05:16:40'),(49,2,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"dangthanhtoan06092004@gmail.com\"}',NULL,'2026-02-16 05:18:50'),(50,1,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"thanhtoan06092004@gmail.com\"}',NULL,'2026-02-16 05:22:02'),(51,1,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"thanhtoan06092004@gmail.com\"}',NULL,'2026-02-16 05:41:39'),(52,1,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"thanhtoan06092004@gmail.com\"}',NULL,'2026-02-16 06:17:13'),(53,1,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"thanhtoan06092004@gmail.com\"}',NULL,'2026-02-16 11:04:55'),(54,1,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"thanhtoan06092004@gmail.com\"}',NULL,'2026-02-16 11:22:02'),(55,1,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"thanhtoan06092004@gmail.com\"}',NULL,'2026-02-16 11:43:47'),(56,1,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"thanhtoan06092004@gmail.com\"}',NULL,'2026-02-16 12:01:51'),(57,1,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"thanhtoan06092004@gmail.com\"}',NULL,'2026-02-16 12:17:11'),(58,1,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"thanhtoan06092004@gmail.com\"}',NULL,'2026-02-16 12:17:26'),(59,1,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"thanhtoan06092004@gmail.com\"}',NULL,'2026-02-17 23:27:50'),(60,1,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"thanhtoan06092004@gmail.com\"}',NULL,'2026-02-24 03:18:30'),(61,1,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"thanhtoan06092004@gmail.com\", \"method\": \"2fa_email\"}',NULL,'2026-02-24 03:25:24'),(62,1,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"thanhtoan06092004@gmail.com\", \"method\": \"2fa_email\"}',NULL,'2026-02-24 03:31:44'),(63,1,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"thanhtoan06092004@gmail.com\", \"method\": \"2fa_email\"}',NULL,'2026-02-24 05:52:31'),(64,1,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"thanhtoan06092004@gmail.com\", \"method\": \"2fa_email\"}',NULL,'2026-02-24 12:28:54'),(65,1,NULL,'login_failed','127.0.0.1',NULL,'{\"email\": \"thanhtoan06092004@gmail.com\", \"reason\": \"Invalid OTP for 2FA\"}',NULL,'2026-02-24 12:28:58'),(66,1,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"thanhtoan06092004@gmail.com\", \"method\": \"2fa_email\"}',NULL,'2026-02-24 14:45:35'),(67,1,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"thanhtoan06092004@gmail.com\", \"method\": \"2fa_email\"}',NULL,'2026-02-24 14:55:28'),(68,1,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"thanhtoan06092004@gmail.com\", \"method\": \"2fa_email\"}',NULL,'2026-02-24 15:00:49'),(69,1,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"thanhtoan06092004@gmail.com\", \"method\": \"2fa_email\"}',NULL,'2026-02-25 00:13:44'),(70,1,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"thanhtoan06092004@gmail.com\"}',NULL,'2026-02-25 00:19:52'),(71,1,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"thanhtoan06092004@gmail.com\"}',NULL,'2026-02-25 01:38:56'),(72,1,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"thanhtoan06092004@gmail.com\"}',NULL,'2026-02-25 01:55:03'),(73,1,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"thanhtoan06092004@gmail.com\"}',NULL,'2026-02-25 07:14:30'),(74,1,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"thanhtoan06092004@gmail.com\"}',NULL,'2026-02-25 08:34:32'),(75,1,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"thanhtoan06092004@gmail.com\"}',NULL,'2026-02-25 11:10:10'),(76,1,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"thanhtoan06092004@gmail.com\"}',NULL,'2026-02-25 11:34:46'),(77,1,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"thanhtoan06092004@gmail.com\"}',NULL,'2026-02-25 11:45:46'),(78,1,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"thanhtoan06092004@gmail.com\"}',NULL,'2026-02-25 12:04:58'),(79,1,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"thanhtoan06092004@gmail.com\"}',NULL,'2026-02-25 12:22:09'),(80,1,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"thanhtoan06092004@gmail.com\"}',NULL,'2026-02-28 16:43:52'),(81,1,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"thanhtoan06092004@gmail.com\"}',NULL,'2026-03-01 02:59:32'),(82,1,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"thanhtoan06092004@gmail.com\"}',NULL,'2026-03-01 04:17:45'),(83,1,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"thanhtoan06092004@gmail.com\"}',NULL,'2026-03-01 10:11:54'),(84,1,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"thanhtoan06092004@gmail.com\"}',NULL,'2026-03-01 10:36:47'),(85,1,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"thanhtoan06092004@gmail.com\"}',NULL,'2026-03-01 10:57:01'),(86,1,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"thanhtoan06092004@gmail.com\"}',NULL,'2026-03-01 11:44:27'),(87,1,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"thanhtoan06092004@gmail.com\"}',NULL,'2026-03-01 13:40:05'),(88,1,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"thanhtoan06092004@gmail.com\"}',NULL,'2026-03-01 14:51:04'),(89,1,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"thanhtoan06092004@gmail.com\"}',NULL,'2026-03-03 07:28:46'),(90,1,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"thanhtoan06092004@gmail.com\"}',NULL,'2026-03-05 02:13:44'),(91,1,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"thanhtoan06092004@gmail.com\"}',NULL,'2026-03-06 01:48:22'),(92,1,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"thanhtoan06092004@gmail.com\"}',NULL,'2026-03-06 02:06:21'),(93,1,NULL,'login_success','127.0.0.1',NULL,'{\"email\": \"thanhtoan06092004@gmail.com\"}',NULL,'2026-03-06 02:45:05');
 /*!40000 ALTER TABLE `security_logs` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -2011,7 +2136,7 @@ CREATE TABLE `settings` (
   `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   UNIQUE KEY `key` (`key`)
-) ENGINE=InnoDB AUTO_INCREMENT=276 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=290 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -2020,7 +2145,7 @@ CREATE TABLE `settings` (
 
 LOCK TABLES `settings` WRITE;
 /*!40000 ALTER TABLE `settings` DISABLE KEYS */;
-INSERT INTO `settings` VALUES (1,'store_name','TOAN STORE','2026-01-27 08:06:42'),(2,'store_email','support@toanstore.com','2026-01-27 08:06:42'),(3,'store_phone','0123456789','2026-01-27 08:06:42'),(4,'store_address','123 Main Street','2026-01-27 08:06:42'),(5,'store_city','Hanoi','2026-01-27 08:06:42'),(6,'store_country','Vietnam','2026-01-27 08:06:42'),(7,'store_currency','VND','2026-01-27 08:06:42'),(8,'tax_rate','0.1','2026-01-27 08:06:42'),(9,'shipping_cost_domestic','30000','2026-01-27 08:06:42'),(10,'shipping_cost_international','100000','2026-01-27 08:06:42'),(11,'maintenance_mode','false','2026-02-01 12:38:21');
+INSERT INTO `settings` VALUES (1,'store_name','TOAN STORE','2026-01-27 08:06:42'),(2,'store_email','support@toanstore.com','2026-01-27 08:06:42'),(3,'store_phone','0123456789','2026-01-27 08:06:42'),(4,'store_address','123 Main Street','2026-01-27 08:06:42'),(5,'store_city','Hanoi','2026-01-27 08:06:42'),(6,'store_country','Vietnam','2026-01-27 08:06:42'),(7,'store_currency','VND','2026-01-27 08:06:42'),(8,'tax_rate','10','2026-03-08 13:34:36'),(9,'shipping_cost_domestic','30000','2026-01-27 08:06:42'),(10,'shipping_cost_international','100000','2026-01-27 08:06:42'),(11,'maintenance_mode','false','2026-02-01 12:38:21'),(281,'shipping_fee','30000','2026-03-08 13:34:36'),(282,'free_shipping_threshold','500000','2026-03-08 13:34:36'),(283,'order_prefix','TS','2026-03-08 13:34:36'),(284,'products_per_page','12','2026-03-08 13:34:36'),(285,'facebook_pixel_id','123456789','2026-03-08 13:34:36'),(286,'google_analytics_id','UA-123456-1','2026-03-08 13:34:36');
 /*!40000 ALTER TABLE `settings` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -2050,7 +2175,6 @@ CREATE TABLE `shipment_items` (
 
 LOCK TABLES `shipment_items` WRITE;
 /*!40000 ALTER TABLE `shipment_items` DISABLE KEYS */;
-INSERT INTO `shipment_items` VALUES (1,1,43,1);
 /*!40000 ALTER TABLE `shipment_items` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -2086,7 +2210,6 @@ CREATE TABLE `shipments` (
 
 LOCK TABLES `shipments` WRITE;
 /*!40000 ALTER TABLE `shipments` DISABLE KEYS */;
-INSERT INTO `shipments` VALUES (1,45,NULL,'TRK1770985473738','GHTK','pending',NULL,'2026-02-13 19:24:33','2026-02-13 19:24:33');
 /*!40000 ALTER TABLE `shipments` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -2122,6 +2245,35 @@ INSERT INTO `sports` VALUES (1,'Running','running','Running shoes and gear',NULL
 UNLOCK TABLES;
 
 --
+-- Table structure for table `stock_reservation_items`
+--
+
+DROP TABLE IF EXISTS `stock_reservation_items`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `stock_reservation_items` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `reservation_id` bigint unsigned NOT NULL,
+  `product_variant_id` bigint unsigned NOT NULL,
+  `quantity` int NOT NULL,
+  PRIMARY KEY (`id`),
+  KEY `idx_reservation_id` (`reservation_id`),
+  KEY `idx_variant_id` (`product_variant_id`),
+  CONSTRAINT `fk_res_items_parent` FOREIGN KEY (`reservation_id`) REFERENCES `stock_reservations` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_res_items_variant` FOREIGN KEY (`product_variant_id`) REFERENCES `product_variants` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `stock_reservation_items`
+--
+
+LOCK TABLES `stock_reservation_items` WRITE;
+/*!40000 ALTER TABLE `stock_reservation_items` DISABLE KEYS */;
+/*!40000 ALTER TABLE `stock_reservation_items` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
 -- Table structure for table `stock_reservations`
 --
 
@@ -2131,12 +2283,15 @@ DROP TABLE IF EXISTS `stock_reservations`;
 CREATE TABLE `stock_reservations` (
   `id` bigint unsigned NOT NULL AUTO_INCREMENT,
   `session_id` varchar(255) NOT NULL,
-  `items` json NOT NULL COMMENT 'Array of {productVariantId, quantity}',
   `expires_at` timestamp NOT NULL,
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `user_id` bigint unsigned DEFAULT NULL,
+  `order_id` bigint unsigned DEFAULT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `session_id` (`session_id`),
-  KEY `idx_expires_at` (`expires_at`)
+  KEY `idx_expires_at` (`expires_at`),
+  KEY `fk_reservations_user` (`user_id`),
+  CONSTRAINT `fk_reservations_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -2251,6 +2406,7 @@ CREATE TABLE `support_chats` (
   KEY `idx_access_token` (`access_token`),
   KEY `idx_status_last_message` (`status`,`last_message_at` DESC),
   KEY `idx_assigned_status` (`assigned_admin_id`,`status`),
+  KEY `idx_user_status` (`user_id`,`status`),
   CONSTRAINT `support_chats_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE SET NULL,
   CONSTRAINT `support_chats_ibfk_2` FOREIGN KEY (`assigned_admin_id`) REFERENCES `admin_users` (`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB AUTO_INCREMENT=20 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
@@ -2298,36 +2454,8 @@ CREATE TABLE `support_messages` (
 
 LOCK TABLES `support_messages` WRITE;
 /*!40000 ALTER TABLE `support_messages` DISABLE KEYS */;
-INSERT INTO `support_messages` VALUES (15,11,'customer',1,'Xin chào, tôi cần hỗ trợ!',NULL,1,'2026-02-07 14:16:44'),(16,11,'admin',3,'ok',NULL,1,'2026-02-07 14:18:55'),(17,11,'customer',1,'ok',NULL,0,'2026-02-07 14:19:15'),(18,11,'admin',3,'ok',NULL,1,'2026-02-07 14:19:27'),(19,11,'customer',1,'ok',NULL,0,'2026-02-07 14:19:37'),(20,15,'admin',1,'hi',NULL,1,'2026-02-10 09:15:55'),(21,14,'customer',1,'hi',NULL,1,'2026-02-10 09:16:03'),(22,14,'admin',1,'hi',NULL,1,'2026-02-10 09:16:15'),(23,14,'admin',1,'ok',NULL,1,'2026-02-10 09:16:33'),(24,14,'customer',1,'','/uploads/chat/1770715024944-1-Screenshot_2026-02-10_093337.png',0,'2026-02-10 09:17:05'),(25,14,'admin',1,'ok',NULL,1,'2026-02-10 09:17:28'),(26,16,'customer',1,'hi',NULL,1,'2026-02-10 09:24:32'),(27,18,'customer',1,'hi',NULL,1,'2026-02-10 09:30:58'),(28,18,'admin',1,'ok',NULL,1,'2026-02-10 09:31:12');
+INSERT INTO `support_messages` VALUES (15,11,'customer',1,'Xin chào, tôi cần hỗ trợ!',NULL,1,'2026-02-07 14:16:44'),(16,11,'admin',NULL,'ok',NULL,1,'2026-02-07 14:18:55'),(17,11,'customer',1,'ok',NULL,0,'2026-02-07 14:19:15'),(18,11,'admin',NULL,'ok',NULL,1,'2026-02-07 14:19:27'),(19,11,'customer',1,'ok',NULL,0,'2026-02-07 14:19:37'),(20,15,'admin',1,'hi',NULL,1,'2026-02-10 09:15:55'),(21,14,'customer',1,'hi',NULL,1,'2026-02-10 09:16:03'),(22,14,'admin',1,'hi',NULL,1,'2026-02-10 09:16:15'),(23,14,'admin',1,'ok',NULL,1,'2026-02-10 09:16:33'),(24,14,'customer',1,'','/uploads/chat/1770715024944-1-Screenshot_2026-02-10_093337.png',0,'2026-02-10 09:17:05'),(25,14,'admin',1,'ok',NULL,1,'2026-02-10 09:17:28'),(26,16,'customer',1,'hi',NULL,1,'2026-02-10 09:24:32'),(27,18,'customer',1,'hi',NULL,1,'2026-02-10 09:30:58'),(28,18,'admin',1,'ok',NULL,1,'2026-02-10 09:31:12');
 /*!40000 ALTER TABLE `support_messages` ENABLE KEYS */;
-UNLOCK TABLES;
-
---
--- Table structure for table `system_config`
---
-
-DROP TABLE IF EXISTS `system_config`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `system_config` (
-  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
-  `key` varchar(255) NOT NULL,
-  `value` text,
-  `description` varchar(255) DEFAULT NULL,
-  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `key` (`key`)
-) ENGINE=InnoDB AUTO_INCREMENT=12 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
-
---
--- Dumping data for table `system_config`
---
-
-LOCK TABLES `system_config` WRITE;
-/*!40000 ALTER TABLE `system_config` DISABLE KEYS */;
-INSERT INTO `system_config` VALUES (1,'site_name','TOAN Store','Website name','2025-12-06 14:11:35'),(2,'site_email','support@toanstore.com','Contact email','2025-12-06 14:11:35'),(3,'site_phone','1900-xxxx','Contact phone','2025-12-06 14:11:35'),(4,'currency','VND','Default currency','2025-12-06 14:11:35'),(5,'tax_rate','10','Tax rate percentage','2025-12-06 14:11:35'),(6,'shipping_fee','30000','Default shipping fee','2025-12-06 14:11:35'),(7,'free_shipping_threshold','500000','Minimum order for free shipping','2025-12-06 14:11:35'),(8,'order_prefix','TS','Order number prefix','2025-12-06 14:11:35'),(9,'products_per_page','12','Products per page in listing','2025-12-06 14:11:35'),(10,'facebook_pixel_id','123456789','Facebook Pixel ID for tracking','2025-12-06 14:11:35'),(11,'google_analytics_id','UA-123456-1','Google Analytics tracking ID','2025-12-06 14:11:35');
-/*!40000 ALTER TABLE `system_config` ENABLE KEYS */;
 UNLOCK TABLES;
 
 --
@@ -2368,7 +2496,7 @@ CREATE TABLE `transactions` (
   `id` bigint unsigned NOT NULL AUTO_INCREMENT,
   `order_id` bigint unsigned NOT NULL,
   `user_id` bigint unsigned DEFAULT NULL,
-  `payment_provider` enum('vnpay','momo') NOT NULL,
+  `payment_provider` enum('vnpay','momo','zalopay','bank_transfer','cod') NOT NULL,
   `transaction_code` varchar(100) DEFAULT NULL,
   `amount` decimal(15,2) NOT NULL,
   `status` enum('pending','success','failed','refunded') NOT NULL DEFAULT 'pending',
@@ -2376,12 +2504,13 @@ CREATE TABLE `transactions` (
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_transaction_provider_code` (`payment_provider`,`transaction_code`),
   KEY `order_id` (`order_id`),
   KEY `user_id` (`user_id`),
   KEY `idx_transactions_order_status` (`order_id`,`status`),
   CONSTRAINT `transactions_fk_order` FOREIGN KEY (`order_id`) REFERENCES `orders` (`id`) ON DELETE RESTRICT,
   CONSTRAINT `transactions_fk_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE SET NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -2390,6 +2519,7 @@ CREATE TABLE `transactions` (
 
 LOCK TABLES `transactions` WRITE;
 /*!40000 ALTER TABLE `transactions` DISABLE KEYS */;
+INSERT INTO `transactions` VALUES (1,3,NULL,'momo','TX123',1000.00,'pending',NULL,'2026-03-09 01:34:22','2026-03-09 01:34:22');
 /*!40000 ALTER TABLE `transactions` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -2471,6 +2601,33 @@ LOCK TABLES `user_consents` WRITE;
 UNLOCK TABLES;
 
 --
+-- Table structure for table `user_notification_preferences`
+--
+
+DROP TABLE IF EXISTS `user_notification_preferences`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `user_notification_preferences` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `user_id` bigint unsigned NOT NULL,
+  `type` enum('email','sms','push','promo','order','sms_order') NOT NULL,
+  `enabled` tinyint(1) DEFAULT '1',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_user_type` (`user_id`,`type`),
+  CONSTRAINT `fk_notif_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `user_notification_preferences`
+--
+
+LOCK TABLES `user_notification_preferences` WRITE;
+/*!40000 ALTER TABLE `user_notification_preferences` DISABLE KEYS */;
+/*!40000 ALTER TABLE `user_notification_preferences` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
 -- Table structure for table `users`
 --
 
@@ -2480,11 +2637,12 @@ DROP TABLE IF EXISTS `users`;
 CREATE TABLE `users` (
   `id` bigint unsigned NOT NULL AUTO_INCREMENT,
   `email` varchar(255) NOT NULL,
+  `email_encrypted` text COMMENT 'AES-256-GCM encrypted email. Format: IV:AUTH_TAG:CIPHERTEXT',
   `password` varchar(255) DEFAULT NULL,
   `first_name` varchar(100) DEFAULT NULL,
   `last_name` varchar(100) DEFAULT NULL,
   `full_name` varchar(255) DEFAULT NULL,
-  `phone` varchar(255) DEFAULT NULL,
+  `phone` varchar(50) DEFAULT NULL,
   `phone_encrypted` text,
   `date_of_birth` date DEFAULT NULL,
   `date_of_birth_encrypted` text,
@@ -2528,7 +2686,9 @@ CREATE TABLE `users` (
   KEY `idx_active_created` (`is_active`,`created_at` DESC),
   KEY `idx_users_tier` (`membership_tier`),
   KEY `idx_users_lifetime` (`lifetime_points`),
-  KEY `idx_tier_points` (`membership_tier`,`lifetime_points` DESC)
+  KEY `idx_tier_points` (`membership_tier`,`lifetime_points` DESC),
+  CONSTRAINT `chk_available_points_non_negative` CHECK ((`available_points` >= 0)),
+  CONSTRAINT `chk_users_points_consistency` CHECK ((`available_points` <= `lifetime_points`))
 ) ENGINE=InnoDB AUTO_INCREMENT=35 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -2538,7 +2698,7 @@ CREATE TABLE `users` (
 
 LOCK TABLES `users` WRITE;
 /*!40000 ALTER TABLE `users` DISABLE KEYS */;
-INSERT INTO `users` VALUES (1,'thanhtoan06092004@gmail.com','$2b$10$nLRY6Uyu.3TgJzUP2GuyG.U7c1uVa0C4hFBMfw8hzWubSVRO7vZti','TOAN','DANG','DANG TOAN','***','bd041ef4cf217505728fdf70ec81f3a4:c92d4421cff5f64fd973efa865df1153:663c8776dd7e66e403d8','2004-09-06','45cb8f955c939db557bac47062cfa35e:0cca5d556fb0f82da3e96b316bf8f73b43fc485757eb8373942d0c08dd0c75a9',1,'male',1,0,'{\"gender\": \"male\", \"dateOfBirth\": \"2004-09-06\"}','2025-12-06 14:42:48','2026-03-06 04:51:28',0,'silver',NULL,NULL,NULL,'https://res.cloudinary.com/dbhfn2hqs/image/upload/v1772334121/nike-clone/products/qs2iayd7nebiv26grp9h.jpg',0,NULL,2,0,1,1,1,1,1,1,1,1,2447,2397,NULL,NULL),(2,'dangthanhtoan06092004@gmail.com','$2b$10$ckcKXxzPwAkzxq/qhxNeKOMM4MBJbkyBRTe3D.FpPB28Ux4OTbm2S','DANG','TOAN',NULL,'***','1d75fbce47802ae6e58172865e570e4d:f1663a5b955d8f5e8f24d9f8c79dc1a50ef796009453de3b72685186b2fbb9901f0cc6ff264d5a86607ee12f2ee98674a8fb2166ee260b4938cee9541af64f6ccc21698cbb88067335c949ec1bc5c2a0cbb284686d34a02c62f6769ff88a46f4','2004-09-06','a23907ae38e4b138d8739e78a4496df0:87ce800b207ee81cf1bc00968eb1504d3ef42257454217ef24ce299726cc0270',1,'male',1,0,NULL,'2025-12-08 01:37:41','2026-03-02 03:12:16',0,'bronze',NULL,NULL,NULL,NULL,0,NULL,1,0,1,0,1,0,1,1,1,0,0,0,NULL,NULL),(3,'admin@nike.com','$2b$10$x/r1eBhvynV/RiUAFxS2n.r0Gqm4iA/Q7W5DoCWbUaiWPBigs2rWC',NULL,NULL,'Admin Nike','***',NULL,NULL,NULL,1,NULL,1,0,NULL,'2025-12-10 04:21:46','2026-03-02 03:12:16',0,'bronze',NULL,NULL,NULL,NULL,0,NULL,1,0,1,0,1,0,1,1,1,0,0,0,NULL,NULL),(6,'test_verification_1770196152084_865@test.com','$2b$10$ixRrk79ACe7/H3UWZ60QzOrGAQywqL.AyaTYYfcNX8xIrehr6JhK2','Test','User',NULL,'***','61b90a7575744b0681c7137315dda493:805dfb604b3fec89783d94d955e5949a6bc45ac3f9a4797f9ee653f7ddbc4b4b466288a8130b59ba07a98376a48855a94699cdc8eb985fd25374dfc0ea1bc1da766a6dcd586442062b7739c0bc01798a0cad943670431fd9086d650705f2f69d','2000-01-01','0a6232e703517842bef32c175a5ee3d2:50e24b3b30685d0fcf829063321d91994f6e1ba423cc6b694e417984dd206dc7',1,'male',1,0,NULL,'2026-02-04 09:09:15','2026-03-02 03:12:16',0,'bronze',NULL,NULL,NULL,NULL,0,NULL,1,0,1,0,1,0,1,1,1,0,0,0,NULL,NULL),(7,'test_verification_1770196177715_183@test.com','$2b$10$q/TyR5q1a1yauf1z10abO.E1dvGpNo9mzdMbVBxIA/9JG9wUmUgs.','Test','User',NULL,'***','0fdddce3a3e4097a6d724d908b1eca70:a0ba8bdc7dc0f663d601832a04dfa5a118fa0475b314ad14c8111f30ecea558857dea95e6184f4d38c5b40184b2a044c7aa848c12860aa8add875c7f9e4d8a00cfc685abca610227a4ba8001f1e60555c654a6d6362b96d7bcbf31f5d403a258','2000-01-01','34eced1d3d9b9c0fdc4517652b624504:1e715842bb53ec51d9b1ba12e4808738bcbc63f8feb679edd5f18ef821e2c44d',1,'male',1,0,NULL,'2026-02-04 09:09:38','2026-03-02 03:12:16',0,'bronze',NULL,NULL,NULL,NULL,0,NULL,1,0,1,0,1,0,1,1,1,0,0,0,NULL,NULL),(8,'test_verification_1770196190324_704@test.com','$2b$10$pdDY9p.PpKbYBqVnsG9tPe6z7cx5TMIqazl21FepE8hxMkpMdy3xO','Test','User',NULL,'***','9fed4fc5a5c3d447b6841fcb4f9caa4b:1670df54f6e84276882fd2080b2e0b84fa949835b4366c7c0f99f5d082e378f239d8e9f8876a52ed7434c3cb49982048314d6cc609c357b47ab16b5091614af5e16d2515954350798e5f877d817512197cddd29419886bed95228fe4322e706e','2000-01-01','0718e585bc8a05980919ee627c49ff72:6eff0172abc2c0ac8148192832f0532bb04f9a8ad07058aecf498aa36296ff1f',1,'male',1,0,NULL,'2026-02-04 09:09:50','2026-03-02 03:12:16',0,'bronze',NULL,NULL,NULL,NULL,0,NULL,1,0,1,0,1,0,1,1,1,0,0,0,NULL,NULL),(9,'test_verification_1770196218804_939@test.com','$2b$10$IWN2xYVQ3Sg9xohSblnlWeQeXoi3Hpud02B6Iw0eHxSQ.Ppl92RlC','Test','User',NULL,'***','ff1a83a0ac9ef5417ce299866854d238:717222b199bc9817079d710dcb9c4d9440c369a5ae6c4b93790fa4bc7d3aef1468afb8021ff5ee9486fffdba553b94d454411c6fdf718cedead3442abf69d5d9bec819e7e6955153433f7f6bd46003a7d3efeaaa4b897d82646208ea1acf8f43','2000-01-01','c8f8ded98eddac741bbb22dfa378ed8e:dfc9cf1c3e4ea52ec95377099bb675d5bac67be3647cb79e34442260dfbeab22',1,'male',1,0,NULL,'2026-02-04 09:10:19','2026-03-02 03:12:16',0,'bronze',NULL,NULL,NULL,NULL,0,NULL,1,0,1,0,1,0,1,1,1,0,0,0,NULL,NULL),(10,'test_verification_1770196270063_142@test.com','$2b$10$8NSrH36.Z11mF.9q9GrgvO8QYN0RKQhW5oEmuR9aEvX8X501/CGMO','Test','User',NULL,'***','01190ff77931de51b421cc4b1714c969:3349051ba2a91a9f1d5a1c3424b1a9a6142a954a28d086e4a9d02ed4a6c787fd5db36b0313dc6f504e2cb120c641e50c2bd12e90a6df403b9511f479af0ce5ec7b80205205ac052beb63d1b8f7cfdb8b58ed1f9a266571a2a2dd10f84bb63d9c','2000-01-01','62747cf3a999e97fab76ebd16c777758:9a3786fb167a7f1d18b510bfd92fa0a7bab20542381a1fae17a72e7f2d9966e9',1,'male',1,0,NULL,'2026-02-04 09:11:10','2026-03-02 03:12:16',0,'bronze',NULL,NULL,NULL,NULL,0,NULL,1,0,1,0,1,0,1,1,1,0,0,0,NULL,NULL),(11,'test_verification_1770196336710_629@test.com','$2b$10$UmSzkSJNbZxGw4RSeYcfQOxrAzjSbS2jBTCtnQsdSLbvSRs/SYNBK','Test','User',NULL,'***','34e6b3e159418b5487d1b295793560d2:bc9ad3562deed7306ad906a57ba15c824230fdae80d2820b3c6d21b5233f516955f278d2352b5082dea5928db30018653fa81b8e1cddd6d1e735a60e4f87fc15f5f40f70c3d69ae62d60f182b62ca2db9901a748d88ec6af97d730b2feebcc66','2000-01-01','ed38f924ec685b9d91b5f9a49a489f8d:0d29b847b7cb55f5e8ceb944a64d85cd9a79fcd49ce99056373e30bbe5990e1f',1,'male',1,0,NULL,'2026-02-04 09:12:17','2026-03-02 03:12:16',0,'bronze',NULL,NULL,NULL,NULL,0,NULL,1,0,1,0,1,0,1,1,1,0,0,0,NULL,NULL),(12,'test_verification_1770196388962_527@test.com','$2b$10$dkDoNZkpWd6BEpSC3eFEKuqOXzLpJTsf65jkJU/okIYJQpOmkjYTu','Test','User',NULL,'***','333374c8772b2d14b5975120b9de63ab:41b7949254c510bd78cb504e665beb133d7cb7e81e69c0214fcc08fba0341c81670e9ceada76f99645c68f9d2e6f7993bcc396caa3749ad1641ec42e4363e5bd6a0bcd64d6e0d7d25553f96c687e91bea18daf4fe7293e9276e5458c16f30332','2000-01-01','40946c17e34abc7b61280205322ce8bf:f62746570fc8f117b19de69e38af3441a6de6040ed43c78ef963399fd70ac658',1,'male',1,0,NULL,'2026-02-04 09:13:09','2026-03-02 03:12:16',0,'bronze',NULL,NULL,NULL,NULL,0,NULL,1,0,1,0,1,0,1,1,1,0,0,0,NULL,NULL),(13,'test_verification_1770196420886_291@test.com','$2b$10$QTcw9lV.1ttFIDtZyXnppO2VBvxld71Ts8Xfv11yyAHEl5v3F/Cu.','Test','User',NULL,'***','42c5cea366f8cd8ed49d86a7842b5d59:a5c3d222f1b47d8463d3b5d0e41aa3ed7588e877d52537b7d3c02a89c70f575528d5b4b67ef123e98890178b693415c60a58094d9e0a7359c15cfd9e8f6bad62f508b2d83cfb9df45f692ad010dfa9c630258fbfaf9b8450c6e0c3c709838985','2000-01-01','50f4cdeaf370699ca2cdde3fb342cee8:885a310444fcbb48d8fccdea9ecec40bdc0c942c814c31a0a3edee49ebdea9f9',1,'male',1,0,NULL,'2026-02-04 09:13:41','2026-03-02 03:12:16',0,'bronze',NULL,NULL,NULL,NULL,0,NULL,1,0,1,0,1,0,1,1,1,0,0,0,NULL,NULL),(14,'test_verification_1770196438232_890@test.com','$2b$10$OdLmHOdv0r1jhYnwg42/4ej/FAXcWJESUcqLR36zPdy5hNEnQ0kRS','Test','User',NULL,'***','0f295473655d31f6a547f6bbcc27b1f1:e04babe7607a8115853ddf67408d6b2b0a70222588ffdc224d90e20e177809891d586604971fb14bd5de9b3210fb3ae4173402b8340058abff3f54cdf54c1576a23487af27fdfdc2ec8a2d67a9dc71772d9a7955705f7a9be73c17ae9d4891a6','2000-01-01','79f0cbd4e660f73dae0bb5296786e4d6:9f353c214a017dec75efb004bd88866fe52f4c15da8b80020394799848ef1920',1,'male',1,0,NULL,'2026-02-04 09:13:58','2026-03-02 03:12:16',0,'bronze',NULL,NULL,NULL,NULL,0,NULL,1,0,1,0,1,0,1,1,1,0,0,0,NULL,NULL),(15,'test_verification_1770196522682_861@test.com','$2b$10$f9NucRiBNuNTK/jMlJtMF.0o6lgGwVmtiUjGk5xLV3lzeAIM4idz2','Test','User',NULL,'***','abf429333346fb2f4863621a700dfb90:bbc383a10b05c22912ade70db72c35313d94796e07fc2c7df2f93e4d7e5626b8c6faeba040fc94d0eafab827de326cc961183797e3eca698fcc1ba7a6e386405ff5b2784bbe7709b1489850dfb4f1c243a17ace4d9e716ac8863f62901913581','2000-01-01','0a78b1b6a65c6dd76a52dbfdac0a1ce7:592c213c386391f592fbddd19bf24d4f1033bbfd2d24ebe14cdcb5bbc7dd53e4',1,'male',1,0,NULL,'2026-02-04 09:15:23','2026-03-02 03:12:16',0,'bronze',NULL,NULL,NULL,NULL,0,NULL,1,0,1,0,1,0,1,1,1,0,0,0,NULL,NULL),(16,'test_verification_1770196530276_629@test.com','$2b$10$pCFXt/cYQX44E0nEwIyxqOgszs31SCAdaTwY5fvQTmwGgomAJHOk.','Test','User',NULL,'***','efe7545da5a22974e4697c57c8e4ccf9:5e8f2b1f7a14746cea4d03b26d61feef3710fa21c0def297ff62f3438ec40c6f8dafc37e3e64de47b59bfbc6908615fef36ecd69b4c8c58a67e044ddf5dff1606d29f02d4673a376fb868e26ae34439f34c8815f404507a10b900972546a4dd9','2000-01-01','68dc0e479808ef74217e65d9ec3af47d:6578db032960ba73dfa4d982a1abe3e477fa58c0d18364bb877fd310c5d357a3',1,'male',1,0,NULL,'2026-02-04 09:15:30','2026-03-02 03:12:16',0,'bronze',NULL,NULL,NULL,NULL,0,NULL,1,0,1,0,1,0,1,1,1,0,0,0,NULL,NULL),(17,'test_verification_1770196576327_351@test.com','$2b$10$qcdHBfSITdl9dqazlK.9geJ/fziSX/nrkS2gHyX7NPFtHwB/7lokG','Test','User',NULL,'***','2ca12ef8db6ed508420fa37b1d393796:7c8fe8914be13a678ea46906279870f4d0af63b6a3a82a7828d1090ddb9abb89ba06abc75b2b9bc9a61f6a1a98b2841f6a9bfae7ccaacc2653ff076e689509012ce05122bc615236c7a18164f796f4e532ab58056e04de896d889aa9724b4123','2000-01-01','abd5d50b390665036f492d46c85208ac:4661d1a2000680d3b0d414a7c1be7ef4c97cd9d451e5ea43c6c7c0cd20aed39e',1,'male',1,0,NULL,'2026-02-04 09:16:16','2026-03-02 03:12:16',0,'bronze',NULL,NULL,NULL,NULL,0,NULL,1,0,1,0,1,0,1,1,1,0,0,0,NULL,NULL),(18,'test_verification_1770196690357_898@test.com','$2b$10$Tsb2SsftLQUvkR96AvUdd.gscRe9LUgglq7IL3G.2xADHGQdhMeqO','Test','User',NULL,'***','b5bf225e22e3c2d47923fe659d6dc338:97e01cb537e5b82ef6aef3900b01a07657f886e9019e470d375c9698898823b0dd9267f708fd8e635f39627f515b10d03afbfafa527240e3a80371f26877625263840e6060f07b5fa4eaf48e1a3e2356715c39926de1543cf324a0e417b9951c','2000-01-01','1c9be76bdb371641c5563de6e711066a:ce7eb7945c5dc61399befcee9b8e71c9461c5e4c6845c39b1de68ca65692f1ea',1,'male',1,0,NULL,'2026-02-04 09:18:10','2026-03-02 03:12:16',0,'bronze',NULL,NULL,NULL,NULL,0,NULL,1,0,1,0,1,0,1,1,1,0,0,0,NULL,NULL),(19,'test_verification_1770196781445_673@test.com','$2b$10$V5vwmZRtJsIw2M2.QBiFVOpRqyLekUOIWSw99ByS6gwy1WTLVPPVy','Test','User',NULL,'***','04f15fb3e821d2e17673ec2a27621b8d:539cbd063ed65ac9b5191d4cc76d5d1c2b296c950cd835bf9f15a510831b7233675ce5808f4738d6c35cb4a13f42cc706841922094743a23a0cdc22e1d4ebfa326c0f8e686685dae791af961b1d1e3e19b62e7f3071918ddcefde76baf623724','2000-01-01','6aba90c36940680eacacf11f4f66a1d2:0a22548eaf3e360a18ebe2dc3321318471252d4279be9d7b6261c7193c3e91da',1,'male',1,0,NULL,'2026-02-04 09:19:41','2026-03-02 03:12:16',0,'bronze',NULL,NULL,NULL,NULL,0,NULL,1,0,1,0,1,0,1,1,1,0,0,0,NULL,NULL),(20,'test_verification_1770196799493_188@test.com','$2b$10$lmy9tAAYkrYAhttZHyB9duVXwcjRCMBI4kNaCPO2C0L6fAAMxzpFi','Test','User',NULL,'***','1d6462c3f75933ec1dd42ca5a6d8bdcb:5e974c125ba58fadb29f6fcd10c145cd2fffdfad5860e0c2e163e49233a7ed0c5bcfe19dbd661e2a2c7c8165b616433bc6e47a988afff4ddb38bffbe57e58da1e00113ec1e31facb44f2072752030b77d72ea2b7f1e2023b3d8c7adc1d64bc5c','2000-01-01','daf74b0c6de0893f8d37102ffda21c0d:372b8b3a3e188b78bd0f927c4564b98f51ec2869c8efb9e69b0a8534b2ab7dd9',1,'male',1,0,NULL,'2026-02-04 09:19:59','2026-03-02 03:12:16',0,'bronze',NULL,NULL,NULL,NULL,0,NULL,1,0,1,0,1,0,1,1,1,0,0,0,NULL,NULL),(21,'test_verification_1770196814420_499@test.com','$2b$10$iRDO4qMTFLWAFtQaZ/H2vutptNbam8TNQkWdY0Nmqpfm5UyyHSeOS','Test','User',NULL,'***','99efc4a83f1b4d7e07b431107f313621:dc0cce892011346dd192255f1744ae3067efef726c75d4af401de7d584b304e126820d529d573ffcdfadd3ecd8c342a4b65c10b49dd8b252d55ca5c253b8e5f80810008972dda80cbf246e042e07989521a579fdd15bb75c4ea4e1d1aad72c16','2000-01-01','23ccd51c237977b6bacb052aba0c7e6c:0fb75931db8143be697d73f519116ab58683d7551140ae8a809318fa8046f036',1,'male',1,0,NULL,'2026-02-04 09:20:14','2026-03-02 03:12:16',0,'bronze',NULL,NULL,NULL,NULL,0,NULL,1,0,1,0,1,0,1,1,1,0,0,0,NULL,NULL),(22,'test_verification_1770196849510_99@test.com','$2b$10$1q6RwkRAN3hUHX6bsPwo7ebQcUKllqlPkXsH0pMBA3qU0PX1GqThW','Test','User',NULL,'***','4c191cd716ace14e733b89f0b0d901d4:cf16ea2e80722e6941de0a179a86ec6a044a03b04816f9173be5739468c96325bd2b16222a5b761a9d7942da253e2398cb094e0c4147a3b93d0535f29d1b9436a200b00da2ef4dd8b58049764056fe44efae9ff092ea19fc32519dc0af47b8e6','2000-01-01','da9fa6ec39cfb91904df7fde7a0bb4db:751bf60b706c1277afa806bdf3f3606b4e0e7faa36f43658b264b791d36c4807',1,'male',1,0,NULL,'2026-02-04 09:20:49','2026-03-02 03:12:16',0,'bronze',NULL,NULL,NULL,NULL,0,NULL,1,0,1,0,1,0,1,1,1,0,0,0,NULL,NULL),(23,'test_verification_1770196885236_666@test.com','$2b$10$IeqQBcR.2Kz8qh9YCbQVXOLifFosOwrrx25wIOeMvsYFlgbQJsRhO','Test','User',NULL,'***','ac876fa344eb5135ec3a278ea69e0a52:f891f939377d92373b3e078264b4de2fc1e72b5033f444589b4de9d698943b005156ea0921dde3fd44183f40639bc7af2b84faff824c3a377a829ee75729d4aadc198c7c3f7d5f7a34bf51f8821c99a5759415eaf619dd8b5f9138517a772b4f','2000-01-01','69f3bd3b14cfb7a19393aa3b0acc435b:8bb454f7b883591f1204fb0eca0525a74408123e7fd443eb9c68a8abf1196892',1,'male',1,0,NULL,'2026-02-04 09:21:28','2026-03-02 03:12:16',0,'bronze',NULL,NULL,NULL,NULL,0,NULL,1,0,1,0,1,0,1,1,1,0,0,0,NULL,NULL),(24,'test_verification_1770196911554_987@test.com','$2b$10$DSk/.W0ad56g6PoqotIZmutwA8yDleA6byel3gPF3ruRnvnRQR.Za','Test','User',NULL,'***','048c267188de174305a7cd833c34a3e7:dd65657b3c58fea849532fbbdc6f2e03740075d9b2991a48c625418fe1fdaf95d0a4b388a4e33eed2f1e066bb527562e44d1cc2ffaa5d2b8397e4a3a3b870744231d439c7aff8bb32b4aaaf6ec82c8dafae8ad6af161750898aa24c1c9a96cf4','2000-01-01','f3dc60734de5282f472816837ecfc1a8:7414aa7f393fdb5a09ef6c3dae928680a1d7c5fc376ed1aedaec1c5a93172b95',1,'male',1,0,NULL,'2026-02-04 09:21:51','2026-03-02 03:12:16',0,'bronze',NULL,NULL,NULL,NULL,0,NULL,1,0,1,0,1,0,1,1,1,0,0,0,NULL,NULL),(25,'test_verification_1770196924005_936@test.com','$2b$10$2vQwvrg4qmrBKUMl66qLoe5iOe/XVx4376qUPOVKc1.sNkYOnlzk.','Test','User',NULL,'***','4344df5fa16cc787961018c6292cadbe:667db841cb1947c78d3a808ba380d8b575b61d24e317fad92a5fe0eb43df67ae655d1a6ed760318d176a7c8a290456068f7c9dd7ada5f44738b7d4f8e15fec6d48d386f5e44895ead18e51c2f65c2974a9c61bd79387cfe2530af2d1b6847461','2000-01-01','4d109bc17fd735111072a84cb4cc29e5:dced26915b5e4e6f7a0907377f945613603341b9c11cca47a21dab4a9dc534cb',1,'male',1,0,NULL,'2026-02-04 09:22:04','2026-03-02 03:12:16',0,'bronze',NULL,NULL,NULL,NULL,0,NULL,1,0,1,0,1,0,1,1,1,0,0,0,NULL,NULL),(26,'test_verification_1770196939766_998@test.com','$2b$10$MCsptWJx27pccKvfV.GjnutzyVttsYt.d3EB5aZ9zPgwPuHl1Yase','Test','User',NULL,'***','09176a6550acbf1593582a42161e6ead:06bd3a5b6c7945c297ea372d9bf6547eb02e9d5cfa552f24fb6d42d9b3853d292e2aad4a549303a7a99be6c43a18653a88de9c286640eb85b7f289b6a2546dbc49db62e43521a04746b5147e2dc75d2869d4f8ae07f8da093966c28ca1a59ad0','2000-01-01','dd0356defac5aabe850c2951bb17d9b3:f51c75fe8af76f511c582fe8ac634d5ae253b9840c6f2af8b3e399d44785a703',1,'male',1,0,NULL,'2026-02-04 09:22:20','2026-03-02 03:12:16',0,'bronze',NULL,NULL,NULL,NULL,0,NULL,1,0,1,0,1,0,1,1,1,0,0,0,NULL,NULL),(27,'test_verification_1770196957823_475@test.com','$2b$10$oDNdSJQMPejY.XK4xIxNcOGJMl.WtrjH7dzwWT/AvLiladpAWJqiS','Test','User',NULL,'***','a1c0828a7b69a670defa4c9c705b04a6:2956e1f577a1cf2c23c17f8068cce22b2afacdc604e8f3016de99d2a744617c7aa4879605e482db97b07d977323a76f6e64e17fe4335018993fe40c7782ae30b4b22a00520f8868de9edab6fd65d5e59835398d0b678c092a6cd4953e282de66','2000-01-01','7c7d609399e6e1625e96833003b928a0:3f35ae616f4cff6c510b9af496ae50a4430878ca4dfdcc90af1d3a050018fce8',1,'male',1,0,NULL,'2026-02-04 09:22:38','2026-03-02 03:12:16',0,'bronze',NULL,NULL,NULL,NULL,0,NULL,1,0,1,0,1,0,1,1,1,0,0,0,NULL,NULL),(28,'test_verification_1770197057100_972@test.com','$2b$10$rymyee6vtqVLbKSozOQto.4z.VBogfjfeQLp3840Siz4VKsnLMMta','Test','User',NULL,'***','a5029d671c3f442b9efe8d75cf0f2f56:98847524a31e13713b72a298aab0d828fca7a95eb2e3c8a7d9563c2c08976ede5d8ef104fc4e35e4e2b637d1a824d45aa564e030463f1829d0cd6aef607aa91339a5180ec95ff0a95dadd43f39927d5c46f4ee2a894d2c2845bbfc155fada894','2000-01-01','78e2cf8c3f88e92f70ddbf7d16bba69a:06ede4df99d6e4f5b54f8515b540386512ce8cea3868ad1c1cfca978fac2e3b5',1,'male',1,0,NULL,'2026-02-04 09:24:17','2026-03-02 03:12:16',0,'bronze',NULL,NULL,NULL,NULL,0,NULL,1,0,1,0,1,0,1,1,1,0,0,0,NULL,NULL),(29,'test_verification_1770197147670_418@test.com','$2b$10$vDEbwbBMfif1SvJTlypppuYTV9ziv2Tw.DrHK.kTIMVy4jk8C4rQ2','Test','User',NULL,'***','d0a3d1e4daa5465212926113dad16039:2aecf0a166c3dac712f70b89c681537032031c295747689f4bc0810587d0ad1705d12c84a6148d050f8fbad6a91120c321c8eff0c0c61dfb1124a3c41b33830768328143344c36b83242e81ebe2edd40b519d236d739d6e837a9581e7c498c89','2000-01-01','bf77aa804ba8691cd2df7931ffa0de24:ac9c3b72d30faa2360ef6837dbfdf39e445e6a0b8ac9e4810042979962ce3c5a',1,'male',1,0,NULL,'2026-02-04 09:25:50','2026-03-02 03:12:16',0,'bronze',NULL,NULL,NULL,NULL,0,NULL,1,0,1,0,1,0,1,1,1,0,0,0,NULL,NULL),(30,'test_verification_1770198110548_875@test.com','$2b$10$kaXB15Smuy1KsPQKsrP2QeW2cRt./2Kw9QIcpgx6WkNMpljRpjsDK','Test','User',NULL,'***','e25244b8e3a6e012e9676b73fd0bd3d5:b6c7d7db095a8b2a12b92ce9ca5da11586ac7ee71e2651ea694e4e55f3772ba1fbf5a9567c517ba3df37e0b4308d327c2008f879aec2b19bb45cc0e01c761e8319a3d838a7719ee199550160f89510ea5f89b5647bc0127eb2cfb843d71d91f0','2000-01-01','7b1b5c2688016e8ba608b16ed0b12442:f0ad6ceb3886f6d5ff0b04ad915abd9f6a6403ff9069115bb1e561acfdb13ce2',1,'male',1,0,NULL,'2026-02-04 09:41:51','2026-03-02 03:12:16',0,'bronze',NULL,NULL,NULL,NULL,0,NULL,1,0,1,0,1,0,1,1,1,0,0,0,NULL,NULL),(31,'test@example.com','$2b$10$EpIx.i.vS/WvL5.z/S.t.e',NULL,NULL,'Test User','***',NULL,NULL,NULL,1,NULL,1,0,NULL,'2026-02-11 00:30:23','2026-03-02 03:12:16',0,'bronze',NULL,NULL,NULL,NULL,0,NULL,1,0,1,0,1,0,1,1,1,0,0,0,NULL,NULL),(32,'testuser_5854@example.com','$2b$10$jNyav8FX7zFsoL.CyTSX5.4ImBnFnJtZa2.TpGjSfN7TAidUealCS','Test','User',NULL,'***',NULL,'1995-01-01','f17b804e88a17e18e2fa368401c1a265:8c85876915f6b3ef734996c4b01e4d20af32b105f0b8782363c29f499cb5662d',1,'male',1,0,NULL,'2026-02-16 02:25:32','2026-03-02 03:12:16',0,'bronze',NULL,NULL,NULL,NULL,0,NULL,1,0,1,0,1,0,1,1,1,0,0,0,NULL,NULL),(33,'testuser_5748@example.com','$2b$10$uArypps7cu6Y1d/6KG0Wc.9BfxSdknoeRotUt8Kews/U0A4Faci5y','Test','User',NULL,'***',NULL,'1995-01-01','fd3c67969f160464cd304594c02a178b:8ad0edd9e31a5d920b9a9c00d2f2c216aa11414b262b583c94da464a40da1843',1,'male',1,0,NULL,'2026-02-16 02:37:05','2026-03-02 03:12:16',0,'bronze',NULL,NULL,NULL,NULL,0,NULL,1,0,1,0,1,0,1,1,1,0,0,0,NULL,NULL),(34,'testuser_2318@example.com','$2b$10$UNI12WDcUHiJvseune6dROAKna6x/7TR4zu8Kuf.aDGiUPleqGvZK','Test','User',NULL,'***',NULL,'1995-01-01','30cd657a1713bd7870c46220d577b54e:107c95cec351e448267e09aff32cbe640990e4430ec01e0a1d9b890128d111da',1,'male',1,0,NULL,'2026-02-16 02:49:24','2026-03-02 03:12:16',0,'bronze',NULL,NULL,NULL,NULL,0,NULL,1,0,1,0,1,0,1,1,1,0,0,0,NULL,NULL);
+INSERT INTO `users` VALUES (1,'th***@gmail.com','6daea85071d29b06c013c7f4086a52ff:86f06a19d82f9a582427524e540573fe:77c7234f8cca194ee18306b0a6d599d640bb3d4b21ee1f6b6f06b1','$2b$10$nLRY6Uyu.3TgJzUP2GuyG.U7c1uVa0C4hFBMfw8hzWubSVRO7vZti','TOAN','DANG','DANG TOAN','***','bd041ef4cf217505728fdf70ec81f3a4:c92d4421cff5f64fd973efa865df1153:663c8776dd7e66e403d8','2004-09-06','45cb8f955c939db557bac47062cfa35e:0cca5d556fb0f82da3e96b316bf8f73b43fc485757eb8373942d0c08dd0c75a9',1,'male',1,0,'{\"gender\": \"male\", \"dateOfBirth\": \"2004-09-06\"}','2025-12-06 14:42:48','2026-03-08 07:27:59',0,'silver',NULL,NULL,NULL,'https://res.cloudinary.com/dbhfn2hqs/image/upload/v1772334121/nike-clone/products/qs2iayd7nebiv26grp9h.jpg',0,NULL,2,0,1,1,1,1,1,1,1,1,2447,2397,NULL,NULL),(2,'da***@gmail.com','d5c4d44e1f71962646af9e60e01ecf1e:0b1c720299750c533deee14510863d82:2e0a52e9cc45e5ba4587e0c15c88c6c6c580ed28cb8141f67ce67039e7760e','$2b$10$ckcKXxzPwAkzxq/qhxNeKOMM4MBJbkyBRTe3D.FpPB28Ux4OTbm2S','DANG','TOAN','TOAN DANG','***','1d75fbce47802ae6e58172865e570e4d:f1663a5b955d8f5e8f24d9f8c79dc1a50ef796009453de3b72685186b2fbb9901f0cc6ff264d5a86607ee12f2ee98674a8fb2166ee260b4938cee9541af64f6ccc21698cbb88067335c949ec1bc5c2a0cbb284686d34a02c62f6769ff88a46f4','2004-09-06','a23907ae38e4b138d8739e78a4496df0:87ce800b207ee81cf1bc00968eb1504d3ef42257454217ef24ce299726cc0270',1,'male',1,0,NULL,'2025-12-08 01:37:41','2026-03-08 14:17:00',0,'bronze',NULL,NULL,NULL,NULL,0,NULL,1,0,1,0,1,0,1,1,1,0,0,0,NULL,NULL);
 /*!40000 ALTER TABLE `users` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -2551,7 +2711,7 @@ DROP TABLE IF EXISTS `vouchers`;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `vouchers` (
   `id` bigint unsigned NOT NULL AUTO_INCREMENT,
-  `code` varchar(100) NOT NULL COMMENT 'Unique voucher code',
+  `code` varchar(100) NOT NULL COMMENT 'One-time personal credit code. Claimed into user wallet, then applied at checkout.',
   `value` decimal(12,2) NOT NULL COMMENT 'Credit value of voucher',
   `applicable_tier` enum('bronze','silver','gold','platinum') DEFAULT 'bronze',
   `min_order_value` decimal(12,2) DEFAULT '0.00',
@@ -2600,12 +2760,13 @@ DROP TABLE IF EXISTS `warehouses`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `warehouses` (
-  `id` int NOT NULL AUTO_INCREMENT,
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
   `name` varchar(255) NOT NULL,
   `location` varchar(255) DEFAULT NULL,
   `is_active` tinyint(1) DEFAULT '1',
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `priority` int DEFAULT '0',
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
@@ -2616,7 +2777,7 @@ CREATE TABLE `warehouses` (
 
 LOCK TABLES `warehouses` WRITE;
 /*!40000 ALTER TABLE `warehouses` DISABLE KEYS */;
-INSERT INTO `warehouses` VALUES (1,'Kho Hà Nội (Main)','Hà Nội',1,'2026-02-13 07:03:50','2026-02-13 07:03:50'),(2,'Kho TP.HCM','TP. Hồ Chí Minh',1,'2026-02-13 07:03:50','2026-02-13 07:03:50');
+INSERT INTO `warehouses` VALUES (1,'Kho Hà Nội (Main)','Hà Nội',1,'2026-02-13 07:03:50','2026-02-13 07:03:50',0),(2,'Kho TP.HCM','TP. Hồ Chí Minh',1,'2026-02-13 07:03:50','2026-02-13 07:03:50',0);
 /*!40000 ALTER TABLE `warehouses` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -2676,7 +2837,7 @@ CREATE TABLE `wishlists` (
 
 LOCK TABLES `wishlists` WRITE;
 /*!40000 ALTER TABLE `wishlists` DISABLE KEYS */;
-INSERT INTO `wishlists` VALUES (1,1,'My Wishlist',1,'2025-12-07 09:06:49'),(2,2,'My Wishlist',1,'2025-12-08 01:40:27'),(3,3,'My Wishlist',1,'2026-02-28 14:24:51');
+INSERT INTO `wishlists` VALUES (1,1,'My Wishlist',1,'2025-12-07 09:06:49'),(2,2,'My Wishlist',1,'2025-12-08 01:40:27');
 /*!40000 ALTER TABLE `wishlists` ENABLE KEYS */;
 UNLOCK TABLES;
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
@@ -2689,4 +2850,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2026-03-06 20:46:43
+-- Dump completed on 2026-03-09 11:55:45

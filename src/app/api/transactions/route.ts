@@ -41,7 +41,8 @@ export async function GET(request: NextRequest) {
                             WHEN o.status = 'pending' THEN 'pending'
                             ELSE o.status END as transaction_status,
                        NULL as description
-                FROM orders o WHERE o.user_id = ?
+                FROM orders o 
+                WHERE o.user_id = ?
             `);
       countUnions.push(`SELECT COUNT(*) as cnt FROM orders WHERE user_id = ?`);
       params.push(userId);
@@ -54,7 +55,9 @@ export async function GET(request: NextRequest) {
                        o.status as order_status, r.created_at,
                        'refund' as transaction_type, r.status as transaction_status,
                        NULL as description
-                FROM refunds r JOIN orders o ON r.order_id = o.id WHERE o.user_id = ?
+                FROM refunds r 
+                JOIN orders o ON r.order_id = o.id 
+                WHERE o.user_id = ?
             `);
       countUnions.push(
         `SELECT COUNT(*) as cnt FROM refunds r JOIN orders o ON r.order_id = o.id WHERE o.user_id = ?`
@@ -78,11 +81,12 @@ export async function GET(request: NextRequest) {
 
     if (!type || type === 'gift_card') {
       unions.push(`
-                SELECT gct.id, gc.card_number as order_number, gct.amount, NULL as payment_method,
+                SELECT gct.id, gc.card_number_last4 as order_number, gct.amount, NULL as payment_method,
                        NULL as order_status, gct.created_at,
                        'gift_card' as transaction_type, 'completed' as transaction_status,
                        gct.description
-                FROM gift_card_transactions gct JOIN gift_cards gc ON gct.gift_card_id = gc.id
+                FROM gift_card_transactions gct 
+                JOIN gift_cards gc ON gct.gift_card_id = gc.id
                 WHERE gc.purchased_by = ?
             `);
       countUnions.push(

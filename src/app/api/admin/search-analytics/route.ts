@@ -12,17 +12,15 @@ export async function GET(request: NextRequest) {
   try {
     const admin = await checkAdminAuth();
     if (!admin) {
-      return NextResponse.json(
-        { success: false, message: 'Unauthorized' },
-        { status: 401 }
-      );
+      return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
     }
 
     const searchParams = new URL(request.url).searchParams;
     const days = parseInt(searchParams.get('days') || '30');
 
     // Top search queries
-    const topQueries = await executeQuery<any[]>(`
+    const topQueries = await executeQuery<any[]>(
+      `
       SELECT 
         query,
         COUNT(*) as search_count,
@@ -34,10 +32,13 @@ export async function GET(request: NextRequest) {
       GROUP BY query
       ORDER BY search_count DESC
       LIMIT 20
-    `, [days]);
+    `,
+      [days]
+    );
 
     // Zero-result queries (important for synonym/content gap analysis)
-    const zeroResultQueries = await executeQuery<any[]>(`
+    const zeroResultQueries = await executeQuery<any[]>(
+      `
       SELECT 
         query,
         COUNT(*) as search_count
@@ -47,10 +48,13 @@ export async function GET(request: NextRequest) {
       GROUP BY query
       ORDER BY search_count DESC
       LIMIT 10
-    `, [days]);
+    `,
+      [days]
+    );
 
     // Search volume over time
-    const searchTrend = await executeQuery<any[]>(`
+    const searchTrend = await executeQuery<any[]>(
+      `
       SELECT 
         DATE(created_at) as date,
         COUNT(*) as searches,
@@ -60,10 +64,13 @@ export async function GET(request: NextRequest) {
       WHERE created_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
       GROUP BY DATE(created_at)
       ORDER BY date ASC
-    `, [days]);
+    `,
+      [days]
+    );
 
     // Category filter usage (facet analytics)
-    const categoryFacets = await executeQuery<any[]>(`
+    const categoryFacets = await executeQuery<any[]>(
+      `
       SELECT 
         COALESCE(category_filter, 'No filter') as category,
         COUNT(*) as usage_count
@@ -71,10 +78,13 @@ export async function GET(request: NextRequest) {
       WHERE created_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
       GROUP BY category_filter
       ORDER BY usage_count DESC
-    `, [days]);
+    `,
+      [days]
+    );
 
     // Overall stats
-    const overview = await executeQuery<any[]>(`
+    const overview = await executeQuery<any[]>(
+      `
       SELECT
         COUNT(*) as total_searches,
         COUNT(DISTINCT query) as unique_queries,
@@ -84,7 +94,9 @@ export async function GET(request: NextRequest) {
         COUNT(DISTINCT ip_address) as unique_searchers
       FROM search_analytics
       WHERE created_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
-    `, [days]);
+    `,
+      [days]
+    );
 
     // Product category distribution (from actual catalog — facet data)
     const productFacets = await executeQuery<any[]>(`
@@ -116,17 +128,17 @@ export async function GET(request: NextRequest) {
     const priceRanges = await executeQuery<any[]>(`
       SELECT 
         CASE 
-          WHEN CAST(retail_price AS UNSIGNED) < 1000000 THEN 'Under 1M'
-          WHEN CAST(retail_price AS UNSIGNED) < 2000000 THEN '1M - 2M'
-          WHEN CAST(retail_price AS UNSIGNED) < 3000000 THEN '2M - 3M'
-          WHEN CAST(retail_price AS UNSIGNED) < 5000000 THEN '3M - 5M'
+          WHEN CAST(msrp_price AS UNSIGNED) < 1000000 THEN 'Under 1M'
+          WHEN CAST(msrp_price AS UNSIGNED) < 2000000 THEN '1M - 2M'
+          WHEN CAST(msrp_price AS UNSIGNED) < 3000000 THEN '2M - 3M'
+          WHEN CAST(msrp_price AS UNSIGNED) < 5000000 THEN '3M - 5M'
           ELSE 'Over 5M'
         END as price_range,
         COUNT(*) as product_count
       FROM products
       WHERE is_active = 1 AND deleted_at IS NULL
       GROUP BY price_range
-      ORDER BY MIN(CAST(retail_price AS UNSIGNED))
+      ORDER BY MIN(CAST(msrp_price AS UNSIGNED))
     `);
 
     return NextResponse.json({
@@ -140,15 +152,12 @@ export async function GET(request: NextRequest) {
           categoryFilter: categoryFacets,
           productCategories: productFacets,
           brands: brandFacets,
-          priceRanges
-        }
-      }
+          priceRanges,
+        },
+      },
     });
   } catch (error) {
     console.error('Search analytics error:', error);
-    return NextResponse.json(
-      { success: false, message: 'Internal server error' },
-      { status: 500 }
-    );
+    return NextResponse.json({ success: false, message: 'Internal server error' }, { status: 500 });
   }
 }

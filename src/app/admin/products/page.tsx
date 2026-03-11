@@ -10,8 +10,8 @@ interface Product {
   id: number;
   name: string;
   sku: string;
-  basePrice: string | number;
-  retailPrice?: string | number;
+  priceCache: string | number;
+  msrpPrice?: string | number;
   isActive: number;
   primaryImage?: string;
   categoryName?: string;
@@ -75,7 +75,8 @@ export default function AdminProductsPage() {
   };
 
   const deleteProduct = async (productId: number) => {
-    if (!confirm('Are you sure you want to delete this product? This action cannot be undone.')) return;
+    if (!confirm('Are you sure you want to delete this product? This action cannot be undone.'))
+      return;
 
     try {
       const response = await fetch(`/api/admin/products/${productId}`, {
@@ -217,12 +218,13 @@ export default function AdminProductsPage() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm text-gray-900">
-                          {formatCurrency(Number(product.basePrice))}
-                          {product.retailPrice && Number(product.retailPrice) !== Number(product.basePrice) && (
-                            <span className="ml-2 text-xs text-gray-500 line-through">
-                              {formatCurrency(Number(product.retailPrice))}
-                            </span>
-                          )}
+                          {formatCurrency(Number(product.priceCache))}
+                          {product.msrpPrice &&
+                            Number(product.msrpPrice) !== Number(product.priceCache) && (
+                              <span className="ml-2 text-xs text-gray-500 line-through">
+                                {formatCurrency(Number(product.msrpPrice))}
+                              </span>
+                            )}
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
@@ -230,10 +232,11 @@ export default function AdminProductsPage() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span
-                          className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${product.isActive === 1
-                            ? 'bg-green-100 text-green-800'
-                            : 'bg-red-100 text-red-800'
-                            }`}
+                          className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                            product.isActive === 1
+                              ? 'bg-green-100 text-green-800'
+                              : 'bg-red-100 text-red-800'
+                          }`}
                         >
                           {product.isActive === 1 ? 'Active' : 'Inactive'}
                         </span>

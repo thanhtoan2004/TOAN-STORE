@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { executeQuery } from '@/lib/db/mysql';
 import { withRateLimit } from '@/lib/with-rate-limit';
+import { hashEmail } from '@/lib/encryption';
 
 /**
  * API Đăng ký bản tin (Newsletter Subscription).
@@ -14,16 +15,14 @@ async function newsletterHandler(request: NextRequest): Promise<NextResponse> {
     const { email, name } = await request.json();
 
     if (!email || !email.includes('@')) {
-      return NextResponse.json(
-        { success: false, message: 'Email không hợp lệ' },
-        { status: 400 }
-      );
+      return NextResponse.json({ success: false, message: 'Email không hợp lệ' }, { status: 400 });
     }
 
-    // Kiểm tra email đã đăng ký chưa
+    // Kiểm tra email đã đăng ký chưa (Sử dụng Blind Index)
+    const emailHash = hashEmail(email);
     const existing = await executeQuery<any[]>(
-      'SELECT id, status FROM newsletter_subscriptions WHERE email = ?',
-      [email]
+      'SELECT id, status FROM newsletter_subscriptions WHERE email_hash = ?',
+      [emailHash]
     );
 
     if (existing.length > 0) {
@@ -35,32 +34,32 @@ async function newsletterHandler(request: NextRequest): Promise<NextResponse> {
       } else {
         // Reactive subscription
         await executeQuery(
-          'UPDATE newsletter_subscriptions SET status = ?, unsubscribed_at = NULL WHERE email = ?',
-          ['subscribed', email]
+          'UPDATE newsletter_subscriptions SET status = ?, unsubscribed_at = NULL WHERE email_hash = ?',
+          ['subscribed', emailHash]
         );
         return NextResponse.json({
           success: true,
-          message: 'Đã kích hoạt lại đăng ký nhận tin!'
+          message: 'Đã kích hoạt lại đăng ký nhận tin!',
         });
       }
     }
 
-    // Thêm subscription mới
+    // Thêm subscription mới (Mask email gốc, lưu hash)
     await executeQuery(
-      'INSERT INTO newsletter_subscriptions (email, name, status) VALUES (?, ?, ?)',
-      [email, name || null, 'subscribed']
+      'INSERT INTO newsletter_subscriptions (email, email_hash, name, status) VALUES ("***", ?, ?, ?)',
+      [emailHash, name || null, 'subscribed']
     );
 
     return NextResponse.json({
       success: true,
-      message: 'Đăng ký nhận tin thành công!'
+      message: 'Đăng ký nhận tin thành công!',
     });
   } catch (error) {
     console.error('Newsletter subscription error:', error);
     return NextResponse.json(
       {
         success: false,
-        message: 'Không thể đăng ký nhận tin'
+        message: 'Không thể đăng ký nhận tin',
       },
       { status: 500 }
     );
@@ -71,5 +70,5 @@ async function newsletterHandler(request: NextRequest): Promise<NextResponse> {
 export const POST = withRateLimit(newsletterHandler, {
   tag: 'newsletter',
   limit: 5,
-  windowMs: 60_000
+  windowMs: 60_000,
 });

@@ -4,7 +4,7 @@ import { getRedisConnection } from '@/lib/redis';
 import { cookies } from 'next/headers';
 import { AUTH_TOKEN, REFRESH_TOKEN, generateAccessToken, generateRefreshToken } from '@/lib/auth';
 import { logSecurityEvent } from '@/lib/audit';
-import { decrypt } from '@/lib/encryption';
+import { decrypt, hashEmail } from '@/lib/encryption';
 
 /**
  * API Xác thực mã OTP và hoàn tất đăng nhập.
@@ -25,10 +25,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Find user
+    // Find user (Sử dụng Blind Index bằng email_hash)
+    const emailHash = hashEmail(email);
     const users = await executeQuery<any[]>(
-      'SELECT * FROM users WHERE email = ? AND is_active = 1 AND is_banned = 0 AND deleted_at IS NULL',
-      [email]
+      'SELECT * FROM users WHERE email_hash = ? AND is_active = 1 AND is_banned = 0 AND deleted_at IS NULL',
+      [emailHash]
     );
 
     if (users.length === 0) {

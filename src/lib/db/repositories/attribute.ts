@@ -12,7 +12,7 @@ export interface AttributeValue {
   product_id: number;
   attribute_id: number;
   value_text?: string;
-  option_id?: number;
+  value_id?: number;
 }
 
 export async function getAllAttributes(): Promise<Attribute[]> {
@@ -26,11 +26,11 @@ export async function getProductAttributes(productId: number) {
         a.slug, 
         a.type,
         pav.value_text,
-        av.label as option_label,
+        av.value as option_label,
         av.value as option_value
      FROM product_attribute_values pav
      JOIN attributes a ON pav.attribute_id = a.id
-     LEFT JOIN attribute_values av ON pav.option_id = av.id
+     LEFT JOIN attribute_values av ON pav.value_id = av.id
      WHERE pav.product_id = ?`,
     [productId]
   );
@@ -45,14 +45,14 @@ export async function upsertProductAttribute(data: AttributeValue): Promise<bool
 
   if (existing.length > 0) {
     const result = await executeQuery<any>(
-      'UPDATE product_attribute_values SET value_text = ?, option_id = ? WHERE product_id = ? AND attribute_id = ?',
-      [data.value_text || null, data.option_id || null, data.product_id, data.attribute_id]
+      'UPDATE product_attribute_values SET value_text = ?, value_id = ? WHERE product_id = ? AND attribute_id = ?',
+      [data.value_text || null, data.value_id || null, data.product_id, data.attribute_id]
     );
     return result.affectedRows > 0;
   } else {
     const result = await executeQuery<any>(
-      'INSERT INTO product_attribute_values (product_id, attribute_id, value_text, option_id) VALUES (?, ?, ?, ?)',
-      [data.product_id, data.attribute_id, data.value_text || null, data.option_id || null]
+      'INSERT INTO product_attribute_values (product_id, attribute_id, value_text, value_id) VALUES (?, ?, ?, ?)',
+      [data.product_id, data.attribute_id, data.value_text || null, data.value_id || null]
     );
     return result.insertId > 0;
   }

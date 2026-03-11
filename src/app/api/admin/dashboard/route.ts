@@ -17,10 +17,7 @@ export async function GET(request: NextRequest) {
     // Auth check
     const admin = await checkAdminAuth();
     if (!admin) {
-      return NextResponse.json(
-        { success: false, message: 'Unauthorized' },
-        { status: 401 }
-      );
+      return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
     }
     const searchParams = new URL(request.url).searchParams;
     const days = parseInt(searchParams.get('days') || '7');
@@ -37,7 +34,7 @@ export async function GET(request: NextRequest) {
       recentOrders,
       topProducts,
       todayRevenue,
-      yesterdayRevenue
+      yesterdayRevenue,
     ] = await Promise.all([
       // 1. Basic statistics
       executeQuery<any[]>(`
@@ -55,10 +52,13 @@ export async function GET(request: NextRequest) {
         FROM orders GROUP BY status
       `),
       // 3. Revenue trend
-      executeQuery<any[]>(`
+      executeQuery<any[]>(
+        `
         SELECT date, CAST(revenue AS DOUBLE) as revenue, CAST(net_profit AS DOUBLE) as profit, orders_count as order_count
         FROM daily_metrics WHERE date >= DATE_SUB(CURDATE(), INTERVAL ? DAY) ORDER BY date ASC
-      `, [days]),
+      `,
+        [days]
+      ),
       // 4. Financial metrics
       executeQuery<any[]>(`
         SELECT 
@@ -104,13 +104,17 @@ export async function GET(request: NextRequest) {
       // 10. Top selling products
       executeQuery<any[]>(`
         SELECT p.id, p.name, (SELECT url FROM product_images WHERE product_id = p.id AND is_main = 1 LIMIT 1) as primary_image,
-          p.base_price as price, SUM(oi.quantity) as sold
-        FROM order_items oi JOIN products p ON oi.product_id = p.id GROUP BY p.id, p.name, p.base_price ORDER BY sold DESC LIMIT 10
+          p.price_cache as price, SUM(oi.quantity) as sold
+        FROM order_items oi JOIN products p ON oi.product_id = p.id GROUP BY p.id, p.name, p.price_cache ORDER BY sold DESC LIMIT 10
       `),
       // 11. Today Revenue
-      executeQuery<any[]>(`SELECT COALESCE(SUM(total), 0) as revenue FROM orders WHERE DATE(placed_at) = CURDATE()`),
+      executeQuery<any[]>(
+        `SELECT COALESCE(SUM(total), 0) as revenue FROM orders WHERE DATE(placed_at) = CURDATE()`
+      ),
       // 12. Yesterday Revenue
-      executeQuery<any[]>(`SELECT COALESCE(SUM(total), 0) as revenue FROM orders WHERE DATE(placed_at) = DATE_SUB(CURDATE(), INTERVAL 1 DAY)`)
+      executeQuery<any[]>(
+        `SELECT COALESCE(SUM(total), 0) as revenue FROM orders WHERE DATE(placed_at) = DATE_SUB(CURDATE(), INTERVAL 1 DAY)`
+      ),
     ]);
 
     return NextResponse.json({
@@ -123,18 +127,18 @@ export async function GET(request: NextRequest) {
       activeGiftCards: parseInt(basicStats[0]?.active_gift_cards) || 0,
 
       // Revenue by status
-      revenueByStatus: revenueByStatus.map(r => ({
+      revenueByStatus: revenueByStatus.map((r) => ({
         status: r.status,
         count: parseInt(r.count),
-        revenue: parseFloat(r.revenue) || 0
+        revenue: parseFloat(r.revenue) || 0,
       })),
 
       // Revenue trend
-      revenueTrend: revenueTrend.map(r => ({
+      revenueTrend: revenueTrend.map((r) => ({
         date: r.date,
         revenue: parseFloat(r.revenue) || 0,
         profit: parseFloat(r.profit) || 0,
-        orderCount: parseInt(r.order_count)
+        orderCount: parseInt(r.order_count),
       })),
 
       // Financial metrics
@@ -143,31 +147,37 @@ export async function GET(request: NextRequest) {
       totalShipping: parseFloat(financialStats[0]?.total_shipping) || 0,
       netRevenue: parseFloat(financialStats[0]?.net_revenue) || 0,
       totalCost: parseFloat(financialStats[0]?.total_cost) || 0,
-      totalProfit: (parseFloat(financialStats[0]?.net_revenue) || 0) - (parseFloat(financialStats[0]?.total_cost) || 0),
-      profitMargin: (parseFloat(financialStats[0]?.net_revenue) || 0) > 0
-        ? (((parseFloat(financialStats[0]?.net_revenue) || 0) - (parseFloat(financialStats[0]?.total_cost) || 0)) / parseFloat(financialStats[0]?.net_revenue) * 100)
-        : 0,
+      totalProfit:
+        (parseFloat(financialStats[0]?.net_revenue) || 0) -
+        (parseFloat(financialStats[0]?.total_cost) || 0),
+      profitMargin:
+        (parseFloat(financialStats[0]?.net_revenue) || 0) > 0
+          ? (((parseFloat(financialStats[0]?.net_revenue) || 0) -
+              (parseFloat(financialStats[0]?.total_cost) || 0)) /
+              parseFloat(financialStats[0]?.net_revenue)) *
+            100
+          : 0,
 
       // Inventory
       lowStockCount: parseInt(inventoryStats[0]?.low_stock_count) || 0,
       outOfStockCount: parseInt(inventoryStats[0]?.out_of_stock_count) || 0,
-      lowStockProducts: lowStockProducts.map(p => ({
+      lowStockProducts: lowStockProducts.map((p) => ({
         id: p.id,
         name: p.name,
         quantity: parseInt(p.total_quantity),
-        image: p.image_url
+        image: p.image_url,
       })),
 
       // Customer insights
       newCustomersMonth: parseInt(customerStats[0]?.new_customers_month) || 0,
       returningCustomers: parseInt(customerStats[0]?.returning_customers) || 0,
-      topCustomers: topCustomers.map(c => ({
+      topCustomers: topCustomers.map((c) => ({
         id: c.id,
         email: c.email,
         name: c.full_name,
         membershipTier: c.membership_tier,
         totalSpent: parseFloat(c.total_spent) || 0,
-        orderCount: parseInt(c.order_count)
+        orderCount: parseInt(c.order_count),
       })),
 
       // Today vs Yesterday
@@ -176,13 +186,10 @@ export async function GET(request: NextRequest) {
 
       // Existing data
       recentOrders,
-      topProducts
+      topProducts,
     });
   } catch (error) {
     console.error('Error fetching dashboard stats:', error);
-    return NextResponse.json(
-      { success: false, message: 'Internal server error' },
-      { status: 500 }
-    );
+    return NextResponse.json({ success: false, message: 'Internal server error' }, { status: 500 });
   }
 }

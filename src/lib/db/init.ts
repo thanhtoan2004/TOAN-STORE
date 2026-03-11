@@ -250,8 +250,8 @@ export async function initDb() {
         category_id BIGINT UNSIGNED,
         collection_id BIGINT UNSIGNED,
         sport_id BIGINT UNSIGNED,
-        base_price DECIMAL(12,2) NOT NULL DEFAULT 0 CHECK (base_price >= 0),
-        retail_price DECIMAL(12,2) DEFAULT NULL CHECK (retail_price >= 0 OR retail_price IS NULL),
+        price_cache DECIMAL(12,2) NOT NULL DEFAULT 0 CHECK (price_cache >= 0),
+        msrp_price DECIMAL(12,2) DEFAULT NULL CHECK (msrp_price >= 0 OR msrp_price IS NULL),
         is_active TINYINT(1) DEFAULT 1,
         is_featured TINYINT(1) DEFAULT 0,
         is_new_arrival TINYINT(1) DEFAULT 1,
@@ -415,7 +415,7 @@ export async function initDb() {
         await connection.query(`
           UPDATE wishlist_items wi
           JOIN products p ON p.id = wi.product_id
-          SET wi.price_when_added = COALESCE(p.retail_price, p.base_price)
+          SET wi.price_when_added = COALESCE(p.msrp_price, p.price_cache)
           WHERE wi.price_when_added IS NULL
         `);
       }
@@ -1226,7 +1226,7 @@ export async function initDb() {
       // Migration: Add cost_price for BI/Profit tracking
       if (!columnNames.includes('cost_price')) {
         await connection.query(
-          'ALTER TABLE products ADD COLUMN cost_price DECIMAL(12, 2) DEFAULT 0 AFTER retail_price'
+          'ALTER TABLE products ADD COLUMN cost_price DECIMAL(12, 2) DEFAULT 0 AFTER msrp_price'
         );
       }
       // Migration: Add Full-Text Search Index

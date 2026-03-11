@@ -2,6 +2,9 @@
 export interface User {
   id: number;
   email: string;
+  email_hash?: string;
+  email_encrypted?: string | null;
+  is_encrypted?: number | boolean;
   password: string;
   full_name: string;
   first_name?: string;

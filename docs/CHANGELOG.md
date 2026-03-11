@@ -4,6 +4,15 @@ Tất cả thay đổi quan trọng được ghi nhận tại đây theo format 
 
 ---
 
+## [2.13.0] - 2026-03-08
+
+### ⚡ Phase 8: Final Database Optimization & Security Fixes
+
+- **Index Optimization** — Xóa index trùng lặp `idx_variant_warehouse` trên bảng `inventory`.
+- **Schema Refinement** — Thêm `cancelled_at` vào bảng `orders` và `deleted_at` vào bảng `admin_users` (Soft Delete).
+- **Security Fix** — Vô hiệu hóa tài khoản `manager` (ID 2) đang sử dụng password placeholder.
+- **Cleanup** — Gỡ bỏ bảng legacy `rate_limit_attempts` (đã chuyển sang Redis).
+
 ## [2.12.0] - 2026-03-04
 
 ### 🔧 Performance Optimization
@@ -86,7 +95,7 @@ Tất cả thay đổi quan trọng được ghi nhận tại đây theo format 
 - **Next.js 15 Compatibility** — Refactored dynamic route parameters (`params` and `searchParams`) to native Promises across all API routes and pages, passing strict TS compilation and enabling advanced static shell generation.
 - **Global Redis Caching** — Implemented comprehensive caching for public APIs (`/api/products/search`, `/api/categories`, `/api/banners`) and user-specific APIs (`/api/cart`). Tốc độ phản hồi đạt mức < 300ms (cải thiện x13 - x30 lần).
 - **Asynchronous Banner Impressions** — Tách biệt logic ghi nhận lượt xem banner (impression) với thao tác fetch dữ liệu, bằng background Promise (fire-and-forget), loại bỏ độ trễ phản hồi.
-- **Search UI Enhancements** — Logic định giá tìm kiếm (current_price vs retail_price) đã được kết xuất chuẩn xác từ Meilisearch, tự động hiển thị mượt mà các nhãn "New Arrival" và "Sale" cùng phần trăm giảm giá.
+- **Search UI Enhancements** — Logic định giá tìm kiếm (current_price vs msrp_price) đã được kết xuất chuẩn xác từ Meilisearch, tự động hiển thị mượt mà các nhãn "New Arrival" và "Sale" cùng phần trăm giảm giá.
 
 ### 🛡️ Enterprise Database Security & Reliability (Priority 1)
 

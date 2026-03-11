@@ -9,7 +9,8 @@ import { AUTH_TOKEN, REFRESH_TOKEN, generateAccessToken, generateRefreshToken } 
 import { withRateLimit } from '@/lib/with-rate-limit';
 import { logSecurityEvent } from '@/lib/audit';
 import { getRedisConnection } from '@/lib/redis';
-import { decrypt } from '@/lib/encryption';
+import { decrypt, hashEmail } from '@/lib/encryption';
+import { IpBlocklistRepository } from '@/lib/db/repositories/ip-blocklist';
 
 /**
  * API Xử lý Đăng nhập người dùng.
@@ -22,6 +23,17 @@ import { decrypt } from '@/lib/encryption';
  */
 async function loginHandler(req: Request): Promise<NextResponse> {
   const body: Partial<LoginRequest> = await req.json();
+  const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || '127.0.0.1';
+
+  // 0. Check if IP is blocked
+  const isIpBlocked = await IpBlocklistRepository.isBlocked(ip);
+  if (isIpBlocked) {
+    return createErrorResponse(
+      'Địa chỉ IP của bạn tạm thời bị chặn do hoạt động nghi vấn.',
+      403,
+      'IP_BLOCKED'
+    );
+  }
 
   // Validate required fields
   const validation = validateRequiredFields(body, ['email', 'password']);
@@ -42,19 +54,21 @@ async function loginHandler(req: Request): Promise<NextResponse> {
     return createErrorResponse('Mật khẩu phải có ít nhất 6 ký tự', 400, 'INVALID_PASSWORD');
   }
 
-  // Find user by email
-  const users = (await executeQuery('SELECT * FROM users WHERE email = ? AND deleted_at IS NULL', [
-    email,
-  ])) as User[];
+  // Find user by email hash (Blind Index)
+  const emailHash = hashEmail(email);
+  const users = (await executeQuery(
+    'SELECT * FROM users WHERE email_hash = ? AND deleted_at IS NULL',
+    [emailHash]
+  )) as User[];
 
   if (users.length === 0) {
-    const ip = req.headers.get('x-forwarded-for') || '127.0.0.1';
     await logSecurityEvent('login_failed', ip, null, { email, reason: 'User not found' });
     return createErrorResponse('Email hoặc mật khẩu không chính xác', 401, 'INVALID_CREDENTIALS');
   }
 
   const user = users[0];
-  const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || '127.0.0.1';
+  const realEmail =
+    user.is_encrypted && user.email_encrypted ? decrypt(user.email_encrypted) : user.email;
 
   // Account lockout check (Redis-backed, 5 attempts, 15 min lockout)
   const MAX_ATTEMPTS = 5;
@@ -67,9 +81,12 @@ async function loginHandler(req: Request): Promise<NextResponse> {
     const attempts = await redis.get(lockoutKey);
     currentAttempts = parseInt(attempts || '0');
 
-    if (currentAttempts >= MAX_ATTEMPTS) {
+    if (
+      currentAttempts >= MAX_ATTEMPTS ||
+      (user.lockout_until && new Date(user.lockout_until) > new Date())
+    ) {
       const ttl = await redis.ttl(lockoutKey);
-      const minutesLeft = Math.ceil(ttl / 60);
+      const minutesLeft = Math.ceil(ttl / 60) || 15;
       await logSecurityEvent('login_failed', ip, user.id, {
         email,
         attempts: currentAttempts,
@@ -119,19 +136,32 @@ async function loginHandler(req: Request): Promise<NextResponse> {
       if (newAttempts === 1) {
         await redis.expire(lockoutKey, LOCKOUT_SECONDS);
       }
+
+      // PERSISTENT LOCKOUT in DB
+      if (newAttempts >= MAX_ATTEMPTS) {
+        await executeQuery(
+          'UPDATE users SET failed_login_attempts = ?, lockout_until = DATE_ADD(NOW(), INTERVAL 15 MINUTE) WHERE id = ?',
+          [newAttempts, user.id]
+        );
+      } else {
+        await executeQuery('UPDATE users SET failed_login_attempts = ? WHERE id = ?', [
+          newAttempts,
+          user.id,
+        ]);
+      }
+
       const remaining = MAX_ATTEMPTS - newAttempts;
       await logSecurityEvent('login_failed', ip, user.id, {
         email,
         reason: 'Invalid password',
         attempts: newAttempts,
       });
-      if (remaining > 0) {
-        return createErrorResponse(
-          `Email hoặc mật khẩu không chính xác. Còn ${remaining} lần thử.`,
-          401,
-          'INVALID_CREDENTIALS'
-        );
-      } else {
+      if (newAttempts >= MAX_ATTEMPTS) {
+        // Automatically block IP if they reach MAX_ATTEMPTS on a single account
+        // Higher threshold for IP block vs account lockout
+        if (newAttempts >= MAX_ATTEMPTS * 2) {
+          await IpBlocklistRepository.blockIp(ip, `Brute-force attempt on account: ${email}`, 120); // Block for 2 hours
+        }
         return createErrorResponse(
           `Tài khoản tạm khóa do đăng nhập sai quá nhiều. Vui lòng thử lại sau 15 phút.`,
           429,
@@ -148,6 +178,10 @@ async function loginHandler(req: Request): Promise<NextResponse> {
   try {
     const redis = getRedisConnection();
     await redis.del(lockoutKey);
+    await executeQuery(
+      'UPDATE users SET failed_login_attempts = 0, lockout_until = NULL WHERE id = ?',
+      [user.id]
+    );
   } catch (e) {
     /* ignore */
   }
@@ -163,7 +197,7 @@ async function loginHandler(req: Request): Promise<NextResponse> {
     return NextResponse.json({
       success: true,
       requires2FA: true,
-      email: user.email,
+      email: realEmail,
       message: 'Vui lòng xác thực 2 bước',
     });
   }
@@ -171,7 +205,7 @@ async function loginHandler(req: Request): Promise<NextResponse> {
   // Generate Tokens
   const payload = {
     userId: user.id,
-    email: user.email,
+    email: realEmail,
     tv: user.token_version, // Token Version
   };
   const accessToken = generateAccessToken(payload);
@@ -254,7 +288,7 @@ async function loginHandler(req: Request): Promise<NextResponse> {
     success: true,
     user: {
       id: user.id,
-      email: user.email,
+      email: realEmail,
       firstName: user.first_name,
       lastName: user.last_name,
       phone:
@@ -263,7 +297,10 @@ async function loginHandler(req: Request): Promise<NextResponse> {
           : (user as any).phone !== '***'
             ? (user as any).phone
             : '',
-      dateOfBirth: user.date_of_birth,
+      dateOfBirth:
+        (user as any).is_encrypted && (user as any).date_of_birth_encrypted
+          ? decrypt((user as any).date_of_birth_encrypted)
+          : user.date_of_birth,
       gender: user.gender,
       isActive: user.is_active,
       isVerified: user.is_verified,
@@ -283,7 +320,7 @@ async function loginHandler(req: Request): Promise<NextResponse> {
       const device = req.headers.get('user-agent') || 'Thiết bị không xác định';
       const time = new Date().toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' });
       await sendNewLoginEmail(
-        user.email,
+        realEmail,
         user.first_name || 'bạn',
         time,
         ip,

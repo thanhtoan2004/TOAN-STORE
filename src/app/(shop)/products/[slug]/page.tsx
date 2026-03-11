@@ -22,10 +22,10 @@ export async function generateMetadata(
   const paramValue = isNumericId ? parseInt(slug) : slug;
 
   // 1. Fetch default product data
-  const products = await executeQuery(
-    `SELECT id, name, description, category_id, retail_price, base_price, (SELECT url FROM product_images WHERE product_id = products.id AND is_main = 1 LIMIT 1) as image_url FROM products WHERE ${condition}`,
+  const products = (await executeQuery(
+    `SELECT id, name, description, category_id, msrp_price, price_cache, (SELECT url FROM product_images WHERE product_id = products.id AND is_main = 1 LIMIT 1) as image_url FROM products WHERE ${condition}`,
     [paramValue]
-  ) as any[];
+  )) as any[];
 
   if (products.length === 0) {
     return notFound();
@@ -47,7 +47,11 @@ export async function generateMetadata(
 
   // 3. Merge Metadata (Dynamic > Database > Default)
   const title = dynamicSeo?.title || `${product.name} | TOAN Store`;
-  const description = dynamicSeo?.description || (product.description ? product.description.substring(0, 160) : `Mua ${product.name} tại TOAN Store`);
+  const description =
+    dynamicSeo?.description ||
+    (product.description
+      ? product.description.substring(0, 160)
+      : `Mua ${product.name} tại TOAN Store`);
   const imageUrl = dynamicSeo?.og_image_url || product.image_url || '/og-image.jpg';
 
   return {
@@ -60,18 +64,22 @@ export async function generateMetadata(
     openGraph: {
       title,
       description,
-      images: [{
-        url: imageUrl,
-        width: 1200,
-        height: 630,
-        alt: product.name
-      }],
+      images: [
+        {
+          url: imageUrl,
+          width: 1200,
+          height: 630,
+          alt: product.name,
+        },
+      ],
       type: 'website',
     },
-    other: dynamicSeo?.structured_data ? {
-      'structured-data': JSON.stringify(dynamicSeo.structured_data)
-    } : undefined
-  }
+    other: dynamicSeo?.structured_data
+      ? {
+          'structured-data': JSON.stringify(dynamicSeo.structured_data),
+        }
+      : undefined,
+  };
 }
 
 export default async function Page({ params }: Props) {
@@ -82,13 +90,13 @@ export default async function Page({ params }: Props) {
   const paramValue = isNumericId ? parseInt(slug) : slug;
 
   // fetch data
-  const products = await executeQuery(
+  const products = (await executeQuery(
     `SELECT 
       p.name, 
       p.description, 
       p.category_id, 
-      p.retail_price, 
-      p.base_price, 
+      p.msrp_price, 
+      p.price_cache, 
       p.id,
       p.slug,
       (SELECT url FROM product_images WHERE product_id = p.id AND is_main = 1 LIMIT 1) as image_url,
@@ -98,7 +106,7 @@ export default async function Page({ params }: Props) {
     LEFT JOIN categories c ON p.category_id = c.id
     WHERE ${condition}`,
     [paramValue]
-  ) as any[];
+  )) as any[];
 
   if (products.length === 0) {
     return notFound();
@@ -125,7 +133,7 @@ export default async function Page({ params }: Props) {
         offers: {
           '@type': 'Offer',
           priceCurrency: 'VND',
-          price: product.base_price,
+          price: product.price_cache,
           availability: 'https://schema.org/InStock',
           url: `${process.env.NEXT_PUBLIC_APP_URL}/products/${product.slug || product.id}`,
         },
@@ -152,8 +160,8 @@ export default async function Page({ params }: Props) {
             item: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/products/${product.slug || product.id}`,
           },
         ],
-      }
-    ]
+      },
+    ],
   };
 
   return (

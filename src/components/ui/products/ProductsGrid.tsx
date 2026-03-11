@@ -14,8 +14,8 @@ interface ProductType {
   image_url: string;
   is_new_arrival?: boolean;
   created_at: string;
-  base_price?: number;
-  retail_price?: number;
+  price_cache?: number;
+  msrp_price?: number;
 }
 
 interface PaginationData {
@@ -99,7 +99,7 @@ const ProductsGrid = ({
   showSortOptions = true,
   filterParams = {},
   onError,
-  enableInfiniteScroll: enableInfiniteScrollProp = true
+  enableInfiniteScroll: enableInfiniteScrollProp = true,
 }: ProductsGridProps) => {
   const { t } = useLanguage();
   const [products, setProducts] = useState<ProductType[]>([]);
@@ -110,59 +110,59 @@ const ProductsGrid = ({
     page: 1,
     limit: 12,
     total: 0,
-    totalPages: 0
+    totalPages: 0,
   });
   const [sortOrder, setSortOrder] = useState('newest');
   const [infiniteScroll, setInfiniteScroll] = useState(enableInfiniteScrollProp);
   const sentinelRef = useRef<HTMLDivElement>(null);
 
   // Memoize filter params string to avoid unnecessary re-fetches
-  const filterParamsString = useMemo(
-    () => JSON.stringify(filterParams),
-    [filterParams]
+  const filterParamsString = useMemo(() => JSON.stringify(filterParams), [filterParams]);
+
+  const fetchProducts = useCallback(
+    async (page: number = 1, sort: string = 'newest', append: boolean = false) => {
+      try {
+        if (append) {
+          setLoadingMore(true);
+        } else {
+          setLoading(true);
+        }
+        setError(null);
+
+        const params = new URLSearchParams({
+          page: page.toString(),
+          limit: '12',
+          sort,
+          ...filterParams,
+        });
+
+        const response = await fetch(`/api/products?${params}`);
+
+        if (!response.ok) {
+          throw new Error(t.plp.loading_error);
+        }
+
+        const data = await response.json();
+        const newProducts = data.products || [];
+        const newPagination = data.pagination || { page: 1, limit: 12, total: 0, totalPages: 0 };
+
+        if (append) {
+          setProducts((prev) => [...prev, ...newProducts]);
+        } else {
+          setProducts(newProducts);
+        }
+        setPagination(newPagination);
+      } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : t.plp.generic_error;
+        setError(errorMessage);
+        onError?.(err instanceof Error ? err : new Error(errorMessage));
+      } finally {
+        setLoading(false);
+        setLoadingMore(false);
+      }
+    },
+    [filterParams, onError, t]
   );
-
-  const fetchProducts = useCallback(async (page: number = 1, sort: string = 'newest', append: boolean = false) => {
-    try {
-      if (append) {
-        setLoadingMore(true);
-      } else {
-        setLoading(true);
-      }
-      setError(null);
-
-      const params = new URLSearchParams({
-        page: page.toString(),
-        limit: '12',
-        sort,
-        ...filterParams
-      });
-
-      const response = await fetch(`/api/products?${params}`);
-
-      if (!response.ok) {
-        throw new Error(t.plp.loading_error);
-      }
-
-      const data = await response.json();
-      const newProducts = data.products || [];
-      const newPagination = data.pagination || { page: 1, limit: 12, total: 0, totalPages: 0 };
-
-      if (append) {
-        setProducts(prev => [...prev, ...newProducts]);
-      } else {
-        setProducts(newProducts);
-      }
-      setPagination(newPagination);
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : t.plp.generic_error;
-      setError(errorMessage);
-      onError?.(err instanceof Error ? err : new Error(errorMessage));
-    } finally {
-      setLoading(false);
-      setLoadingMore(false);
-    }
-  }, [filterParams, onError, t]);
 
   useEffect(() => {
     fetchProducts(1, sortOrder);
@@ -184,23 +184,36 @@ const ProductsGrid = ({
 
     observer.observe(sentinelRef.current);
     return () => observer.disconnect();
-  }, [infiniteScroll, loadingMore, pagination.page, pagination.totalPages, sortOrder, fetchProducts]);
+  }, [
+    infiniteScroll,
+    loadingMore,
+    pagination.page,
+    pagination.totalPages,
+    sortOrder,
+    fetchProducts,
+  ]);
 
-  const handleSortChange = useCallback((newSort: string) => {
-    setSortOrder(newSort);
-    fetchProducts(1, newSort);
-  }, [fetchProducts]);
+  const handleSortChange = useCallback(
+    (newSort: string) => {
+      setSortOrder(newSort);
+      fetchProducts(1, newSort);
+    },
+    [fetchProducts]
+  );
 
-  const handlePageChange = useCallback((newPage: number) => {
-    fetchProducts(newPage, sortOrder);
-  }, [fetchProducts, sortOrder]);
+  const handlePageChange = useCallback(
+    (newPage: number) => {
+      fetchProducts(newPage, sortOrder);
+    },
+    [fetchProducts, sortOrder]
+  );
 
   const handleRetry = useCallback(() => {
     fetchProducts(pagination.page, sortOrder);
   }, [fetchProducts, pagination.page, sortOrder]);
 
   const toggleScrollMode = useCallback(() => {
-    setInfiniteScroll(prev => {
+    setInfiniteScroll((prev) => {
       const next = !prev;
       localStorage.setItem('toan_scroll_mode', next ? 'infinite' : 'pagination');
       // Reset to page 1 when switching modes
@@ -237,12 +250,26 @@ const ProductsGrid = ({
           >
             {infiniteScroll ? (
               <>
-                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" /></svg>
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M4 6h16M4 12h16M4 18h16"
+                  />
+                </svg>
                 Pagination
               </>
             ) : (
               <>
-                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" /></svg>
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M19 14l-7 7m0 0l-7-7m7 7V3"
+                  />
+                </svg>
                 Infinite Scroll
               </>
             )}
@@ -269,11 +296,18 @@ const ProductsGrid = ({
         <>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             {products.map((product, index) => {
-              // Ensure retail_price/base_price parsing and correct display mapping
-              const originalPrice = product.retail_price ? Number(product.retail_price) : Number(product.base_price || product.price || 0);
-              const salePriceValue = (product.base_price && product.retail_price && product.base_price < product.retail_price)
-                ? Number(product.base_price)
-                : (product.sale_price ? Number(product.sale_price) : undefined);
+              // Ensure msrp_price/price_cache parsing and correct display mapping
+              const originalPrice = product.msrp_price
+                ? Number(product.msrp_price)
+                : Number(product.price_cache || product.price || 0);
+              const salePriceValue =
+                product.price_cache &&
+                product.msrp_price &&
+                product.price_cache < product.msrp_price
+                  ? Number(product.price_cache)
+                  : product.sale_price
+                    ? Number(product.sale_price)
+                    : undefined;
 
               return (
                 <ProductCard
