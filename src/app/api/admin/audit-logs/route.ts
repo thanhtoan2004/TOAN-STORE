@@ -1,9 +1,9 @@
 import { NextRequest } from 'next/server';
-import { checkAdminAuth } from '@/lib/auth';
+import { checkAdminAuth } from '@/lib/auth/auth';
 import { db } from '@/lib/db/drizzle';
 import { adminActivityLogs, adminUsers } from '@/lib/db/schema';
 import { eq, and, desc, sql, count } from 'drizzle-orm';
-import { ResponseWrapper } from '@/lib/api-response';
+import { ResponseWrapper } from '@/lib/api/api-response';
 
 /**
  * API Truy xuất Nhật ký hoạt động Admin (Audit Logs).

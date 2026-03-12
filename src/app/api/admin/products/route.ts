@@ -1,13 +1,13 @@
 import { NextRequest } from 'next/server';
-import { checkAdminAuth } from '@/lib/auth';
-import { invalidateCache, invalidateCachePattern } from '@/lib/cache';
-import { syncProductToMeilisearch, deleteProductFromMeilisearch } from '@/lib/meilisearch';
-import { logAdminAction } from '@/lib/audit';
+import { checkAdminAuth } from '@/lib/auth/auth';
+import { invalidateCache, invalidateCachePattern } from '@/lib/redis/cache';
+import { syncProductToMeilisearch, deleteProductFromMeilisearch } from '@/lib/search/meilisearch';
+import { logAdminAction } from '@/lib/security/audit';
 import { db } from '@/lib/db/drizzle';
 import { products, productImages, categories } from '@/lib/db/schema';
 import { eq, and, like, sql, desc } from 'drizzle-orm';
-import { ResponseWrapper } from '@/lib/api-response';
-import { logger } from '@/lib/logger';
+import { ResponseWrapper } from '@/lib/api/api-response';
+import { logger } from '@/lib/utils/logger';
 
 // GET - Lấy danh sách sản phẩm (Admin)
 /**

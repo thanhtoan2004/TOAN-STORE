@@ -1,9 +1,9 @@
 import { NextResponse } from 'next/server';
 import { executeQuery } from '@/lib/db/mysql';
-import { sendPasswordResetEmail } from '@/lib/mail';
+import { sendPasswordResetEmail } from '@/lib/mail/mail';
 import crypto from 'crypto';
-import { withRateLimit } from '@/lib/with-rate-limit';
-import { hashEmail } from '@/lib/encryption';
+import { withRateLimit } from '@/lib/api/with-rate-limit';
+import { hashEmail } from '@/lib/security/encryption';
 
 /**
  * API Yêu cầu khôi phục mật khẩu.

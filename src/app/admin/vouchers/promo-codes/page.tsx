@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import AdminLayout from '@/components/admin/AdminLayout';
-import { formatDateTime, formatDate, formatCurrency } from '@/lib/date-utils';
+import { formatDateTime, formatDate, formatCurrency } from '@/lib/utils/date-utils';
 
 interface Coupon {
   id: number;
@@ -60,11 +60,13 @@ export default function AdminCouponsPage() {
     }
   };
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+  const handleChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
+  ) => {
     const { name, value } = e.target;
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
-      [name]: value
+      [name]: value,
     }));
   };
 
@@ -79,15 +81,21 @@ export default function AdminCouponsPage() {
         discount_type: formData.discount_type,
         discount_value: parseFloat(formData.discount_value),
         min_order_amount: formData.min_order_amount ? parseFloat(formData.min_order_amount) : null,
-        max_discount_amount: formData.max_discount_amount ? parseFloat(formData.max_discount_amount) : null,
+        max_discount_amount: formData.max_discount_amount
+          ? parseFloat(formData.max_discount_amount)
+          : null,
         usage_limit: formData.usage_limit ? parseInt(formData.usage_limit) : null,
-        usage_limit_per_user: formData.usage_limit_per_user ? parseInt(formData.usage_limit_per_user) : null,
+        usage_limit_per_user: formData.usage_limit_per_user
+          ? parseInt(formData.usage_limit_per_user)
+          : null,
         starts_at: formData.starts_at || null,
         ends_at: formData.ends_at || null,
-        applicable_tier: formData.applicable_tier
+        applicable_tier: formData.applicable_tier,
       };
 
-      const url = editingCoupon ? `/api/admin/promo-codes/${editingCoupon.id}` : '/api/admin/promo-codes';
+      const url = editingCoupon
+        ? `/api/admin/promo-codes/${editingCoupon.id}`
+        : '/api/admin/promo-codes';
       const method = editingCoupon ? 'PUT' : 'POST';
 
       const response = await fetch(url, {
@@ -134,7 +142,7 @@ export default function AdminCouponsPage() {
       if (!dateStr) return '';
       const d = new Date(dateStr);
       // Adjust to local time string
-      return new Date(d.getTime() - (d.getTimezoneOffset() * 60000)).toISOString().slice(0, 16);
+      return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
     };
 
     setFormData({
@@ -195,16 +203,10 @@ export default function AdminCouponsPage() {
             <h2 className="text-xl font-semibold mb-4">
               {editingCoupon ? 'Chỉnh sửa Coupon' : 'Tạo Coupon Mới'}
             </h2>
-            {error && (
-              <div className="mb-4 p-3 bg-red-100 text-red-700 rounded">
-                {error}
-              </div>
-            )}
+            {error && <div className="mb-4 p-3 bg-red-100 text-red-700 rounded">{error}</div>}
             <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Mã Coupon *
-                </label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Mã Coupon *</label>
                 <input
                   type="text"
                   name="code"
@@ -248,9 +250,7 @@ export default function AdminCouponsPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Mô tả
-                </label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Mô tả</label>
                 <input
                   type="text"
                   name="description"
@@ -320,9 +320,7 @@ export default function AdminCouponsPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Ngày bắt đầu
-                </label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Ngày bắt đầu</label>
                 <input
                   type="datetime-local"
                   name="starts_at"
@@ -424,11 +422,17 @@ export default function AdminCouponsPage() {
                         <div className="text-xs text-gray-500">{coupon.description}</div>
                       )}
                       <div className="mt-1">
-                        <span className={`px-2 py-0.5 text-[10px] font-bold uppercase rounded ${coupon.applicable_tier === 'platinum' ? 'bg-purple-100 text-purple-700' :
-                          coupon.applicable_tier === 'gold' ? 'bg-yellow-100 text-yellow-700' :
-                            coupon.applicable_tier === 'silver' ? 'bg-blue-100 text-blue-700' :
-                              'bg-gray-100 text-gray-700'
-                          }`}>
+                        <span
+                          className={`px-2 py-0.5 text-[10px] font-bold uppercase rounded ${
+                            coupon.applicable_tier === 'platinum'
+                              ? 'bg-purple-100 text-purple-700'
+                              : coupon.applicable_tier === 'gold'
+                                ? 'bg-yellow-100 text-yellow-700'
+                                : coupon.applicable_tier === 'silver'
+                                  ? 'bg-blue-100 text-blue-700'
+                                  : 'bg-gray-100 text-gray-700'
+                          }`}
+                        >
                           {coupon.applicable_tier || 'bronze'}
                         </span>
                       </div>
@@ -457,12 +461,8 @@ export default function AdminCouponsPage() {
                       )}
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-900">
-                      {coupon.starts_at && (
-                        <div>{formatDate(coupon.starts_at)}</div>
-                      )}
-                      {coupon.ends_at && (
-                        <div>→ {formatDate(coupon.ends_at)}</div>
-                      )}
+                      {coupon.starts_at && <div>{formatDate(coupon.starts_at)}</div>}
+                      {coupon.ends_at && <div>→ {formatDate(coupon.ends_at)}</div>}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2">
                       <div className="flex items-center justify-end gap-2">

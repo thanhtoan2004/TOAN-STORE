@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { executeQuery } from '@/lib/db/mysql';
 
-import { checkAdminAuth } from '@/lib/auth';
-import { encrypt, decrypt } from '@/lib/encryption';
-import { logAdminAction } from '@/lib/audit';
+import { checkAdminAuth } from '@/lib/auth/auth';
+import { encrypt, decrypt } from '@/lib/security/encryption';
+import { logAdminAction } from '@/lib/security/audit';
 
 // PATCH /api/admin/users/[id] - Update user (admin role, status, etc.)
 /**

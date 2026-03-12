@@ -6,9 +6,9 @@ import {
   verifyRefreshToken,
   generateAccessToken,
   generateRefreshToken,
-} from '@/lib/auth';
-import { getRedisConnection } from '@/lib/redis';
-import { createErrorResponse } from '@/lib/api-utils';
+} from '@/lib/auth/auth';
+import { getRedisConnection } from '@/lib/redis/redis';
+import { createErrorResponse } from '@/lib/api/api-utils';
 import { executeQuery } from '@/lib/db/mysql';
 
 /**

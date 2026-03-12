@@ -3,7 +3,7 @@
 import React, { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { cn } from '@/lib/utils';
+import { cn } from '@/lib/utils/utils';
 import { useAuth } from '@/contexts/AuthContext';
 
 function AdminLoginContent() {
@@ -57,9 +57,7 @@ function AdminLoginContent() {
       <div className="max-w-md mx-auto bg-white p-8 rounded-lg shadow-sm border">
         <div className="mb-8 text-center">
           <h1 className="text-3xl font-bold uppercase mb-2">ADMIN</h1>
-          <p className="text-sm text-gray-500">
-            Đăng nhập admin để quản lý trang web.
-          </p>
+          <p className="text-sm text-gray-500">Đăng nhập admin để quản lý trang web.</p>
         </div>
 
         {successMessage && (
@@ -127,12 +125,12 @@ function AdminLoginContent() {
             type="submit"
             disabled={isLoading}
             className={cn(
-              "w-full bg-black text-white py-3 rounded hover:bg-zinc-800 transition-colors font-helvetica-medium",
-              isLoading && "opacity-70 cursor-not-allowed"
+              'w-full bg-black text-white py-3 rounded hover:bg-zinc-800 transition-colors font-helvetica-medium',
+              isLoading && 'opacity-70 cursor-not-allowed'
             )}
             suppressHydrationWarning
           >
-            {isLoading ? "Đang xử lý..." : "Đăng nhập"}
+            {isLoading ? 'Đang xử lý...' : 'Đăng nhập'}
           </button>
         </form>
 
@@ -156,6 +154,3 @@ export default function AdminLogin() {
     </Suspense>
   );
 }
-
-
-

@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import { Ticket, Clock, CheckCircle, AlertCircle, Copy, ChevronLeft } from 'lucide-react';
-import { formatDate, formatCurrency } from '@/lib/date-utils';
+import { formatDate, formatCurrency } from '@/lib/utils/date-utils';
 import Link from 'next/link';
 
 interface UserVoucher {

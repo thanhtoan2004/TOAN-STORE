@@ -1,8 +1,8 @@
 import Image, { ImageProps } from 'next/image';
-import cloudinaryLoader from '@/lib/cloudinary-loader';
+import cloudinaryLoader from '@/lib/images/cloudinary-loader';
 
 interface OptimizedImageProps extends Omit<ImageProps, 'loader'> {
-    // Add any Cloudinary specific props here if needed
+  // Add any Cloudinary specific props here if needed
 }
 
 /**
@@ -11,11 +11,5 @@ interface OptimizedImageProps extends Omit<ImageProps, 'loader'> {
  * that we want to optimize via Cloudinary Fetch API (if configured).
  */
 export default function OptimizedImage({ alt, ...props }: OptimizedImageProps) {
-    return (
-        <Image
-            alt={alt}
-            {...props}
-            loader={cloudinaryLoader}
-        />
-    );
+  return <Image alt={alt} {...props} loader={cloudinaryLoader} />;
 }

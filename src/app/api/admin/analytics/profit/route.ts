@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { checkAdminAuth } from '@/lib/auth';
+import { checkAdminAuth } from '@/lib/auth/auth';
 import { executeQuery } from '@/lib/db/mysql';
 
 /**
@@ -11,25 +11,25 @@ import { executeQuery } from '@/lib/db/mysql';
  * Hỗ trợ các mốc thời gian: 24h, 7 ngày, 30 ngày.
  */
 export async function GET(request: Request) {
-    const admin = await checkAdminAuth();
-    if (!admin) {
-        return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
-    }
+  const admin = await checkAdminAuth();
+  if (!admin) {
+    return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
+  }
 
-    const { searchParams } = new URL(request.url);
-    const period = searchParams.get('period') || '30d'; // 30d, 7d, 24h
+  const { searchParams } = new URL(request.url);
+  const period = searchParams.get('period') || '30d'; // 30d, 7d, 24h
 
-    let timeframe = 'INTERVAL 30 DAY';
-    let grouping = '%Y-%m-%d';
+  let timeframe = 'INTERVAL 30 DAY';
+  let grouping = '%Y-%m-%d';
 
-    if (period === '7d') timeframe = 'INTERVAL 7 DAY';
-    if (period === '24h') {
-        timeframe = 'INTERVAL 24 HOUR';
-        grouping = '%Y-%m-%d %H:00';
-    }
+  if (period === '7d') timeframe = 'INTERVAL 7 DAY';
+  if (period === '24h') {
+    timeframe = 'INTERVAL 24 HOUR';
+    grouping = '%Y-%m-%d %H:00';
+  }
 
-    try {
-        const profitStats = await executeQuery<any[]>(`
+  try {
+    const profitStats = await executeQuery<any[]>(`
       SELECT 
         DATE_FORMAT(o.placed_at, '${grouping}') as date,
         SUM(o.total) as revenue,
@@ -47,25 +47,28 @@ export async function GET(request: Request) {
       ORDER BY date ASC
     `);
 
-        // Calculate overall totals
-        const totals = profitStats.reduce((acc, curr) => ({
-            revenue: acc.revenue + parseFloat(curr.revenue),
-            cost: acc.cost + parseFloat(curr.total_cost),
-            profit: acc.profit + parseFloat(curr.net_profit)
-        }), { revenue: 0, cost: 0, profit: 0 });
+    // Calculate overall totals
+    const totals = profitStats.reduce(
+      (acc, curr) => ({
+        revenue: acc.revenue + parseFloat(curr.revenue),
+        cost: acc.cost + parseFloat(curr.total_cost),
+        profit: acc.profit + parseFloat(curr.net_profit),
+      }),
+      { revenue: 0, cost: 0, profit: 0 }
+    );
 
-        return NextResponse.json({
-            success: true,
-            stats: profitStats,
-            summary: {
-                totalRevenue: totals.revenue,
-                totalCost: totals.cost,
-                netProfit: totals.profit,
-                margin: totals.revenue > 0 ? (totals.profit / totals.revenue) * 100 : 0
-            }
-        });
-    } catch (error) {
-        console.error('Profit Analytics Error:', error);
-        return NextResponse.json({ success: false, message: 'Server error' }, { status: 500 });
-    }
+    return NextResponse.json({
+      success: true,
+      stats: profitStats,
+      summary: {
+        totalRevenue: totals.revenue,
+        totalCost: totals.cost,
+        netProfit: totals.profit,
+        margin: totals.revenue > 0 ? (totals.profit / totals.revenue) * 100 : 0,
+      },
+    });
+  } catch (error) {
+    console.error('Profit Analytics Error:', error);
+    return NextResponse.json({ success: false, message: 'Server error' }, { status: 500 });
+  }
 }

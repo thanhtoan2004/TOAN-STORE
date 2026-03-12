@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server';
-import { checkAdminAuth } from '@/lib/auth';
-import { ResponseWrapper } from '@/lib/api-response';
+import { checkAdminAuth } from '@/lib/auth/auth';
+import { ResponseWrapper } from '@/lib/api/api-response';
 import { processInventoryAlerts } from '@/lib/cron/inventory-alerts';
 
 /**
@@ -9,16 +9,16 @@ import { processInventoryAlerts } from '@/lib/cron/inventory-alerts';
  * và chuẩn bị dữ liệu cho Dashboard/Email cảnh báo.
  */
 export async function GET(req: NextRequest) {
-    try {
-        const auth = await checkAdminAuth();
-        if (!auth) {
-            return ResponseWrapper.unauthorized();
-        }
-
-        const result = await processInventoryAlerts();
-        return ResponseWrapper.success(result);
-    } catch (error: any) {
-        console.error('[API_INVENTORY_ALERTS] Error:', error);
-        return ResponseWrapper.serverError(error.message);
+  try {
+    const auth = await checkAdminAuth();
+    if (!auth) {
+      return ResponseWrapper.unauthorized();
     }
+
+    const result = await processInventoryAlerts();
+    return ResponseWrapper.success(result);
+  } catch (error: any) {
+    console.error('[API_INVENTORY_ALERTS] Error:', error);
+    return ResponseWrapper.serverError(error.message);
+  }
 }

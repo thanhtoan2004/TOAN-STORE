@@ -1,7 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createErrorResponse, createSuccessResponse, validateRequiredFields, withErrorHandling } from '@/lib/api-utils';
+import {
+  createErrorResponse,
+  createSuccessResponse,
+  validateRequiredFields,
+  withErrorHandling,
+} from '@/lib/api/api-utils';
 import { checkGiftCardBalance } from '@/lib/db/mysql';
-import { withRateLimit } from '@/lib/with-rate-limit';
+import { withRateLimit } from '@/lib/api/with-rate-limit';
 
 async function balanceHandler(req: NextRequest): Promise<NextResponse> {
   const body = await req.json();
@@ -34,7 +39,7 @@ async function balanceHandler(req: NextRequest): Promise<NextResponse> {
     {
       balance: card.current_balance,
       expiresAt: card.expires_at,
-      status: card.status
+      status: card.status,
     },
     'Kiểm tra số dư thành công'
   );
@@ -44,5 +49,5 @@ async function balanceHandler(req: NextRequest): Promise<NextResponse> {
 export const POST = withRateLimit(withErrorHandling(balanceHandler), {
   tag: 'gift-card-balance',
   limit: 10,
-  windowMs: 60_000
+  windowMs: 60_000,
 });

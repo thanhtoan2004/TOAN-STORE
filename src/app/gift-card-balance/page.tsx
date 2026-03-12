@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { formatDateTime, formatCurrency } from '@/lib/date-utils';
+import { formatDateTime, formatCurrency } from '@/lib/utils/date-utils';
 
 export default function GiftCardBalancePage() {
   const { user } = useAuth();
@@ -45,11 +45,17 @@ export default function GiftCardBalancePage() {
 
       if (!response.ok || !data.success) {
         if (response.status === 429) {
-          throw new Error(data.message || 'Bạn đã kiểm tra sai quá nhiều lần. Vui lòng thử lại sau 30 phút.');
+          throw new Error(
+            data.message || 'Bạn đã kiểm tra sai quá nhiều lần. Vui lòng thử lại sau 30 phút.'
+          );
         } else if (response.status === 403) {
-          throw new Error(data.message || 'Thẻ quà tặng này đã bị khóa do nhập sai mã PIN nhiều lần.');
+          throw new Error(
+            data.message || 'Thẻ quà tặng này đã bị khóa do nhập sai mã PIN nhiều lần.'
+          );
         }
-        throw new Error(data.message || 'Không thể kiểm tra số dư. Vui lòng kiểm tra lại thông tin.');
+        throw new Error(
+          data.message || 'Không thể kiểm tra số dư. Vui lòng kiểm tra lại thông tin.'
+        );
       }
 
       if (data.data?.balance !== undefined) {
@@ -72,7 +78,9 @@ export default function GiftCardBalancePage() {
 
     setLoadingHistory(true);
     try {
-      const response = await fetch(`/api/gift-cards/history?cardNumber=${encodeURIComponent(cardNumber)}&pin=${encodeURIComponent(pin)}`);
+      const response = await fetch(
+        `/api/gift-cards/history?cardNumber=${encodeURIComponent(cardNumber)}&pin=${encodeURIComponent(pin)}`
+      );
       const data = await response.json();
 
       if (data.success && data.data?.transactions) {
@@ -164,17 +172,27 @@ export default function GiftCardBalancePage() {
                           <div className="flex justify-between items-start mb-2">
                             <div>
                               <p className="font-medium">
-                                {transaction.type === 'purchase' ? 'Mua thẻ' :
-                                  transaction.type === 'redeem' ? 'Sử dụng thẻ' :
-                                    transaction.type === 'refund' ? 'Hoàn tiền' : 'Giao dịch'}
+                                {transaction.type === 'purchase'
+                                  ? 'Mua thẻ'
+                                  : transaction.type === 'redeem'
+                                    ? 'Sử dụng thẻ'
+                                    : transaction.type === 'refund'
+                                      ? 'Hoàn tiền'
+                                      : 'Giao dịch'}
                               </p>
-                              <p className="text-sm text-gray-600">{transaction.description || 'Không có mô tả'}</p>
+                              <p className="text-sm text-gray-600">
+                                {transaction.description || 'Không có mô tả'}
+                              </p>
                               {transaction.orderId && (
-                                <p className="text-xs text-gray-500">Đơn hàng: #{transaction.orderId}</p>
+                                <p className="text-xs text-gray-500">
+                                  Đơn hàng: #{transaction.orderId}
+                                </p>
                               )}
                             </div>
                             <div className="text-right">
-                              <p className={`font-bold ${transaction.type === 'redeem' ? 'text-red-600' : 'text-green-600'}`}>
+                              <p
+                                className={`font-bold ${transaction.type === 'redeem' ? 'text-red-600' : 'text-green-600'}`}
+                              >
                                 {transaction.type === 'redeem' ? '-' : '+'}
                                 {formatCurrency(Math.abs(transaction.amount))}
                               </p>
@@ -184,7 +202,8 @@ export default function GiftCardBalancePage() {
                             </div>
                           </div>
                           <div className="text-xs text-gray-500 mt-2">
-                            Số dư: {formatCurrency(transaction.balanceBefore)} → {formatCurrency(transaction.balanceAfter)}
+                            Số dư: {formatCurrency(transaction.balanceBefore)} →{' '}
+                            {formatCurrency(transaction.balanceAfter)}
                           </div>
                         </div>
                       ))
@@ -208,7 +227,9 @@ export default function GiftCardBalancePage() {
                 <li>• Thẻ quà tặng có thể sử dụng cho tất cả sản phẩm trên website</li>
                 <li>• Thẻ quà tặng không thể đổi lấy tiền mặt</li>
                 <li>• Thẻ quà tặng có thời hạn sử dụng 12 tháng kể từ ngày mua</li>
-                <li>• Nếu số dư không đủ, bạn có thể thanh toán phần còn lại bằng phương thức khác</li>
+                <li>
+                  • Nếu số dư không đủ, bạn có thể thanh toán phần còn lại bằng phương thức khác
+                </li>
               </ul>
             </div>
           </div>
@@ -217,4 +238,3 @@ export default function GiftCardBalancePage() {
     </div>
   );
 }
-

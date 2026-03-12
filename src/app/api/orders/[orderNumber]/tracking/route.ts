@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { query } from '@/lib/db/mysql';
-import { sendShippingNotificationEmail } from '@/lib/email-templates';
+import { sendShippingNotificationEmail } from '@/lib/mail/email-templates';
 
 /**
  * Update order tracking information

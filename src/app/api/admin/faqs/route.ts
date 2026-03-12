@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { executeQuery } from '@/lib/db/mysql';
-import { checkAdminAuth } from '@/lib/auth';
-import { sanitizeRichContent } from '@/lib/sanitize';
+import { checkAdminAuth } from '@/lib/auth/auth';
+import { sanitizeRichContent } from '@/lib/security/sanitize';
 
 /**
  * API Lấy danh sách câu hỏi thường gặp (FAQs).

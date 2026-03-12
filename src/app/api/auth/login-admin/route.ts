@@ -4,8 +4,8 @@ import jwt from 'jsonwebtoken';
 import { executeQuery } from '@/lib/db/mysql';
 import { cookies } from 'next/headers';
 import { User, UserWithoutPassword, LoginRequest, AuthResponse } from '@/types/auth';
-import { ADMIN_TOKEN, getJwtSecret } from '@/lib/auth';
-import { hashEmail } from '@/lib/encryption';
+import { ADMIN_TOKEN, getJwtSecret } from '@/lib/auth/auth';
+import { hashEmail } from '@/lib/security/encryption';
 
 /**
  * API Đăng nhập dành riêng cho quản trị viên (Admin).

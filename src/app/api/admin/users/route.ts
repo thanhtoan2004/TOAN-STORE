@@ -1,12 +1,12 @@
 import { NextRequest } from 'next/server';
-import { checkAdminAuth } from '@/lib/auth';
-import { encrypt, decrypt } from '@/lib/encryption';
+import { checkAdminAuth } from '@/lib/auth/auth';
+import { encrypt, decrypt } from '@/lib/security/encryption';
 import { db } from '@/lib/db/drizzle';
 import { users as usersSchema } from '@/lib/db/schema';
 import { eq, and, sql, desc, count } from 'drizzle-orm';
-import { ResponseWrapper } from '@/lib/api-response';
-import { logger } from '@/lib/logger';
-import { logAdminAction } from '@/lib/audit';
+import { ResponseWrapper } from '@/lib/api/api-response';
+import { logger } from '@/lib/utils/logger';
+import { logAdminAction } from '@/lib/security/audit';
 
 // GET - Lấy danh sách users (Admin)
 /**

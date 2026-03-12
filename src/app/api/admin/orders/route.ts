@@ -1,11 +1,11 @@
 import { NextRequest } from 'next/server';
-import { checkAdminAuth } from '@/lib/auth';
-import { decrypt } from '@/lib/encryption';
+import { checkAdminAuth } from '@/lib/auth/auth';
+import { decrypt } from '@/lib/security/encryption';
 import { db } from '@/lib/db/drizzle';
 import { orders as ordersSchema, users, orderItems } from '@/lib/db/schema';
 import { eq, and, sql, desc, countDistinct } from 'drizzle-orm';
-import { ResponseWrapper } from '@/lib/api-response';
-import { logger } from '@/lib/logger';
+import { ResponseWrapper } from '@/lib/api/api-response';
+import { logger } from '@/lib/utils/logger';
 
 // GET - Lấy danh sách đơn hàng (Admin)
 /**

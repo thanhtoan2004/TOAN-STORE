@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import AdminLayout from '@/components/admin/AdminLayout';
-import { formatCurrency } from '@/lib/date-utils';
+import { formatCurrency } from '@/lib/utils/date-utils';
 import Link from 'next/link';
 import Image from 'next/image';
 

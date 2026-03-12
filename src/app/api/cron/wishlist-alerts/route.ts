@@ -1,13 +1,13 @@
 import { NextResponse } from 'next/server';
 import { getWishlistItemsWithPriceDrop } from '@/lib/db/repositories/wishlist';
-import { sendWishlistSaleEmail } from '@/lib/email-templates';
+import { sendWishlistSaleEmail } from '@/lib/mail/email-templates';
 
 /**
  * GET /api/cron/wishlist-alerts
  * Lấy tất cả các sản phẩm có trong Wishlist mà giá hiện tại rẻ hơn giá lúc thêm vào.
  * Gửi email thông báo cho User.
- * 
- * Lưu ý: Nên setup endpoint này được gọi tự động mỗi ngày (ví dụ 8h sáng) 
+ *
+ * Lưu ý: Nên setup endpoint này được gọi tự động mỗi ngày (ví dụ 8h sáng)
  * bằng Vercel Cron Jobs hoặc tương đương.
  */
 export async function GET(request: Request) {
@@ -16,7 +16,10 @@ export async function GET(request: Request) {
     const authHeader = request.headers.get('authorization');
     if (process.env.CRON_SECRET) {
       if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
-        return NextResponse.json({ success: false, message: 'Unauthorized cron request' }, { status: 401 });
+        return NextResponse.json(
+          { success: false, message: 'Unauthorized cron request' },
+          { status: 401 }
+        );
       }
     }
 
@@ -55,14 +58,10 @@ export async function GET(request: Request) {
       success: true,
       message: 'Price drop alerts processed successfully',
       processed: items.length,
-      emailsSent: sentCount
+      emailsSent: sentCount,
     });
-
   } catch (error) {
     console.error('Error processing wishlist alerts cron:', error);
-    return NextResponse.json(
-      { success: false, message: 'Internal Server Error' },
-      { status: 500 }
-    );
+    return NextResponse.json({ success: false, message: 'Internal Server Error' }, { status: 500 });
   }
 }

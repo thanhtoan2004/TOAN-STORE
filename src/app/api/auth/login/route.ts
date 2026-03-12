@@ -3,13 +3,22 @@ import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import { cookies } from 'next/headers';
 import { executeQuery } from '@/lib/db/mysql';
-import { createErrorResponse, validateRequiredFields, withErrorHandling } from '@/lib/api-utils';
+import {
+  createErrorResponse,
+  validateRequiredFields,
+  withErrorHandling,
+} from '@/lib/api/api-utils';
 import { User, LoginRequest, AuthResponse } from '@/types/auth';
-import { AUTH_TOKEN, REFRESH_TOKEN, generateAccessToken, generateRefreshToken } from '@/lib/auth';
-import { withRateLimit } from '@/lib/with-rate-limit';
-import { logSecurityEvent } from '@/lib/audit';
-import { getRedisConnection } from '@/lib/redis';
-import { decrypt, hashEmail } from '@/lib/encryption';
+import {
+  AUTH_TOKEN,
+  REFRESH_TOKEN,
+  generateAccessToken,
+  generateRefreshToken,
+} from '@/lib/auth/auth';
+import { withRateLimit } from '@/lib/api/with-rate-limit';
+import { logSecurityEvent } from '@/lib/security/audit';
+import { getRedisConnection } from '@/lib/redis/redis';
+import { decrypt, hashEmail } from '@/lib/security/encryption';
 import { IpBlocklistRepository } from '@/lib/db/repositories/ip-blocklist';
 
 /**
@@ -62,7 +71,7 @@ async function loginHandler(req: Request): Promise<NextResponse> {
   )) as User[];
 
   if (users.length === 0) {
-    await logSecurityEvent('login_failed', ip, null, { email, reason: 'User not found' });
+    await logSecurityEvent('login_failed', ip, null, { emailHash, reason: 'User not found' });
     return createErrorResponse('Email hoặc mật khẩu không chính xác', 401, 'INVALID_CREDENTIALS');
   }
 
@@ -88,7 +97,7 @@ async function loginHandler(req: Request): Promise<NextResponse> {
       const ttl = await redis.ttl(lockoutKey);
       const minutesLeft = Math.ceil(ttl / 60) || 15;
       await logSecurityEvent('login_failed', ip, user.id, {
-        email,
+        emailHash,
         attempts: currentAttempts,
         reason: 'Account locked',
       });
@@ -106,7 +115,7 @@ async function loginHandler(req: Request): Promise<NextResponse> {
   const isBanned = user.is_banned === 1 || user.is_banned === '1' || user.is_banned === true;
 
   if (isBanned) {
-    await logSecurityEvent('login_failed', ip, user.id, { email, reason: 'Account banned' });
+    await logSecurityEvent('login_failed', ip, user.id, { emailHash, reason: 'Account banned' });
     return createErrorResponse(
       'Tài khoản của bạn đã bị khóa. Vui lòng liên hệ admin để được hỗ trợ.',
       403,
@@ -117,7 +126,7 @@ async function loginHandler(req: Request): Promise<NextResponse> {
   // Check if user is active
   const isActive = user.is_active === 1 || user.is_active === '1' || user.is_active === true;
   if (!isActive) {
-    await logSecurityEvent('login_failed', ip, user.id, { email, reason: 'Account inactive' });
+    await logSecurityEvent('login_failed', ip, user.id, { emailHash, reason: 'Account inactive' });
     return createErrorResponse(
       'Tài khoản của bạn chưa được kích hoạt. Vui lòng kiểm tra email hoặc liên hệ admin.',
       403,
@@ -152,7 +161,7 @@ async function loginHandler(req: Request): Promise<NextResponse> {
 
       const remaining = MAX_ATTEMPTS - newAttempts;
       await logSecurityEvent('login_failed', ip, user.id, {
-        email,
+        emailHash,
         reason: 'Invalid password',
         attempts: newAttempts,
       });
@@ -169,7 +178,10 @@ async function loginHandler(req: Request): Promise<NextResponse> {
         );
       }
     } catch (e) {
-      await logSecurityEvent('login_failed', ip, user.id, { email, reason: 'Invalid password' });
+      await logSecurityEvent('login_failed', ip, user.id, {
+        emailHash,
+        reason: 'Invalid password',
+      });
       return createErrorResponse('Email hoặc mật khẩu không chính xác', 401, 'INVALID_CREDENTIALS');
     }
   }
@@ -309,14 +321,14 @@ async function loginHandler(req: Request): Promise<NextResponse> {
 
   // Success
   // Fire and forget security event logging (non-blocking)
-  logSecurityEvent('login_success', ip, user.id, { email }).catch((err) =>
+  logSecurityEvent('login_success', ip, user.id, { emailHash }).catch((err) =>
     console.error('Failed to log login success:', err)
   );
 
   // Gửi Email Cảnh báo Đăng nhập Mới (Chạy ngầm hoàn toàn không block request)
   (async () => {
     try {
-      const { sendNewLoginEmail } = await import('@/lib/email-templates');
+      const { sendNewLoginEmail } = await import('@/lib/mail/email-templates');
       const device = req.headers.get('user-agent') || 'Thiết bị không xác định';
       const time = new Date().toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' });
       await sendNewLoginEmail(

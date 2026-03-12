@@ -1,8 +1,9 @@
 import { executeQuery, pool } from '../connection';
 import { RedisLock } from '@/lib/redis/lock';
 import { eventBus } from '@/lib/events/eventBus';
-import { encrypt, decrypt, hashEmail } from '@/lib/encryption';
-import { logger } from '@/lib/logger';
+import { encrypt, decrypt, hashEmail } from '@/lib/security/encryption';
+import { logger } from '@/lib/utils/logger';
+import { isValidStatusTransition, getStockAction } from '@/lib/orders/order-logic';
 
 /**
  * Helper to handle side effects when an order is cancelled or refunded
@@ -115,9 +116,9 @@ export async function createOrder(orderData: {
       `INSERT INTO orders (
         user_id, order_number, subtotal, total, status, notes, 
         is_encrypted, shipping_address_snapshot, phone, email, email_hash,
-        shipping_fee, promotion_code, voucher_discount, giftcard_discount, placed_at
+        shipping_fee, tax, promotion_code, voucher_discount, giftcard_discount, placed_at
       )
-       VALUES (?, ?, ?, ?, 'pending', ?, TRUE, ?, '***', '***', ?, ?, ?, ?, ?, NOW())`,
+       VALUES (?, ?, ?, ?, 'pending', ?, TRUE, ?, '***', '***', ?, ?, ?, ?, ?, ?, NOW())`,
       [
         orderData.userId || null,
         orderData.orderNumber,
@@ -127,6 +128,7 @@ export async function createOrder(orderData: {
         snapshot,
         emailHash,
         shippingFee,
+        orderData.tax || 0,
         orderData.voucherCode || null,
         orderData.voucherDiscount || 0,
         orderData.giftcardDiscount || 0,
@@ -192,6 +194,12 @@ export async function createOrder(orderData: {
       );
       const variantId = variants[0]?.id;
 
+      const [products]: any = await connection.execute(
+        'SELECT cost_price FROM products WHERE id = ? LIMIT 1',
+        [item.productId]
+      );
+      const costPrice = products[0]?.cost_price || 0;
+
       const [stock]: any = await connection.execute(
         'SELECT id FROM inventory WHERE product_variant_id = ? AND quantity >= ? LIMIT 1 FOR UPDATE',
         [variantId, item.quantity]
@@ -205,8 +213,8 @@ export async function createOrder(orderData: {
       );
 
       await connection.execute(
-        `INSERT INTO order_items (order_id, product_id, product_variant_id, inventory_id, product_name, sku, size, quantity, unit_price, total_price)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO order_items (order_id, product_id, product_variant_id, inventory_id, product_name, sku, size, quantity, unit_price, cost_price, total_price)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           orderId,
           item.productId,
@@ -217,6 +225,7 @@ export async function createOrder(orderData: {
           item.size,
           item.quantity,
           item.price,
+          costPrice,
           item.price * item.quantity,
         ]
       );
@@ -270,8 +279,130 @@ export async function getOrdersByUserId(userId: number, page: number = 1, limit:
 }
 
 export async function getOrderByNumber(orderNumber: string) {
-  const [order]: any = await executeQuery(`SELECT * FROM orders WHERE order_number = ?`, [
-    orderNumber,
-  ]);
-  return order;
+  return await executeQuery<any[]>(`SELECT * FROM orders WHERE order_number = ?`, [orderNumber]);
+}
+
+export async function getOrderById(id: number) {
+  const rows = await executeQuery<any[]>(
+    `SELECT o.*, u.full_name as user_name, u.email as user_email 
+     FROM orders o 
+     LEFT JOIN users u ON o.user_id = u.id 
+     WHERE o.id = ?`,
+    [id]
+  );
+  return rows[0] || null;
+}
+
+/**
+ * Update Order Status with Business Logic (Stock, Events, etc.)
+ */
+export async function updateOrderStatus(orderNumber: string, status: string) {
+  const connection = await pool.getConnection();
+
+  try {
+    await connection.beginTransaction();
+
+    // 1. Get current order
+    const [currentOrder]: any = await connection.execute(
+      'SELECT id, status, order_number FROM orders WHERE order_number = ? FOR UPDATE',
+      [orderNumber]
+    );
+
+    if (currentOrder.length === 0) throw new Error('Order not found');
+    const oldStatus = currentOrder[0].status;
+
+    // 2. Validate Transition
+    if (!isValidStatusTransition(oldStatus, status)) {
+      throw new Error(`Invalid status transition from ${oldStatus} to ${status}`);
+    }
+
+    // 3. Determine Stock Action
+    const stockAction = getStockAction(oldStatus, status);
+
+    if (stockAction !== 'none') {
+      const [items]: any = await connection.execute(
+        'SELECT inventory_id, quantity FROM order_items WHERE order_id = ?',
+        [currentOrder[0].id]
+      );
+
+      for (const item of items) {
+        if (stockAction === 'finalize') {
+          // Move from reserved to finalized (already deducted from quantity in createOrder, just clear reserved)
+          await connection.execute(
+            'UPDATE inventory SET reserved = GREATEST(0, reserved - ?) WHERE id = ?',
+            [item.quantity, item.inventory_id]
+          );
+        } else if (stockAction === 'release') {
+          // Restore quantity and clear reserved
+          await connection.execute(
+            'UPDATE inventory SET quantity = quantity + ?, reserved = GREATEST(0, reserved - ?) WHERE id = ?',
+            [item.quantity, item.quantity, item.inventory_id]
+          );
+        }
+      }
+    }
+
+    // 4. If status is refunded, handle side effects
+    if (status === 'refunded') {
+      await refundOrderSideEffects(connection, orderNumber);
+    }
+
+    // 5. Update Status & Timestamps
+    let timestampField = '';
+    if (status === 'cancelled') {
+      timestampField = ', cancelled_at = NOW()';
+    } else if (['payment_received', 'confirmed', 'processing'].includes(status)) {
+      timestampField = ', payment_confirmed_at = COALESCE(payment_confirmed_at, NOW())';
+    } else if (status === 'shipped') {
+      timestampField = ', shipped_at = COALESCE(shipped_at, NOW())';
+    } else if (status === 'delivered') {
+      timestampField = ', delivered_at = COALESCE(delivered_at, NOW())';
+    }
+
+    await connection.execute(
+      `UPDATE orders SET status = ? ${timestampField} WHERE order_number = ?`,
+      [status, orderNumber]
+    );
+
+    await connection.commit();
+
+    // 6. Emit Event
+    if (oldStatus !== status) {
+      eventBus
+        .publish('order.updated', {
+          orderId: currentOrder[0].id,
+          orderNumber,
+          oldStatus,
+          newStatus: status,
+          timestamp: new Date(),
+        })
+        .catch(console.error);
+    }
+
+    return true;
+  } catch (error) {
+    await connection.rollback();
+    throw error;
+  } finally {
+    connection.release();
+  }
+}
+
+/**
+ * Cancel Order Logic (Wraps updateOrderStatus with specific checks)
+ */
+export async function cancelOrder(orderNumber: string, force: boolean = false) {
+  const order = (await getOrderByNumber(orderNumber)) as any;
+  if (!order || order.length === 0) throw new Error('Order not found');
+
+  const currentStatus = order[0].status;
+
+  if (!force) {
+    // Regular users can only cancel pending orders
+    if (currentStatus !== 'pending') {
+      throw new Error('Only pending orders can be cancelled by user');
+    }
+  }
+
+  return await updateOrderStatus(orderNumber, 'cancelled');
 }

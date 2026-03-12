@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getOrdersByUserId, createOrder, executeQuery } from '@/lib/db/mysql';
-import { verifyAuth } from '@/lib/auth';
-import { formatCurrency } from '@/lib/date-utils';
-import { withRateLimit } from '@/lib/with-rate-limit';
+import { verifyAuth } from '@/lib/auth/auth';
+import { formatCurrency } from '@/lib/utils/date-utils';
+import { withRateLimit } from '@/lib/api/with-rate-limit';
 
 // GET - Lấy danh sách đơn hàng
 /**
@@ -376,7 +376,7 @@ async function createOrderHandler(request: NextRequest) {
           );
         }
 
-        const { decrypt } = await import('@/lib/encryption');
+        const { decrypt } = await import('@/lib/security/encryption');
         if (decrypt(card.encrypted_pin) !== providedPin) {
           // Penalty IP
           const newAttempts = currentIpAttempts + 1;

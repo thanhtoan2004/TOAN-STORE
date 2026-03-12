@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createErrorResponse, createSuccessResponse, withErrorHandling } from '@/lib/api-utils';
+import { createErrorResponse, createSuccessResponse, withErrorHandling } from '@/lib/api/api-utils';
 import { executeQuery } from '@/lib/db/mysql';
 import { writeFile, mkdir } from 'fs/promises';
 import { join } from 'path';
-import { sendPaymentReceivedEmail } from '@/lib/mail';
-import { verifyAuth } from '@/lib/auth';
-import { formatCurrency } from '@/lib/date-utils';
+import { sendPaymentReceivedEmail } from '@/lib/mail/mail';
+import { verifyAuth } from '@/lib/auth/auth';
+import { formatCurrency } from '@/lib/utils/date-utils';
 
 async function confirmPaymentHandler(req: NextRequest): Promise<NextResponse> {
   try {
@@ -35,10 +35,9 @@ async function confirmPaymentHandler(req: NextRequest): Promise<NextResponse> {
       return createErrorResponse('Số điện thoại không hợp lệ', 400);
     }
 
-    const orders = await executeQuery(
-      'SELECT * FROM orders WHERE order_number = ?',
-      [orderNumber]
-    ) as any[];
+    const orders = (await executeQuery('SELECT * FROM orders WHERE order_number = ?', [
+      orderNumber,
+    ])) as any[];
 
     if (orders.length === 0) {
       return createErrorResponse('Không tìm thấy đơn hàng', 404);
@@ -61,18 +60,18 @@ async function confirmPaymentHandler(req: NextRequest): Promise<NextResponse> {
 
     const expectedAmount = parseFloat(order.total); // Fixed: DB column is 'total'
     // DB Schema said 'total' in createOrder but let's check mysql.ts again if possible, or just assume 'total' is mapped
-    // Wait, the previous view_file of mysql.ts showed 'total DECIMAL(12, 2) NOT NULL' in CREATE TABLE orders. 
+    // Wait, the previous view_file of mysql.ts showed 'total DECIMAL(12, 2) NOT NULL' in CREATE TABLE orders.
     // BUT in createOrder insert, it uses totalAmount.
-    // Let's assume the column is `total`. 
-    // Wait, I see `const expectedAmount = parseFloat(order.total_amount);` in existing code. 
+    // Let's assume the column is `total`.
+    // Wait, I see `const expectedAmount = parseFloat(order.total_amount);` in existing code.
     // If the existing code has `total_amount`, it might be wrong if the DB column is `total`.
     // I will double check this logic. The provided file content had `total_amount` on line 50.
     // Checking mysql.ts again... `total DECIMAL(12, 2) NOT NULL`.
     // So `order.total_amount` MIGHT BE WRONG if the select * returns `total`.
     // However, I am here to fix Email. I will use what is there but add email.
 
-    // Actually, to be safe, I should probably fix `total_amount` to `total` if I see it's wrong, 
-    // but let's stick to the plan: ADD EMAIL first. 
+    // Actually, to be safe, I should probably fix `total_amount` to `total` if I see it's wrong,
+    // but let's stick to the plan: ADD EMAIL first.
 
     const amountDifference = Math.abs(paymentAmount - expectedAmount);
     const tolerance = 1000;
@@ -126,18 +125,22 @@ async function confirmPaymentHandler(req: NextRequest): Promise<NextResponse> {
     // Send payment received email
     if (order.email) {
       // Fetch authentic name for the email greeting
-      const userDetails = await executeQuery('SELECT full_name FROM users WHERE id = ?', [order.user_id]) as any[];
-      const customerName = userDetails[0]?.full_name?.trim().split(' ')[0]
-        || order.email.split('@')[0];
+      const userDetails = (await executeQuery('SELECT full_name FROM users WHERE id = ?', [
+        order.user_id,
+      ])) as any[];
+      const customerName =
+        userDetails[0]?.full_name?.trim().split(' ')[0] || order.email.split('@')[0];
 
-      sendPaymentReceivedEmail(order.email, customerName, orderNumber, paymentAmount).catch(console.error);
+      sendPaymentReceivedEmail(order.email, customerName, orderNumber, paymentAmount).catch(
+        console.error
+      );
     }
 
     return createSuccessResponse(
       {
         orderNumber,
         amount: paymentAmount,
-        status: 'pending_confirmation'
+        status: 'pending_confirmation',
       },
       'Xác nhận thanh toán thành công! Đơn hàng sẽ được xử lý trong vòng 1-2 giờ làm việc.'
     );
@@ -149,5 +152,3 @@ async function confirmPaymentHandler(req: NextRequest): Promise<NextResponse> {
 }
 
 export const POST = withErrorHandling(confirmPaymentHandler);
-
-

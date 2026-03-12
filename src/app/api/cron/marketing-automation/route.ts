@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { executeQuery } from '@/lib/db/mysql';
-import { sendCustomerSurveyEmail, sendMonthlyDigestEmail } from '@/lib/email-templates';
+import { sendCustomerSurveyEmail, sendMonthlyDigestEmail } from '@/lib/mail/email-templates';
 
 /**
  * Cron Job: Marketing Automation.

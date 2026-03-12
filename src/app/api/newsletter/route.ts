@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { executeQuery } from '@/lib/db/mysql';
-import { withRateLimit } from '@/lib/with-rate-limit';
-import { hashEmail } from '@/lib/encryption';
+import { withRateLimit } from '@/lib/api/with-rate-limit';
+import { hashEmail } from '@/lib/security/encryption';
 
 /**
  * API Đăng ký bản tin (Newsletter Subscription).

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import bcrypt from 'bcrypt';
 import { executeQuery } from '@/lib/db/mysql';
-import { verifyAuth } from '@/lib/auth';
+import { verifyAuth } from '@/lib/auth/auth';
 
 /**
  * API Đổi mật khẩu người dùng (Change Password).
@@ -14,20 +14,17 @@ export async function POST(request: NextRequest) {
   try {
     const session = await verifyAuth();
     if (!session) {
-      return NextResponse.json(
-        { success: false, message: 'Unauthorized' },
-        { status: 401 }
-      );
+      return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
     }
 
     const body = await request.json();
     const { currentPassword, newPassword } = body;
 
     // Get current user
-    const users = await executeQuery(
+    const users = (await executeQuery(
       'SELECT id, password, email, first_name FROM users WHERE id = ?',
       [session.userId]
-    ) as any[];
+    )) as any[];
 
     if (users.length === 0) {
       return NextResponse.json(
@@ -60,20 +57,15 @@ export async function POST(request: NextRequest) {
     const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || '127.0.0.1';
     const time = new Date().toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' });
     try {
-      const { sendPasswordChangedEmail } = await import('@/lib/email-templates');
-      await sendPasswordChangedEmail(
-        user.email,
-        user.first_name || 'bạn',
-        time,
-        ip
-      );
+      const { sendPasswordChangedEmail } = await import('@/lib/mail/email-templates');
+      await sendPasswordChangedEmail(user.email, user.first_name || 'bạn', time, ip);
     } catch (error) {
       console.warn('Could not load email templates:', error);
     }
 
     return NextResponse.json({
       success: true,
-      message: 'Đổi mật khẩu thành công'
+      message: 'Đổi mật khẩu thành công',
     });
   } catch (error) {
     console.error('Lỗi đổi mật khẩu:', error);

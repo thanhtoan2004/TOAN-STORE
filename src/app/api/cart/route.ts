@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCart, addToCart, clearCart } from '@/lib/db/mysql';
 import { findVariantBySize, checkStock } from '@/lib/db/variants';
-import { verifyAuth } from '@/lib/auth';
-import { withRateLimit } from '@/lib/with-rate-limit';
-import { getCache, setCache, invalidateCache } from '@/lib/cache';
+import { verifyAuth } from '@/lib/auth/auth';
+import { withRateLimit } from '@/lib/api/with-rate-limit';
+import { getCache, setCache, invalidateCache } from '@/lib/redis/cache';
 
 // GET - Lấy giỏ hàng của user
 /**

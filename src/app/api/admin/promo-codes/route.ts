@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { executeQuery } from '@/lib/db/mysql';
-import { invalidateCache } from '@/lib/cache';
-import { checkAdminAuth } from '@/lib/auth';
+import { invalidateCache } from '@/lib/redis/cache';
+import { checkAdminAuth } from '@/lib/auth/auth';
 
 // GET - Lấy danh sách coupons (cho admin)
 /**

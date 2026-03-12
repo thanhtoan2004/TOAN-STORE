@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { executeQuery } from '@/lib/db/mysql';
-import { getCache, setCache } from '@/lib/cache';
+import { getCache, setCache } from '@/lib/redis/cache';
 
 const CATEGORIES_CACHE_KEY = 'global:categories';
 const CACHE_TTL = 3600; // 1 hour
@@ -17,7 +17,7 @@ export async function GET() {
       return NextResponse.json({
         success: true,
         data: cachedData,
-        cached: true
+        cached: true,
       });
     }
 
@@ -44,7 +44,7 @@ export async function GET() {
     return NextResponse.json({
       success: true,
       data: result,
-      cached: false
+      cached: false,
     });
   } catch (error) {
     console.error('Error fetching categories:', error);

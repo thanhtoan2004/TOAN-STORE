@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { executeQuery } from '@/lib/db/mysql';
-import { hashEmail } from '@/lib/encryption';
+import { hashEmail } from '@/lib/security/encryption';
 
 export async function POST(request: NextRequest) {
   try {

@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { executeQuery } from '@/lib/db/mysql';
-import { checkAdminAuth } from '@/lib/auth';
-import { sendWishlistSaleEmail } from '@/lib/email-templates';
-import { syncProductToMeilisearch, deleteProductFromMeilisearch } from '@/lib/meilisearch';
-import { logAdminAction } from '@/lib/audit';
-import { invalidateCachePattern } from '@/lib/cache';
+import { checkAdminAuth } from '@/lib/auth/auth';
+import { sendWishlistSaleEmail } from '@/lib/mail/email-templates';
+import { syncProductToMeilisearch, deleteProductFromMeilisearch } from '@/lib/search/meilisearch';
+import { logAdminAction } from '@/lib/security/audit';
+import { invalidateCachePattern } from '@/lib/redis/cache';
 
 // ... (GET method unchanged)
 // GET - Lấy chi tiết sản phẩm

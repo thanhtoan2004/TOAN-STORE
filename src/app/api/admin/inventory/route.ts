@@ -7,8 +7,8 @@ import {
   stores as warehouses,
 } from '@/lib/db/schema';
 import { eq, and, sql, asc, count } from 'drizzle-orm';
-import { ResponseWrapper } from '@/lib/api-response';
-import { logger } from '@/lib/logger';
+import { ResponseWrapper } from '@/lib/api/api-response';
+import { logger } from '@/lib/utils/logger';
 import { withPermission } from '@/lib/auth/rbac-api';
 
 /**
@@ -158,7 +158,7 @@ export const POST = withPermission('manage:inventory', async (request: Request) 
               .where(eq(wishlistItems.productId, product.id));
 
             if (interestedUsers.length > 0) {
-              const { sendWishlistRestockEmail } = await import('@/lib/email-templates');
+              const { sendWishlistRestockEmail } = await import('@/lib/mail/email-templates');
               // Fire and forget (or at least don't block response)
               interestedUsers.forEach((user) => {
                 sendWishlistRestockEmail(

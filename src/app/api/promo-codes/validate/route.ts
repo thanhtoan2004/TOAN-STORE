@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createErrorResponse, createSuccessResponse, withErrorHandling } from '@/lib/api-utils';
+import { createErrorResponse, createSuccessResponse, withErrorHandling } from '@/lib/api/api-utils';
 import { executeQuery } from '@/lib/db/mysql';
 
-import { verifyAuth } from '@/lib/auth';
+import { verifyAuth } from '@/lib/auth/auth';
 
 /**
  * API Kiểm tra tính hợp lệ của mã giảm giá (Voucher/Coupon).
@@ -38,7 +38,7 @@ async function validateCouponHandler(req: NextRequest): Promise<NextResponse> {
 
       if (!cartItems || !Array.isArray(cartItems)) return false; // Allowed categories set but no items provided
 
-      return cartItems.some(item => allowedIds.includes(Number(item.categoryId)));
+      return cartItems.some((item) => allowedIds.includes(Number(item.categoryId)));
     } catch (e) {
       return true; // JSON parse error, fail-safe
     }
@@ -46,10 +46,10 @@ async function validateCouponHandler(req: NextRequest): Promise<NextResponse> {
 
   // Tier ranking for comparison
   const TIER_RANK: Record<string, number> = {
-    'bronze': 0,
-    'silver': 1,
-    'gold': 2,
-    'platinum': 3
+    bronze: 0,
+    silver: 1,
+    gold: 2,
+    platinum: 3,
   };
 
   const isTierValid = (userTier: string | undefined, applicableTier: string | null) => {
@@ -62,10 +62,9 @@ async function validateCouponHandler(req: NextRequest): Promise<NextResponse> {
   // Get user tier if logged in
   let userTier = 'bronze';
   if (userId) {
-    const userResult = await executeQuery<any[]>(
-      'SELECT membership_tier FROM users WHERE id = ?',
-      [userId]
-    );
+    const userResult = await executeQuery<any[]>('SELECT membership_tier FROM users WHERE id = ?', [
+      userId,
+    ]);
     if (userResult.length > 0) {
       userTier = userResult[0].membership_tier;
     }
@@ -99,17 +98,26 @@ async function validateCouponHandler(req: NextRequest): Promise<NextResponse> {
 
     // NEW: Check membership tier
     if (!isTierValid(userTier, voucher.applicable_tier)) {
-      return createErrorResponse(`Mã này yêu cầu hạng thành viên từ ${voucher.applicable_tier.toUpperCase()} trở lên`, 400);
+      return createErrorResponse(
+        `Mã này yêu cầu hạng thành viên từ ${voucher.applicable_tier.toUpperCase()} trở lên`,
+        400
+      );
     }
 
     // Check minimum order amount for voucher
     if (voucher.min_order_value && orderAmount < voucher.min_order_value) {
-      return createErrorResponse(`Mã này yêu cầu đơn hàng tối thiểu ${new Intl.NumberFormat('vi-VN').format(voucher.min_order_value)}đ`, 400);
+      return createErrorResponse(
+        `Mã này yêu cầu đơn hàng tối thiểu ${new Intl.NumberFormat('vi-VN').format(voucher.min_order_value)}đ`,
+        400
+      );
     }
 
     // Check category restriction
     if (!isCategoryValid(voucher.applicable_categories, items)) {
-      return createErrorResponse('Mã này không áp dụng cho các sản phẩm trong giỏ hàng của bạn', 400);
+      return createErrorResponse(
+        'Mã này không áp dụng cho các sản phẩm trong giỏ hàng của bạn',
+        400
+      );
     }
 
     return createSuccessResponse(
@@ -119,9 +127,10 @@ async function validateCouponHandler(req: NextRequest): Promise<NextResponse> {
         description: voucher.description || 'Mã giảm giá cá nhân',
         discountType: voucher.discount_type,
         discountValue: voucher.value,
-        discountAmount: voucher.discount_type === 'percent'
-          ? Math.min(Math.round((orderAmount * voucher.value) / 100), orderAmount)
-          : Math.min(voucher.value, orderAmount)
+        discountAmount:
+          voucher.discount_type === 'percent'
+            ? Math.min(Math.round((orderAmount * voucher.value) / 100), orderAmount)
+            : Math.min(voucher.value, orderAmount),
       },
       'Áp dụng mã giảm giá thành công'
     );
@@ -131,12 +140,18 @@ async function validateCouponHandler(req: NextRequest): Promise<NextResponse> {
 
   // NEW: Check membership tier
   if (!isTierValid(userTier, coupon.applicable_tier)) {
-    return createErrorResponse(`Mã này yêu cầu hạng thành viên từ ${coupon.applicable_tier.toUpperCase()} trở lên`, 400);
+    return createErrorResponse(
+      `Mã này yêu cầu hạng thành viên từ ${coupon.applicable_tier.toUpperCase()} trở lên`,
+      400
+    );
   }
 
   // Check minimum order amount
   if (coupon.min_order_amount && orderAmount < coupon.min_order_amount) {
-    return createErrorResponse(`Đơn hàng tối thiểu ${new Intl.NumberFormat('vi-VN').format(coupon.min_order_amount)}đ để áp dụng mã này`, 400);
+    return createErrorResponse(
+      `Đơn hàng tối thiểu ${new Intl.NumberFormat('vi-VN').format(coupon.min_order_amount)}đ để áp dụng mã này`,
+      400
+    );
   }
 
   // Check category restriction
@@ -179,7 +194,7 @@ async function validateCouponHandler(req: NextRequest): Promise<NextResponse> {
       description: coupon.description,
       discountType: coupon.discount_type,
       discountValue: coupon.discount_value,
-      discountAmount
+      discountAmount,
     },
     'Áp dụng mã giảm giá thành công'
   );

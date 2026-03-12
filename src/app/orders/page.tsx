@@ -4,9 +4,9 @@ import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useLanguage } from '@/contexts/LanguageContext';
-import { Button } from "@/components/ui/Button";
+import { Button } from '@/components/ui/Button';
 import { Package } from 'lucide-react';
-import { formatDateTime, formatCurrency } from '@/lib/date-utils';
+import { formatDateTime, formatCurrency } from '@/lib/utils/date-utils';
 import { useCart } from '@/contexts/CartContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
@@ -48,7 +48,9 @@ export default function OrdersPage() {
           return;
         }
 
-        const ordersRes = await fetch(`/api/orders?userId=${authUser.id}&page=${page}&limit=${limit}`);
+        const ordersRes = await fetch(
+          `/api/orders?userId=${authUser.id}&page=${page}&limit=${limit}`
+        );
 
         if (!ordersRes.ok) {
           throw new Error('Failed to fetch orders');
@@ -57,18 +59,26 @@ export default function OrdersPage() {
         const data = await ordersRes.json();
 
         // Transform API data to match Order interface
-        const transformedOrders = data.orders?.map((order: any) => ({
-          orderNumber: order.order_number,
-          orderDate: formatDateTime(order.placed_at),
-          status: order.status === 'pending' ? 'pending' :
-            order.status === 'processing' ? 'confirmed' :
-              order.status === 'shipped' ? 'shipping' :
-                order.status === 'delivered' ? 'delivered' :
-                  order.status === 'cancelled' ? 'cancelled' : order.status,
-          totalAmount: parseFloat(order.total),
-          itemCount: order.item_count || 0,
-          previewImage: order.preview_image || '/placeholder-product.png'
-        })) || [];
+        const transformedOrders =
+          data.orders?.map((order: any) => ({
+            orderNumber: order.order_number,
+            orderDate: formatDateTime(order.placed_at),
+            status:
+              order.status === 'pending'
+                ? 'pending'
+                : order.status === 'processing'
+                  ? 'confirmed'
+                  : order.status === 'shipped'
+                    ? 'shipping'
+                    : order.status === 'delivered'
+                      ? 'delivered'
+                      : order.status === 'cancelled'
+                        ? 'cancelled'
+                        : order.status,
+            totalAmount: parseFloat(order.total),
+            itemCount: order.item_count || 0,
+            previewImage: order.preview_image || '/placeholder-product.png',
+          })) || [];
 
         setOrders(transformedOrders);
         setTotalPages(data.pagination?.totalPages || 1);
@@ -105,7 +115,6 @@ export default function OrdersPage() {
     }
   };
 
-
   const handlePageChange = (newPage: number) => {
     if (newPage >= 1 && newPage <= totalPages) {
       setPage(newPage);
@@ -136,7 +145,7 @@ export default function OrdersPage() {
       const itemsToReorder = orderItems.map((item: any) => ({
         productId: item.product_id,
         quantity: item.quantity,
-        size: item.size
+        size: item.size,
       }));
 
       // 3. Gọi hàm bulk add
@@ -207,9 +216,7 @@ export default function OrdersPage() {
             <h2 className="text-2xl font-helvetica-medium mb-4">{t.orders.empty}</h2>
             <p className="text-gray-600 mb-8">{t.orders.empty_desc}</p>
             <Link href="/">
-              <Button className="rounded-full px-6 py-6">
-                {t.orders.shop_now}
-              </Button>
+              <Button className="rounded-full px-6 py-6">{t.orders.shop_now}</Button>
             </Link>
           </div>
         ) : (
@@ -217,7 +224,8 @@ export default function OrdersPage() {
           <div className="space-y-6">
             <div className="flex items-center justify-between">
               <h2 className="text-xl font-helvetica-medium">
-                {t.orders.total_orders.replace('{count}', orders.length.toString())} (Page {page}/{totalPages})
+                {t.orders.total_orders.replace('{count}', orders.length.toString())} (Page {page}/
+                {totalPages})
               </h2>
               <div className="flex items-center space-x-4">
                 <select className="border border-gray-300 rounded-lg px-4 py-2">
@@ -233,7 +241,10 @@ export default function OrdersPage() {
 
             <div className="space-y-4">
               {orders.map((order) => (
-                <div key={order.orderNumber} className="bg-white rounded-lg shadow-sm border p-6 hover:shadow-md transition-shadow">
+                <div
+                  key={order.orderNumber}
+                  className="bg-white rounded-lg shadow-sm border p-6 hover:shadow-md transition-shadow"
+                >
                   <div className="grid grid-cols-1 md:grid-cols-4 gap-6 items-center">
                     {/* Order Image & Info */}
                     <div className="flex items-center space-x-4">
@@ -246,27 +257,37 @@ export default function OrdersPage() {
                       />
                       <div>
                         <h3 className="font-helvetica-medium">#{order.orderNumber}</h3>
-                        <p className="text-sm text-gray-600">{order.itemCount} {t.orders.items}</p>
+                        <p className="text-sm text-gray-600">
+                          {order.itemCount} {t.orders.items}
+                        </p>
                         <p className="text-sm text-gray-600">{order.orderDate}</p>
                       </div>
                     </div>
 
                     {/* Status */}
                     <div>
-                      <span className={`inline-block px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(order.status)}`}>
+                      <span
+                        className={`inline-block px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(order.status)}`}
+                      >
                         {t.orders[order.status as keyof typeof t.orders] || order.status}
                       </span>
                     </div>
 
                     {/* Total Amount */}
                     <div className="text-right md:text-left">
-                      <p className="font-helvetica-medium text-lg">{formatCurrency(order.totalAmount)}</p>
+                      <p className="font-helvetica-medium text-lg">
+                        {formatCurrency(order.totalAmount)}
+                      </p>
                     </div>
 
                     {/* Actions */}
                     <div className="flex space-x-2 justify-end">
                       <Link href={`/orders/${order.orderNumber}`}>
-                        <Button variant="outline" size="sm" className="rounded-full border-black text-black hover:bg-black hover:text-white">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="rounded-full border-black text-black hover:bg-black hover:text-white"
+                        >
                           {t.orders.view_detail}
                         </Button>
                       </Link>
@@ -283,11 +304,17 @@ export default function OrdersPage() {
                               <div className="w-3 h-3 border-2 border-gray-400 border-t-transparent rounded-full animate-spin"></div>
                               <span>Đang xử lý...</span>
                             </div>
-                          ) : t.orders.buy_again}
+                          ) : (
+                            t.orders.buy_again
+                          )}
                         </Button>
                       )}
                       {order.status === 'shipping' && (
-                        <Button variant="outline" size="sm" className="rounded-full border-blue-500 text-blue-500 hover:bg-blue-50">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="rounded-full border-blue-500 text-blue-500 hover:bg-blue-50"
+                        >
                           {t.orders.track_order}
                         </Button>
                       )}
@@ -314,7 +341,7 @@ export default function OrdersPage() {
                     <Button
                       key={p}
                       onClick={() => handlePageChange(p)}
-                      variant={page === p ? "default" : "outline"}
+                      variant={page === p ? 'default' : 'outline'}
                       className={`rounded-full ${page !== p ? 'border-gray-300' : ''}`}
                     >
                       {p}

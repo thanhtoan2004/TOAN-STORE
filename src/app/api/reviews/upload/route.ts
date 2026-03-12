@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import path from 'path';
-import { verifyAuth } from '@/lib/auth';
-import { uploadImage } from '@/lib/cloudinary';
+import { verifyAuth } from '@/lib/auth/auth';
+import { uploadImage } from '@/lib/images/cloudinary';
 
 const ALLOWED_IMAGE_TYPES = ['.jpg', '.jpeg', '.png', '.webp', '.gif'];
 const ALLOWED_VIDEO_TYPES = ['.mp4', '.webm', '.mov'];

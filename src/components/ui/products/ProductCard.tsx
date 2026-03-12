@@ -1,12 +1,12 @@
-"use client";
-import React from "react";
-import Link from "next/link";
-import Image from "next/image";
-import { Heart, GitCompareArrows } from "lucide-react";
-import { useWishlist } from "@/contexts/WishlistContext";
-import { useComparison } from "@/contexts/ComparisonContext";
-import { useLanguage } from "@/contexts/LanguageContext";
-import { imageService } from "@/lib/image-service";
+'use client';
+import React from 'react';
+import Link from 'next/link';
+import Image from 'next/image';
+import { Heart, GitCompareArrows } from 'lucide-react';
+import { useWishlist } from '@/contexts/WishlistContext';
+import { useComparison } from '@/contexts/ComparisonContext';
+import { useLanguage } from '@/contexts/LanguageContext';
+import { imageService } from '@/lib/images/image-service';
 
 interface ProductCardProps {
   id: string;
@@ -33,18 +33,15 @@ const ProductCard = ({
 }: ProductCardProps) => {
   // Kiểm tra nếu sale_price có giá trị và nhỏ hơn giá gốc, tính % giảm giá
   const hasDiscount = sale_price && sale_price < price;
-  const discountPercent = hasDiscount
-    ? Math.round(((price - sale_price) / price) * 100)
-    : 0;
+  const discountPercent = hasDiscount ? Math.round(((price - sale_price) / price) * 100) : 0;
 
   // Hàm xử lý giá tiền để đảm bảo nó luôn là số và có thể gọi .toFixed()
   const formatPrice = (price: number | undefined) => {
-    if (typeof price !== "number" || isNaN(price)) {
-      return "0";
+    if (typeof price !== 'number' || isNaN(price)) {
+      return '0';
     }
     return price.toLocaleString('vi-VN');
   };
-
 
   const { addToWishlist, removeFromWishlist, isInWishlist } = useWishlist();
   const inWishlist = isInWishlist(id);
@@ -68,7 +65,15 @@ const ProductCard = ({
     e.stopPropagation();
 
     // Debugging comparison values
-    console.log('Adding to compare:', { id, name, category, price, sale_price, image_url, is_new_arrival });
+    console.log('Adding to compare:', {
+      id,
+      name,
+      category,
+      price,
+      sale_price,
+      image_url,
+      is_new_arrival,
+    });
 
     if (inCompare) {
       removeFromCompare(id);
@@ -96,7 +101,11 @@ const ProductCard = ({
               className="p-1 rounded-full bg-white/80 hover:bg-white shadow transition-all duration-200"
               aria-label={inWishlist ? 'Bỏ khỏi yêu thích' : 'Thêm vào yêu thích'}
             >
-              <Heart size={22} className={`transition-colors duration-200 ${inWishlist ? 'text-red-500 fill-red-500' : 'text-gray-400 hover:text-red-500'}`} fill={inWishlist ? 'currentColor' : 'none'} />
+              <Heart
+                size={22}
+                className={`transition-colors duration-200 ${inWishlist ? 'text-red-500 fill-red-500' : 'text-gray-400 hover:text-red-500'}`}
+                fill={inWishlist ? 'currentColor' : 'none'}
+              />
             </button>
             <button
               onClick={handleCompare}
@@ -130,22 +139,14 @@ const ProductCard = ({
             <div className="text-right">
               {hasDiscount ? (
                 <div className="flex flex-col items-start">
-                  <span className="font-semibold text-red-600">
-                    {formatPrice(sale_price)} ₫
-                  </span>
-                  <span className="text-sm text-gray-500 line-through">
-                    {formatPrice(price)} ₫
-                  </span>
+                  <span className="font-semibold text-red-600">{formatPrice(sale_price)} ₫</span>
+                  <span className="text-sm text-gray-500 line-through">{formatPrice(price)} ₫</span>
                 </div>
               ) : (
-                <span className="font-semibold text-black">
-                  {formatPrice(price)} ₫
-                </span>
+                <span className="font-semibold text-black">{formatPrice(price)} ₫</span>
               )}
             </div>
-            {colors > 1 && (
-              <div className="text-sm text-gray-500">{colors} màu</div>
-            )}
+            {colors > 1 && <div className="text-sm text-gray-500">{colors} màu</div>}
           </div>
         </div>
       </div>
@@ -154,4 +155,3 @@ const ProductCard = ({
 };
 
 export default ProductCard;
-

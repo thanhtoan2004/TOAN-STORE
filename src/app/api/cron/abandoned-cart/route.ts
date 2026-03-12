@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { executeQuery } from '@/lib/db/mysql';
-import { sendAbandonedCartEmail } from '@/lib/email-templates';
+import { sendAbandonedCartEmail } from '@/lib/mail/email-templates';
 
 /**
  * Cron Job: Gửi Email nhắc nhở giỏ hàng bị bỏ quên (Abandoned Cart).
@@ -9,20 +9,17 @@ import { sendAbandonedCartEmail } from '@/lib/email-templates';
  * Bảo mật: Yêu cầu CRON_SECRET trong Header Authorization.
  */
 export async function GET(request: Request) {
-    try {
-        const authHeader = request.headers.get('authorization');
-        const cronSecret = process.env.CRON_SECRET;
+  try {
+    const authHeader = request.headers.get('authorization');
+    const cronSecret = process.env.CRON_SECRET;
 
-        // Security: ALWAYS require CRON_SECRET
-        if (!cronSecret || authHeader !== `Bearer ${cronSecret}`) {
-            return NextResponse.json(
-                { success: false, message: 'Unauthorized' },
-                { status: 401 }
-            );
-        }
+    // Security: ALWAYS require CRON_SECRET
+    if (!cronSecret || authHeader !== `Bearer ${cronSecret}`) {
+      return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
+    }
 
-        // Find carts inactive for > 24 hours that have items and belong to active users
-        const abandonedCarts = await executeQuery<any[]>(`
+    // Find carts inactive for > 24 hours that have items and belong to active users
+    const abandonedCarts = await executeQuery<any[]>(`
             SELECT 
                 c.id as cart_id,
                 c.user_id,
@@ -50,34 +47,36 @@ export async function GET(request: Request) {
             LIMIT 50
         `);
 
-        let sentCount = 0;
+    let sentCount = 0;
 
-        for (const cart of abandonedCarts) {
-            try {
-                await sendAbandonedCartEmail(
-                    cart.email,
-                    cart.first_name || 'Bạn',
-                    cart.item_count,
-                    cart.cart_total,
-                    cart.product_names
-                );
-                sentCount++;
-            } catch (emailErr) {
-                console.error(`Failed to send abandoned cart email to ${cart.email}:`, emailErr);
-            }
-        }
-
-        return NextResponse.json({
-            success: true,
-            message: `Sent ${sentCount} abandoned cart emails out of ${abandonedCarts.length} found.`,
-            timestamp: new Date().toISOString()
-        });
-
-    } catch (error) {
-        console.error('Abandoned cart cron error:', error);
-        return NextResponse.json({
-            success: false,
-            message: 'Abandoned cart cron failed'
-        }, { status: 500 });
+    for (const cart of abandonedCarts) {
+      try {
+        await sendAbandonedCartEmail(
+          cart.email,
+          cart.first_name || 'Bạn',
+          cart.item_count,
+          cart.cart_total,
+          cart.product_names
+        );
+        sentCount++;
+      } catch (emailErr) {
+        console.error(`Failed to send abandoned cart email to ${cart.email}:`, emailErr);
+      }
     }
+
+    return NextResponse.json({
+      success: true,
+      message: `Sent ${sentCount} abandoned cart emails out of ${abandonedCarts.length} found.`,
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error) {
+    console.error('Abandoned cart cron error:', error);
+    return NextResponse.json(
+      {
+        success: false,
+        message: 'Abandoned cart cron failed',
+      },
+      { status: 500 }
+    );
+  }
 }

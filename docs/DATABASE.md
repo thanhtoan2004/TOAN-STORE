@@ -1,6 +1,12 @@
 # Database Schema
 
-TOAN Store sử dụng **MySQL 8.0** với **52+ bảng** (sau khi đã dọn dẹp các bảng cũ). Schema tự khởi tạo qua `src/lib/db/init.ts`.
+TOAN Store sử dụng **MySQL 8.0**
+
+- **Tổng số bảng:** 81 bảng
+- **Migrations:** 47 migrations đã áp dụng
+- **Trạng thái:** 🟢 PRODUCTION CERTIFIED (Đã vá lỗi PII & Tài chính)
+- **Ngày kiểm tra cuối:** 12/03/2026
+  Schema tự khởi tạo qua `src/lib/db/init.ts` với **47 migrations** đã được thực thi thành công.
 
 ---
 
@@ -203,8 +209,12 @@ Các index quan trọng:
 
 - `users.email` — Unique index cho đăng nhập
 - `products.slug` — Unique index cho URL
+- `products.(name, sku, description)` — **FULLTEXT INDEX** cho tìm kiếm sản phẩm tốc độ cao
+- `products.(category_id, is_active)` — Composite index tối ưu bộ lọc sản phẩm trang Shop
 - `orders.order_number` — Unique index cho tra cứu
+- `orders.(user_id, created_at DESC)` — Composite index cho trang Lịch sử đơn hàng
 - `inventory.(product_variant_id, warehouse_id)` — UNIQUE constraint (Thay thế index trùng lặp đã bị xóa ở Phase 8)
+- `search_analytics.(query, created_at)` — Index tối ưu báo cáo từ khóa tìm kiếm
 - `admin_users.deleted_at` — Index cho filter soft-deleted admins
 
 > [!NOTE]

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import AdminLayout from '@/components/admin/AdminLayout';
-import { formatDate } from '@/lib/date-utils';
+import { formatDate } from '@/lib/utils/date-utils';
 
 interface User {
   id: number;

@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { executeQuery } from '@/lib/db/mysql';
-import { verifyAuth } from '@/lib/auth';
-import { getRedisConnection } from '@/lib/redis';
-import { sendEmail } from '@/lib/mail';
+import { verifyAuth } from '@/lib/auth/auth';
+import { getRedisConnection } from '@/lib/redis/redis';
+import { sendEmail } from '@/lib/mail/mail';
 import crypto from 'crypto';
-import { hashEmail } from '@/lib/encryption';
+import { hashEmail } from '@/lib/security/encryption';
 
 /**
  * API Tạo và gửi mã OTP (One-Time Password) qua Email.

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { executeQuery } from '@/lib/db/mysql';
-import { checkAdminAuth } from '@/lib/auth';
+import { checkAdminAuth } from '@/lib/auth/auth';
 
 /**
  * POST - Add product to flash sale

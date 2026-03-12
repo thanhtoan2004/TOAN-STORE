@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import AdminLayout from '@/components/admin/AdminLayout';
-import { formatDate } from '@/lib/date-utils';
+import { formatDate } from '@/lib/utils/date-utils';
 
 interface Contact {
   id: number;
@@ -32,7 +32,7 @@ export default function AdminContactPage() {
     try {
       const params = new URLSearchParams({
         page: page.toString(),
-        limit: '20'
+        limit: '20',
       });
       if (search) params.append('search', search);
       if (status !== 'all') params.append('status', status);
@@ -56,7 +56,7 @@ export default function AdminContactPage() {
       const response = await fetch(`/api/admin/contact/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: newStatus })
+        body: JSON.stringify({ status: newStatus }),
       });
 
       if (response.ok) {
@@ -118,9 +118,7 @@ export default function AdminContactPage() {
                       <p className="text-sm text-gray-600 mt-1">
                         {contact.name} ({contact.email})
                       </p>
-                      <p className="text-xs text-gray-500 mt-1">
-                        {formatDate(contact.created_at)}
-                      </p>
+                      <p className="text-xs text-gray-500 mt-1">{formatDate(contact.created_at)}</p>
                     </div>
                     <select
                       value={contact.status}
@@ -138,9 +136,7 @@ export default function AdminContactPage() {
                     <div className="mt-4 pt-4 border-t">
                       <p className="text-sm text-gray-700 whitespace-pre-wrap">{contact.message}</p>
                       {contact.phone && (
-                        <p className="text-sm text-gray-600 mt-2">
-                          Điện thoại: {contact.phone}
-                        </p>
+                        <p className="text-sm text-gray-600 mt-2">Điện thoại: {contact.phone}</p>
                       )}
                     </div>
                   )}
@@ -159,7 +155,9 @@ export default function AdminContactPage() {
             >
               Trước
             </button>
-            <span className="px-4 py-2">Trang {page} / {totalPages}</span>
+            <span className="px-4 py-2">
+              Trang {page} / {totalPages}
+            </span>
             <button
               onClick={() => setPage(Math.min(totalPages, page + 1))}
               disabled={page === totalPages}

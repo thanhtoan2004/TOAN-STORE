@@ -1,5 +1,10 @@
 import { executeQuery } from '../mysql';
 
+/**
+ * Repository xử lý Yêu cầu Hoàn tiền (Refund Requests).
+ * Hỗ trợ quy trình: Khách gửi yêu cầu -> Admin xét duyệt -> Hoàn tiền & Cập nhật trạng thái đơn.
+ */
+
 export interface RefundRequest {
   id: number;
   order_id: number;
@@ -13,6 +18,10 @@ export interface RefundRequest {
   updated_at: string;
 }
 
+/**
+ * Tạo mới một yêu cầu hoàn tiền.
+ * @param images Mảng URL hình ảnh minh chứng (lỗi sản phẩm, sai hàng...)
+ */
 export async function createRefundRequest(
   userId: number,
   orderId: number,
@@ -98,6 +107,12 @@ export async function getAllRefunds(
   };
 }
 
+/**
+ * Cập nhật trạng thái yêu cầu hoàn tiền (Approved/Rejected).
+ * ĐẶC BIỆT: Nếu trạng thái là 'approved', hàm sẽ tự động kích hoạt logic:
+ * 1. Chuyển trạng thái đơn hàng sang 'refunded'.
+ * 2. Kích hoạt logic Hoàn kho (Stock Release) và Thu hồi điểm thưởng.
+ */
 export async function updateRefundStatus(
   id: number,
   status: string,
@@ -113,8 +128,8 @@ export async function updateRefundStatus(
     try {
       const rows = await executeQuery<any[]>(
         `SELECT r.order_id, r.amount, r.reason 
-                 FROM refund_requests r
-                 WHERE r.id = ?`,
+                   FROM refund_requests r
+                   WHERE r.id = ?`,
         [id]
       );
 
@@ -124,7 +139,7 @@ export async function updateRefundStatus(
         // 1. Create record in refunds table (Point 7)
         await executeQuery(
           `INSERT INTO refunds (order_id, request_id, refund_amount, status, reason)
-                     VALUES (?, ?, ?, 'completed', ?)`,
+                       VALUES (?, ?, ?, 'completed', ?)`,
           [order_id, id, amount, reason]
         );
 

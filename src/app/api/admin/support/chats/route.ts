@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAdminChats } from '@/lib/db/supportChat';
-import { checkAdminAuth } from '@/lib/auth';
+import { checkAdminAuth } from '@/lib/auth/auth';
 
 /**
  * API Lấy danh sách các phiên Chat hỗ trợ (Support Sessions).

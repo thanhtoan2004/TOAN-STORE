@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { cn } from '@/lib/utils';
+import { cn } from '@/lib/utils/utils';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 
@@ -38,7 +38,7 @@ export default function SignupPage() {
         firstName,
         lastName,
         dateOfBirth,
-        gender
+        gender,
       });
 
       if (success) {
@@ -59,9 +59,7 @@ export default function SignupPage() {
       <div className="max-w-md mx-auto bg-white p-8 rounded-lg shadow-sm border">
         <div className="mb-8 text-center">
           <h1 className="text-3xl font-bold uppercase mb-2">{t.auth.create_account}</h1>
-          <p className="text-sm text-gray-500">
-            {t.auth.sign_up_desc}
-          </p>
+          <p className="text-sm text-gray-500">{t.auth.sign_up_desc}</p>
         </div>
 
         {error && (
@@ -110,7 +108,7 @@ export default function SignupPage() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               className="w-full p-3 border rounded focus:outline-none focus:ring-2 focus:ring-black"
-              placeholder={t.footer.email_placeholder || "name@example.com"}
+              placeholder={t.footer.email_placeholder || 'name@example.com'}
               required
             />
           </div>
@@ -146,9 +144,7 @@ export default function SignupPage() {
           </div>
 
           <div className="mb-6">
-            <label className="block text-sm font-helvetica-medium mb-1">
-              {t.common.gender}
-            </label>
+            <label className="block text-sm font-helvetica-medium mb-1">{t.common.gender}</label>
             <div className="flex space-x-4">
               <label className="flex items-center">
                 <input
@@ -195,8 +191,16 @@ export default function SignupPage() {
                 required
               />
               <span className="ml-2 text-xs text-gray-600">
-                {t.auth.agree_prefix} <Link href="/terms" className="underline">{t.footer.terms_use}</Link> {t.auth.and}
-                <Link href="/privacy" className="underline"> {t.footer.privacy}</Link> {t.auth.agree_suffix}
+                {t.auth.agree_prefix}{' '}
+                <Link href="/terms" className="underline">
+                  {t.footer.terms_use}
+                </Link>{' '}
+                {t.auth.and}
+                <Link href="/privacy" className="underline">
+                  {' '}
+                  {t.footer.privacy}
+                </Link>{' '}
+                {t.auth.agree_suffix}
               </span>
             </label>
           </div>
@@ -205,8 +209,8 @@ export default function SignupPage() {
             type="submit"
             disabled={isLoading}
             className={cn(
-              "w-full bg-black text-white py-3 rounded hover:bg-zinc-800 transition-colors font-helvetica-medium mb-4",
-              isLoading && "opacity-70 cursor-not-allowed"
+              'w-full bg-black text-white py-3 rounded hover:bg-zinc-800 transition-colors font-helvetica-medium mb-4',
+              isLoading && 'opacity-70 cursor-not-allowed'
             )}
           >
             {isLoading ? t.auth.loading : t.common.register}
@@ -261,7 +265,7 @@ export default function SignupPage() {
 
         <div className="mt-6 text-center">
           <p className="text-sm text-gray-600">
-            {t.auth.already_member}{" "}
+            {t.auth.already_member}{' '}
             <Link href="/sign-in" className="text-black font-helvetica-medium hover:underline">
               {t.common.login}
             </Link>
@@ -271,6 +275,3 @@ export default function SignupPage() {
     </div>
   );
 }
-
-
-

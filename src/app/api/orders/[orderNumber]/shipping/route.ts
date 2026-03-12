@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { executeQuery } from '@/lib/db/mysql';
-import { verifyAuth } from '@/lib/auth';
-import { encrypt } from '@/lib/encryption';
+import { verifyAuth } from '@/lib/auth/auth';
+import { encrypt } from '@/lib/security/encryption';
 
 /**
  * PUT - Update Shipping Address for a specific order

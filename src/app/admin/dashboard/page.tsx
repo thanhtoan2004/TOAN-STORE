@@ -2,9 +2,35 @@
 
 import { useEffect, useState } from 'react';
 import AdminLayout from '@/components/admin/AdminLayout';
-import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { DollarSign, Package, TrendingUp, Gift, Users, RefreshCw, AlertTriangle, XCircle, ArrowUp, ArrowDown, Heart } from 'lucide-react';
-import { formatDateTime, formatDate, formatCurrency } from '@/lib/date-utils';
+import {
+  LineChart,
+  Line,
+  BarChart,
+  Bar,
+  PieChart,
+  Pie,
+  Cell,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+} from 'recharts';
+import {
+  DollarSign,
+  Package,
+  TrendingUp,
+  Gift,
+  Users,
+  RefreshCw,
+  AlertTriangle,
+  XCircle,
+  ArrowUp,
+  ArrowDown,
+  Heart,
+} from 'lucide-react';
+import { formatDateTime, formatDate, formatCurrency } from '@/lib/utils/date-utils';
 
 interface DashboardStats {
   totalRevenue: number;
@@ -27,7 +53,14 @@ interface DashboardStats {
   lowStockProducts: Array<{ id: number; name: string; quantity: number; image: string }>;
   newCustomersMonth: number;
   returningCustomers: number;
-  topCustomers: Array<{ id: number; email: string; name: string; totalSpent: number; orderCount: number; membershipTier: string }>;
+  topCustomers: Array<{
+    id: number;
+    email: string;
+    name: string;
+    totalSpent: number;
+    orderCount: number;
+    membershipTier: string;
+  }>;
   todayRevenue: number;
   yesterdayRevenue: number;
   recentOrders: any[];
@@ -57,7 +90,10 @@ export default function AdminDashboardPage() {
 
     // Simple linear regression for forecasting
     const n = trend.length;
-    let sumX = 0, sumY = 0, sumXY = 0, sumX2 = 0;
+    let sumX = 0,
+      sumY = 0,
+      sumXY = 0,
+      sumX2 = 0;
 
     trend.forEach((d, i) => {
       sumX += i;
@@ -70,13 +106,16 @@ export default function AdminDashboardPage() {
     const intercept = (sumY - slope * sumX) / n;
 
     const nextDay = slope * n + intercept;
-    const nextWeek = Array.from({ length: 7 }, (_, i) => slope * (n + i) + intercept).reduce((a, b) => a + b, 0);
+    const nextWeek = Array.from({ length: 7 }, (_, i) => slope * (n + i) + intercept).reduce(
+      (a, b) => a + b,
+      0
+    );
 
     return {
       nextDayRevenue: Math.max(0, nextDay),
       nextWeekRevenue: Math.max(0, nextWeek),
-      confidence: Math.min(95, 70 + (n * 2)), // Mock confidence based on data points
-      trend: slope > 1000 ? 'up' : slope < -1000 ? 'down' : 'stable'
+      confidence: Math.min(95, 70 + n * 2), // Mock confidence based on data points
+      trend: slope > 1000 ? 'up' : slope < -1000 ? 'down' : 'stable',
     };
   };
 
@@ -84,7 +123,7 @@ export default function AdminDashboardPage() {
     try {
       const [dashboardResponse, wishlistResponse] = await Promise.all([
         fetch(`/api/admin/dashboard?days=${days}`),
-        fetch('/api/admin/wishlist?limit=5')
+        fetch('/api/admin/wishlist?limit=5'),
       ]);
 
       const dashboardData = await dashboardResponse.json();
@@ -93,7 +132,7 @@ export default function AdminDashboardPage() {
       setStats({
         ...dashboardData,
         topWishlistedProducts: wishlistData.success ? wishlistData.data : [],
-        forecast: calculateForecast(dashboardData.revenueTrend)
+        forecast: calculateForecast(dashboardData.revenueTrend),
       });
     } catch (error) {
       console.error('Error fetching dashboard stats:', error);
@@ -122,23 +161,30 @@ export default function AdminDashboardPage() {
   const formatStatus = (status: string) => {
     return status
       .split('_')
-      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
       .join(' ');
   };
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'delivered': return 'bg-green-100 text-green-800';
-      case 'processing': return 'bg-blue-100 text-blue-800';
-      case 'pending': return 'bg-yellow-100 text-yellow-800';
-      case 'cancelled': return 'bg-red-100 text-red-800';
-      case 'shipped': return 'bg-purple-100 text-purple-800';
-      case 'pending_payment_confirmation': return 'bg-orange-100 text-orange-800';
-      case 'payment_received': return 'bg-teal-100 text-teal-800';
-      default: return 'bg-gray-100 text-gray-800';
+      case 'delivered':
+        return 'bg-green-100 text-green-800';
+      case 'processing':
+        return 'bg-blue-100 text-blue-800';
+      case 'pending':
+        return 'bg-yellow-100 text-yellow-800';
+      case 'cancelled':
+        return 'bg-red-100 text-red-800';
+      case 'shipped':
+        return 'bg-purple-100 text-purple-800';
+      case 'pending_payment_confirmation':
+        return 'bg-orange-100 text-orange-800';
+      case 'payment_received':
+        return 'bg-teal-100 text-teal-800';
+      default:
+        return 'bg-gray-100 text-gray-800';
     }
   };
-
 
   return (
     <AdminLayout>
@@ -223,15 +269,16 @@ export default function AdminDashboardPage() {
                 { days: 30, label: '30 Days' },
                 { days: 90, label: '90 Days' },
                 { days: 180, label: '180 Days' },
-                { days: 365, label: '1 Year' }
+                { days: 365, label: '1 Year' },
               ].map((option) => (
                 <button
                   key={option.days}
                   onClick={() => setSelectedDays(option.days)}
-                  className={`px-3 py-1 text-sm rounded-md transition-colors ${selectedDays === option.days
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                    }`}
+                  className={`px-3 py-1 text-sm rounded-md transition-colors ${
+                    selectedDays === option.days
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}
                 >
                   {option.label}
                 </button>
@@ -242,18 +289,27 @@ export default function AdminDashboardPage() {
             <ResponsiveContainer width="100%" height={300}>
               <LineChart data={stats.revenueTrend}>
                 <CartesianGrid strokeDasharray="3 3" />
-                <XAxis
-                  dataKey="date"
-                  tickFormatter={(value) => formatDate(value)}
-                />
+                <XAxis dataKey="date" tickFormatter={(value) => formatDate(value)} />
                 <YAxis tickFormatter={(value) => `${(value / 1000).toFixed(0)}k`} />
                 <Tooltip
                   formatter={(value: any, name: any) => [formatCurrency(value), name]}
                   labelFormatter={(label) => formatDate(label)}
                 />
                 <Legend />
-                <Line type="monotone" dataKey="revenue" stroke="#10b981" strokeWidth={2} name="Revenue" />
-                <Line type="monotone" dataKey="profit" stroke="#8b5cf6" strokeWidth={2} name="Profit" />
+                <Line
+                  type="monotone"
+                  dataKey="revenue"
+                  stroke="#10b981"
+                  strokeWidth={2}
+                  name="Revenue"
+                />
+                <Line
+                  type="monotone"
+                  dataKey="profit"
+                  stroke="#8b5cf6"
+                  strokeWidth={2}
+                  name="Profit"
+                />
               </LineChart>
             </ResponsiveContainer>
           ) : (
@@ -276,13 +332,19 @@ export default function AdminDashboardPage() {
                     cx="50%"
                     cy="50%"
                     outerRadius={100}
-                    label={(props: any) => `${formatStatus(props.status)}: ${(props.revenue / 1000).toFixed(0)}k`}
+                    label={(props: any) =>
+                      `${formatStatus(props.status)}: ${(props.revenue / 1000).toFixed(0)}k`
+                    }
                   >
                     {stats.revenueByStatus.map((entry, index) => (
                       <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                     ))}
                   </Pie>
-                  <Tooltip formatter={(value: number | undefined) => value ? formatCurrency(value) : '0 ₫'} />
+                  <Tooltip
+                    formatter={(value: number | undefined) =>
+                      value ? formatCurrency(value) : '0 ₫'
+                    }
+                  />
                   <Legend formatter={(value) => formatStatus(value)} />
                 </PieChart>
               </ResponsiveContainer>
@@ -313,11 +375,16 @@ export default function AdminDashboardPage() {
                 </div>
                 <Package className="h-8 w-8 text-gray-600" />
               </div>
-              <div className={`p-4 rounded-lg flex items-center justify-between ${revenueChange >= 0 ? 'bg-green-50' : 'bg-red-50'}`}>
+              <div
+                className={`p-4 rounded-lg flex items-center justify-between ${revenueChange >= 0 ? 'bg-green-50' : 'bg-red-50'}`}
+              >
                 <div>
                   <p className="text-sm text-gray-600">Change</p>
-                  <p className={`text-xl font-bold ${revenueChange >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                    {revenueChange >= 0 ? '+' : ''}{revenueChange.toFixed(1)}%
+                  <p
+                    className={`text-xl font-bold ${revenueChange >= 0 ? 'text-green-600' : 'text-red-600'}`}
+                  >
+                    {revenueChange >= 0 ? '+' : ''}
+                    {revenueChange.toFixed(1)}%
                   </p>
                 </div>
                 {revenueChange >= 0 ? (
@@ -333,35 +400,56 @@ export default function AdminDashboardPage() {
           <div className="bg-white rounded-lg shadow p-6 border-t-4 border-indigo-500">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-semibold text-gray-900">Sales Forecast (Beta)</h2>
-              <span className="px-2 py-0.5 bg-indigo-100 text-indigo-700 text-[10px] font-bold rounded uppercase">AI Driven</span>
+              <span className="px-2 py-0.5 bg-indigo-100 text-indigo-700 text-[10px] font-bold rounded uppercase">
+                AI Driven
+              </span>
             </div>
             {stats?.forecast ? (
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <div className={`p-2 rounded-full ${stats.forecast.trend === 'up' ? 'bg-green-100 text-green-600' :
-                      stats.forecast.trend === 'down' ? 'bg-red-100 text-red-600' :
-                        'bg-blue-100 text-blue-600'
-                      }`}>
-                      {stats.forecast.trend === 'up' ? <TrendingUp size={20} /> :
-                        stats.forecast.trend === 'down' ? <ArrowDown size={20} /> :
-                          <TrendingUp size={20} className="rotate-45" />}
+                    <div
+                      className={`p-2 rounded-full ${
+                        stats.forecast.trend === 'up'
+                          ? 'bg-green-100 text-green-600'
+                          : stats.forecast.trend === 'down'
+                            ? 'bg-red-100 text-red-600'
+                            : 'bg-blue-100 text-blue-600'
+                      }`}
+                    >
+                      {stats.forecast.trend === 'up' ? (
+                        <TrendingUp size={20} />
+                      ) : stats.forecast.trend === 'down' ? (
+                        <ArrowDown size={20} />
+                      ) : (
+                        <TrendingUp size={20} className="rotate-45" />
+                      )}
                     </div>
                     <div>
                       <p className="text-sm text-gray-500">Projected Tomorrow</p>
-                      <p className="text-xl font-bold">{formatCurrency(stats.forecast.nextDayRevenue)}</p>
+                      <p className="text-xl font-bold">
+                        {formatCurrency(stats.forecast.nextDayRevenue)}
+                      </p>
                     </div>
                   </div>
                   <div className="text-right">
                     <p className="text-sm text-gray-500">Confidence</p>
-                    <p className="text-xl font-bold text-indigo-600">{stats.forecast.confidence}%</p>
+                    <p className="text-xl font-bold text-indigo-600">
+                      {stats.forecast.confidence}%
+                    </p>
                   </div>
                 </div>
 
                 <div className="bg-indigo-50 p-4 rounded-lg">
-                  <p className="text-xs text-indigo-700 font-bold uppercase mb-1">Next 7 Days Projection</p>
-                  <p className="text-2xl font-black text-indigo-900">{formatCurrency(stats.forecast.nextWeekRevenue)}</p>
-                  <p className="text-[10px] text-indigo-600 mt-1 italic">* Based on linear regression of the last {selectedDays} days of data.</p>
+                  <p className="text-xs text-indigo-700 font-bold uppercase mb-1">
+                    Next 7 Days Projection
+                  </p>
+                  <p className="text-2xl font-black text-indigo-900">
+                    {formatCurrency(stats.forecast.nextWeekRevenue)}
+                  </p>
+                  <p className="text-[10px] text-indigo-600 mt-1 italic">
+                    * Based on linear regression of the last {selectedDays} days of data.
+                  </p>
                 </div>
               </div>
             ) : (
@@ -374,13 +462,13 @@ export default function AdminDashboardPage() {
         </div>
 
         <div className="bg-white rounded-lg shadow p-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Financial Summary (Delivered Orders)</h2>
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">
+            Financial Summary (Delivered Orders)
+          </h2>
           <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
             <div className="p-4 bg-blue-50 rounded-lg">
               <p className="text-sm text-gray-600">Total VAT Collected</p>
-              <p className="text-xl font-bold text-blue-600">
-                {formatCurrency(stats?.totalVAT)}
-              </p>
+              <p className="text-xl font-bold text-blue-600">{formatCurrency(stats?.totalVAT)}</p>
             </div>
             <div className="p-4 bg-red-50 rounded-lg">
               <p className="text-sm text-gray-600">Total Discounts</p>
@@ -405,7 +493,9 @@ export default function AdminDashboardPage() {
               <p className="text-xl font-bold text-purple-600">
                 {formatCurrency(stats?.totalProfit)}
               </p>
-              <p className="text-xs text-purple-500 mt-1">Margin: {stats?.profitMargin?.toFixed(1)}%</p>
+              <p className="text-xs text-purple-500 mt-1">
+                Margin: {stats?.profitMargin?.toFixed(1)}%
+              </p>
             </div>
           </div>
         </div>
@@ -426,7 +516,10 @@ export default function AdminDashboardPage() {
           {stats?.lowStockProducts && stats.lowStockProducts.length > 0 ? (
             <div className="space-y-3">
               {stats.lowStockProducts.map((product) => (
-                <div key={product.id} className="flex items-center justify-between p-3 bg-yellow-50 rounded-lg">
+                <div
+                  key={product.id}
+                  className="flex items-center justify-between p-3 bg-yellow-50 rounded-lg"
+                >
                   <div className="flex items-center">
                     <img
                       src={product.image || '/placeholder.png'}
@@ -460,14 +553,18 @@ export default function AdminDashboardPage() {
               <div className="flex items-center justify-between p-4 bg-blue-50 rounded-lg">
                 <div>
                   <p className="text-sm text-gray-600">New Customers This Month</p>
-                  <p className="text-2xl font-bold text-blue-600">{stats?.newCustomersMonth || 0}</p>
+                  <p className="text-2xl font-bold text-blue-600">
+                    {stats?.newCustomersMonth || 0}
+                  </p>
                 </div>
                 <Users className="h-8 w-8 text-blue-600" />
               </div>
               <div className="flex items-center justify-between p-4 bg-green-50 rounded-lg">
                 <div>
                   <p className="text-sm text-gray-600">Returning Customers</p>
-                  <p className="text-2xl font-bold text-green-600">{stats?.returningCustomers || 0}</p>
+                  <p className="text-2xl font-bold text-green-600">
+                    {stats?.returningCustomers || 0}
+                  </p>
                 </div>
                 <RefreshCw className="h-8 w-8 text-green-600" />
               </div>
@@ -479,7 +576,10 @@ export default function AdminDashboardPage() {
             {stats?.topCustomers && stats.topCustomers.length > 0 ? (
               <div className="space-y-3">
                 {stats.topCustomers.map((customer, index) => (
-                  <div key={customer.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                  <div
+                    key={customer.id}
+                    className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
+                  >
                     <div className="flex items-center">
                       <span className="w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center font-bold">
                         {index + 1}
@@ -488,10 +588,15 @@ export default function AdminDashboardPage() {
                         <div className="flex items-center gap-2">
                           <p className="font-medium text-gray-900">{customer.name}</p>
                           {customer.membershipTier && (
-                            <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase ${customer.membershipTier === 'gold' ? 'bg-yellow-100 text-yellow-800 border border-yellow-200' :
-                              customer.membershipTier === 'silver' ? 'bg-gray-100 text-gray-700 border border-gray-200' :
-                                'bg-amber-50 text-amber-800 border border-amber-200'
-                              }`}>
+                            <span
+                              className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase ${
+                                customer.membershipTier === 'gold'
+                                  ? 'bg-yellow-100 text-yellow-800 border border-yellow-200'
+                                  : customer.membershipTier === 'silver'
+                                    ? 'bg-gray-100 text-gray-700 border border-gray-200'
+                                    : 'bg-amber-50 text-amber-800 border border-amber-200'
+                              }`}
+                            >
                               {customer.membershipTier}
                             </span>
                           )}
@@ -522,14 +627,28 @@ export default function AdminDashboardPage() {
               {stats?.recentOrders && stats.recentOrders.length > 0 ? (
                 <div className="space-y-4">
                   {stats.recentOrders.slice(0, 5).map((order: any) => (
-                    <div key={order.id} className="flex items-start justify-between pb-4 border-b border-gray-100 last:border-0">
+                    <div
+                      key={order.id}
+                      className="flex items-start justify-between pb-4 border-b border-gray-100 last:border-0"
+                    >
                       <div className="min-w-0 flex-1 mr-4">
-                        <p className="font-medium text-gray-900 truncate" title={order.order_number}>#{order.order_number}</p>
-                        <p className="text-sm text-gray-500 truncate" title={order.customer_name}>{order.customer_name}</p>
+                        <p
+                          className="font-medium text-gray-900 truncate"
+                          title={order.order_number}
+                        >
+                          #{order.order_number}
+                        </p>
+                        <p className="text-sm text-gray-500 truncate" title={order.customer_name}>
+                          {order.customer_name}
+                        </p>
                       </div>
                       <div className="text-right flex-shrink-0 max-w-[50%]">
-                        <p className="font-semibold text-gray-900 mb-1">{formatCurrency(order.total)}</p>
-                        <span className={`inline-block px-2.5 py-1 rounded-full text-xs font-medium text-center ${getStatusColor(order.status)}`}>
+                        <p className="font-semibold text-gray-900 mb-1">
+                          {formatCurrency(order.total)}
+                        </p>
+                        <span
+                          className={`inline-block px-2.5 py-1 rounded-full text-xs font-medium text-center ${getStatusColor(order.status)}`}
+                        >
                           {formatStatus(order.status)}
                         </span>
                       </div>
@@ -551,7 +670,10 @@ export default function AdminDashboardPage() {
               {stats?.topProducts && stats.topProducts.length > 0 ? (
                 <div className="space-y-4">
                   {stats.topProducts.slice(0, 5).map((product: any) => (
-                    <div key={product.id} className="flex items-center justify-between pb-4 border-b border-gray-100 last:border-0">
+                    <div
+                      key={product.id}
+                      className="flex items-center justify-between pb-4 border-b border-gray-100 last:border-0"
+                    >
                       <div className="flex items-center">
                         <img
                           src={product.primary_image || '/placeholder.png'}
@@ -587,7 +709,10 @@ export default function AdminDashboardPage() {
               {stats?.topWishlistedProducts && stats.topWishlistedProducts.length > 0 ? (
                 <div className="space-y-4">
                   {stats.topWishlistedProducts.map((product: any) => (
-                    <div key={product.id} className="flex items-center justify-between pb-4 border-b border-gray-100 last:border-0">
+                    <div
+                      key={product.id}
+                      className="flex items-center justify-between pb-4 border-b border-gray-100 last:border-0"
+                    >
                       <div className="flex items-center">
                         <img
                           src={product.image_url || '/placeholder.png'}
@@ -615,6 +740,6 @@ export default function AdminDashboardPage() {
           </div>
         </div>
       </div>
-    </AdminLayout >
+    </AdminLayout>
   );
 }

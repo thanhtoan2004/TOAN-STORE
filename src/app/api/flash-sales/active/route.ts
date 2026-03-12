@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { query } from '@/lib/db/mysql';
-import { getCache, setCache } from '@/lib/cache';
+import { getCache, setCache } from '@/lib/redis/cache';
 
 /**
  * API Lấy chương trình Flash Sale đang diễn ra (Active).

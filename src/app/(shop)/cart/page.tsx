@@ -9,17 +9,11 @@ import { useLanguage } from '@/contexts/LanguageContext';
 import { useModal } from '@/contexts/ModalContext';
 import { Button } from '@/components/ui/Button';
 import { ShoppingCart, Truck, ShieldCheck, PartyPopper, Lightbulb } from 'lucide-react';
-import { formatCurrency } from '@/lib/date-utils';
+import { formatCurrency } from '@/lib/utils/date-utils';
 
 export default function CartPage() {
   const { t } = useLanguage();
-  const {
-    cartItems,
-    loading,
-    updateQuantity,
-    removeItem,
-    clearCart
-  } = useCart();
+  const { cartItems, loading, updateQuantity, removeItem, clearCart } = useCart();
   const { showAlert } = useModal();
   const { user } = useAuth();
   const [updating, setUpdating] = useState<number | null>(null);
@@ -27,16 +21,10 @@ export default function CartPage() {
   const handleUpdateQuantity = async (itemId: number, newQuantity: number) => {
     if (newQuantity < 1) return;
 
-    const item = cartItems.find(item => item.id === itemId);
+    const item = cartItems.find((item) => item.id === itemId);
     if (!item || newQuantity > item.stock) return;
 
-    setUpdating(itemId);
-    const success = await updateQuantity(itemId, newQuantity);
-    setUpdating(null);
-
-    if (!success) {
-      // Error được handle trong context
-    }
+    await updateQuantity(itemId, newQuantity);
   };
 
   const handleRemoveItem = async (itemId: number) => {
@@ -60,13 +48,13 @@ export default function CartPage() {
         if (!success) {
           // Error được handle trong context
         }
-      }
+      },
     });
   };
 
   // local formatPrice removed, using import from @/lib/date-utils
 
-  const subtotal = cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+  const subtotal = cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
   const shippingFee = subtotal > 1000000 ? 0 : 30000; // Miễn phí ship cho đơn > 1 triệu
   const tax = Math.round(subtotal * 0.1); // VAT 10%
   const total = subtotal + shippingFee + tax;
@@ -78,9 +66,7 @@ export default function CartPage() {
           <h2 className="text-2xl font-bold mb-4">{t.common.login}</h2>
           <p className="text-gray-600 mb-6">{t.auth.sign_in_title}</p>
           <Link href="/sign-in">
-            <Button className="rounded-full px-6 py-6">
-              {t.common.login}
-            </Button>
+            <Button className="rounded-full px-6 py-6">{t.common.login}</Button>
           </Link>
         </div>
       </div>
@@ -107,10 +93,7 @@ export default function CartPage() {
             <div>
               <h1 className="text-3xl font-bold mb-2">{t.cart.bag}</h1>
               <p className="text-gray-600">
-                {cartItems.length > 0
-                  ? `${cartItems.length} ${t.orders.items}`
-                  : t.cart.empty
-                }
+                {cartItems.length > 0 ? `${cartItems.length} ${t.orders.items}` : t.cart.empty}
               </p>
             </div>
             <Link href="/" className="text-blue-600 hover:text-blue-800">
@@ -131,14 +114,10 @@ export default function CartPage() {
             <p className="text-gray-600 mb-8">{t.cart.empty_desc}</p>
             <div className="space-y-4">
               <Link href="/men">
-                <Button className="rounded-full px-6 py-6 mr-4">
-                  {t.cart.shop_men}
-                </Button>
+                <Button className="rounded-full px-6 py-6 mr-4">{t.cart.shop_men}</Button>
               </Link>
               <Link href="/women">
-                <Button className="rounded-full px-6 py-6">
-                  {t.cart.shop_women}
-                </Button>
+                <Button className="rounded-full px-6 py-6">{t.cart.shop_women}</Button>
               </Link>
             </div>
           </div>
@@ -185,32 +164,42 @@ export default function CartPage() {
                           </Link>
 
                           <div className="text-sm text-gray-600 space-y-1 mt-1">
-                            {item.size && <p>{t.cart.size}: {item.size}</p>}
-                            {item.color && <p>{t.common.color || 'Color'}: {item.color}</p>}
-                            <p>{t.product.left_in_stock}: {item.stock}</p>
+                            {item.size && (
+                              <p>
+                                {t.cart.size}: {item.size}
+                              </p>
+                            )}
+                            {item.color && (
+                              <p>
+                                {t.common.color || 'Color'}: {item.color}
+                              </p>
+                            )}
+                            <p>
+                              {t.product.left_in_stock}: {item.stock}
+                            </p>
                           </div>
 
                           <div className="flex items-center justify-between mt-4">
                             {/* Quantity Controls */}
-                            <div className="flex items-center border rounded-lg">
+                            <div className="flex items-center border rounded-lg bg-gray-50/50">
                               <Button
                                 variant="ghost"
                                 size="sm"
                                 onClick={() => handleUpdateQuantity(item.id, item.quantity - 1)}
-                                disabled={item.quantity <= 1 || updating === item.id}
-                                className="h-8 w-8 p-0 rounded-none disabled:opacity-50"
+                                disabled={item.quantity <= 1}
+                                className="h-8 w-8 p-0 rounded-none hover:bg-gray-200 transition-colors"
                               >
                                 -
                               </Button>
-                              <span className="px-4 py-2 min-w-[40px] text-center text-sm">
-                                {updating === item.id ? '...' : item.quantity}
+                              <span className="px-4 py-2 min-w-[50px] text-center font-medium tabular-nums border-x">
+                                {item.quantity}
                               </span>
                               <Button
                                 variant="ghost"
                                 size="sm"
                                 onClick={() => handleUpdateQuantity(item.id, item.quantity + 1)}
-                                disabled={item.quantity >= item.stock || updating === item.id}
-                                className="h-8 w-8 p-0 rounded-none disabled:opacity-50"
+                                disabled={item.quantity >= item.stock}
+                                className="h-8 w-8 p-0 rounded-none hover:bg-gray-200 transition-colors"
                               >
                                 +
                               </Button>
@@ -254,7 +243,9 @@ export default function CartPage() {
 
                 <div className="space-y-4">
                   <div className="flex justify-between">
-                    <span>{t.cart.subtotal} ({cartItems.length} {t.orders.items}):</span>
+                    <span>
+                      {t.cart.subtotal} ({cartItems.length} {t.orders.items}):
+                    </span>
                     <span>{formatCurrency(subtotal)}</span>
                   </div>
 
@@ -284,7 +275,8 @@ export default function CartPage() {
                   {shippingFee > 0 && (
                     <div className="text-sm text-blue-600 bg-blue-50 p-3 rounded flex items-center">
                       <Lightbulb className="w-4 h-4 mr-2" />
-                      {t.cart.free_shipping_msg} {/* Simplify logic for now, or add specific key if needed */}
+                      {t.cart.free_shipping_msg}{' '}
+                      {/* Simplify logic for now, or add specific key if needed */}
                     </div>
                   )}
 
@@ -304,7 +296,11 @@ export default function CartPage() {
                   </Link>
 
                   <Link href="/">
-                    <Button variant="outline" className="w-full text-lg py-6 rounded-full border-gray-300 text-gray-700 hover:bg-gray-50" size="lg">
+                    <Button
+                      variant="outline"
+                      className="w-full text-lg py-6 rounded-full border-gray-300 text-gray-700 hover:bg-gray-50"
+                      size="lg"
+                    >
                       {t.orders.shop_now}
                     </Button>
                   </Link>
@@ -313,11 +309,15 @@ export default function CartPage() {
                 <div className="mt-6 pt-6 border-t">
                   <div className="grid grid-cols-2 gap-4 text-center text-sm text-gray-600">
                     <div>
-                      <div className="mb-2 flex justify-center"><Truck className="w-6 h-6" /></div>
+                      <div className="mb-2 flex justify-center">
+                        <Truck className="w-6 h-6" />
+                      </div>
                       <p>{t.footer.shipping}</p>
                     </div>
                     <div>
-                      <div className="mb-2 flex justify-center"><ShieldCheck className="w-6 h-6" /></div>
+                      <div className="mb-2 flex justify-center">
+                        <ShieldCheck className="w-6 h-6" />
+                      </div>
                       <p>{t.common.security}</p>
                     </div>
                     {/* ... other icons ... */}
@@ -331,7 +331,3 @@ export default function CartPage() {
     </div>
   );
 }
-
-
-
-

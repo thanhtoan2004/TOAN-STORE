@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createErrorResponse, createSuccessResponse, withErrorHandling } from '@/lib/api-utils';
+import { createErrorResponse, createSuccessResponse, withErrorHandling } from '@/lib/api/api-utils';
 import { executeQuery } from '@/lib/db/mysql';
-import { decrypt } from '@/lib/encryption';
+import { decrypt } from '@/lib/security/encryption';
 
 // Cấu hình giới hạn
 const MAX_IP_ATTEMPTS_PER_30MIN = 8;
@@ -43,11 +43,17 @@ async function giftcardHistoryHandler(req: NextRequest): Promise<NextResponse> {
   if (ipLockouts && ipLockouts.length > 0) {
     const lockout = ipLockouts[0];
     if (lockout.locked_until && new Date(lockout.locked_until) > new Date()) {
-      return createErrorResponse('Bạn đã tra cứu sai quá nhiều lần. Vui lòng thử lại sau 30 phút.', 429);
+      return createErrorResponse(
+        'Bạn đã tra cứu sai quá nhiều lần. Vui lòng thử lại sau 30 phút.',
+        429
+      );
     }
     currentIpAttempts = lockout.attempt_count;
     // Get ID logic
-    const ids = await executeQuery<any[]>('SELECT id FROM gift_card_lockouts WHERE ip_address = ? ORDER BY last_attempt DESC LIMIT 1', [clientIp]);
+    const ids = await executeQuery<any[]>(
+      'SELECT id FROM gift_card_lockouts WHERE ip_address = ? ORDER BY last_attempt DESC LIMIT 1',
+      [clientIp]
+    );
     if (ids.length > 0) lockoutId = ids[0].id;
   }
 
@@ -68,7 +74,10 @@ async function giftcardHistoryHandler(req: NextRequest): Promise<NextResponse> {
 
   // 3. Kiểm tra thẻ đã bị khóa chưa
   if (card.status === 'locked' || card.failed_attempts >= MAX_CARD_FAILED_ATTEMPTS) {
-    return createErrorResponse('Thẻ đã bị khóa do nhập sai PIN nhiều lần. Vui lòng liên hệ hỗ trợ.', 403);
+    return createErrorResponse(
+      'Thẻ đã bị khóa do nhập sai PIN nhiều lần. Vui lòng liên hệ hỗ trợ.',
+      403
+    );
   }
 
   // 4. Xác thực mã PIN
@@ -120,7 +129,7 @@ async function giftcardHistoryHandler(req: NextRequest): Promise<NextResponse> {
         currentBalance: card.current_balance,
         status: card.status,
         expiresAt: card.expires_at,
-        createdAt: card.created_at
+        createdAt: card.created_at,
       },
       transactions: transactions.map((t: any) => ({
         id: t.id,
@@ -130,8 +139,8 @@ async function giftcardHistoryHandler(req: NextRequest): Promise<NextResponse> {
         balanceAfter: t.balance_after,
         description: t.description,
         orderId: t.order_id,
-        createdAt: t.created_at
-      }))
+        createdAt: t.created_at,
+      })),
     },
     'Lấy lịch sử thành công'
   );
@@ -149,12 +158,20 @@ async function handleIpPenalty(ip: string, currentAttempts: number, lockoutId: n
   if (lockoutId) {
     await executeQuery(
       'UPDATE gift_card_lockouts SET attempt_count = ?, locked_until = ?, last_attempt = NOW() WHERE id = ?',
-      [newAttempts, lockedUntil ? lockedUntil.toISOString().slice(0, 19).replace('T', ' ') : null, lockoutId]
+      [
+        newAttempts,
+        lockedUntil ? lockedUntil.toISOString().slice(0, 19).replace('T', ' ') : null,
+        lockoutId,
+      ]
     );
   } else {
     await executeQuery(
       'INSERT INTO gift_card_lockouts (ip_address, attempt_count, locked_until) VALUES (?, ?, ?)',
-      [ip, newAttempts, lockedUntil ? lockedUntil.toISOString().slice(0, 19).replace('T', ' ') : null]
+      [
+        ip,
+        newAttempts,
+        lockedUntil ? lockedUntil.toISOString().slice(0, 19).replace('T', ' ') : null,
+      ]
     );
   }
 }

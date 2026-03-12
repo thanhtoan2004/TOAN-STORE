@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { executeQuery } from '@/lib/db/mysql';
-import { checkAdminAuth } from '@/lib/auth';
-import { logAdminAction } from '@/lib/audit';
-import { hashEmail, decrypt } from '@/lib/encryption';
+import { checkAdminAuth } from '@/lib/auth/auth';
+import { logAdminAction } from '@/lib/security/audit';
+import { hashEmail, decrypt } from '@/lib/security/encryption';
 
 /**
  * API Lấy danh sách Voucher (Mã giảm giá cá nhân).
@@ -205,7 +205,7 @@ export async function POST(request: NextRequest) {
 
     // Send email if recipient_email was provided
     if (recipient_email && targetUserId) {
-      const { sendVoucherReceivedEmail } = await import('@/lib/mail');
+      const { sendVoucherReceivedEmail } = await import('@/lib/mail/mail');
 
       // Fetch full name to use as greeting
       const userResult = (await executeQuery(
@@ -444,7 +444,7 @@ export async function PUT(request: NextRequest) {
       );
 
       if (updatedVoucher.length > 0) {
-        const { sendVoucherReceivedEmail } = await import('@/lib/mail');
+        const { sendVoucherReceivedEmail } = await import('@/lib/mail/mail');
 
         // Fetch full name to use as greeting
         const emailHash = hashEmail(recipient_email);

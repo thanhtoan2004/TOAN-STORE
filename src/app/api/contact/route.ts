@@ -1,7 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createErrorResponse, createSuccessResponse, validateRequiredFields, withErrorHandling } from '@/lib/api-utils';
+import {
+  createErrorResponse,
+  createSuccessResponse,
+  validateRequiredFields,
+  withErrorHandling,
+} from '@/lib/api/api-utils';
 import { saveContactMessage } from '@/lib/db/mysql';
-import { verifyAuth } from '@/lib/auth';
+import { verifyAuth } from '@/lib/auth/auth';
 
 interface ContactRequest {
   name: string;
@@ -30,7 +35,7 @@ async function contactHandler(req: NextRequest): Promise<NextResponse> {
   const { name, email, subject, message } = body as ContactRequest;
   let { userId } = body as ContactRequest;
 
-  // Security: If user is logged in, use their real ID. 
+  // Security: If user is logged in, use their real ID.
   // If not logged in but they sent an ID, ignore the ID (prevent spoofing).
   if (session) {
     userId = session.userId;
@@ -54,7 +59,6 @@ async function contactHandler(req: NextRequest): Promise<NextResponse> {
     await saveContactMessage({ name, email, subject, message, userId });
 
     // Log the contact form submission
-
 
     return createSuccessResponse(
       null,

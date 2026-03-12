@@ -1,12 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { executeQuery } from '@/lib/db/mysql';
 
-import { checkAdminAuth } from '@/lib/auth';
+import { checkAdminAuth } from '@/lib/auth/auth';
 
 /**
  * API Xóa vĩnh viễn thẻ quà tặng khỏi hệ thống.
  */
-export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
   try {
     const admin = await checkAdminAuth();
     if (!admin) {

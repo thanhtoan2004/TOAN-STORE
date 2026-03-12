@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { executeQuery } from '@/lib/db/mysql';
-import { checkAdminAuth } from '@/lib/auth';
-import { sendWishlistRestockEmail } from '@/lib/email-templates';
+import { checkAdminAuth } from '@/lib/auth/auth';
+import { sendWishlistRestockEmail } from '@/lib/mail/email-templates';
 
 /**
  * API Cập nhật số lượng tồn kho cho một biến thể cụ thể.
@@ -29,14 +29,11 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     );
 
     const inventoryItem = inventoryItems[0];
-    const oldQuantity = inventoryItem ? (inventoryItem.quantity || 0) : 0;
+    const oldQuantity = inventoryItem ? inventoryItem.quantity || 0 : 0;
     const newQuantity = quantity;
 
     // 2. Update Inventory
-    await executeQuery(
-      'UPDATE inventory SET quantity = ? WHERE id = ?',
-      [quantity, id]
-    );
+    await executeQuery('UPDATE inventory SET quantity = ? WHERE id = ?', [quantity, id]);
 
     // 3. Trigger Restock Email if moving from 0 to > 0
     if (inventoryItem && oldQuantity <= 0 && newQuantity > 0) {
@@ -50,8 +47,10 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       );
 
       if (wishlistUsers.length > 0) {
-        console.log(`Sending RESTOCK email to ${wishlistUsers.length} users for product ${inventoryItem.product_name}`);
-        wishlistUsers.forEach(user => {
+        console.log(
+          `Sending RESTOCK email to ${wishlistUsers.length} users for product ${inventoryItem.product_name}`
+        );
+        wishlistUsers.forEach((user) => {
           sendWishlistRestockEmail(
             user.email,
             user.name || 'Bạn',
@@ -65,6 +64,9 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     return NextResponse.json({ success: true, message: 'Inventory updated' });
   } catch (error) {
     console.error('Error updating inventory:', error);
-    return NextResponse.json({ success: false, message: 'Error updating inventory' }, { status: 500 });
+    return NextResponse.json(
+      { success: false, message: 'Error updating inventory' },
+      { status: 500 }
+    );
   }
 }

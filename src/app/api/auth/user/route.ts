@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { executeQuery } from '@/lib/db/mysql';
-import { verifyAuth } from '@/lib/auth';
-import { decrypt } from '@/lib/encryption';
+import { verifyAuth } from '@/lib/auth/auth';
+import { decrypt } from '@/lib/security/encryption';
 
 /**
  * API Lấy thông tin cá nhân của người dùng hiện tại.

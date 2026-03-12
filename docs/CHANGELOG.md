@@ -4,6 +4,34 @@ Tất cả thay đổi quan trọng được ghi nhận tại đây theo format 
 
 ---
 
+## [2.15.0] - 2026-03-12
+
+### ✨ UX & Performance Hardening
+
+- **Optimistic UI for Cart** — Triển khai cơ chế cập nhật số lượng giỏ hàng không block UI. Người dùng thấy thay đổi ngay lập tức, hệ thống tự động xử lý API ngầm và rollback nếu thất bại.
+- **Database Full-Text Search (FTS)** — Tích hợp `FULLTEXT INDEX` trên bảng `products` (name, sku, description). Repository tự động ưu tiên `MATCH AGAINST` và fallback về `LIKE` để đảm bảo tốc độ tìm kiếm vượt trội.
+- **High-Performance Composite Indexes** — Bổ sung các index phức tạp: `idx_cat_active` (products), `idx_user_placed` (orders) và `idx_query_date` (search_analytics) để tối ưu hóa truy vấn báo cáo và lọc sản phẩm.
+- **Inventory Transfer Safety** — Nâng cấp logic điều chuyển kho trong `inventory.ts` với đầy đủ Transaction và Logging chi tiết.
+
+### 📝 Global Documentation Overhaul
+
+- **100% Vietnamese JSDoc Coverage** — Hoàn tất việc bổ sung comment/JSDoc tiếng Việt chi tiết cho toàn bộ mã nguồn phía Backend, bao gồm: 12+ Repositories, Middlewares, Libs (Auth, Cache, Date, Encryption, v.v.).
+- **README & DB Docs Expansion** — Cập nhật tài liệu kiến trúc, mô tả Index mới và các tính năng Optimistic UI vào tài liệu chính thức.
+
+---
+
+## [2.14.0] - 2026-03-11
+
+### 🚀 API Ecosystem & Developer Experience
+
+- **100% API Coverage in Postman** — Hoàn tất việc ánh xạ toàn bộ 203+ hệ thống API thực tế vào Postman Collection.
+- **Deep Entity Grouping** — Tái cấu trúc cấu trúc thư mục Postman thành 6 nhóm nghiệp vụ chính (Auth, Shop, Operations, Marketing, v.v.), loại bỏ hoàn toàn các thư mục dư thừa và lồng ghép.
+- **Sample Data Injection** — Tự động tích hợp Body JSON mẫu chuẩn cho toàn bộ các request POST, PUT, PATCH (như Đăng ký, Thanh toán, Quản lý kho, Cập nhật danh mục...).
+- **Missing Endpoints Bridge** — Bổ sung các API quản trị nâng cao vào bộ Test: Chặn/Bỏ chặn người dùng (Ban/Unban), Phê duyệt/Từ chối Hoàn tiền (Refund Decision), Đăng ký nhận tin (Newsletter), Gửi Form liên hệ (Contact).
+- **Admin Authenticator Fix** — Nâng cấp API Login Admin (`/api/auth/login-admin`) để sử dụng `email_hash` (Blind Index) thay vì plain text, giải quyết dứt điểm lỗi không đăng nhập được do hệ thống bảo mật PII Masking che giấu email.
+
+---
+
 ## [2.13.0] - 2026-03-08
 
 ### ⚡ Phase 8: Final Database Optimization & Security Fixes

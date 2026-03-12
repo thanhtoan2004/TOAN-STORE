@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getProductById, getProductSizes, executeQuery } from '@/lib/db/mysql';
-import { getCache, setCache } from '@/lib/cache';
+import { getCache, setCache } from '@/lib/redis/cache';
 
 /**
  * API Lấy chi tiết thông tin sản phẩm dành cho trang Product Detail Page (PDP).

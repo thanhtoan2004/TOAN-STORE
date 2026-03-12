@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getOrderByNumber, updateOrderStatus } from '@/lib/db/mysql';
-import { verifyAuth } from '@/lib/auth';
-import { sendOrderCancelledEmail } from '@/lib/email-templates';
-import { createNotification } from '@/lib/notifications';
+import { verifyAuth } from '@/lib/auth/auth';
+import { sendOrderCancelledEmail } from '@/lib/mail/email-templates';
+import { createNotification } from '@/lib/notifications/notifications';
 
 // ... (GET method unchanged)
 // GET - Lấy chi tiết đơn hàng theo orderNumber
@@ -25,7 +25,7 @@ export async function GET(
     }
 
     // Get order from database
-    const order = await getOrderByNumber(orderNumber) as any;
+    const order = (await getOrderByNumber(orderNumber)) as any;
 
     if (!order || order.length === 0) {
       return NextResponse.json(
@@ -44,7 +44,7 @@ export async function GET(
 
     // Get order items with product details
     const { pool } = await import('@/lib/db/mysql');
-    const [items] = await pool.execute(
+    const [items] = (await pool.execute(
       `SELECT 
         oi.id,
         oi.product_id,
@@ -57,28 +57,25 @@ export async function GET(
       FROM order_items oi
       WHERE oi.order_id = ?`,
       [order[0].id]
-    ) as any[];
+    )) as any[];
 
     // Enrich items with proper fields
     const enrichedItems = items.map((item: any) => ({
       ...item,
       color: item.color || 'N/A',
-      image: item.image_url || '/placeholder-product.png'
+      image: item.image_url || '/placeholder-product.png',
     }));
 
     return NextResponse.json({
       success: true,
       order: {
         ...order[0],
-        items: enrichedItems
-      }
+        items: enrichedItems,
+      },
     });
   } catch (error) {
     console.error('Lỗi khi lấy chi tiết đơn hàng:', error);
-    return NextResponse.json(
-      { success: false, message: 'Lỗi server nội bộ' },
-      { status: 500 }
-    );
+    return NextResponse.json({ success: false, message: 'Lỗi server nội bộ' }, { status: 500 });
   }
 }
 
@@ -97,7 +94,7 @@ export async function PUT(
     const { status } = body;
 
     // Security: Only allow user to cancel their own pending order
-    const order = await getOrderByNumber(orderNumber) as any;
+    const order = (await getOrderByNumber(orderNumber)) as any;
     if (!order || order.length === 0) {
       return NextResponse.json({ success: false, message: 'Order not found' }, { status: 404 });
     }
@@ -122,7 +119,9 @@ export async function PUT(
     // Send Cancelled Email
     const userSession = session as any;
     if (userSession.email) {
-      sendOrderCancelledEmail(userSession.email, userSession.name || 'Bạn', orderNumber).catch(console.error);
+      sendOrderCancelledEmail(userSession.email, userSession.name || 'Bạn', orderNumber).catch(
+        console.error
+      );
     }
 
     // Notification Bell
@@ -134,18 +133,13 @@ export async function PUT(
       `/orders/${orderNumber}`
     );
 
-
-
     return NextResponse.json({
       success: true,
-      message: 'Đã cập nhật trạng thái đơn hàng'
+      message: 'Đã cập nhật trạng thái đơn hàng',
     });
   } catch (error) {
     console.error('Lỗi khi cập nhật đơn hàng:', error);
-    return NextResponse.json(
-      { success: false, message: 'Lỗi server nội bộ' },
-      { status: 500 }
-    );
+    return NextResponse.json({ success: false, message: 'Lỗi server nội bộ' }, { status: 500 });
   }
 }
 
@@ -169,7 +163,7 @@ export async function DELETE(
     }
 
     // Get order to check status and ownership
-    const order = await getOrderByNumber(orderNumber) as any;
+    const order = (await getOrderByNumber(orderNumber)) as any;
 
     if (!order || order.length === 0) {
       return NextResponse.json(
@@ -197,20 +191,17 @@ export async function DELETE(
     // Send Cancelled Email
     const userSession = session as any;
     if (userSession.email) {
-      sendOrderCancelledEmail(userSession.email, userSession.name || 'Bạn', orderNumber).catch(console.error);
+      sendOrderCancelledEmail(userSession.email, userSession.name || 'Bạn', orderNumber).catch(
+        console.error
+      );
     }
-
-
 
     return NextResponse.json({
       success: true,
-      message: 'Đã hủy đơn hàng thành công'
+      message: 'Đã hủy đơn hàng thành công',
     });
   } catch (error) {
     console.error('Lỗi khi hủy đơn hàng:', error);
-    return NextResponse.json(
-      { success: false, message: 'Lỗi server nội bộ' },
-      { status: 500 }
-    );
+    return NextResponse.json({ success: false, message: 'Lỗi server nội bộ' }, { status: 500 });
   }
 }

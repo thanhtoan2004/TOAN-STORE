@@ -47,12 +47,12 @@ TOAN Store — System Architecture
 └──────────────┬────────────────────────┬──────────────────┘
                │                        │
 ┌──────────────▼───────┐  ┌─────────────▼────────────────┐
-│       MySQL 8.0       │  │           Redis 7             │
-│   toan_store DB       │  │  ┌──────────┬──────────────┐ │
-│  - 52+ tables         │  │  │Rate Limit│  Session/OTP │ │
-│  - AES-256 PII        │  │  ├──────────┼──────────────┤ │
-│  - CHECK constraints  │  │  │API Cache │  BullMQ Jobs │ │
-│  - Soft deletes       │  │  └──────────┴──────────────┘ │
+│       MySQL 8.0      │  │           Redis 7            │
+│  toan_store DB       │  │  ┌──────────┬──────────────┐ │
+│ - 83 tables          │  │  │Rate Limit│ Session/OTP  │ │
+│ - AES-256 PII        │  │  ├──────────┼──────────────┤ │
+│ - CHECK constraints  │  │  │API Cache │ BullMQ Jobs  │ │
+│ - Soft deletes       │  │  └──────────┴──────────────┘ │
 └──────────────────────┘  └──────────────────────────────┘
 
 External Services

@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { checkAdminAuth } from '@/lib/auth';
+import { checkAdminAuth } from '@/lib/auth/auth';
 import { executeQuery } from '@/lib/db/mysql';
 import * as XLSX from 'xlsx';
-import { logAdminAction } from '@/lib/audit';
+import { logAdminAction } from '@/lib/security/audit';
 
 /**
  * API Nhập/Xuất Sản phẩm Hàng loạt (Bulk Import/Export)

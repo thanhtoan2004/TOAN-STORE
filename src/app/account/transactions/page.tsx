@@ -4,7 +4,7 @@ import React, { useEffect, useState, useCallback, Suspense } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { useLanguage } from '@/contexts/LanguageContext';
-import { formatDateTime, formatCurrency } from '@/lib/date-utils';
+import { formatDateTime, formatCurrency } from '@/lib/utils/date-utils';
 import {
   CreditCard,
   RefreshCw,

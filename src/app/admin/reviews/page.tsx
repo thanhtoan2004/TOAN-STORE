@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import AdminLayout from '@/components/admin/AdminLayout';
-import { formatDate } from '@/lib/date-utils';
+import { formatDate } from '@/lib/utils/date-utils';
 
 interface Review {
   id: number;
@@ -118,10 +118,7 @@ export default function AdminReviewsPage() {
     return (
       <div className="flex">
         {[1, 2, 3, 4, 5].map((star) => (
-          <span
-            key={star}
-            className={star <= rating ? 'text-yellow-400' : 'text-gray-300'}
-          >
+          <span key={star} className={star <= rating ? 'text-yellow-400' : 'text-gray-300'}>
             ★
           </span>
         ))}
@@ -155,10 +152,11 @@ export default function AdminReviewsPage() {
                     setStatusFilter(status);
                     setPage(1);
                   }}
-                  className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${statusFilter === status
-                    ? 'bg-black text-white'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                    }`}
+                  className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                    statusFilter === status
+                      ? 'bg-black text-white'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}
                 >
                   {status.charAt(0).toUpperCase() + status.slice(1)}
                 </button>
@@ -205,21 +203,20 @@ export default function AdminReviewsPage() {
                             </div>
                             <div className="flex items-center space-x-2">
                               <span
-                                className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${review.status === 'approved'
-                                  ? 'bg-green-100 text-green-800'
-                                  : review.status === 'rejected'
-                                    ? 'bg-red-100 text-red-800'
-                                    : 'bg-yellow-100 text-yellow-800'
-                                  }`}
+                                className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                                  review.status === 'approved'
+                                    ? 'bg-green-100 text-green-800'
+                                    : review.status === 'rejected'
+                                      ? 'bg-red-100 text-red-800'
+                                      : 'bg-yellow-100 text-yellow-800'
+                                }`}
                               >
                                 {review.status}
                               </span>
                             </div>
                           </div>
 
-                          <div className="mt-2">
-                            {renderStars(review.rating)}
-                          </div>
+                          <div className="mt-2">{renderStars(review.rating)}</div>
 
                           {review.title && (
                             <h4 className="mt-2 font-medium text-gray-900">{review.title}</h4>
@@ -231,7 +228,10 @@ export default function AdminReviewsPage() {
                           {review.media && review.media.length > 0 && (
                             <div className="flex gap-2 mt-3 overflow-x-auto pb-2">
                               {review.media.map((item) => (
-                                <div key={item.id} className="relative w-20 h-20 flex-shrink-0 rounded-md overflow-hidden bg-gray-100 border">
+                                <div
+                                  key={item.id}
+                                  className="relative w-20 h-20 flex-shrink-0 rounded-md overflow-hidden bg-gray-100 border"
+                                >
                                   {item.media_type === 'image' ? (
                                     <img
                                       src={item.media_url}
@@ -296,7 +296,9 @@ export default function AdminReviewsPage() {
                           {/* Reply Form */}
                           {replyingTo === review.id && (
                             <div className="mt-4 p-3 bg-blue-50 rounded border border-blue-200">
-                              <p className="text-sm font-medium text-blue-900 mb-2">Write your reply:</p>
+                              <p className="text-sm font-medium text-blue-900 mb-2">
+                                Write your reply:
+                              </p>
                               <textarea
                                 value={replyText}
                                 onChange={(e) => setReplyText(e.target.value)}

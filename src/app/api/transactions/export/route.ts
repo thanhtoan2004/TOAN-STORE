@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { verifyAuth } from '@/lib/auth';
+import { verifyAuth } from '@/lib/auth/auth';
 import { executeQuery } from '@/lib/db/mysql';
-import { formatDateTime } from '@/lib/date-utils';
+import { formatDateTime } from '@/lib/utils/date-utils';
 
 export async function GET(request: NextRequest) {
   try {

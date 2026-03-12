@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { executeQuery } from '@/lib/db/mysql';
-import { verifyAuth, checkAdminAuth } from '@/lib/auth';
-import { withRateLimit } from '@/lib/with-rate-limit';
-import { createNotification } from '@/lib/notifications';
+import { verifyAuth, checkAdminAuth } from '@/lib/auth/auth';
+import { withRateLimit } from '@/lib/api/with-rate-limit';
+import { createNotification } from '@/lib/notifications/notifications';
 
 // GET - Lấy danh sách bình luận của bài viết news
 export async function GET(request: NextRequest, { params }: { params: Promise<{ slug: string }> }) {

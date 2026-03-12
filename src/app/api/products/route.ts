@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getProducts } from '@/lib/db/mysql';
-import { getCache, setCache } from '@/lib/cache';
+import { getCache, setCache } from '@/lib/redis/cache';
 
 /**
  * API Lấy danh sách sản phẩm (Product Catalog).

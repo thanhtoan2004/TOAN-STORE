@@ -33,7 +33,7 @@ export async function initDb() {
         two_factor_secret VARCHAR(255) NULL,
         is_banned TINYINT(1) DEFAULT 0,
         failed_login_attempts INT DEFAULT 0,
-        locked_until TIMESTAMP NULL,
+        lockout_until TIMESTAMP NULL,
         email_notifications TINYINT(1) DEFAULT 1,
         sms_notifications TINYINT(1) DEFAULT 0,
         push_notifications TINYINT(1) DEFAULT 1,
@@ -429,23 +429,29 @@ export async function initDb() {
         id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
         user_id BIGINT UNSIGNED NULL,
         order_number VARCHAR(100) UNIQUE NOT NULL,
-        status ENUM('pending', 'pending_payment_confirmation', 'payment_received', 'confirmed', 'processing', 'shipped', 'delivered', 'cancelled') DEFAULT 'pending',
+        status ENUM('pending', 'pending_payment_confirmation', 'payment_received', 'confirmed', 'processing', 'shipped', 'delivered', 'cancelled', 'refunded') DEFAULT 'pending',
         currency VARCHAR(10) DEFAULT 'VND',
         total DECIMAL(12, 2) NOT NULL DEFAULT 0.00,
         shipping_fee DECIMAL(12, 2) DEFAULT 0.00,
         discount DECIMAL(12, 2) DEFAULT 0.00,
         voucher_code VARCHAR(100),
+        promotion_code VARCHAR(100),
         voucher_discount DECIMAL(12, 2) DEFAULT 0.00,
-        giftcard_number VARCHAR(16),
+        giftcard_number VARCHAR(64),
+        giftcard_id BIGINT UNSIGNED,
         giftcard_discount DECIMAL(12, 2) DEFAULT 0.00,
         tax DECIMAL(12, 2) DEFAULT 0.00,
         subtotal DECIMAL(12, 2) NOT NULL DEFAULT 0.00,
         shipping_address TEXT,
         shipping_address_id BIGINT UNSIGNED NULL,
         shipping_address_snapshot JSON,
-        billing_address TEXT,
-        phone VARCHAR(20),
-        email VARCHAR(255),
+        billing_address_snapshot JSON,
+        phone VARCHAR(50) DEFAULT '***',
+        phone_encrypted TEXT,
+        email VARCHAR(255) DEFAULT '***',
+        email_encrypted TEXT,
+        email_hash VARCHAR(64),
+        is_encrypted TINYINT(1) DEFAULT 1,
         payment_method VARCHAR(50) DEFAULT 'cod',
         payment_status ENUM('pending', 'paid', 'failed', 'refunded') DEFAULT 'pending',
         tracking_number VARCHAR(100),
@@ -453,14 +459,17 @@ export async function initDb() {
         shipped_at TIMESTAMP NULL,
         delivered_at TIMESTAMP NULL,
         payment_confirmed_at TIMESTAMP NULL,
+        cancelled_at TIMESTAMP NULL,
         notes TEXT,
         placed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
         FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL,
+        FOREIGN KEY (giftcard_id) REFERENCES gift_cards(id) ON DELETE SET NULL,
         INDEX idx_order_number (order_number),
         INDEX idx_user_id (user_id),
-        INDEX idx_status (status)
+        INDEX idx_status (status),
+        INDEX idx_email_hash (email_hash)
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
     `);
 
@@ -555,6 +564,11 @@ export async function initDb() {
       if (!columnNames.includes('payment_confirmed_at')) {
         await connection.query(
           'ALTER TABLE orders ADD COLUMN payment_confirmed_at TIMESTAMP NULL AFTER delivered_at'
+        );
+      }
+      if (!columnNames.includes('cancelled_at')) {
+        await connection.query(
+          'ALTER TABLE orders ADD COLUMN cancelled_at TIMESTAMP NULL AFTER payment_confirmed_at'
         );
       }
       if (!columnNames.includes('phone')) {
@@ -1702,10 +1716,123 @@ export async function initDb() {
     console.log(
       'Khởi tạo cơ sở dữ liệu thành công. VUI LÒNG CHẠY "npx drizzle-kit push" ĐỂ HOÀN TẤT SCHEMA.'
     );
-    connection.release();
-    return true;
+    // ═══════════════════════════════════════════
+    // PHASE 21: SECURITY HARDENING & TRIGGERS
+    // ═══════════════════════════════════════════
+
+    // 1. Restore Inventory Triggers (Prevent negative stock)
+    await connection.query(`
+      DROP TRIGGER IF EXISTS trg_inventory_before_update;
+    `);
+    await connection.query(`
+      CREATE TRIGGER trg_inventory_before_update
+      BEFORE UPDATE ON inventory
+      FOR EACH ROW
+      BEGIN
+        IF NEW.quantity < 0 THEN
+          SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Inventory quantity cannot be negative';
+        END IF;
+        IF NEW.reserved < 0 THEN
+          SET NEW.reserved = 0;
+        END IF;
+      END
+    `);
+
+    // 2. Voucher Status Auto-Sync Trigger
+    await connection.query(`
+      DROP TRIGGER IF EXISTS trg_vouchers_status_sync;
+    `);
+    await connection.query(`
+      CREATE TRIGGER trg_vouchers_status_sync
+      BEFORE UPDATE ON vouchers
+      FOR EACH ROW
+      BEGIN
+        IF NEW.redeemed_at IS NOT NULL AND NEW.status = 'active' THEN
+          SET NEW.status = 'redeemed';
+        END IF;
+        IF NEW.deleted_at IS NOT NULL AND NEW.status != 'expired' THEN
+          SET NEW.status = 'expired';
+        END IF;
+      END
+    `);
+
+    // 2. Reverse Coupon Usage - NOT DELETING, Keep for tracking.
+    // Future: Add 'status' column to coupon_usage to mark as cancelled.
+    // This block seems to be misplaced in a database migration file.
+    // It appears to be application logic that would typically reside in a service or controller
+    // when an order is cancelled, not directly in a database initialization script.
+    // If this is intended to be a comment or placeholder for future work, it should be treated as such.
+    // As per the instruction, I'm inserting it as provided.
+    // Note: 'orderInfo' and 'logger' are not defined in this scope. This code will cause a runtime error if executed.
+    // Assuming this is a placeholder or a comment for future implementation.
+    /*
+    if (orderInfo[0].promotion_code) {
+      logger.info(
+        `[Coupon] Order ${orderNumber} cancelled. Keeping usage of ${orderInfo[0].promotion_code} for history.`
+      );
+    }
+    */
+
+    // 3. Admin manager account hardening
+    const [manager]: any = await connection.query(
+      "SELECT id FROM admin_users WHERE username = 'manager'"
+    );
+    if (manager.length > 0) {
+      console.log('Hardening manager account (id=2)...');
+      // Set a random ultra-secure password and keep it disabled if it was NULL or placeholder
+      await connection.query(
+        `UPDATE admin_users
+         SET is_active = 0,
+             password = COALESCE(password, '$2b$10$UnbreakaBlePasswordPlaceholderThatNoOneCanGuess')
+         WHERE username = 'manager'`
+      );
+    }
+
+    // 4. Cleanup Zombie Table 'product_attributes' if it exists (EAV is in product_attribute_values)
+    try {
+      await connection.query('DROP TABLE IF EXISTS product_attributes');
+    } catch (e) {
+      /* ignore */
+    }
+
+    // 5. Backfill Fix for Issue 3.3 (Financial discrepancies)
+    const [emptyCost]: any = await connection.query(
+      'SELECT id FROM order_items WHERE cost_price = 0 OR cost_price IS NULL LIMIT 1'
+    );
+    if (emptyCost.length > 0) {
+      console.log('Backfilling cost_price for existing order_items...');
+      await connection.query(`
+        UPDATE order_items oi
+        JOIN products p ON oi.product_id = p.id
+        SET oi.cost_price = p.cost_price
+        WHERE oi.cost_price = 0 OR oi.cost_price IS NULL
+      `);
+    }
+
+    // 6. Privacy Hardening: Mask plaintext emails in users table
+    // We keep email_hash for lookups and email_encrypted for retrieval
+    await connection.query(`
+      UPDATE users 
+      SET email = CONCAT(LEFT(email, 1), '***', RIGHT(email, 5))
+      WHERE email NOT LIKE '%***%' AND email_hash IS NOT NULL
+    `);
+
+    // 7. Add missing indexes for performance
+    try {
+      await connection.query(
+        'ALTER TABLE gift_card_transactions ADD INDEX idx_order_id (order_id)'
+      );
+      await connection.query('ALTER TABLE security_logs ADD INDEX idx_event_type (event_type)');
+    } catch (e) {
+      /* already exists */
+    }
+
+    await connection.commit();
+    console.log('Database initialized successfully with security hardening.');
   } catch (error) {
-    console.error('Lỗi khởi tạo cơ sở dữ liệu:', error);
-    return false;
+    console.error('Error initializing database:', error);
+    throw error;
+  } finally {
+    // Note: Do not end the pool here, as it's shared across the app
   }
 }

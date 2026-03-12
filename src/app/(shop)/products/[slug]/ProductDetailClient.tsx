@@ -7,7 +7,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import AddToCartButton from '@/components/ui/AddToCartButton';
 import { Heart, Video, Play, Printer, GitCompareArrows } from 'lucide-react';
-import { formatCurrency } from '@/lib/date-utils';
+import { formatCurrency } from '@/lib/utils/date-utils';
 import { useWishlist } from '@/contexts/WishlistContext';
 import { useComparison } from '@/contexts/ComparisonContext';
 import { useModal } from '@/contexts/ModalContext';

@@ -6,8 +6,8 @@ import Image from 'next/image';
 import { useParams, useRouter } from 'next/navigation';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useCart } from '@/contexts/CartContext';
-import { Button } from "@/components/ui/Button";
-import { formatDateTime, formatCurrency } from '@/lib/date-utils';
+import { Button } from '@/components/ui/Button';
+import { formatDateTime, formatCurrency } from '@/lib/utils/date-utils';
 import { OrderTimeline } from '@/components/orders/OrderTimeline';
 import { Printer, Share2, Calendar, Package, Headphones } from 'lucide-react';
 
@@ -26,7 +26,8 @@ interface OrderData {
   orderNumber: string;
   orderDate: string;
   orderDateRaw: string; // Added for Timeline
-  dates: { // Added for Timeline
+  dates: {
+    // Added for Timeline
     confirmed_at?: string;
     shipped_at?: string;
     delivered_at?: string;
@@ -56,8 +57,6 @@ interface OrderData {
   };
   items: OrderItem[];
 }
-
-
 
 import RefundModal from '@/components/refunds/RefundModal';
 import EditShippingAddressModal from '@/components/orders/EditShippingAddressModal';
@@ -125,7 +124,7 @@ export default function OrderDetailPage() {
               }
             }
           } catch (e) {
-            console.error("Error fetching refund status", e);
+            console.error('Error fetching refund status', e);
           }
         }
         setRefundStatus(refundState);
@@ -136,16 +135,23 @@ export default function OrderDetailPage() {
           orderDate: formatDateTime(order.placed_at),
           orderDateRaw: order.placed_at,
           dates: {
-            confirmed_at: order.confirmed_at,
+            confirmed_at: order.payment_confirmed_at,
             shipped_at: order.shipped_at,
             delivered_at: order.delivered_at,
-            cancelled_at: order.cancelled_at
+            cancelled_at: order.cancelled_at,
           },
-          status: order.status === 'pending' ? 'pending' :
-            order.status === 'processing' ? 'confirmed' :
-              order.status === 'shipped' ? 'shipping' :
-                order.status === 'delivered' ? 'delivered' :
-                  order.status === 'cancelled' ? 'cancelled' : order.status,
+          status:
+            order.status === 'pending'
+              ? 'pending'
+              : order.status === 'processing'
+                ? 'confirmed'
+                : order.status === 'shipped'
+                  ? 'shipping'
+                  : order.status === 'delivered'
+                    ? 'delivered'
+                    : order.status === 'cancelled'
+                      ? 'cancelled'
+                      : order.status,
           totalAmount: parseFloat(order.subtotal || 0),
           shippingFee: parseFloat(order.shipping_fee || 0),
           tax: parseFloat(order.tax || 0),
@@ -165,19 +171,20 @@ export default function OrderDetailPage() {
             address: order.delivery_address || '',
             city: order.delivery_city || '',
             district: order.delivery_district || '',
-            ward: order.delivery_ward || ''
+            ward: order.delivery_ward || '',
           },
-          items: order.items?.map((item: any) => ({
-            id: item.id.toString(),
-            product_id: item.product_id, // Ensure we pass it for handleReorder
-            name: item.product_name || item.name,
-            image: item.image || '/placeholder-product.png',
-            unit_price: parseFloat(item.unit_price || 0),
-            total_price: parseFloat(item.total_price || 0),
-            size: item.size || 'N/A',
-            color: item.color || 'N/A',
-            quantity: item.quantity
-          })) || []
+          items:
+            order.items?.map((item: any) => ({
+              id: item.id.toString(),
+              product_id: item.product_id, // Ensure we pass it for handleReorder
+              name: item.product_name || item.name,
+              image: item.image || '/placeholder-product.png',
+              unit_price: parseFloat(item.unit_price || 0),
+              total_price: parseFloat(item.total_price || 0),
+              size: item.size || 'N/A',
+              color: item.color || 'N/A',
+              quantity: item.quantity,
+            })) || [],
         };
 
         // Inject original ID for RefundModal
@@ -201,10 +208,14 @@ export default function OrderDetailPage() {
     if (!trackingNumber || trackingNumber === 'Chưa có') return null;
 
     const carrierLower = carrier?.toLowerCase() || '';
-    if (carrierLower.includes('ghtk')) return `https://khachhang.ghtk.vn/khach-hang/v2/don-hang?id=${trackingNumber}`;
-    if (carrierLower.includes('ghn')) return `https://ghn.vn/blogs/trang-thai-don-hang?id=${trackingNumber}`;
-    if (carrierLower.includes('viettel')) return `https://viettelpost.com.vn/tra-cuu-hanh-trinh-don-hang?id=${trackingNumber}`;
-    if (carrierLower.includes('vnpost') || carrierLower.includes('vietnam post')) return `https://www.vnpost.vn/vi-vn/tra-cuu-gia-cuoc?type=tracking&code=${trackingNumber}`;
+    if (carrierLower.includes('ghtk'))
+      return `https://khachhang.ghtk.vn/khach-hang/v2/don-hang?id=${trackingNumber}`;
+    if (carrierLower.includes('ghn'))
+      return `https://ghn.vn/blogs/trang-thai-don-hang?id=${trackingNumber}`;
+    if (carrierLower.includes('viettel'))
+      return `https://viettelpost.com.vn/tra-cuu-hanh-trinh-don-hang?id=${trackingNumber}`;
+    if (carrierLower.includes('vnpost') || carrierLower.includes('vietnam post'))
+      return `https://www.vnpost.vn/vi-vn/tra-cuu-gia-cuoc?type=tracking&code=${trackingNumber}`;
 
     return `https://www.google.com/search?q=tracking+${trackingNumber}`;
   };
@@ -230,14 +241,16 @@ export default function OrderDetailPage() {
     }
   };
 
-
   const handleShareOrder = () => {
     const url = window.location.href;
-    navigator.clipboard.writeText(url).then(() => {
-      alert('Đã sao chép liên kết đơn hàng vào bộ nhớ tạm!');
-    }).catch(() => {
-      alert('Không thể sao chép liên kết');
-    });
+    navigator.clipboard
+      .writeText(url)
+      .then(() => {
+        alert('Đã sao chép liên kết đơn hàng vào bộ nhớ tạm!');
+      })
+      .catch(() => {
+        alert('Không thể sao chép liên kết');
+      });
   };
 
   const handleAddToCalendar = () => {
@@ -258,7 +271,7 @@ export default function OrderDetailPage() {
       const response = await fetch(`/api/orders/${orderNumber}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: 'cancelled' })
+        body: JSON.stringify({ status: 'cancelled' }),
       });
 
       const result = await response.json();
@@ -282,10 +295,10 @@ export default function OrderDetailPage() {
     try {
       setReordering(true);
 
-      const itemsToReorder = orderData.items.map(item => ({
+      const itemsToReorder = orderData.items.map((item) => ({
         productId: (item as any).product_id || parseInt(item.id), // Fallback if detail API didn't have product_id yet (pushed earlier)
         quantity: item.quantity,
-        size: item.size
+        size: item.size,
       }));
 
       const success = await addMultipleToCart(itemsToReorder);
@@ -320,9 +333,7 @@ export default function OrderDetailPage() {
           <h2 className="text-2xl font-bold mb-4">Không tìm thấy đơn hàng</h2>
           <p className="text-gray-600 mb-6">Đơn hàng với mã số {orderNumber} không tồn tại.</p>
           <Link href="/orders">
-            <Button className="rounded-full">
-              Xem tất cả đơn hàng
-            </Button>
+            <Button className="rounded-full">Xem tất cả đơn hàng</Button>
           </Link>
         </div>
       </div>
@@ -336,14 +347,19 @@ export default function OrderDetailPage() {
           <div className="toan-container py-6">
             <div className="flex items-center justify-between">
               <div>
-                <Link href="/orders" className="text-blue-600 hover:text-blue-800 flex items-center mb-2">
+                <Link
+                  href="/orders"
+                  className="text-blue-600 hover:text-blue-800 flex items-center mb-2"
+                >
                   ← Quay lại danh sách đơn hàng
                 </Link>
                 <h1 className="text-3xl font-bold">Chi tiết đơn hàng #{orderData.orderNumber}</h1>
                 <p className="text-gray-600">Đặt hàng ngày {orderData.orderDate}</p>
               </div>
               <div className="text-right">
-                <span className={`inline-block px-4 py-2 rounded-full text-sm font-medium ${getStatusColor(orderData.status)}`}>
+                <span
+                  className={`inline-block px-4 py-2 rounded-full text-sm font-medium ${getStatusColor(orderData.status)}`}
+                >
                   {t.orders[orderData.status as keyof typeof t.orders] || orderData.status}
                 </span>
               </div>
@@ -363,14 +379,20 @@ export default function OrderDetailPage() {
                     confirmed_at: orderData.dates?.confirmed_at,
                     shipped_at: orderData.dates?.shipped_at,
                     delivered_at: orderData.dates?.delivered_at,
-                    cancelled_at: orderData.dates?.cancelled_at
+                    cancelled_at: orderData.dates?.cancelled_at,
                   }}
                 />
                 {orderData.trackingNumber && orderData.trackingNumber !== 'Chưa có' && (
                   <div className="mt-4 p-4 bg-blue-50 rounded-lg flex items-center justify-between">
                     <div>
-                      <p className="text-sm text-blue-800 font-medium">Mã vận đơn: {orderData.trackingNumber}</p>
-                      {orderData.carrier && <p className="text-xs text-blue-600">Đơn vị vận chuyển: {orderData.carrier}</p>}
+                      <p className="text-sm text-blue-800 font-medium">
+                        Mã vận đơn: {orderData.trackingNumber}
+                      </p>
+                      {orderData.carrier && (
+                        <p className="text-xs text-blue-600">
+                          Đơn vị vận chuyển: {orderData.carrier}
+                        </p>
+                      )}
                     </div>
                     <a
                       href={getTrackingUrl(orderData.carrier, orderData.trackingNumber) || '#'}
@@ -385,10 +407,15 @@ export default function OrderDetailPage() {
               </div>
 
               <div className="bg-white rounded-lg shadow-sm border p-6">
-                <h2 className="text-xl font-helvetica-medium mb-6">Sản phẩm đã đặt ({orderData.items.length} sản phẩm)</h2>
+                <h2 className="text-xl font-helvetica-medium mb-6">
+                  Sản phẩm đã đặt ({orderData.items.length} sản phẩm)
+                </h2>
                 <div className="space-y-4">
                   {orderData.items.map((item) => (
-                    <div key={item.id} className="flex items-center space-x-4 p-4 border rounded-lg">
+                    <div
+                      key={item.id}
+                      className="flex items-center space-x-4 p-4 border rounded-lg"
+                    >
                       <Image
                         src={item.image}
                         alt={item.name}
@@ -406,8 +433,12 @@ export default function OrderDetailPage() {
                         </div>
                       </div>
                       <div className="text-right">
-                        <p className="font-helvetica-medium text-lg">{formatCurrency(item.total_price)}</p>
-                        <p className="text-sm text-gray-600">({item.quantity} × {formatCurrency(item.unit_price)})</p>
+                        <p className="font-helvetica-medium text-lg">
+                          {formatCurrency(item.total_price)}
+                        </p>
+                        <p className="text-sm text-gray-600">
+                          ({item.quantity} × {formatCurrency(item.unit_price)})
+                        </p>
                       </div>
                     </div>
                   ))}
@@ -417,7 +448,10 @@ export default function OrderDetailPage() {
               <div className="bg-white rounded-lg shadow-sm border p-6">
                 <div className="flex justify-between items-center mb-6">
                   <h2 className="text-xl font-helvetica-medium">Thông tin giao hàng</h2>
-                  {(orderData.status === 'pending' || orderData.status === 'pending_payment' || orderData.status === 'paid' || orderData.status === 'confirmed') && (
+                  {(orderData.status === 'pending' ||
+                    orderData.status === 'pending_payment' ||
+                    orderData.status === 'paid' ||
+                    orderData.status === 'confirmed') && (
                     <button
                       onClick={() => setShowEditAddressModal(true)}
                       className="text-sm font-medium text-blue-600 hover:text-blue-800 underline disabled:opacity-50"
@@ -428,12 +462,29 @@ export default function OrderDetailPage() {
                   )}
                 </div>
                 <div className="space-y-2">
-                  <p><span className="font-medium">Người nhận:</span> {orderData.shippingAddress.name}</p>
-                  <p><span className="font-medium">Số điện thoại:</span> {orderData.shippingAddress.phone}</p>
-                  <p><span className="font-medium">Địa chỉ:</span> {orderData.shippingAddress.address}</p>
-                  <p><span className="font-medium">Phường/Xã:</span> {orderData.shippingAddress.ward}</p>
-                  <p><span className="font-medium">Quận/Huyện:</span> {orderData.shippingAddress.district}</p>
-                  <p><span className="font-medium">Tỉnh/Thành phố:</span> {orderData.shippingAddress.city}</p>
+                  <p>
+                    <span className="font-medium">Người nhận:</span>{' '}
+                    {orderData.shippingAddress.name}
+                  </p>
+                  <p>
+                    <span className="font-medium">Số điện thoại:</span>{' '}
+                    {orderData.shippingAddress.phone}
+                  </p>
+                  <p>
+                    <span className="font-medium">Địa chỉ:</span>{' '}
+                    {orderData.shippingAddress.address}
+                  </p>
+                  <p>
+                    <span className="font-medium">Phường/Xã:</span> {orderData.shippingAddress.ward}
+                  </p>
+                  <p>
+                    <span className="font-medium">Quận/Huyện:</span>{' '}
+                    {orderData.shippingAddress.district}
+                  </p>
+                  <p>
+                    <span className="font-medium">Tỉnh/Thành phố:</span>{' '}
+                    {orderData.shippingAddress.city}
+                  </p>
                 </div>
               </div>
             </div>
@@ -483,7 +534,10 @@ export default function OrderDetailPage() {
                 <h2 className="text-xl font-helvetica-medium mb-4">Hành động</h2>
                 <div className="space-y-3">
                   <Link href={`/orders/${orderNumber}`} className="block w-full">
-                    <Button variant="outline" className="w-full rounded-full border-gray-300 text-gray-700 hover:bg-gray-50 flex items-center justify-center gap-2">
+                    <Button
+                      variant="outline"
+                      className="w-full rounded-full border-gray-300 text-gray-700 hover:bg-gray-50 flex items-center justify-center gap-2"
+                    >
                       <Package className="w-4 h-4" />
                       Theo dõi đơn hàng
                     </Button>
@@ -505,7 +559,10 @@ export default function OrderDetailPage() {
                     Thêm vào lịch
                   </Button>
                   <Link href="/help/contact" className="block w-full">
-                    <Button variant="outline" className="w-full rounded-full border-gray-300 text-gray-700 hover:bg-gray-50 flex items-center justify-center gap-2">
+                    <Button
+                      variant="outline"
+                      className="w-full rounded-full border-gray-300 text-gray-700 hover:bg-gray-50 flex items-center justify-center gap-2"
+                    >
                       <Headphones className="w-4 h-4" />
                       Liên hệ hỗ trợ
                     </Button>
@@ -543,21 +600,33 @@ export default function OrderDetailPage() {
                       <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
                       <span>Đang xử lý...</span>
                     </div>
-                  ) : 'Đặt lại đơn hàng này'}
+                  ) : (
+                    'Đặt lại đơn hàng này'
+                  )}
                 </Button>
 
                 {/* Refund Button Logic */}
                 {orderData.status === 'delivered' && (
                   <>
                     {refundStatus ? (
-                      <div className={`text-center p-3 rounded-lg border ${refundStatus === 'approved' ? 'bg-green-50 border-green-200 text-green-700' :
-                        refundStatus === 'rejected' ? 'bg-red-50 border-red-200 text-red-700' :
-                          'bg-yellow-50 border-yellow-200 text-yellow-700'
-                        }`}>
-                        <p className="font-medium">Trạng thái hoàn tiền:
-                          {refundStatus === 'pending' ? ' Đang chờ xử lý' :
-                            refundStatus === 'approved' ? ' Đã chấp nhận' :
-                              refundStatus === 'rejected' ? ' Đã từ chối' : refundStatus}
+                      <div
+                        className={`text-center p-3 rounded-lg border ${
+                          refundStatus === 'approved'
+                            ? 'bg-green-50 border-green-200 text-green-700'
+                            : refundStatus === 'rejected'
+                              ? 'bg-red-50 border-red-200 text-red-700'
+                              : 'bg-yellow-50 border-yellow-200 text-yellow-700'
+                        }`}
+                      >
+                        <p className="font-medium">
+                          Trạng thái hoàn tiền:
+                          {refundStatus === 'pending'
+                            ? ' Đang chờ xử lý'
+                            : refundStatus === 'approved'
+                              ? ' Đã chấp nhận'
+                              : refundStatus === 'rejected'
+                                ? ' Đã từ chối'
+                                : refundStatus}
                         </p>
                       </div>
                     ) : (
@@ -615,22 +684,26 @@ export default function OrderDetailPage() {
       <style jsx global>{`
         @media print {
           /* Hide EVERYTHING else in the app layout */
-          header, footer, nav, aside, .no-print {
+          header,
+          footer,
+          nav,
+          aside,
+          .no-print {
             display: none !important;
           }
-          
+
           @page {
             size: A4;
             margin: 0mm; /* Let the component handle internal padding */
           }
-          
+
           body {
             background-color: #fff !important;
             margin: 0 !important;
             padding: 0 !important;
             -webkit-print-color-adjust: exact;
           }
-          
+
           .print-layout-root {
             position: absolute;
             left: 0;
@@ -669,15 +742,27 @@ function InvoiceSection({ orderData, copyLabel }: { orderData: OrderData; copyLa
       </div>
 
       <div className="mb-4 p-3 bg-gray-50 rounded border border-gray-200">
-        <h3 className="font-bold border-b pb-1 mb-2 uppercase text-[10px] text-gray-500 tracking-wider">Thông tin khách hàng</h3>
+        <h3 className="font-bold border-b pb-1 mb-2 uppercase text-[10px] text-gray-500 tracking-wider">
+          Thông tin khách hàng
+        </h3>
         <div className="grid grid-cols-2 gap-4 text-xs">
           <div>
-            <p><span className="font-semibold">Người nhận:</span> {orderData.shippingAddress.name}</p>
-            <p><span className="font-semibold">Điện thoại:</span> {orderData.shippingAddress.phone}</p>
+            <p>
+              <span className="font-semibold">Người nhận:</span> {orderData.shippingAddress.name}
+            </p>
+            <p>
+              <span className="font-semibold">Điện thoại:</span> {orderData.shippingAddress.phone}
+            </p>
           </div>
           <div>
-            <p><span className="font-semibold">Địa chỉ:</span> {orderData.shippingAddress.address}</p>
-            <p><span className="font-semibold text-gray-500">Khu vực:</span> {orderData.shippingAddress.ward}, {orderData.shippingAddress.district}, {orderData.shippingAddress.city}</p>
+            <p>
+              <span className="font-semibold">Địa chỉ:</span> {orderData.shippingAddress.address}
+            </p>
+            <p>
+              <span className="font-semibold text-gray-500">Khu vực:</span>{' '}
+              {orderData.shippingAddress.ward}, {orderData.shippingAddress.district},{' '}
+              {orderData.shippingAddress.city}
+            </p>
           </div>
         </div>
       </div>
@@ -696,25 +781,35 @@ function InvoiceSection({ orderData, copyLabel }: { orderData: OrderData; copyLa
           {orderData.items.map((item, idx) => (
             <tr key={idx}>
               <td className="py-1.5 px-3 border">{item.name}</td>
-              <td className="py-1.5 px-3 border text-center">{item.size} / {item.color}</td>
+              <td className="py-1.5 px-3 border text-center">
+                {item.size} / {item.color}
+              </td>
               <td className="py-1.5 px-3 border text-center">{item.quantity}</td>
               <td className="py-1.5 px-3 border text-right">{formatCurrency(item.unit_price)}</td>
-              <td className="py-1.5 px-3 border text-right font-medium">{formatCurrency(item.total_price)}</td>
+              <td className="py-1.5 px-3 border text-right font-medium">
+                {formatCurrency(item.total_price)}
+              </td>
             </tr>
           ))}
         </tbody>
         <tfoot className="font-bold">
           <tr>
-            <td colSpan={4} className="py-1 px-3 text-right border">Tạm tính:</td>
+            <td colSpan={4} className="py-1 px-3 text-right border">
+              Tạm tính:
+            </td>
             <td className="py-1 px-3 text-right border">{formatCurrency(orderData.totalAmount)}</td>
           </tr>
           <tr>
-            <td colSpan={4} className="py-1 px-3 text-right border">Phí vận chuyển:</td>
+            <td colSpan={4} className="py-1 px-3 text-right border">
+              Phí vận chuyển:
+            </td>
             <td className="py-1 px-3 text-right border">{formatCurrency(orderData.shippingFee)}</td>
           </tr>
           {orderData.tax > 0 && (
             <tr>
-              <td colSpan={4} className="py-1 px-3 text-right border">Thuế VAT:</td>
+              <td colSpan={4} className="py-1 px-3 text-right border">
+                Thuế VAT:
+              </td>
               <td className="py-1 px-3 text-right border">{formatCurrency(orderData.tax)}</td>
             </tr>
           )}
@@ -723,26 +818,43 @@ function InvoiceSection({ orderData, copyLabel }: { orderData: OrderData; copyLa
               <td colSpan={4} className="py-1 px-3 text-right border text-green-600">
                 Giảm giá Voucher ({orderData.voucherCode || 'VOUCHER'}):
               </td>
-              <td className="py-1 px-3 text-right border text-green-600">-{formatCurrency(orderData.voucherDiscount)}</td>
+              <td className="py-1 px-3 text-right border text-green-600">
+                -{formatCurrency(orderData.voucherDiscount)}
+              </td>
             </tr>
           )}
           {orderData.giftcardDiscount > 0 && (
             <tr>
               <td colSpan={4} className="py-1 px-3 text-right border text-green-600">
-                Thẻ quà tặng ({orderData.giftcardNumber ? `****${orderData.giftcardNumber.slice(-4)}` : 'GIFT CARD'}):
+                Thẻ quà tặng (
+                {orderData.giftcardNumber
+                  ? `****${orderData.giftcardNumber.slice(-4)}`
+                  : 'GIFT CARD'}
+                ):
               </td>
-              <td className="py-1 px-3 text-right border text-green-600">-{formatCurrency(orderData.giftcardDiscount)}</td>
+              <td className="py-1 px-3 text-right border text-green-600">
+                -{formatCurrency(orderData.giftcardDiscount)}
+              </td>
             </tr>
           )}
           {/* Discount general (if any membership discount remains after subtracting voucher/giftcard) */}
-          {(orderData.discount - orderData.voucherDiscount - orderData.giftcardDiscount > 1) && (
+          {orderData.discount - orderData.voucherDiscount - orderData.giftcardDiscount > 1 && (
             <tr>
-              <td colSpan={4} className="py-1 px-3 text-right border text-green-600">Ưu đãi thành viên:</td>
-              <td className="py-1 px-3 text-right border text-green-600">-{formatCurrency(orderData.discount - orderData.voucherDiscount - orderData.giftcardDiscount)}</td>
+              <td colSpan={4} className="py-1 px-3 text-right border text-green-600">
+                Ưu đãi thành viên:
+              </td>
+              <td className="py-1 px-3 text-right border text-green-600">
+                -
+                {formatCurrency(
+                  orderData.discount - orderData.voucherDiscount - orderData.giftcardDiscount
+                )}
+              </td>
             </tr>
           )}
           <tr className="text-base bg-gray-50">
-            <td colSpan={4} className="py-2 px-3 text-right border">TỔNG CỘNG:</td>
+            <td colSpan={4} className="py-2 px-3 text-right border">
+              TỔNG CỘNG:
+            </td>
             <td className="py-2 px-3 text-right border">{formatCurrency(orderData.finalTotal)}</td>
           </tr>
         </tfoot>
@@ -758,15 +870,16 @@ function InvoiceSection({ orderData, copyLabel }: { orderData: OrderData; copyLa
           <p className="font-bold text-sm">Người bán hàng</p>
           <p className="text-[10px] italic text-gray-400">(Ký và ghi rõ họ tên)</p>
           <div className="h-12 flex items-center justify-center relative">
-            <div className="absolute border-2 border-red-500 text-red-500 font-bold px-3 py-0.5 rotate-12 opacity-60 uppercase text-[10px]">Đã thanh toán</div>
+            <div className="absolute border-2 border-red-500 text-red-500 font-bold px-3 py-0.5 rotate-12 opacity-60 uppercase text-[10px]">
+              Đã thanh toán
+            </div>
           </div>
         </div>
       </div>
 
-      <p className="text-center text-[10px] text-gray-400 mt-4">Cảm ơn quý khách đã mua sắm tại TOAN Store!</p>
+      <p className="text-center text-[10px] text-gray-400 mt-4">
+        Cảm ơn quý khách đã mua sắm tại TOAN Store!
+      </p>
     </div>
   );
 }
-
-
-

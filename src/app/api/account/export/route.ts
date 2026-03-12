@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
-import { verifyAuth } from '@/lib/auth';
+import { verifyAuth } from '@/lib/auth/auth';
 import { executeQuery } from '@/lib/db/mysql';
-import { decrypt } from '@/lib/encryption';
+import { decrypt } from '@/lib/security/encryption';
 
 /**
  * API Xuất dữ liệu cá nhân (Personal Data Export - GDPR Compliance).

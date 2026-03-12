@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server';
-import { verifyAuth } from '@/lib/auth';
+import { verifyAuth } from '@/lib/auth/auth';
 import { executeQuery } from '@/lib/db/mysql';
 import { buildPaymentUrl } from '@/lib/payment/vnpay';
-import { withRateLimit } from '@/lib/with-rate-limit';
+import { withRateLimit } from '@/lib/api/with-rate-limit';
 
 /**
  * API Khởi tạo liên kết thanh toán VNPAY.

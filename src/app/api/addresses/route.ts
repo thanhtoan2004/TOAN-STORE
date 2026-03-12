@@ -1,30 +1,29 @@
 import { NextResponse } from 'next/server';
 import { getAddresses, addAddress } from '@/lib/db/mysql';
-import { verifyAuth } from '@/lib/auth';
+import { verifyAuth } from '@/lib/auth/auth';
 
 // GET: Fetch user addresses
 /**
  * API Lấy danh sách địa chỉ giao hàng của User.
  */
 export async function GET(request: Request) {
-    try {
-        const session = await verifyAuth();
-        if (!session) {
-            return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
-        }
-        const userId = Number(session.userId);
-
-
-        const addresses = await getAddresses(userId);
-        console.log(`DEBUG: API GET /api/addresses - Found ${addresses.length} addresses`);
-        return NextResponse.json(addresses);
-    } catch (error: any) {
-        console.error('DEBUG: Error details:', error.message, error.stack);
-        return NextResponse.json(
-            { message: 'Internal Server Error', error: error.message },
-            { status: 500 }
-        );
+  try {
+    const session = await verifyAuth();
+    if (!session) {
+      return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
     }
+    const userId = Number(session.userId);
+
+    const addresses = await getAddresses(userId);
+    console.log(`DEBUG: API GET /api/addresses - Found ${addresses.length} addresses`);
+    return NextResponse.json(addresses);
+  } catch (error: any) {
+    console.error('DEBUG: Error details:', error.message, error.stack);
+    return NextResponse.json(
+      { message: 'Internal Server Error', error: error.message },
+      { status: 500 }
+    );
+  }
 }
 
 // POST: Add new address
@@ -32,29 +31,26 @@ export async function GET(request: Request) {
  * API Thêm địa chỉ giao hàng mới.
  */
 export async function POST(request: Request) {
-    try {
-        const session = await verifyAuth();
-        if (!session) {
-            return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
-        }
-        const userId = Number(session.userId);
-
-        const body = await request.json();
-        const { userId: bodyUserId, ...addressData } = body;
-
-        const newAddressId = await addAddress(userId, addressData);
-        return NextResponse.json({
-            success: true,
-            id: newAddressId,
-            message: 'Address added successfully'
-        });
-    } catch (error) {
-        console.error('Error adding address:', error);
-        return NextResponse.json(
-            { message: 'Internal Server Error' },
-            { status: 500 }
-        );
+  try {
+    const session = await verifyAuth();
+    if (!session) {
+      return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
     }
+    const userId = Number(session.userId);
+
+    const body = await request.json();
+    const { userId: bodyUserId, ...addressData } = body;
+
+    const newAddressId = await addAddress(userId, addressData);
+    return NextResponse.json({
+      success: true,
+      id: newAddressId,
+      message: 'Address added successfully',
+    });
+  } catch (error) {
+    console.error('Error adding address:', error);
+    return NextResponse.json({ message: 'Internal Server Error' }, { status: 500 });
+  }
 }
 
 // PUT: Update address or set default
@@ -62,46 +58,46 @@ export async function POST(request: Request) {
  * API Cập nhật địa chỉ hoặc đặt làm mặc định.
  */
 export async function PUT(request: Request) {
-    try {
-        const session = await verifyAuth();
-        if (!session) {
-            return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
-        }
-        const userId = Number(session.userId);
-
-        const body = await request.json();
-        const { addressId, action, ...addressData } = body;
-
-        if (!addressId) {
-            return NextResponse.json(
-                { success: false, message: 'Address ID is required' },
-                { status: 400 }
-            );
-        }
-
-        const { updateAddress, setDefaultAddress } = await import('@/lib/db/mysql');
-
-        if (action === 'setDefault') {
-            await setDefaultAddress(parseInt(addressId), userId);
-            return NextResponse.json({
-                success: true,
-                message: 'Address set as default successfully'
-            });
-        } else {
-            // Default action is update
-            await updateAddress(userId, parseInt(addressId), addressData);
-            return NextResponse.json({
-                success: true,
-                message: 'Address updated successfully'
-            });
-        }
-    } catch (error: any) {
-        console.error('Error updating address:', error);
-        return NextResponse.json(
-            { success: false, message: 'Internal Server Error', error: error.message },
-            { status: 500 }
-        );
+  try {
+    const session = await verifyAuth();
+    if (!session) {
+      return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
     }
+    const userId = Number(session.userId);
+
+    const body = await request.json();
+    const { addressId, action, ...addressData } = body;
+
+    if (!addressId) {
+      return NextResponse.json(
+        { success: false, message: 'Address ID is required' },
+        { status: 400 }
+      );
+    }
+
+    const { updateAddress, setDefaultAddress } = await import('@/lib/db/mysql');
+
+    if (action === 'setDefault') {
+      await setDefaultAddress(parseInt(addressId), userId);
+      return NextResponse.json({
+        success: true,
+        message: 'Address set as default successfully',
+      });
+    } else {
+      // Default action is update
+      await updateAddress(userId, parseInt(addressId), addressData);
+      return NextResponse.json({
+        success: true,
+        message: 'Address updated successfully',
+      });
+    }
+  } catch (error: any) {
+    console.error('Error updating address:', error);
+    return NextResponse.json(
+      { success: false, message: 'Internal Server Error', error: error.message },
+      { status: 500 }
+    );
+  }
 }
 
 // DELETE: Delete an address
@@ -110,35 +106,29 @@ export async function PUT(request: Request) {
  * Phải xác thực đúng chủ sở hữu địa chỉ mới được phép xóa (logic ở Database layer).
  */
 export async function DELETE(request: Request) {
-    try {
-        const session = await verifyAuth();
-        if (!session) {
-            return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
-        }
-        const userId = Number(session.userId);
-
-        const { searchParams } = new URL(request.url);
-        const addressId = searchParams.get('addressId');
-
-        if (!addressId) {
-            return NextResponse.json(
-                { message: 'Address ID is required' },
-                { status: 400 }
-            );
-        }
-
-        const { deleteAddress } = await import('@/lib/db/mysql');
-        await deleteAddress(userId, parseInt(addressId));
-
-        return NextResponse.json({
-            success: true,
-            message: 'Address deleted successfully'
-        });
-    } catch (error) {
-        console.error('Error deleting address:', error);
-        return NextResponse.json(
-            { message: 'Internal Server Error' },
-            { status: 500 }
-        );
+  try {
+    const session = await verifyAuth();
+    if (!session) {
+      return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
     }
+    const userId = Number(session.userId);
+
+    const { searchParams } = new URL(request.url);
+    const addressId = searchParams.get('addressId');
+
+    if (!addressId) {
+      return NextResponse.json({ message: 'Address ID is required' }, { status: 400 });
+    }
+
+    const { deleteAddress } = await import('@/lib/db/mysql');
+    await deleteAddress(userId, parseInt(addressId));
+
+    return NextResponse.json({
+      success: true,
+      message: 'Address deleted successfully',
+    });
+  } catch (error) {
+    console.error('Error deleting address:', error);
+    return NextResponse.json({ message: 'Internal Server Error' }, { status: 500 });
+  }
 }

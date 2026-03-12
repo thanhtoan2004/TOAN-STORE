@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createSuccessResponse, withErrorHandling } from '@/lib/api-utils';
+import { createSuccessResponse, withErrorHandling } from '@/lib/api/api-utils';
 import { executeQuery } from '@/lib/db/mysql';
-import { getCache, setCache } from '@/lib/cache';
+import { getCache, setCache } from '@/lib/redis/cache';
 
 /**
  * API Lấy danh sách các mã giảm giá (Coupons) công khai đang có hiệu lực.

@@ -1,5 +1,5 @@
 import { executeQuery } from './mysql';
-import { invalidateCache } from '@/lib/cache';
+import { invalidateCache } from '@/lib/redis/cache';
 
 const MAINTENANCE_CACHE_KEY = 'settings:maintenance_mode';
 

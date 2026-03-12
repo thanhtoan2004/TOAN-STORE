@@ -37,7 +37,6 @@ User Roles & Permissions
 37: ✅ Role-Based Access Control (RBAC) chi tiết
 38: Permission inheritance (role kế thừa quyền từ role khác)
 
-
 👤 USER PROFILE & ACCOUNT (25 yêu cầu)
 Profile Management
 
@@ -72,7 +71,6 @@ Account Settings
 72: ✅ Chọn ngôn ngữ (Tiếng Việt/English)
 73: ✅ Xuất dữ liệu cá nhân (GDPR compliance)
 74: ✅ Xóa tài khoản vĩnh viễn
-
 
 🛍️ PRODUCT CATALOG (40 yêu cầu)
 Product Listing
@@ -124,7 +122,6 @@ Product Sorting
 124: ✅ Sắp xếp theo: Tên Z-A
 125: ✅ Sắp xếp theo: % giảm giá cao nhất
 
-
 📦 PRODUCT DETAILS (35 yêu cầu)
 Product Information
 
@@ -173,7 +170,6 @@ Product Actions
 173: ✅ Copy link sản phẩm
 174: ✅ Print product details (Professional Catalog Layout)
 
-
 ⭐ REVIEWS & RATINGS (20 yêu cầu)
 Review Display
 
@@ -200,7 +196,6 @@ Write Review
 200: ✅ Admin duyệt review trước khi hiển thị
 201: ✅ Edit review đã viết
 202: ✅ Delete review
-
 
 🛒 SHOPPING CART (30 yêu cầu)
 Cart Management
@@ -235,7 +230,6 @@ Cart Management
 235: ✅ Estimate delivery time
 236: ✅ Free shipping progress bar
 237: ✅ Recommended products trong cart
-
 
 💳 CHECKOUT (40 yêu cầu)
 Checkout Flow
@@ -300,7 +294,6 @@ Order Review & Confirmation
 300: ✅ Add to calendar reminder
 301: ✅ Share order (FB, TW, etc.)người khác
 
-
 📦 ORDER MANAGEMENT (35 yêu cầu)
 Order Listing
 
@@ -354,7 +347,6 @@ Order Tracking
 354: ✅ Push notification
 355: Tracking map (vị trí shipper)
 
-
 🎁 PROMOTIONS & DISCOUNTS (30 yêu cầu)
 Promo Codes
 
@@ -395,7 +387,6 @@ Gift Cards
 395: ✅ Gift card transaction history
 396: ✅ Gift card expiry date
 
-
 ⚡ FLASH SALES (15 yêu cầu)
 
 401: ✅ Tạo flash sale campaign (Admin)
@@ -413,7 +404,6 @@ Gift Cards
 413: ✅ Flash sale push notification
 414: ✅ Flash sale history
 415: ✅ Flash sale analytics (conversion rate)
-
 
 💰 PAYMENT & TRANSACTIONS (20 yêu cầu)
 Payment Processing
@@ -441,7 +431,6 @@ Transaction Management
 441: Reconciliation report
 442: ✅ Payment analytics dashboard
 443: Chargeback handling
-
 
 🎁 LOYALTY & REWARDS (25 yêu cầu)
 Points System
@@ -471,13 +460,12 @@ Membership Tiers
 
 Redemption
 
-Point redemption catalog
-Redeem points for vouchers
+✅ Point redemption catalog
+✅ Redeem points for vouchers
 Redeem points for gift cards
 Redeem points for products
 Redeem points for free shipping
 Redemption confirmation
-
 
 👥 REFERRAL PROGRAM (10 yêu cầu)
 
@@ -491,7 +479,6 @@ Referral leaderboard
 Referral analytics
 Referral email templates
 Referral fraud detection
-
 
 🔍 SEARCH & DISCOVERY (30 yêu cầu)
 Search Functionality
@@ -530,7 +517,6 @@ Product Discovery
 530: ✅ Related products by category
 531: Complete the look
 
-
 📰 CONTENT MANAGEMENT (20 yêu cầu)
 Blog/News
 
@@ -539,7 +525,7 @@ Blog/News
 539: ✅ Blog post detail
 540: ✅ Blog search
 541: ✅ Blog tags
-542: Blog author profile
+542: ✅ Blog author profile
 543: ✅ Blog comments
 544: ✅ Blog social sharing
 545: ✅ Related blog posts
@@ -557,7 +543,6 @@ CMS Pages
 557: ✅ FAQ page
 558: ✅ Careers page
 559: ✅ Store Locator page
-
 
 📧 NOTIFICATIONS (25 yêu cầu)
 Email Notifications
@@ -577,7 +562,7 @@ Email Notifications
 577: ✅ Birthday email (with voucher)
 578: Newsletter emails
 579: Promotional emails
-580: 
+580:
 In-App Notifications
 
 ✅ Order status updates
@@ -590,7 +575,6 @@ New product launches
 ✅ New reviews (Admin)
 ✅ New orders (Admin)
 ✅ Flash sale reminders
-
 
 💬 CUSTOMER SUPPORT (20 yêu cầu)
 Live Chat
@@ -619,7 +603,6 @@ Attach files to ticket
 [ ] SLA tracking
 Ticket analytics
 
-
 📱 MOBILE EXPERIENCE (15 yêu cầu)
 
 ✅ Responsive design (mobile-first)
@@ -637,7 +620,6 @@ Mobile camera for barcode scan
 ✅ Mobile app download banner
 Deep linking support
 Mobile performance optimization (<3s load)
-
 
 🔒 SECURITY & PRIVACY (25 yêu cầu)
 Data Security
@@ -670,7 +652,6 @@ Third-party data sharing disclosure
 Cookie policy page
 Privacy settings page
 ✅ Email unsubscribe link
-
 
 📊 ANALYTICS & REPORTING (30 yêu cầu)
 Business Analytics
@@ -705,15 +686,14 @@ Conversion funnel
 A/B test results
 Social media traffic
 
-
 🔧 ADMIN DASHBOARD (40 yêu cầu)
 Product Management
 
 719: ✅ Add new product
 720: ✅ Edit product
 721: ✅ Delete product (soft delete)
-722: [ ] Bulk import sản phẩm qua CSV/Excel
-723: [ ] Bulk export sản phẩm ra CSV/Excel
+722: ✅ Bulk import sản phẩm qua CSV/Excel
+723: ✅ Bulk export sản phẩm ra CSV/Excel
 724: ✅ Duplicate product
 725: ✅ Product variants management
 726: ✅ Product images upload (multiple)
@@ -815,7 +795,6 @@ Settings
 822: ✅ Google Analytics integration
 823: ✅ Facebook Pixel integration
 
-
 🚀 PERFORMANCE & OPTIMIZATION (20 yêu cầu)
 
 Page load speed < 3s
@@ -838,7 +817,6 @@ Lighthouse score > 90
 845: ✅ Rate limiting
 846: ✅ Load balancing
 847: ✅ Auto-scaling
-
 
 🌐 SEO & MARKETING (25 yêu cầu)
 On-Page SEO
@@ -872,7 +850,6 @@ Marketing Integrations
 876: Affiliate program
 877: Influencer tracking
 
-
 📦 INVENTORY & WAREHOUSE (20 yêu cầu)
 
 ✅ Multi-warehouse support
@@ -895,7 +872,6 @@ Marketing Integrations
 902: ✅ Supplier management
 903: ✅ Purchase order management
 904: ✅ Goods received note (GRN)
-
 
 🚚 SHIPPING & FULFILLMENT (20 yêu cầu)
 
@@ -920,7 +896,6 @@ Marketing Integrations
 923: Shipping insurance option
 924: Signature on delivery option
 
-
 💼 B2B FEATURES (Optional - 10 yêu cầu)
 
 Wholesale pricing tiers
@@ -934,7 +909,6 @@ Sub-user accounts
 Purchase approval workflow
 Tax exemption certificates
 
-
 📱 MOBILE APP (Optional - 10 yêu cầu)
 
 945: iOS app (React Native/Flutter)
@@ -947,7 +921,6 @@ Tax exemption certificates
 952: Augmented Reality (AR) try-on
 953: Offline mode
 954: App analytics
-
 
 🤖 AI & AUTOMATION (15 yêu cầu)
 
@@ -966,7 +939,6 @@ Tax exemption certificates
 973: Predictive analytics
 974: Churn prediction
 975: Personalized homepage
-
 
 🔔 ADVANCED FEATURES (20 yêu cầu)
 
@@ -991,7 +963,6 @@ Tax exemption certificates
 998: Virtual store tour
 999: Metaverse integration (NFT shoes)
 
-
 🛡️ COMPLIANCE & LEGAL (10 yêu cầu)
 
 1004: ✅ Terms of Service agreement
@@ -1004,7 +975,6 @@ Tax exemption certificates
 1011: Product safety compliance
 1012: Counterfeit prevention
 1013: Intellectual property protection
-
 
 🧪 TESTING & QA (10 yêu cầu)
 
@@ -1019,7 +989,6 @@ Tax exemption certificates
 1026: ✅ Payment gateway testing
 1027: ✅ Disaster recovery testing
 
-
 📚 DOCUMENTATION (10 yêu cầu)
 
 1032: ✅ API documentation (Swagger/OpenAPI)
@@ -1032,7 +1001,6 @@ Tax exemption certificates
 1039: Video tutorials
 1040: ✅ Changelog
 1041: ✅ Release notes
-
 
 🌍 INTERNATIONALIZATION (10 yêu cầu)
 
@@ -1047,7 +1015,6 @@ Tax exemption certificates
 1054: ✅ Localized content
 1055: RTL language support
 
-
 🎨 UI/UX ENHANCEMENTS (10 yêu cầu)
 
 1060: ✅ Dark mode toggle
@@ -1060,7 +1027,6 @@ Tax exemption certificates
 1067: ✅ Empty states (no results, no orders)
 1068: ✅ Error states (friendly messages)
 1069: ✅ Success states (celebrations, confetti)
-
 
 📊 TỔNG KẾT: 809 YÊU CẦU
 Phân loại theo mức độ ưu tiên:

@@ -4,14 +4,14 @@ import React, { useEffect, useState, Suspense } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { Order } from '@/types/auth'; // Ensure this type exists or adjust import
-import { Button } from "@/components/ui/Button";
+import { Button } from '@/components/ui/Button';
 import { CheckCircle, Facebook, Twitter, CreditCard, Printer } from 'lucide-react';
-import { formatCurrency, formatDate } from '@/lib/date-utils';
+import { formatCurrency, formatDate } from '@/lib/utils/date-utils';
 
 function OrderSuccessContent() {
   const searchParams = useSearchParams();
   const orderNumber = searchParams?.get('orderNumber');
-  // Define Order interface locally if not available in types/auth to be safe, 
+  // Define Order interface locally if not available in types/auth to be safe,
   // or use any if strict typing is an issue, but better to stick to existing patterns.
   // Assuming Order type matches what we need based on previous file content.
   const [orderData, setOrderData] = useState<Order | null>(null);
@@ -46,12 +46,12 @@ function OrderSuccessContent() {
             address: order.shipping_address || '',
             city: order.shipping_city || '',
             postalCode: order.shipping_postal_code || '',
-            phone: order.shipping_phone || ''
+            phone: order.shipping_phone || '',
           },
           paymentMethod: order.payment_method || 'Thanh toán khi nhận hàng',
           estimatedDelivery: order.estimated_delivery || 'Đang cập nhật',
           createdAt: order.placed_at,
-          updatedAt: order.updated_at
+          updatedAt: order.updated_at,
         });
         setLoading(false);
       } catch (error) {
@@ -88,9 +88,7 @@ function OrderSuccessContent() {
           <h2 className="text-2xl font-bold mb-4">Lỗi</h2>
           <p className="text-gray-600 mb-6">Không tìm thấy thông tin đơn hàng</p>
           <Link href="/">
-            <Button className="rounded-full">
-              Về trang chủ
-            </Button>
+            <Button className="rounded-full">Về trang chủ</Button>
           </Link>
         </div>
       </div>
@@ -138,7 +136,7 @@ function OrderSuccessContent() {
       `SUMMARY:${title}`,
       `DESCRIPTION:${description}`,
       'END:VEVENT',
-      'END:VCALENDAR'
+      'END:VCALENDAR',
     ].join('\r\n');
 
     const blob = new Blob([icsContent], { type: 'text/calendar;charset=utf-8' });
@@ -162,7 +160,8 @@ function OrderSuccessContent() {
           {/* Success Message */}
           <h1 className="text-3xl font-bold mb-4">Đặt hàng thành công!</h1>
           <p className="text-gray-600 mb-8">
-            Cảm ơn bạn đã mua hàng tại TOAN Store. Chúng tôi đã nhận được đơn hàng của bạn và sẽ xử lý trong thời gian sớm nhất.
+            Cảm ơn bạn đã mua hàng tại TOAN Store. Chúng tôi đã nhận được đơn hàng của bạn và sẽ xử
+            lý trong thời gian sớm nhất.
           </p>
 
           {/* Order Info */}
@@ -171,9 +170,17 @@ function OrderSuccessContent() {
               <div>
                 <h3 className="font-helvetica-medium text-lg mb-2">Thông tin đơn hàng</h3>
                 <div className="space-y-2 text-sm">
-                  <p><span className="font-medium">Mã đơn hàng:</span> #{orderData.orderNumber}</p>
-                  <p><span className="font-medium">Tổng tiền:</span> {formatCurrency(orderData.totalAmount)}</p>
-                  <p><span className="font-medium">Dự kiến giao hàng:</span> {orderData.estimatedDelivery}</p>
+                  <p>
+                    <span className="font-medium">Mã đơn hàng:</span> #{orderData.orderNumber}
+                  </p>
+                  <p>
+                    <span className="font-medium">Tổng tiền:</span>{' '}
+                    {formatCurrency(orderData.totalAmount)}
+                  </p>
+                  <p>
+                    <span className="font-medium">Dự kiến giao hàng:</span>{' '}
+                    {orderData.estimatedDelivery}
+                  </p>
                 </div>
               </div>
 
@@ -208,7 +215,8 @@ function OrderSuccessContent() {
                 Xác Nhận Thanh Toán
               </h3>
               <p className="text-sm text-gray-700 mb-4">
-                Sau khi đã chuyển khoản qua MoMo, vui lòng xác nhận thanh toán để đơn hàng được xử lý nhanh chóng.
+                Sau khi đã chuyển khoản qua MoMo, vui lòng xác nhận thanh toán để đơn hàng được xử
+                lý nhanh chóng.
               </p>
               <Link href="/payment-confirmation">
                 <Button className="bg-black text-white px-6 py-3 rounded-lg hover:bg-gray-800 transition-colors">
@@ -221,23 +229,30 @@ function OrderSuccessContent() {
           {/* Action Buttons */}
           <div className="flex flex-col sm:flex-row justify-center gap-4 mb-8">
             <Link href={`/orders/${orderNumber}`}>
-              <Button className="rounded-full">
-                Xem chi tiết đơn hàng
-              </Button>
+              <Button className="rounded-full">Xem chi tiết đơn hàng</Button>
             </Link>
             <Link href="/orders">
-              <Button variant="outline" className="rounded-full border-gray-300 text-gray-700 hover:bg-gray-50">
+              <Button
+                variant="outline"
+                className="rounded-full border-gray-300 text-gray-700 hover:bg-gray-50"
+              >
                 Xem tất cả đơn hàng
               </Button>
             </Link>
             <Link href={`/orders/${orderNumber}`}>
-              <Button variant="outline" className="rounded-full border-gray-300 text-gray-700 hover:bg-gray-50 flex items-center gap-2">
+              <Button
+                variant="outline"
+                className="rounded-full border-gray-300 text-gray-700 hover:bg-gray-50 flex items-center gap-2"
+              >
                 <Printer className="w-4 h-4" />
                 In hóa đơn
               </Button>
             </Link>
             <Link href="/">
-              <Button variant="outline" className="rounded-full border-gray-300 text-gray-700 hover:bg-gray-50">
+              <Button
+                variant="outline"
+                className="rounded-full border-gray-300 text-gray-700 hover:bg-gray-50"
+              >
                 Tiếp tục mua sắm
               </Button>
             </Link>
@@ -247,9 +262,15 @@ function OrderSuccessContent() {
           <div className="bg-blue-50 rounded-lg p-6">
             <h3 className="font-helvetica-medium text-lg mb-3">Thông tin hữu ích</h3>
             <div className="text-sm text-gray-700 space-y-2">
-              <p>• <strong>Chính sách đổi trả:</strong> 30 ngày đổi trả miễn phí</p>
-              <p>• <strong>Hỗ trợ khách hàng:</strong> 1800-1234 (8:00 - 22:00, thứ 2 - chủ nhật)</p>
-              <p>• <strong>Email hỗ trợ:</strong> support@toanstore.com</p>
+              <p>
+                • <strong>Chính sách đổi trả:</strong> 30 ngày đổi trả miễn phí
+              </p>
+              <p>
+                • <strong>Hỗ trợ khách hàng:</strong> 1800-1234 (8:00 - 22:00, thứ 2 - chủ nhật)
+              </p>
+              <p>
+                • <strong>Email hỗ trợ:</strong> support@toanstore.com
+              </p>
             </div>
           </div>
 
@@ -283,7 +304,9 @@ function OrderSuccessContent() {
 
 export default function OrderSuccessPage() {
   return (
-    <Suspense fallback={<div className="min-h-screen flex items-center justify-center">Loading...</div>}>
+    <Suspense
+      fallback={<div className="min-h-screen flex items-center justify-center">Loading...</div>}
+    >
       <OrderSuccessContent />
     </Suspense>
   );

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import AdminLayout from '@/components/admin/AdminLayout';
-import { formatDateTime, formatCurrency } from '@/lib/date-utils';
+import { formatDateTime, formatCurrency } from '@/lib/utils/date-utils';
 
 interface Order {
   id: number;
@@ -83,7 +83,7 @@ export default function AdminOrdersPage() {
   const formatStatus = (status: string) => {
     return status
       .split('_')
-      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
       .join(' ');
   };
 
@@ -98,12 +98,23 @@ export default function AdminOrdersPage() {
           </div>
           <div className="flex items-center space-x-3">
             <button
-              onClick={() => window.location.href = '/api/admin/orders/export'}
+              onClick={() => (window.location.href = '/api/admin/orders/export')}
               className="flex items-center space-x-2 px-4 py-2 bg-white border border-gray-300 rounded-md text-sm font-medium hover:bg-gray-50 transition-colors shadow-sm"
               title="Export all orders to CSV"
             >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                className="h-4 w-4"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
+                />
               </svg>
               <span>Export CSV</span>
             </button>
@@ -175,7 +186,9 @@ export default function AdminOrdersPage() {
                   {orders.map((order) => (
                     <tr key={order.id} className="hover:bg-gray-50">
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm font-medium text-gray-900">#{order.orderNumber}</div>
+                        <div className="text-sm font-medium text-gray-900">
+                          #{order.orderNumber}
+                        </div>
                       </td>
                       <td className="px-6 py-4">
                         <div className="text-sm text-gray-900">{order.customerName}</div>
@@ -187,7 +200,9 @@ export default function AdminOrdersPage() {
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(order.status)}`}>
+                        <span
+                          className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(order.status)}`}
+                        >
                           {formatStatus(order.status)}
                         </span>
                       </td>
@@ -209,7 +224,9 @@ export default function AdminOrdersPage() {
                           className="text-sm border border-gray-300 rounded px-2 py-1 focus:ring-2 focus:ring-black focus:border-transparent"
                         >
                           <option value="pending">Pending</option>
-                          <option value="pending_payment_confirmation">Pending Payment Confirmation</option>
+                          <option value="pending_payment_confirmation">
+                            Pending Payment Confirmation
+                          </option>
                           <option value="payment_received">Payment Received</option>
                           <option value="processing">Processing</option>
                           <option value="shipped">Shipped</option>

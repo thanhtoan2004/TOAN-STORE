@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupportChat, markMessagesAsRead } from '@/lib/db/supportChat';
-import { verifyAuth } from '@/lib/auth';
+import { verifyAuth } from '@/lib/auth/auth';
 
 export async function PATCH(
   request: NextRequest,

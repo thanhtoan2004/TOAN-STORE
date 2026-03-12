@@ -1,14 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { executeQuery } from '@/lib/db/mysql';
-import { checkAdminAuth } from '@/lib/auth';
+import { checkAdminAuth } from '@/lib/auth/auth';
 
 /**
  * API Phản hồi (Admin Reply) cho các đánh giá sản phẩm từ khách hàng.
  */
-export async function PUT(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const admin = await checkAdminAuth();
     if (!admin) {
@@ -26,20 +23,17 @@ export async function PUT(
       );
     }
 
-    await executeQuery(
-      'UPDATE product_reviews SET admin_reply = ? WHERE id = ?',
-      [admin_reply, reviewId]
-    );
+    await executeQuery('UPDATE product_reviews SET admin_reply = ? WHERE id = ?', [
+      admin_reply,
+      reviewId,
+    ]);
 
     return NextResponse.json({
       success: true,
-      message: 'Trả lời review thành công'
+      message: 'Trả lời review thành công',
     });
   } catch (error) {
     console.error('Error adding reply:', error);
-    return NextResponse.json(
-      { success: false, message: 'Lỗi server nội bộ' },
-      { status: 500 }
-    );
+    return NextResponse.json({ success: false, message: 'Lỗi server nội bộ' }, { status: 500 });
   }
 }

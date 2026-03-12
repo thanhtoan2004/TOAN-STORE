@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { executeQuery } from '@/lib/db/mysql';
-import { checkAdminAuth } from '@/lib/auth';
+import { checkAdminAuth } from '@/lib/auth/auth';
 
 /**
  * API Cập nhật trạng thái của tin nhắn liên hệ (Ví dụ: Mark as read, In progress, Resolved).

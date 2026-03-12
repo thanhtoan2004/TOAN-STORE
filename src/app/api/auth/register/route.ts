@@ -2,9 +2,9 @@ import { NextResponse } from 'next/server';
 import bcrypt from 'bcrypt';
 import { executeQuery } from '@/lib/db/mysql';
 import { RegisterRequest, User } from '@/types/auth';
-import { sendWelcomeEmail } from '@/lib/mail';
-import { withRateLimit } from '@/lib/with-rate-limit';
-import { encrypt, hashEmail } from '@/lib/encryption';
+import { sendWelcomeEmail } from '@/lib/mail/mail';
+import { withRateLimit } from '@/lib/api/with-rate-limit';
+import { encrypt, hashEmail } from '@/lib/security/encryption';
 
 /**
  * API Đăng ký tài khoản người mới.

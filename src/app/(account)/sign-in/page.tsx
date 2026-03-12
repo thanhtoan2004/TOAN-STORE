@@ -3,7 +3,7 @@
 import React, { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { cn } from '@/lib/utils';
+import { cn } from '@/lib/utils/utils';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 
@@ -58,7 +58,7 @@ function SignInContent() {
         await fetch('/api/auth/2fa/send', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email: result.email, purpose: 'login' })
+          body: JSON.stringify({ email: result.email, purpose: 'login' }),
         });
         setSuccessMessage('Mã xác thực 2 bước đã được gửi vào email của bạn.');
         return;
@@ -82,7 +82,7 @@ function SignInContent() {
       const res = await fetch('/api/auth/2fa/verify', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: authEmail, otp })
+        body: JSON.stringify({ email: authEmail, otp }),
       });
       const data = await res.json();
 
@@ -111,9 +111,7 @@ function SignInContent() {
       <div className="max-w-md mx-auto bg-white p-8 rounded-lg shadow-sm border">
         <div className="mb-8 text-center">
           <h1 className="text-3xl font-bold uppercase mb-2">{t.auth.sign_in}</h1>
-          <p className="text-sm text-gray-500">
-            {t.auth.sign_in_desc}
-          </p>
+          <p className="text-sm text-gray-500">{t.auth.sign_in_desc}</p>
         </div>
 
         {successMessage && (
@@ -155,8 +153,8 @@ function SignInContent() {
               type="submit"
               disabled={isLoading || otp.length !== 6}
               className={cn(
-                "w-full bg-black text-white py-3 rounded hover:bg-zinc-800 transition-colors font-helvetica-medium mb-4",
-                (isLoading || otp.length !== 6) && "opacity-70 cursor-not-allowed"
+                'w-full bg-black text-white py-3 rounded hover:bg-zinc-800 transition-colors font-helvetica-medium mb-4',
+                (isLoading || otp.length !== 6) && 'opacity-70 cursor-not-allowed'
               )}
             >
               {isLoading ? t.auth.loading : 'Xác nhận OTP'}
@@ -186,7 +184,7 @@ function SignInContent() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className="w-full p-3 border rounded focus:outline-none focus:ring-2 focus:ring-black"
-                placeholder={t.footer.email_placeholder || "name@example.com"}
+                placeholder={t.footer.email_placeholder || 'name@example.com'}
                 required
               />
             </div>
@@ -227,8 +225,8 @@ function SignInContent() {
               type="submit"
               disabled={isLoading}
               className={cn(
-                "w-full bg-black text-white py-3 rounded hover:bg-zinc-800 transition-colors font-helvetica-medium mb-4",
-                isLoading && "opacity-70 cursor-not-allowed"
+                'w-full bg-black text-white py-3 rounded hover:bg-zinc-800 transition-colors font-helvetica-medium mb-4',
+                isLoading && 'opacity-70 cursor-not-allowed'
               )}
             >
               {isLoading ? t.auth.loading : t.common.login}
@@ -284,7 +282,7 @@ function SignInContent() {
 
         <div className="mt-6 text-center">
           <p className="text-sm text-gray-600">
-            {t.auth.no_account}{" "}
+            {t.auth.no_account}{' '}
             <Link href="/sign-up" className="text-black font-helvetica-medium hover:underline">
               {t.common.register}
             </Link>
@@ -302,5 +300,3 @@ export default function SignInPage() {
     </Suspense>
   );
 }
-
-

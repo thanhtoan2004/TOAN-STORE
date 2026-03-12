@@ -1,7 +1,7 @@
 import { db } from '@/lib/db/drizzle';
 import { orders, users, dailyMetrics } from '@/lib/db/schema';
 import { eq, sql, and, gte, lt } from 'drizzle-orm';
-import { logger } from '@/lib/logger';
+import { logger } from '@/lib/utils/logger';
 
 /**
  * Aggregates business metrics for a specific date and stores them in daily_metrics.

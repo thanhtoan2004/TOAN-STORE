@@ -10,7 +10,7 @@ import { executeQuery } from '../connection';
  * @returns Object chứa thông tin thẻ nếu hợp lệ, ngược lại trả về `null`
  */
 export async function checkGiftCardBalance(cardNumber: string, pin: string) {
-  const { decrypt } = await import('@/lib/encryption');
+  const { decrypt } = await import('@/lib/security/encryption');
   const bcrypt = await import('bcrypt');
 
   const cards = await executeQuery<any[]>(

@@ -1,11 +1,11 @@
 'use client';
 
-import React, { useEffect, useState } from 'react'
-import Link from 'next/link'
-import Image from 'next/image'
-import { Play } from 'lucide-react'
-import { Button } from '@/components/ui/Button'
-import { imageService } from '@/lib/image-service'
+import React, { useEffect, useState } from 'react';
+import Link from 'next/link';
+import Image from 'next/image';
+import { Play } from 'lucide-react';
+import { Button } from '@/components/ui/Button';
+import { imageService } from '@/lib/images/image-service';
 
 import { useLanguage } from '@/contexts/LanguageContext';
 
@@ -22,7 +22,6 @@ const HeroSection = () => {
   const fontClass = language === 'vi' ? 'font-bold' : 'font-toan-heading';
 
   return (
-
     <section className="relative w-full">
       {/* Video/image container */}
 
@@ -30,7 +29,10 @@ const HeroSection = () => {
         {/* Only render image on client-side to avoid hydration errors */}
         {isMounted && (
           <Image
-            src={imageService.getUrl("https://images.unsplash.com/photo-1541339907198-e08759dfc3ef?w=1920&q=80", { preset: 'HERO_BANNER' })}
+            src={imageService.getUrl(
+              'https://images.unsplash.com/photo-1541339907198-e08759dfc3ef?w=1920&q=80',
+              { preset: 'HERO_BANNER' }
+            )}
             alt="Sophia Smith - TOAN Store athlete"
             fill
             className="object-cover"
@@ -44,7 +46,9 @@ const HeroSection = () => {
             <button className="bg-black/40 backdrop-blur-sm h-10 w-10 rounded-full flex items-center justify-center hover:bg-black/60 transition-colors">
               <Play className="h-5 w-5 text-white" />
             </button>
-            <span className="text-xs text-white font-medium bg-black/40 backdrop-blur-sm px-2 py-1 rounded-sm">0:15</span>
+            <span className="text-xs text-white font-medium bg-black/40 backdrop-blur-sm px-2 py-1 rounded-sm">
+              0:15
+            </span>
           </div>
         </div>
       </div>
@@ -56,18 +60,14 @@ const HeroSection = () => {
           <h1 className={`text-5xl md:text-6xl ${fontClass} uppercase tracking-tighter mb-4`}>
             {t.home.hero_title}
           </h1>
-          <p className="text-sm md:text-base font-helvetica mb-6">
-            {t.home.hero_subtitle}
-          </p>
+          <p className="text-sm md:text-base font-helvetica mb-6">{t.home.hero_subtitle}</p>
           <Link href="/collection/sophia-smith">
-            <Button className="rounded-full px-6 py-6 text-base">
-              {t.home.shop_now}
-            </Button>
+            <Button className="rounded-full px-6 py-6 text-base">{t.home.shop_now}</Button>
           </Link>
         </div>
       </div>
     </section>
-  )
-}
+  );
+};
 
-export default HeroSection
+export default HeroSection;

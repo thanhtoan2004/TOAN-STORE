@@ -3,8 +3,8 @@
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
-import { Button } from "@/components/ui/Button";
-import { formatDate, formatDateTime, formatCurrency } from '@/lib/date-utils';
+import { Button } from '@/components/ui/Button';
+import { formatDate, formatDateTime, formatCurrency } from '@/lib/utils/date-utils';
 
 interface Coupon {
   id: number;
@@ -118,19 +118,21 @@ export default function VouchersPage() {
             <div className="flex gap-4 border-b">
               <button
                 onClick={() => setActiveTab('list')}
-                className={`px-4 py-2 font-medium transition-colors ${activeTab === 'list'
-                  ? 'border-b-2 border-black text-black'
-                  : 'text-gray-600 hover:text-black'
-                  }`}
+                className={`px-4 py-2 font-medium transition-colors ${
+                  activeTab === 'list'
+                    ? 'border-b-2 border-black text-black'
+                    : 'text-gray-600 hover:text-black'
+                }`}
               >
                 Danh Sách Voucher
               </button>
               <button
                 onClick={() => setActiveTab('history')}
-                className={`px-4 py-2 font-medium transition-colors ${activeTab === 'history'
-                  ? 'border-b-2 border-black text-black'
-                  : 'text-gray-600 hover:text-black'
-                  }`}
+                className={`px-4 py-2 font-medium transition-colors ${
+                  activeTab === 'history'
+                    ? 'border-b-2 border-black text-black'
+                    : 'text-gray-600 hover:text-black'
+                }`}
               >
                 Lịch Sử Sử Dụng
               </button>
@@ -194,9 +196,7 @@ export default function VouchersPage() {
 
                       <div className="mt-4 pt-4 border-t">
                         <Link href="/checkout">
-                          <Button className="w-full rounded-lg">
-                            Sử dụng ngay
-                          </Button>
+                          <Button className="w-full rounded-lg">Sử dụng ngay</Button>
                         </Link>
                       </div>
                     </div>
@@ -248,7 +248,10 @@ export default function VouchersPage() {
             ) : (
               <div className="space-y-4">
                 {history.map((item) => (
-                  <div key={item.id} className="border rounded-lg p-6 hover:shadow-md transition-shadow">
+                  <div
+                    key={item.id}
+                    className="border rounded-lg p-6 hover:shadow-md transition-shadow"
+                  >
                     <div className="flex justify-between items-start mb-3">
                       <div>
                         <div className="flex items-center gap-2 mb-2">
@@ -259,7 +262,10 @@ export default function VouchersPage() {
                         </div>
                         <p className="text-gray-600">{item.description}</p>
                         {item.orderNumber && (
-                          <Link href={`/orders/${item.orderNumber}`} className="text-sm text-blue-600 hover:underline mt-2 inline-block">
+                          <Link
+                            href={`/orders/${item.orderNumber}`}
+                            className="text-sm text-blue-600 hover:underline mt-2 inline-block"
+                          >
                             Xem đơn hàng {item.orderNumber}
                           </Link>
                         )}
@@ -268,9 +274,7 @@ export default function VouchersPage() {
                         <p className="text-lg font-bold text-green-600">
                           -{formatCurrency(item.discountAmount)}
                         </p>
-                        <p className="text-sm text-gray-500 mt-1">
-                          {formatDateTime(item.usedAt)}
-                        </p>
+                        <p className="text-sm text-gray-500 mt-1">{formatDateTime(item.usedAt)}</p>
                       </div>
                     </div>
                   </div>

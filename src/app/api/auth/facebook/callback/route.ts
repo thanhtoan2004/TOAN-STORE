@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import jwt from 'jsonwebtoken';
 import { cookies } from 'next/headers';
 import { executeQuery } from '@/lib/db/mysql';
-import { AUTH_TOKEN } from '@/lib/auth';
+import { AUTH_TOKEN } from '@/lib/auth/auth';
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);

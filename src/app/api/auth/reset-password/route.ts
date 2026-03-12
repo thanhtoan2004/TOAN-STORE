@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { executeQuery } from '@/lib/db/mysql';
 import bcrypt from 'bcrypt';
-import { hashEmail } from '@/lib/encryption';
+import { hashEmail } from '@/lib/security/encryption';
 
 /**
  * API Đặt lại mật khẩu mới thông qua Token.

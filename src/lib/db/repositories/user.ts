@@ -1,5 +1,5 @@
 import { executeQuery } from '../connection';
-import { encrypt, decrypt } from '@/lib/encryption';
+import { encrypt, decrypt } from '@/lib/security/encryption';
 
 // Contact message functions
 export async function saveContactMessage(data: {

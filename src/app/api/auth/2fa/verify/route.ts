@@ -1,10 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { executeQuery } from '@/lib/db/mysql';
-import { getRedisConnection } from '@/lib/redis';
+import { getRedisConnection } from '@/lib/redis/redis';
 import { cookies } from 'next/headers';
-import { AUTH_TOKEN, REFRESH_TOKEN, generateAccessToken, generateRefreshToken } from '@/lib/auth';
-import { logSecurityEvent } from '@/lib/audit';
-import { decrypt, hashEmail } from '@/lib/encryption';
+import {
+  AUTH_TOKEN,
+  REFRESH_TOKEN,
+  generateAccessToken,
+  generateRefreshToken,
+} from '@/lib/auth/auth';
+import { logSecurityEvent } from '@/lib/security/audit';
+import { decrypt, hashEmail } from '@/lib/security/encryption';
 
 /**
  * API Xác thực mã OTP và hoàn tất đăng nhập.
@@ -45,7 +50,10 @@ export async function POST(request: NextRequest) {
     const storedOtp = await redis.get(key);
 
     if (!storedOtp || storedOtp !== otp.toString()) {
-      await logSecurityEvent('login_failed', ip, user.id, { email, reason: 'Invalid OTP for 2FA' });
+      await logSecurityEvent('login_failed', ip, user.id, {
+        emailHash,
+        reason: 'Invalid OTP for 2FA',
+      });
       return NextResponse.json(
         { success: false, message: 'Mã OTP không hợp lệ hoặc đã hết hạn' },
         { status: 401 }
@@ -91,7 +99,7 @@ export async function POST(request: NextRequest) {
       sameSite: 'strict',
     });
 
-    await logSecurityEvent('login_success', ip, user.id, { email, method: '2fa_email' });
+    await logSecurityEvent('login_success', ip, user.id, { emailHash, method: '2fa_email' });
 
     return NextResponse.json({
       success: true,

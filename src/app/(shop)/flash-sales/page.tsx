@@ -1,6 +1,6 @@
 import { Metadata } from 'next';
 import { executeQuery } from '@/lib/db/mysql';
-import { formatDateForMySQL } from '@/lib/date-utils';
+import { formatDateForMySQL } from '@/lib/utils/date-utils';
 import ProductCard from '@/components/ui/products/ProductCard';
 import Link from 'next/link';
 import { Clock, Flame } from 'lucide-react';

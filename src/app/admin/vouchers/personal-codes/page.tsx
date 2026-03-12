@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import AdminLayout from '@/components/admin/AdminLayout';
-import { formatDate, formatCurrency } from '@/lib/date-utils';
+import { formatDate, formatCurrency } from '@/lib/utils/date-utils';
 
 interface Voucher {
   id: number;
@@ -39,7 +39,7 @@ export default function AdminVouchersPage() {
     min_order_value: 0,
     valid_until: '',
     applicable_tier: 'bronze',
-    status: 'active' as 'active' | 'inactive' | 'redeemed' | 'expired'
+    status: 'active' as 'active' | 'inactive' | 'redeemed' | 'expired',
   });
 
   useEffect(() => {
@@ -82,8 +82,8 @@ export default function AdminVouchersPage() {
           min_order_value: parseFloat(formData.min_order_value.toString()) || 0,
           recipient_email: formData.recipient_email || null,
           valid_until: formData.valid_until || null,
-          ...(editingId && { id: editingId })
-        })
+          ...(editingId && { id: editingId }),
+        }),
       });
 
       const data = await response.json();
@@ -111,7 +111,7 @@ export default function AdminVouchersPage() {
       min_order_value: voucher.min_order_value || 0,
       valid_until: voucher.valid_until ? voucher.valid_until.split('T')[0] : '',
       applicable_tier: voucher.applicable_tier || 'bronze',
-      status: voucher.status
+      status: voucher.status,
     });
     setEditingId(voucher.id);
     setShowForm(true);
@@ -122,7 +122,7 @@ export default function AdminVouchersPage() {
 
     try {
       const response = await fetch(`/api/admin/vouchers?id=${id}`, {
-        method: 'DELETE'
+        method: 'DELETE',
       });
 
       const data = await response.json();
@@ -147,7 +147,7 @@ export default function AdminVouchersPage() {
       min_order_value: 0,
       valid_until: '',
       applicable_tier: 'bronze',
-      status: 'active'
+      status: 'active',
     });
     setEditingId(null);
     setShowForm(false);
@@ -159,7 +159,9 @@ export default function AdminVouchersPage() {
         <div className="flex justify-between items-center">
           <div>
             <h1 className="text-3xl font-bold text-gray-900">Quản lý Vouchers Cá nhân</h1>
-            <p className="mt-1 text-sm text-gray-500">Gán mã ưu đãi cho từng khách hàng cụ thể qua Email</p>
+            <p className="mt-1 text-sm text-gray-500">
+              Gán mã ưu đãi cho từng khách hàng cụ thể qua Email
+            </p>
           </div>
           <button
             onClick={() => setShowForm(true)}
@@ -181,7 +183,9 @@ export default function AdminVouchersPage() {
                   <input
                     type="text"
                     value={formData.code}
-                    onChange={(e) => setFormData({ ...formData, code: e.target.value.toUpperCase() })}
+                    onChange={(e) =>
+                      setFormData({ ...formData, code: e.target.value.toUpperCase() })
+                    }
                     className="mt-1 block w-full px-3 py-2 border rounded-md focus:ring-black focus:border-black"
                     placeholder="VD: VIP-USER-2024"
                     disabled={!!editingId}
@@ -192,7 +196,12 @@ export default function AdminVouchersPage() {
                   <label className="block text-sm font-medium text-gray-700">Loại giảm giá</label>
                   <select
                     value={formData.discount_type}
-                    onChange={(e) => setFormData({ ...formData, discount_type: e.target.value as 'fixed' | 'percent' })}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        discount_type: e.target.value as 'fixed' | 'percent',
+                      })
+                    }
                     className="mt-1 block w-full px-3 py-2 border rounded-md focus:ring-black focus:border-black"
                   >
                     <option value="fixed">Cố định (đ)</option>
@@ -205,7 +214,9 @@ export default function AdminVouchersPage() {
                   <input
                     type="number"
                     value={formData.value}
-                    onChange={(e) => setFormData({ ...formData, value: parseFloat(e.target.value) || 0 })}
+                    onChange={(e) =>
+                      setFormData({ ...formData, value: parseFloat(e.target.value) || 0 })
+                    }
                     className="mt-1 block w-full px-3 py-2 border rounded-md focus:ring-black focus:border-black"
                     placeholder={formData.discount_type === 'percent' ? '10' : '50000'}
                   />
@@ -214,7 +225,9 @@ export default function AdminVouchersPage() {
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">Email Người nhận (Target Email)</label>
+                  <label className="block text-sm font-medium text-gray-700">
+                    Email Người nhận (Target Email)
+                  </label>
                   <input
                     type="email"
                     value={formData.recipient_email}
@@ -222,15 +235,21 @@ export default function AdminVouchersPage() {
                     className="mt-1 block w-full px-3 py-2 border rounded-md focus:ring-black focus:border-black"
                     placeholder="customer@example.com"
                   />
-                  <p className="mt-1 text-xs text-gray-500">Chỉ người dùng có email này mới thấy và sử dụng được mã.</p>
+                  <p className="mt-1 text-xs text-gray-500">
+                    Chỉ người dùng có email này mới thấy và sử dụng được mã.
+                  </p>
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">Giá trị đơn hàng tối thiểu</label>
+                  <label className="block text-sm font-medium text-gray-700">
+                    Giá trị đơn hàng tối thiểu
+                  </label>
                   <input
                     type="number"
                     value={formData.min_order_value}
-                    onChange={(e) => setFormData({ ...formData, min_order_value: parseFloat(e.target.value) || 0 })}
+                    onChange={(e) =>
+                      setFormData({ ...formData, min_order_value: parseFloat(e.target.value) || 0 })
+                    }
                     className="mt-1 block w-full px-3 py-2 border rounded-md focus:ring-black focus:border-black"
                     placeholder="0"
                   />
@@ -249,7 +268,9 @@ export default function AdminVouchersPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">Hạng thành viên tối thiểu</label>
+                  <label className="block text-sm font-medium text-gray-700">
+                    Hạng thành viên tối thiểu
+                  </label>
                   <select
                     value={formData.applicable_tier}
                     onChange={(e) => setFormData({ ...formData, applicable_tier: e.target.value })}
@@ -276,7 +297,9 @@ export default function AdminVouchersPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700">Mô tả hiển thị cho khách</label>
+                <label className="block text-sm font-medium text-gray-700">
+                  Mô tả hiển thị cho khách
+                </label>
                 <input
                   type="text"
                   value={formData.description}
@@ -310,84 +333,151 @@ export default function AdminVouchersPage() {
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Mã / Mô tả</th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Giá trị / ĐK</th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Email Người nhận</th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Hạn dùng / Hạng</th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Trạng thái</th>
-                  <th className="px-6 py-4 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">Thao tác</th>
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                    Mã / Mô tả
+                  </th>
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                    Giá trị / ĐK
+                  </th>
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                    Email Người nhận
+                  </th>
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                    Hạn dùng / Hạng
+                  </th>
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                    Trạng thái
+                  </th>
+                  <th className="px-6 py-4 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                    Thao tác
+                  </th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
                 {loading ? (
-                  <tr><td colSpan={6} className="px-6 py-10 text-center text-gray-500">Đang tải dữ liệu...</td></tr>
-                ) : vouchers.length === 0 ? (
-                  <tr><td colSpan={6} className="px-6 py-10 text-center text-gray-500">Chưa có voucher nào được tạo.</td></tr>
-                ) : vouchers.map((voucher) => (
-                  <tr key={voucher.id} className="hover:bg-gray-50 transition-colors">
-                    <td className="px-6 py-4">
-                      <div className="font-bold text-gray-900">{voucher.code}</div>
-                      <div className="text-xs text-gray-500 max-w-[200px] truncate">{voucher.description || 'Không có mô tả'}</div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="font-semibold text-green-600">
-                        {voucher.discount_type === 'percent' ? `${voucher.value}%` : formatCurrency(voucher.value)}
-                      </div>
-                      <div className="text-xs text-gray-500">Min: {formatCurrency(voucher.min_order_value)}</div>
-                    </td>
-                    <td className="px-6 py-4">
-                      {voucher.recipient_email ? (
-                        <div className="text-sm font-medium text-gray-900 border-b border-gray-100 pb-0.5 inline-block">
-                          {voucher.recipient_email}
-                        </div>
-                      ) : (
-                        <span className="text-xs text-gray-400 italic">Dùng chung (Public)</span>
-                      )}
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="text-sm text-gray-600">
-                        {voucher.valid_until ? formatDate(voucher.valid_until) : 'Vĩnh viễn'}
-                      </div>
-                      <div className="mt-1">
-                        <span className={`px-2 py-0.5 text-[10px] font-bold uppercase rounded ${voucher.applicable_tier === 'platinum' ? 'bg-purple-100 text-purple-700' :
-                            voucher.applicable_tier === 'gold' ? 'bg-yellow-100 text-yellow-700' :
-                              voucher.applicable_tier === 'silver' ? 'bg-blue-100 text-blue-700' :
-                                'bg-gray-100 text-gray-700'
-                          }`}>
-                          {voucher.applicable_tier || 'bronze'}
-                        </span>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${voucher.status === 'active' ? 'bg-green-100 text-green-800' :
-                        voucher.status === 'redeemed' ? 'bg-blue-100 text-blue-800' :
-                          'bg-gray-100 text-gray-800'
-                        }`}>
-                        {voucher.status === 'active' ? 'Sẵn dụng' :
-                          voucher.status === 'redeemed' ? 'Đã dùng' :
-                            voucher.status === 'expired' ? 'Hết hạn' : 'Vô hiệu'}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 text-right">
-                      <div className="flex justify-end gap-2">
-                        <button
-                          onClick={() => handleEdit(voucher)}
-                          className="p-1.5 text-blue-600 hover:bg-blue-50 rounded"
-                          title="Sửa"
-                        >
-                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-5M16.138 2.5a2.25 2.25 0 113.182 3.182L13 12.061l-4 1 1-4 6.138-6.561z"></path></svg>
-                        </button>
-                        <button
-                          onClick={() => handleDelete(voucher.id)}
-                          className="p-1.5 text-red-600 hover:bg-red-50 rounded"
-                          title="Xóa"
-                        >
-                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
-                        </button>
-                      </div>
+                  <tr>
+                    <td colSpan={6} className="px-6 py-10 text-center text-gray-500">
+                      Đang tải dữ liệu...
                     </td>
                   </tr>
-                ))}
+                ) : vouchers.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="px-6 py-10 text-center text-gray-500">
+                      Chưa có voucher nào được tạo.
+                    </td>
+                  </tr>
+                ) : (
+                  vouchers.map((voucher) => (
+                    <tr key={voucher.id} className="hover:bg-gray-50 transition-colors">
+                      <td className="px-6 py-4">
+                        <div className="font-bold text-gray-900">{voucher.code}</div>
+                        <div className="text-xs text-gray-500 max-w-[200px] truncate">
+                          {voucher.description || 'Không có mô tả'}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="font-semibold text-green-600">
+                          {voucher.discount_type === 'percent'
+                            ? `${voucher.value}%`
+                            : formatCurrency(voucher.value)}
+                        </div>
+                        <div className="text-xs text-gray-500">
+                          Min: {formatCurrency(voucher.min_order_value)}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4">
+                        {voucher.recipient_email ? (
+                          <div className="text-sm font-medium text-gray-900 border-b border-gray-100 pb-0.5 inline-block">
+                            {voucher.recipient_email}
+                          </div>
+                        ) : (
+                          <span className="text-xs text-gray-400 italic">Dùng chung (Public)</span>
+                        )}
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="text-sm text-gray-600">
+                          {voucher.valid_until ? formatDate(voucher.valid_until) : 'Vĩnh viễn'}
+                        </div>
+                        <div className="mt-1">
+                          <span
+                            className={`px-2 py-0.5 text-[10px] font-bold uppercase rounded ${
+                              voucher.applicable_tier === 'platinum'
+                                ? 'bg-purple-100 text-purple-700'
+                                : voucher.applicable_tier === 'gold'
+                                  ? 'bg-yellow-100 text-yellow-700'
+                                  : voucher.applicable_tier === 'silver'
+                                    ? 'bg-blue-100 text-blue-700'
+                                    : 'bg-gray-100 text-gray-700'
+                            }`}
+                          >
+                            {voucher.applicable_tier || 'bronze'}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <span
+                          className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                            voucher.status === 'active'
+                              ? 'bg-green-100 text-green-800'
+                              : voucher.status === 'redeemed'
+                                ? 'bg-blue-100 text-blue-800'
+                                : 'bg-gray-100 text-gray-800'
+                          }`}
+                        >
+                          {voucher.status === 'active'
+                            ? 'Sẵn dụng'
+                            : voucher.status === 'redeemed'
+                              ? 'Đã dùng'
+                              : voucher.status === 'expired'
+                                ? 'Hết hạn'
+                                : 'Vô hiệu'}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 text-right">
+                        <div className="flex justify-end gap-2">
+                          <button
+                            onClick={() => handleEdit(voucher)}
+                            className="p-1.5 text-blue-600 hover:bg-blue-50 rounded"
+                            title="Sửa"
+                          >
+                            <svg
+                              className="w-5 h-5"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth="2"
+                                d="M11 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-5M16.138 2.5a2.25 2.25 0 113.182 3.182L13 12.061l-4 1 1-4 6.138-6.561z"
+                              ></path>
+                            </svg>
+                          </button>
+                          <button
+                            onClick={() => handleDelete(voucher.id)}
+                            className="p-1.5 text-red-600 hover:bg-red-50 rounded"
+                            title="Xóa"
+                          >
+                            <svg
+                              className="w-5 h-5"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth="2"
+                                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                              ></path>
+                            </svg>
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>
@@ -395,15 +485,17 @@ export default function AdminVouchersPage() {
           {totalPages > 1 && (
             <div className="px-6 py-4 bg-gray-50 border-t flex items-center justify-between">
               <button
-                onClick={() => setPage(p => Math.max(1, p - 1))}
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
                 disabled={page === 1}
                 className="px-4 py-2 border border-gray-300 rounded-md disabled:opacity-50 hover:bg-white transition-colors"
               >
                 Trước
               </button>
-              <span className="text-sm font-medium text-gray-700">Trang {page} / {totalPages}</span>
+              <span className="text-sm font-medium text-gray-700">
+                Trang {page} / {totalPages}
+              </span>
               <button
-                onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                 disabled={page === totalPages}
                 className="px-4 py-2 border border-gray-300 rounded-md disabled:opacity-50 hover:bg-white transition-colors"
               >

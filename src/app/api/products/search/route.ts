@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getMeiliClient, PRODUCT_INDEX } from '@/lib/meilisearch';
+import { getMeiliClient, PRODUCT_INDEX } from '@/lib/search/meilisearch';
 import { executeQuery } from '@/lib/db/mysql';
-import { getCache, setCache } from '@/lib/cache';
+import { getCache, setCache } from '@/lib/redis/cache';
 
 /**
  * API Tìm kiếm sản phẩm thông minh (Full-text Search).
@@ -19,10 +19,13 @@ export async function GET(request: NextRequest) {
     const offset = parseInt(searchParams.get('offset') || '0');
 
     if (!q || q.trim().length < 2) {
-      return NextResponse.json({
-        success: false,
-        message: 'Từ khóa tìm kiếm phải có ít nhất 2 ký tự'
-      }, { status: 400 });
+      return NextResponse.json(
+        {
+          success: false,
+          message: 'Từ khóa tìm kiếm phải có ít nhất 2 ký tự',
+        },
+        { status: 400 }
+      );
     }
 
     const index = getMeiliClient().index(PRODUCT_INDEX);
@@ -41,8 +44,8 @@ export async function GET(request: NextRequest) {
         success: true,
         data: {
           ...cachedResults,
-          cached: true
-        }
+          cached: true,
+        },
       });
     }
 
@@ -62,38 +65,50 @@ export async function GET(request: NextRequest) {
         total: searchResults.estimatedTotalHits || 0,
         limit: searchResults.limit,
         offset: searchResults.offset,
-        hasMore: (searchResults.offset || 0) + (searchResults.limit || 0) < (searchResults.estimatedTotalHits || 0)
+        hasMore:
+          (searchResults.offset || 0) + (searchResults.limit || 0) <
+          (searchResults.estimatedTotalHits || 0),
       },
       query: q,
-      processingTimeMs: searchResults.processingTimeMs
+      processingTimeMs: searchResults.processingTimeMs,
     };
 
     // Save to cache (30 mins)
     await setCache(cacheKey, responseData, 1800);
 
     // Log search query (fire-and-forget)
-    const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
-      || request.headers.get('x-real-ip')
-      || '127.0.0.1';
+    const ip =
+      request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
+      request.headers.get('x-real-ip') ||
+      '127.0.0.1';
     executeQuery(
       `INSERT INTO search_analytics (query, category_filter, results_count, processing_time_ms, ip_address) VALUES (?, ?, ?, ?, ?)`,
-      [q.substring(0, 255), category || null, searchResults.estimatedTotalHits || 0, searchResults.processingTimeMs || 0, ip]
-    ).catch(() => { /* silently ignore logging errors */ });
+      [
+        q.substring(0, 255),
+        category || null,
+        searchResults.estimatedTotalHits || 0,
+        searchResults.processingTimeMs || 0,
+        ip,
+      ]
+    ).catch(() => {
+      /* silently ignore logging errors */
+    });
 
     return NextResponse.json({
       success: true,
-      data: responseData
+      data: responseData,
     });
-
   } catch (error: any) {
     console.error('Search error details:', error);
     if (error.response) {
       console.error('Meilisearch response error:', error.response);
     }
-    return NextResponse.json({
-      success: false,
-      message: 'Lỗi khi tìm kiếm sản phẩm'
-    }, { status: 500 });
+    return NextResponse.json(
+      {
+        success: false,
+        message: 'Lỗi khi tìm kiếm sản phẩm',
+      },
+      { status: 500 }
+    );
   }
 }
-

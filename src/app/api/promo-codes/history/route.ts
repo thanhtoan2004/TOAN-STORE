@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createErrorResponse, createSuccessResponse, withErrorHandling } from '@/lib/api-utils';
+import { createErrorResponse, createSuccessResponse, withErrorHandling } from '@/lib/api/api-utils';
 import { executeQuery } from '@/lib/db/mysql';
-import { verifyAuth, checkAdminAuth } from '@/lib/auth';
+import { verifyAuth, checkAdminAuth } from '@/lib/auth/auth';
 
 // GET - Lấy lịch sử sử dụng voucher (theo user hoặc theo voucher code)
 /**
@@ -19,7 +19,7 @@ async function voucherHistoryHandler(req: NextRequest): Promise<NextResponse> {
   const { searchParams } = new URL(req.url);
 
   // If not admin, always use session userId and ignore query params
-  const userId = admin ? (searchParams.get('userId') || session.userId) : session.userId;
+  const userId = admin ? searchParams.get('userId') || session.userId : session.userId;
   const voucherCode = searchParams.get('code');
 
   if (!userId && !voucherCode) {
@@ -98,7 +98,7 @@ async function voucherHistoryHandler(req: NextRequest): Promise<NextResponse> {
         discountType: coupon[0].discount_type,
         discountValue: coupon[0].discount_value,
         usageLimit: coupon[0].usage_limit,
-        timesUsed: coupon[0].times_used
+        timesUsed: coupon[0].times_used,
       };
     }
   }
@@ -127,9 +127,9 @@ async function voucherHistoryHandler(req: NextRequest): Promise<NextResponse> {
         code: u.code,
         description: u.description,
         discountAmount: calculateDiscountAmount(u),
-        usedAt: u.used_at
+        usedAt: u.used_at,
       })),
-      stats: usageStats
+      stats: usageStats,
     },
     'Lấy lịch sử thành công'
   );

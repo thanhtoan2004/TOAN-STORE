@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
-import { formatCurrency } from '@/lib/date-utils';
+import { formatCurrency } from '@/lib/utils/date-utils';
 
 export default function PaymentConfirmationPage() {
   const [formData, setFormData] = useState({
@@ -10,7 +10,7 @@ export default function PaymentConfirmationPage() {
     amount: '',
     phoneNumber: '',
     transactionNote: '',
-    paymentProof: null as File | null
+    paymentProof: null as File | null,
   });
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
@@ -18,12 +18,12 @@ export default function PaymentConfirmationPage() {
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
-      setFormData(prev => ({ ...prev, paymentProof: e.target.files![0] }));
+      setFormData((prev) => ({ ...prev, paymentProof: e.target.files![0] }));
     }
   };
 
@@ -69,7 +69,7 @@ export default function PaymentConfirmationPage() {
 
       const response = await fetch('/api/payment/confirm', {
         method: 'POST',
-        body: formDataToSend
+        body: formDataToSend,
       });
 
       const result = await response.json();
@@ -81,7 +81,7 @@ export default function PaymentConfirmationPage() {
           amount: '',
           phoneNumber: '',
           transactionNote: '',
-          paymentProof: null
+          paymentProof: null,
         });
         setTimeout(() => {
           setSubmitted(false);
@@ -111,14 +111,24 @@ export default function PaymentConfirmationPage() {
             {submitted ? (
               <div className="text-center py-8">
                 <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  <svg
+                    className="w-8 h-8 text-green-600"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M5 13l4 4L19 7"
+                    />
                   </svg>
                 </div>
                 <h2 className="text-2xl font-helvetica-medium mb-2">Xác Nhận Thành Công!</h2>
                 <p className="text-gray-600 mb-6">
-                  Chúng tôi đã nhận được thông tin xác nhận thanh toán của bạn.
-                  Đơn hàng sẽ được xử lý trong vòng 1-2 giờ làm việc.
+                  Chúng tôi đã nhận được thông tin xác nhận thanh toán của bạn. Đơn hàng sẽ được xử
+                  lý trong vòng 1-2 giờ làm việc.
                 </p>
                 <Link
                   href="/orders"
@@ -132,8 +142,13 @@ export default function PaymentConfirmationPage() {
                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
                   <h3 className="font-helvetica-medium mb-2">Thông Tin Thanh Toán MoMo</h3>
                   <div className="space-y-1 text-sm">
-                    <p><strong>Số điện thoại nhận tiền:</strong> 0879321697</p>
-                    <p><strong>Nội dung chuyển khoản:</strong> Mã đơn hàng của bạn (ví dụ: NK2024123456)</p>
+                    <p>
+                      <strong>Số điện thoại nhận tiền:</strong> 0879321697
+                    </p>
+                    <p>
+                      <strong>Nội dung chuyển khoản:</strong> Mã đơn hàng của bạn (ví dụ:
+                      NK2024123456)
+                    </p>
                   </div>
                 </div>
 
@@ -170,10 +185,12 @@ export default function PaymentConfirmationPage() {
                       onChange={(e) => {
                         const value = e.target.value.replace(/[^\d]/g, '');
                         if (value) {
-                          const formatted = formatCurrency(parseInt(value)).replace(' ₫', '').trim();
-                          setFormData(prev => ({ ...prev, amount: formatted }));
+                          const formatted = formatCurrency(parseInt(value))
+                            .replace(' ₫', '')
+                            .trim();
+                          setFormData((prev) => ({ ...prev, amount: formatted }));
                         } else {
-                          setFormData(prev => ({ ...prev, amount: '' }));
+                          setFormData((prev) => ({ ...prev, amount: '' }));
                         }
                       }}
                       placeholder="VD: 1,500,000"
@@ -223,7 +240,9 @@ export default function PaymentConfirmationPage() {
                     />
                     {formData.paymentProof && (
                       <div className="mt-2">
-                        <p className="text-sm text-gray-600">Đã chọn: {formData.paymentProof.name}</p>
+                        <p className="text-sm text-gray-600">
+                          Đã chọn: {formData.paymentProof.name}
+                        </p>
                       </div>
                     )}
                   </div>
@@ -231,10 +250,11 @@ export default function PaymentConfirmationPage() {
                   <button
                     type="submit"
                     disabled={loading}
-                    className={`w-full py-3 rounded-lg font-medium transition-colors ${loading
-                      ? 'bg-gray-400 cursor-not-allowed text-white'
-                      : 'bg-black text-white hover:bg-gray-800'
-                      }`}
+                    className={`w-full py-3 rounded-lg font-medium transition-colors ${
+                      loading
+                        ? 'bg-gray-400 cursor-not-allowed text-white'
+                        : 'bg-black text-white hover:bg-gray-800'
+                    }`}
                   >
                     {loading ? 'Đang xử lý...' : 'Xác Nhận Thanh Toán'}
                   </button>
@@ -247,4 +267,3 @@ export default function PaymentConfirmationPage() {
     </div>
   );
 }
-

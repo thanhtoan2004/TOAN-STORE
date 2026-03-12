@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { executeQuery } from '@/lib/db/mysql';
-import { getCache, setCache } from '@/lib/cache';
+import { getCache, setCache } from '@/lib/redis/cache';
 
 const BANNERS_CACHE_PREFIX = 'global:banners:';
 const CACHE_TTL = 3600; // 1 hour

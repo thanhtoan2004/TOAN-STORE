@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { executeQuery } from '@/lib/db/mysql';
-import { checkAdminAuth } from '@/lib/auth';
+import { checkAdminAuth } from '@/lib/auth/auth';
 
 /**
  * API Lấy danh sách thẻ quà tặng (Gift Cards).
@@ -18,7 +18,7 @@ export async function GET(request: NextRequest) {
     const limit = Math.min(parseInt(searchParams.get('limit') || '20'), 100); // M2: Cap limit
     const offset = (page - 1) * limit;
 
-    const { decrypt } = await import('@/lib/encryption');
+    const { decrypt } = await import('@/lib/security/encryption');
     const data = (
       (await executeQuery(
         `SELECT id, card_number, pin, initial_balance, current_balance, status, failed_attempts, expires_at, created_at 
@@ -56,7 +56,7 @@ export async function POST(request: NextRequest) {
     }
     const { card_number, pin, initial_balance, expires_at } = await request.json();
 
-    const { encrypt } = await import('@/lib/encryption');
+    const { encrypt } = await import('@/lib/security/encryption');
     const hashedPin = encrypt(pin);
 
     const result = (await executeQuery(

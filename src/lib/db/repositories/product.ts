@@ -1,5 +1,10 @@
 import { executeQuery } from '../connection';
 
+/**
+ * Repository xử lý các thao tác liên quan đến Sản phẩm (Products).
+ * Bao gồm: Truy vấn danh sách, Tìm kiếm Full-text, Chi tiết sản phẩm và Biến thể.
+ */
+
 // Product functions
 export async function getProductSizes(productId: number) {
   return executeQuery(
@@ -38,6 +43,11 @@ export async function getProductBySlug(slug: string) {
   return product;
 }
 
+/**
+ * Hàm truy vấn danh sách sản phẩm chính cho trang Shop.
+ * Hỗ trợ các bộ lọc phức tạp (Category, Sport, Price, Gender) và Phân trang (Pagination).
+ * Tối ưu: Sử dụng SQL Whitelist để Sort tránh SQL Injection.
+ */
 export async function getProducts(filters: {
   category?: string;
   sport?: string;
@@ -46,7 +56,7 @@ export async function getProducts(filters: {
   maxPrice?: number;
   search?: string;
   isNewArrival?: boolean;
-  sort?: string; // FIX H3: Accept sort param for SQL ORDER BY
+  sort?: string; // Whitelist logic applies
   limit?: number;
   offset?: number;
 }) {
@@ -135,9 +145,14 @@ export async function getProducts(filters: {
 }
 
 // Chatbot Search Function
+/**
+ * Hàm tìm kiếm sản phẩm dành riêng cho Chatbot AI.
+ * Ưu tiên: Sử dụng Full-Text Search (FTS) với độ chính xác và trọng số (relevance) cao.
+ * Có cơ chế Fallback sang LIKE nếu DB chưa được cấu hình FTS.
+ */
 export async function searchProductsForChat(keyword: string) {
   try {
-    // Search products by name (limit 5) using Full-Text Search
+    // Ưu tiên 1: Tìm kiếm theo Full-Text Search để lấy kết quả có độ liên quan cao nhất
     const products = await executeQuery<any[]>(
       `SELECT p.id, p.name, p.price_cache, p.msrp_price, p.slug, p.short_description,
                (SELECT url FROM product_images WHERE product_id = p.id AND is_main = 1 LIMIT 1) as image_url,
@@ -220,7 +235,11 @@ export async function getProductsByCategoryForChat(categorySlug: string) {
   }
 }
 
-// Helper to format products consistently for chat (Optimized to avoid N+1)
+/**
+ * Helper định dạng dữ liệu sản phẩm cho hội thoại Chatbot.
+ * Tối ưu hiệu năng: Gom tất cả ID sản phẩm để chỉ chạy 1 câu Query lấy Size duy nhất (Batching),
+ * tránh lỗi N+1 query làm chậm hệ thống.
+ */
 export async function formatProductsForChat(products: any[]) {
   if (products.length === 0) return [];
 

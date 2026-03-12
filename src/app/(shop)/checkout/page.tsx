@@ -7,9 +7,10 @@ import { useCart } from '@/contexts/CartContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useRouter } from 'next/navigation';
+import toast from 'react-hot-toast';
 import PaymentQRCode from '@/components/checkout/PaymentQRCode';
-import { Button } from "@/components/ui/Button";
-import { formatDateTime, formatDate, formatCurrency } from '@/lib/date-utils';
+import { Button } from '@/components/ui/Button';
+import { formatDateTime, formatDate, formatCurrency } from '@/lib/utils/date-utils';
 import { Lock } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -21,8 +22,8 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
-} from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
+} from '@/components/ui/form';
+import { Input } from '@/components/ui/input';
 
 export default function CheckoutPage() {
   const { t } = useLanguage();
@@ -51,14 +52,14 @@ export default function CheckoutPage() {
 
   // Form Schema
   const checkoutSchema = z.object({
-    fullName: z.string().min(2, "Họ tên phải có ít nhất 2 ký tự"),
-    phone: z.string().regex(/^[0-9]{10,11}$/, "Số điện thoại không hợp lệ"),
-    email: z.string().email("Email không hợp lệ").optional().or(z.literal('')),
-    address: z.string().min(5, "Địa chỉ quá ngắn"),
-    city: z.string().min(1, "Vui lòng chọn Tỉnh/Thành phố"),
-    district: z.string().min(1, "Vui lòng nhập Quận/Huyện"),
-    ward: z.string().min(1, "Vui lòng nhập Phường/Xã"),
-    paymentMethod: z.enum(["cod", "bank", "momo", "vnpay"]),
+    fullName: z.string().min(2, 'Họ tên phải có ít nhất 2 ký tự'),
+    phone: z.string().regex(/^[0-9]{10,11}$/, 'Số điện thoại không hợp lệ'),
+    email: z.string().email('Email không hợp lệ').optional().or(z.literal('')),
+    address: z.string().min(5, 'Địa chỉ quá ngắn'),
+    city: z.string().min(1, 'Vui lòng chọn Tỉnh/Thành phố'),
+    district: z.string().min(1, 'Vui lòng nhập Quận/Huyện'),
+    ward: z.string().min(1, 'Vui lòng nhập Phường/Xã'),
+    paymentMethod: z.enum(['cod', 'bank', 'momo', 'vnpay']),
     note: z.string().optional(),
   });
 
@@ -73,7 +74,7 @@ export default function CheckoutPage() {
       district: '',
       ward: '',
       paymentMethod: 'cod',
-      note: ''
+      note: '',
     },
   });
 
@@ -104,7 +105,7 @@ export default function CheckoutPage() {
         district: '',
         ward: '',
         paymentMethod: 'cod',
-        note: ''
+        note: '',
       });
     }
   }, [user]);
@@ -149,13 +150,13 @@ export default function CheckoutPage() {
   const handleAddressSelect = (addressId: number) => {
     setSelectedAddressId(addressId);
     setUseNewAddress(false);
-    const address = addresses.find(addr => addr.id === addressId);
+    const address = addresses.find((addr) => addr.id === addressId);
     if (address) {
       fillFormWithAddress(address);
     }
   };
 
-  const subtotal = cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+  const subtotal = cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
 
   // Membership Discount & Free Shipping Logic
   const tier = user?.membershipTier?.toLowerCase() || 'bronze';
@@ -174,19 +175,30 @@ export default function CheckoutPage() {
   }
 
   const membershipDiscountAmount = Math.round(subtotal * membershipDiscountPercent);
-  const shippingFee = (subtotal > 1000000 || isFreeShippingByTier) ? 0 : 30000;
+  const shippingFee = subtotal > 1000000 || isFreeShippingByTier ? 0 : 30000;
 
   const tax = Math.round(subtotal * 0.1);
   const voucherDiscount = appliedVoucher?.discountAmount || 0;
-  const giftCardDiscount = Math.min(appliedGiftCard?.balance || 0, subtotal + shippingFee + tax - voucherDiscount - membershipDiscountAmount);
+  const giftCardDiscount = Math.min(
+    appliedGiftCard?.balance || 0,
+    subtotal + shippingFee + tax - voucherDiscount - membershipDiscountAmount
+  );
   const giftWrapCost = giftWrapping ? GIFT_WRAP_FEE : 0;
-  const total = Math.max(0, subtotal + shippingFee + tax + giftWrapCost - voucherDiscount - membershipDiscountAmount - giftCardDiscount);
+  const total = Math.max(
+    0,
+    subtotal +
+      shippingFee +
+      tax +
+      giftWrapCost -
+      voucherDiscount -
+      membershipDiscountAmount -
+      giftCardDiscount
+  );
 
   // handleInputChange removed as react-hook-form handles it
 
-
   const handleApplyVoucher = async () => {
-    if (!voucherCode.trim()) return alert('Vui lòng nhập mã voucher');
+    if (!voucherCode.trim()) return toast.error('Vui lòng nhập mã voucher');
 
     try {
       const response = await fetch('/api/promo-codes/validate', {
@@ -196,57 +208,64 @@ export default function CheckoutPage() {
           code: voucherCode,
           userId: user?.id || null,
           orderAmount: subtotal + shippingFee + tax,
-          items: cartItems.map(item => ({
+          items: cartItems.map((item) => ({
             productId: item.productId,
-            categoryId: (item as any).categoryId // Assuming cart items have categoryId
-          }))
-        })
+            categoryId: (item as any).categoryId, // Assuming cart items have categoryId
+          })),
+        }),
       });
       const result = await response.json();
 
       if (result.success) {
         setAppliedVoucher(result.data);
-        alert(`Áp dụng mã thành công! Giảm ${formatCurrency(result.data.discountAmount)}`);
+        toast.success(`Áp dụng mã thành công! Giảm ${formatCurrency(result.data.discountAmount)}`);
       } else {
-        alert(result.message || 'Mã voucher không hợp lệ');
+        toast.error(result.message || 'Mã voucher không hợp lệ');
       }
     } catch (error) {
-      alert('Lỗi khi kiểm tra voucher');
+      toast.error('Lỗi khi kiểm tra voucher');
     }
   };
 
   const handleApplyGiftCard = async () => {
     if (!giftCardNumber.trim() || !giftCardPin.trim()) {
-      return alert('Vui lòng nhập đầy đủ số thẻ và mã PIN');
+      return toast.error('Vui lòng nhập đầy đủ số thẻ và mã PIN');
     }
 
     try {
       const response = await fetch('/api/gift-cards/verify', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ cardNumber: giftCardNumber, pin: giftCardPin })
+        body: JSON.stringify({ cardNumber: giftCardNumber, pin: giftCardPin }),
       });
       const result = await response.json();
 
       if (result.success) {
         setAppliedGiftCard({
           ...result.data,
-          cardNumber: giftCardNumber
+          cardNumber: giftCardNumber,
         });
-        alert('Áp dụng thẻ quà tặng thành công!');
+        toast.success('Áp dụng thẻ quà tặng thành công!');
       } else {
-        alert(result.message || 'Thẻ quà tặng không hợp lệ hoặc sai thông tin');
+        toast.error(result.message || 'Thẻ quà tặng không hợp lệ hoặc sai thông tin');
       }
     } catch (error) {
-      alert('Lỗi khi kiểm tra thẻ quà tặng');
+      toast.error('Lỗi khi kiểm tra thẻ quà tặng');
     }
   };
 
-  const getPaymentMethodText = (method: string) => method === 'bank' ? 'Chuyển khoản ngân hàng' : method === 'momo' ? 'Ví MoMo' : method === 'vnpay' ? 'VNPay (ATM/QR)' : 'Thanh toán khi nhận hàng';
+  const getPaymentMethodText = (method: string) =>
+    method === 'bank'
+      ? 'Chuyển khoản ngân hàng'
+      : method === 'momo'
+        ? 'Ví MoMo'
+        : method === 'vnpay'
+          ? 'VNPay (ATM/QR)'
+          : 'Thanh toán khi nhận hàng';
 
   const onSubmit = async (values: z.infer<typeof checkoutSchema>) => {
-    if (!user) return alert('Vui lòng đăng nhập để đặt hàng');
-    if (cartItems.length === 0) return alert('Giỏ hàng trống');
+    if (!user) return toast.error('Vui lòng đăng nhập để đặt hàng');
+    if (cartItems.length === 0) return toast.error('Giỏ hàng trống');
 
     // Payment Logic
     if (values.paymentMethod === 'bank' && !isPaid) {
@@ -261,18 +280,19 @@ export default function CheckoutPage() {
       let initialPaymentStatus = 'pending';
       if (values.paymentMethod === 'cod') initialPaymentStatus = 'pending';
       if (values.paymentMethod === 'bank' && isPaid) initialPaymentStatus = 'paid'; // Or pending_verification
-      if (values.paymentMethod === 'vnpay' || values.paymentMethod === 'momo') initialPaymentStatus = 'pending_payment';
+      if (values.paymentMethod === 'vnpay' || values.paymentMethod === 'momo')
+        initialPaymentStatus = 'pending_payment';
 
       const orderData = {
         userId: user.id,
-        items: cartItems.map(item => ({
+        items: cartItems.map((item) => ({
           productId: item.productId,
           productName: item.name,
           productImage: item.image,
           price: item.price,
           size: item.size,
           color: item.color,
-          quantity: item.quantity
+          quantity: item.quantity,
         })),
         shippingAddress: {
           name: values.fullName,
@@ -280,7 +300,7 @@ export default function CheckoutPage() {
           address: values.address,
           city: values.city,
           district: values.district,
-          ward: values.ward
+          ward: values.ward,
         },
         phone: values.phone,
         email: values.email || '',
@@ -297,15 +317,19 @@ export default function CheckoutPage() {
         notes: values.note,
         paymentStatus: initialPaymentStatus,
         has_gift_wrapping: giftWrapping,
-        gift_wrap_cost: GIFT_WRAP_FEE
+        gift_wrap_cost: GIFT_WRAP_FEE,
       };
 
       // 1. Create Order
-      const response = await fetch('/api/orders', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(orderData) });
+      const response = await fetch('/api/orders', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(orderData),
+      });
       const result = await response.json();
 
       if (!result.success) {
-        alert(result.message || 'Lỗi khi đặt hàng');
+        toast.error(result.message || 'Lỗi khi đặt hàng');
         setLoading(false);
         return;
       }
@@ -321,38 +345,37 @@ export default function CheckoutPage() {
         const paymentRes = await fetch('/api/payment/vnpay/create_url', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ orderId, amount: total, language: 'vn' })
+          body: JSON.stringify({ orderId, amount: total, language: 'vn' }),
         });
         const paymentData = await paymentRes.json();
         if (paymentData.paymentUrl) {
           window.location.href = paymentData.paymentUrl;
           return;
         } else {
-          alert('Lỗi tạo link thanh toán VNPay');
+          toast.error('Lỗi tạo link thanh toán VNPay');
           router.push(`/order-success?orderNumber=${orderNumber}`);
         }
       } else if (values.paymentMethod === 'momo') {
         const paymentRes = await fetch('/api/payment/momo/create', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ orderId, amount: total })
+          body: JSON.stringify({ orderId, amount: total }),
         });
         const paymentData = await paymentRes.json();
         if (paymentData.payUrl) {
           window.location.href = paymentData.payUrl;
           return;
         } else {
-          alert('Lỗi tạo link thanh toán Momo');
+          toast.error('Lỗi tạo link thanh toán Momo');
           router.push(`/order-success?orderNumber=${orderNumber}`);
         }
       } else {
         // COD or Bank Transfer (Manual)
         router.push(`/order-success?orderNumber=${orderNumber}`);
       }
-
     } catch (error) {
       console.error('Lỗi khi đặt hàng:', error);
-      alert('Lỗi khi đặt hàng. Vui lòng thử lại.');
+      toast.error('Lỗi khi đặt hàng. Vui lòng thử lại.');
       setLoading(false);
     }
   };
@@ -375,14 +398,14 @@ export default function CheckoutPage() {
       setLoading(true);
       const orderData = {
         userId: user.id,
-        items: cartItems.map(item => ({
+        items: cartItems.map((item) => ({
           productId: item.productId,
           productName: item.name,
           productImage: item.image,
           price: item.price,
           size: item.size,
           color: item.color,
-          quantity: item.quantity
+          quantity: item.quantity,
         })),
         shippingAddress: {
           name: values.fullName,
@@ -390,7 +413,7 @@ export default function CheckoutPage() {
           address: values.address,
           city: values.city,
           district: values.district,
-          ward: values.ward
+          ward: values.ward,
         },
         phone: values.phone,
         email: values.email || '',
@@ -407,7 +430,7 @@ export default function CheckoutPage() {
         notes: `${values.note} [Đã thanh toán chuyển khoản]`,
         paymentStatus: 'paid',
         has_gift_wrapping: giftWrapping,
-        gift_wrap_cost: GIFT_WRAP_FEE
+        gift_wrap_cost: GIFT_WRAP_FEE,
       };
       // 3. Create Order
       const orderResponse = await fetch('/api/orders', {
@@ -432,11 +455,11 @@ export default function CheckoutPage() {
       router.push(`/order-success?orderId=${orderResult.data.orderNumber}`);
     } catch (error) {
       console.error('Lỗi khi đặt hàng:', error);
-      alert('Lỗi khi đặt hàng. Vui lòng thử lại.');
+      toast.error('Lỗi khi đặt hàng. Vui lòng thử lại.');
     } finally {
       setLoading(false);
     }
-  }
+  };
 
   if (!user) {
     return (
@@ -445,7 +468,9 @@ export default function CheckoutPage() {
           <h2 className="text-2xl font-bold mb-4">{t.common.login}</h2>
           <p className="text-gray-600 mb-6">{t.auth.sign_in_title}</p>
           <p className="text-gray-600 mb-6">{t.auth.sign_in_title}</p>
-          <Link href="/sign-in"><Button className="rounded-full">{t.common.login}</Button></Link>
+          <Link href="/sign-in">
+            <Button className="rounded-full">{t.common.login}</Button>
+          </Link>
         </div>
       </div>
     );
@@ -457,7 +482,9 @@ export default function CheckoutPage() {
         <div className="text-center">
           <h2 className="text-2xl font-bold mb-4">{t.cart.empty}</h2>
           <p className="text-gray-600 mb-6">{t.cart.empty_desc}</p>
-          <Link href="/cart"><Button className="rounded-full">{t.cart.bag}</Button></Link>
+          <Link href="/cart">
+            <Button className="rounded-full">{t.cart.bag}</Button>
+          </Link>
         </div>
       </div>
     );
@@ -469,30 +496,41 @@ export default function CheckoutPage() {
         <div className="toan-container py-6">
           <div className="flex items-center justify-between">
             <h1 className="text-3xl font-bold">{t.checkout.title}</h1>
-            <Link href="/cart" className="text-blue-600 hover:text-blue-800">← {t.orders.back_home || 'Back to Cart'}</Link>
+            <Link href="/cart" className="text-blue-600 hover:text-blue-800">
+              ← {t.orders.back_home || 'Back to Cart'}
+            </Link>
           </div>
         </div>
       </div>
 
       <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="toan-container py-8" autoComplete="off">
+        <form
+          onSubmit={form.handleSubmit(onSubmit)}
+          className="toan-container py-8"
+          autoComplete="off"
+        >
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             <div className="lg:col-span-2 space-y-6">
               <div className="bg-white rounded-lg shadow-sm border p-6">
-                <h2 className="text-xl font-helvetica-medium mb-6">{t.checkout.shipping_address}</h2>
+                <h2 className="text-xl font-helvetica-medium mb-6">
+                  {t.checkout.shipping_address}
+                </h2>
 
                 {/* Address Selection */}
                 {addresses.length > 0 && (
                   <div className="mb-6">
-                    <label className="block text-sm font-medium mb-3">{t.checkout.delivery_options}</label>
+                    <label className="block text-sm font-medium mb-3">
+                      {t.checkout.delivery_options}
+                    </label>
                     <div className="space-y-3">
                       {addresses.map((address) => (
                         <div
                           key={address.id}
-                          className={`p-4 border-2 rounded-lg transition-colors ${selectedAddressId === address.id && !useNewAddress
-                            ? 'border-black bg-gray-50'
-                            : 'border-gray-300 hover:border-gray-400'
-                            }`}
+                          className={`p-4 border-2 rounded-lg transition-colors ${
+                            selectedAddressId === address.id && !useNewAddress
+                              ? 'border-black bg-gray-50'
+                              : 'border-gray-300 hover:border-gray-400'
+                          }`}
                         >
                           <div className="flex items-start gap-3">
                             <input
@@ -544,10 +582,11 @@ export default function CheckoutPage() {
                       {/* Use New Address Option */}
                       <div
                         onClick={() => setUseNewAddress(true)}
-                        className={`p-4 border-2 rounded-lg cursor-pointer transition-colors ${useNewAddress
-                          ? 'border-black bg-gray-50'
-                          : 'border-gray-300 hover:border-gray-400'
-                          }`}
+                        className={`p-4 border-2 rounded-lg cursor-pointer transition-colors ${
+                          useNewAddress
+                            ? 'border-black bg-gray-50'
+                            : 'border-gray-300 hover:border-gray-400'
+                        }`}
                       >
                         <div className="flex items-start gap-3">
                           <input
@@ -692,33 +731,65 @@ export default function CheckoutPage() {
                         <div className="space-y-3">
                           <div className="space-y-3">
                             <label className="flex items-center p-3 border rounded-lg cursor-pointer hover:bg-gray-50">
-                              <input type="radio" {...field} value="cod" checked={field.value === 'cod'} className="mr-3" />
+                              <input
+                                type="radio"
+                                {...field}
+                                value="cod"
+                                checked={field.value === 'cod'}
+                                className="mr-3"
+                              />
                               <div>
                                 <div className="font-medium">{t.checkout.cod}</div>
-                                <div className="text-sm text-gray-600">Thanh toán bằng tiền mặt khi nhận được hàng</div>
+                                <div className="text-sm text-gray-600">
+                                  Thanh toán bằng tiền mặt khi nhận được hàng
+                                </div>
                               </div>
                             </label>
                             <label className="flex items-center p-3 border rounded-lg cursor-pointer hover:bg-gray-50">
-                              <input type="radio" {...field} value="bank" checked={field.value === 'bank'} className="mr-3" />
+                              <input
+                                type="radio"
+                                {...field}
+                                value="bank"
+                                checked={field.value === 'bank'}
+                                className="mr-3"
+                              />
                               <div>
                                 <div className="font-medium">{t.checkout.bank_transfer}</div>
-                                <div className="text-sm text-gray-600">Chuyển khoản qua QR Code (VietQR)</div>
+                                <div className="text-sm text-gray-600">
+                                  Chuyển khoản qua QR Code (VietQR)
+                                </div>
                               </div>
                             </label>
                             <label className="flex items-center p-3 border rounded-lg cursor-pointer hover:bg-gray-50">
-                              <input type="radio" {...field} value="momo" checked={field.value === 'momo'} className="mr-3" />
+                              <input
+                                type="radio"
+                                {...field}
+                                value="momo"
+                                checked={field.value === 'momo'}
+                                className="mr-3"
+                              />
                               <div>
                                 <div className="font-medium">{t.checkout.momo}</div>
-                                <div className="text-sm text-gray-600">Thanh toán qua ví điện tử MoMo</div>
+                                <div className="text-sm text-gray-600">
+                                  Thanh toán qua ví điện tử MoMo
+                                </div>
                               </div>
                             </label>
                           </div>
                           <div className="space-y-3 mt-3">
                             <label className="flex items-center p-3 border rounded-lg cursor-pointer hover:bg-gray-50">
-                              <input type="radio" {...field} value="vnpay" checked={field.value === 'vnpay'} className="mr-3" />
+                              <input
+                                type="radio"
+                                {...field}
+                                value="vnpay"
+                                checked={field.value === 'vnpay'}
+                                className="mr-3"
+                              />
                               <div>
                                 <div className="font-medium">VNPay / ATM / QR</div>
-                                <div className="text-sm text-gray-600">Thanh toán qua thẻ ATM, Visa, VNPay QR</div>
+                                <div className="text-sm text-gray-600">
+                                  Thanh toán qua thẻ ATM, Visa, VNPay QR
+                                </div>
                               </div>
                             </label>
                           </div>
@@ -766,7 +837,9 @@ export default function CheckoutPage() {
                     <p className="text-sm text-gray-600 mt-1">
                       Đơn hàng sẽ được gói trong hộp quà cao cấp kèm ribbon và thiệp chúc mừng.
                     </p>
-                    <p className="text-sm font-medium text-black mt-1">+ {formatCurrency(GIFT_WRAP_FEE)}</p>
+                    <p className="text-sm font-medium text-black mt-1">
+                      + {formatCurrency(GIFT_WRAP_FEE)}
+                    </p>
                   </div>
                 </label>
               </div>
@@ -798,7 +871,9 @@ export default function CheckoutPage() {
                   </div>
                   {appliedVoucher && (
                     <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded text-sm text-green-800">
-                      ✓ {appliedVoucher.description || `Giảm ${formatCurrency(appliedVoucher.discountAmount)}`}
+                      ✓{' '}
+                      {appliedVoucher.description ||
+                        `Giảm ${formatCurrency(appliedVoucher.discountAmount)}`}
                     </div>
                   )}
                 </div>
@@ -835,16 +910,32 @@ export default function CheckoutPage() {
                     </div>
                     {appliedGiftCard && (
                       <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded text-sm text-green-800">
-                        ✓ Số dư: {formatCurrency(appliedGiftCard.balance)} • Sử dụng: {formatCurrency(giftCardDiscount)}
+                        ✓ Số dư: {formatCurrency(appliedGiftCard.balance)} • Sử dụng:{' '}
+                        {formatCurrency(giftCardDiscount)}
                       </div>
                     )}
                   </div>
                 </div>
 
                 <div className="space-y-3 pt-4 border-t">
-                  <div className="flex justify-between"><span>{t.cart.subtotal}:</span><span>{formatCurrency(subtotal)}</span></div>
-                  <div className="flex justify-between"><span>{t.checkout.shipping_fee}:</span><span>{shippingFee === 0 ? <span className="text-green-600">{t.checkout.free}</span> : formatCurrency(shippingFee)}</span></div>
-                  <div className="flex justify-between"><span>{t.cart.tax}:</span><span>{formatCurrency(tax)}</span></div>
+                  <div className="flex justify-between">
+                    <span>{t.cart.subtotal}:</span>
+                    <span>{formatCurrency(subtotal)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>{t.checkout.shipping_fee}:</span>
+                    <span>
+                      {shippingFee === 0 ? (
+                        <span className="text-green-600">{t.checkout.free}</span>
+                      ) : (
+                        formatCurrency(shippingFee)
+                      )}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>{t.cart.tax}:</span>
+                    <span>{formatCurrency(tax)}</span>
+                  </div>
                   {voucherDiscount > 0 && (
                     <div className="flex justify-between text-green-600">
                       <span>{t.footer.vouchers}:</span>
@@ -883,7 +974,9 @@ export default function CheckoutPage() {
                   size="lg"
                   className="w-full mt-6 rounded-full font-medium transition-colors"
                 >
-                  {loading ? t.checkout.processing : `${t.checkout.place_order} • ${formatCurrency(total)}`}
+                  {loading
+                    ? t.checkout.processing
+                    : `${t.checkout.place_order} • ${formatCurrency(total)}`}
                 </Button>
                 <div className="mt-4 p-3 bg-gray-50 rounded-lg">
                   <div className="flex items-center text-sm text-gray-600">
@@ -903,12 +996,11 @@ export default function CheckoutPage() {
           <div className="bg-white rounded-lg p-6 max-w-sm w-full">
             <div className="flex justify-between items-center mb-4">
               <h3 className="font-bold text-lg">{t.checkout.payment}</h3>
-              <button onClick={() => setShowQR(false)} className="text-gray-500 hover:text-black">✕</button>
+              <button onClick={() => setShowQR(false)} className="text-gray-500 hover:text-black">
+                ✕
+              </button>
             </div>
-            <PaymentQRCode
-              amount={total}
-              description={`CK Don hang ${user?.email} (Demo)`}
-            />
+            <PaymentQRCode amount={total} description={`CK Don hang ${user?.email} (Demo)`} />
             <div className="mt-4 space-y-2">
               <Button
                 onClick={handleQRPaymentConfirmed}

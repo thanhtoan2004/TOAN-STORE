@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import AdminLayout from '@/components/admin/AdminLayout';
 import Link from 'next/link';
-import { formatCurrency, formatDate } from '@/lib/date-utils';
+import { formatCurrency, formatDate } from '@/lib/utils/date-utils';
 
 interface GiftCard {
   id: number;
@@ -33,7 +33,7 @@ export default function AdminGiftCardsPage() {
     try {
       const params = new URLSearchParams({
         page: page.toString(),
-        limit: '20'
+        limit: '20',
       });
       if (search) params.append('search', search);
 
@@ -57,7 +57,7 @@ export default function AdminGiftCardsPage() {
 
     try {
       const response = await fetch(`/api/admin/gift-cards/${id}`, {
-        method: 'DELETE'
+        method: 'DELETE',
       });
 
       if (response.ok) {
@@ -73,7 +73,7 @@ export default function AdminGiftCardsPage() {
 
     try {
       const response = await fetch(`/api/admin/gift-cards/${id}/unlock`, {
-        method: 'PATCH'
+        method: 'PATCH',
       });
 
       if (response.ok) {
@@ -130,21 +130,42 @@ export default function AdminGiftCardsPage() {
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Số thẻ</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">PIN</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Giá trị gốc</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Số dư</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Trạng thái</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Hết hạn</th>
-                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase">Lần thử sai</th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Hành động</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                    Số thẻ
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                    PIN
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                    Giá trị gốc
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                    Số dư
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                    Trạng thái
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                    Hết hạn
+                  </th>
+                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase">
+                    Lần thử sai
+                  </th>
+                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">
+                    Hành động
+                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
                 {giftCards.map((card) => (
                   <tr key={card.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{card.card_number}</td>
-                    <td className="px-6 py-4 text-sm text-gray-500 max-w-[200px] truncate" title={card.pin}>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                      {card.card_number}
+                    </td>
+                    <td
+                      className="px-6 py-4 text-sm text-gray-500 max-w-[200px] truncate"
+                      title={card.pin}
+                    >
                       {card.pin}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
@@ -154,11 +175,17 @@ export default function AdminGiftCardsPage() {
                       {formatCurrency(card.current_balance)}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm">
-                      <span className={`px-2 py-1 rounded-full text-xs font-semibold ${card.status === 'active' ? 'bg-green-100 text-green-800' :
-                        card.status === 'used' ? 'bg-blue-100 text-blue-800' :
-                          card.status === 'locked' ? 'bg-orange-100 text-orange-800' :
-                            'bg-red-100 text-red-800'
-                        }`}>
+                      <span
+                        className={`px-2 py-1 rounded-full text-xs font-semibold ${
+                          card.status === 'active'
+                            ? 'bg-green-100 text-green-800'
+                            : card.status === 'used'
+                              ? 'bg-blue-100 text-blue-800'
+                              : card.status === 'locked'
+                                ? 'bg-orange-100 text-orange-800'
+                                : 'bg-red-100 text-red-800'
+                        }`}
+                      >
                         {card.status}
                       </span>
                     </td>
@@ -166,7 +193,9 @@ export default function AdminGiftCardsPage() {
                       {formatDate(card.expires_at)}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-center text-sm">
-                      <span className={`font-medium ${card.failed_attempts >= 5 ? 'text-red-600' : 'text-gray-500'}`}>
+                      <span
+                        className={`font-medium ${card.failed_attempts >= 5 ? 'text-red-600' : 'text-gray-500'}`}
+                      >
                         {card.failed_attempts || 0}
                       </span>
                     </td>
@@ -202,7 +231,9 @@ export default function AdminGiftCardsPage() {
             >
               Trước
             </button>
-            <span className="px-4 py-2">Trang {page} / {totalPages}</span>
+            <span className="px-4 py-2">
+              Trang {page} / {totalPages}
+            </span>
             <button
               onClick={() => setPage(Math.min(totalPages, page + 1))}
               disabled={page === totalPages}

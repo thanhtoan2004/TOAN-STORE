@@ -1,12 +1,12 @@
 import { NextRequest } from 'next/server';
-import { checkAdminAuth } from '@/lib/auth';
-import { logAdminAction } from '@/lib/audit';
+import { checkAdminAuth } from '@/lib/auth/auth';
+import { logAdminAction } from '@/lib/security/audit';
 import { db } from '@/lib/db/drizzle';
 import { categories as categoriesSchema } from '@/lib/db/schema';
 import { eq, sql, asc } from 'drizzle-orm';
-import { ResponseWrapper } from '@/lib/api-response';
-import { logger } from '@/lib/logger';
-import { invalidateCache } from '@/lib/cache';
+import { ResponseWrapper } from '@/lib/api/api-response';
+import { logger } from '@/lib/utils/logger';
+import { invalidateCache } from '@/lib/redis/cache';
 
 const CATEGORIES_CACHE_KEY = 'global:categories';
 
@@ -19,7 +19,8 @@ export async function GET(request: NextRequest) {
     const admin = await checkAdminAuth();
     if (!admin) return ResponseWrapper.unauthorized();
 
-    const data = await db.select()
+    const data = await db
+      .select()
       .from(categoriesSchema)
       .where(sql`${categoriesSchema.deletedAt} IS NULL`)
       .orderBy(asc(categoriesSchema.position));
@@ -57,7 +58,15 @@ export async function POST(request: NextRequest) {
     await invalidateCache(CATEGORIES_CACHE_KEY);
 
     // Log audit
-    await logAdminAction(admin.userId, 'CREATE_CATEGORY', 'categories', String(insertId), null, { name, slug, position }, request);
+    await logAdminAction(
+      admin.userId,
+      'CREATE_CATEGORY',
+      'categories',
+      String(insertId),
+      null,
+      { name, slug, position },
+      request
+    );
 
     return ResponseWrapper.success({ id: insertId }, 'Category created', 201);
   } catch (error) {

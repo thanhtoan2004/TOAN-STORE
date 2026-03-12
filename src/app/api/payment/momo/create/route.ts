@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server';
-import { verifyAuth } from '@/lib/auth';
+import { verifyAuth } from '@/lib/auth/auth';
 import { executeQuery } from '@/lib/db/mysql';
 import { createMomoPayment } from '@/lib/payment/momo';
-import { withRateLimit } from '@/lib/with-rate-limit';
+import { withRateLimit } from '@/lib/api/with-rate-limit';
 
 async function createMomoHandler(request: Request) {
   try {

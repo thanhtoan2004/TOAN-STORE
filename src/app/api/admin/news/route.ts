@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { executeQuery } from '@/lib/db/mysql';
-import { checkAdminAuth } from '@/lib/auth';
-import { sanitizeRichContent } from '@/lib/sanitize';
+import { checkAdminAuth } from '@/lib/auth/auth';
+import { sanitizeRichContent } from '@/lib/security/sanitize';
 
 // Ensure news table exists
 async function ensureNewsTable() {

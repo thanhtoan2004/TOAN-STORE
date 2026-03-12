@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { removeFromCart, updateCartItemQuantity, executeQuery } from '@/lib/db/mysql';
-import { verifyAuth } from '@/lib/auth';
-import { invalidateCache } from '@/lib/cache';
+import { verifyAuth } from '@/lib/auth/auth';
+import { invalidateCache } from '@/lib/redis/cache';
 
 // Interface cho Cart Item
 interface CartItem {
@@ -18,10 +18,7 @@ interface CartItem {
 }
 
 // PUT - Cập nhật số lượng sản phẩm trong giỏ hàng
-export async function PUT(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const session = await verifyAuth();
     if (!session) {
@@ -32,20 +29,20 @@ export async function PUT(
     const cartItemId = parseInt(id);
 
     if (isNaN(cartItemId)) {
-      return NextResponse.json(
-        { success: false, message: 'ID không hợp lệ' },
-        { status: 400 }
-      );
+      return NextResponse.json({ success: false, message: 'ID không hợp lệ' }, { status: 400 });
     }
 
     // Ownership check - join with carts table to get user_id
-    const items = await executeQuery(
+    const items = (await executeQuery(
       'SELECT c.user_id FROM cart_items ci JOIN carts c ON ci.cart_id = c.id WHERE ci.id = ?',
       [cartItemId]
-    ) as any[];
+    )) as any[];
 
     if (items.length === 0) {
-      return NextResponse.json({ success: false, message: 'Sản phẩm không tồn tại' }, { status: 404 });
+      return NextResponse.json(
+        { success: false, message: 'Sản phẩm không tồn tại' },
+        { status: 404 }
+      );
     }
 
     if (items[0].user_id !== session.userId) {
@@ -70,14 +67,11 @@ export async function PUT(
 
     return NextResponse.json({
       success: true,
-      message: quantity === 0 ? 'Đã xóa sản phẩm khỏi giỏ hàng' : 'Đã cập nhật số lượng'
+      message: quantity === 0 ? 'Đã xóa sản phẩm khỏi giỏ hàng' : 'Đã cập nhật số lượng',
     });
   } catch (error) {
     console.error('Lỗi khi cập nhật giỏ hàng:', error);
-    return NextResponse.json(
-      { success: false, message: 'Lỗi server nội bộ' },
-      { status: 500 }
-    );
+    return NextResponse.json({ success: false, message: 'Lỗi server nội bộ' }, { status: 500 });
   }
 }
 
@@ -96,20 +90,20 @@ export async function DELETE(
     const cartItemId = parseInt(id);
 
     if (isNaN(cartItemId)) {
-      return NextResponse.json(
-        { success: false, message: 'ID không hợp lệ' },
-        { status: 400 }
-      );
+      return NextResponse.json({ success: false, message: 'ID không hợp lệ' }, { status: 400 });
     }
 
     // Ownership check - join with carts table to get user_id
-    const items = await executeQuery(
+    const items = (await executeQuery(
       'SELECT c.user_id FROM cart_items ci JOIN carts c ON ci.cart_id = c.id WHERE ci.id = ?',
       [cartItemId]
-    ) as any[];
+    )) as any[];
 
     if (items.length === 0) {
-      return NextResponse.json({ success: false, message: 'Sản phẩm không tồn tại' }, { status: 404 });
+      return NextResponse.json(
+        { success: false, message: 'Sản phẩm không tồn tại' },
+        { status: 404 }
+      );
     }
 
     if (items[0].user_id !== session.userId) {
@@ -124,14 +118,10 @@ export async function DELETE(
 
     return NextResponse.json({
       success: true,
-      message: 'Đã xóa sản phẩm khỏi giỏ hàng'
+      message: 'Đã xóa sản phẩm khỏi giỏ hàng',
     });
   } catch (error) {
     console.error('Lỗi khi xóa sản phẩm:', error);
-    return NextResponse.json(
-      { success: false, message: 'Lỗi server nội bộ' },
-      { status: 500 }
-    );
+    return NextResponse.json({ success: false, message: 'Lỗi server nội bộ' }, { status: 500 });
   }
 }
-
