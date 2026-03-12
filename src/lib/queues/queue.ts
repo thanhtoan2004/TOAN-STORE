@@ -1,5 +1,5 @@
 import { Queue, QueueOptions } from 'bullmq';
-import redisConfiguration from './redis';
+import redisConfiguration from '../redis/redis';
 
 const defaultOptions: QueueOptions = {
   connection: redisConfiguration,

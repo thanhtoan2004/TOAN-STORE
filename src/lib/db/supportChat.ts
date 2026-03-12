@@ -1,6 +1,6 @@
 import { pool } from './mysql';
 import { randomUUID } from 'crypto';
-import { hashEmail } from '../encryption';
+import { hashEmail } from '../security/encryption';
 
 // ==================== SUPPORT CHAT FUNCTIONS ====================
 

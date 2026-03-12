@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { RateLimiter } from './rate-limit';
-import { logSecurityEvent } from './audit';
+import { logSecurityEvent } from '../security/audit';
 
 /**
  * Higher-order function to wrap API route handlers with Rate Limiting

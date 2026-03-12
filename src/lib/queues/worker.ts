@@ -1,6 +1,6 @@
 import { Worker, Job } from 'bullmq';
-import redisConfiguration from './redis';
-import { sendEmail } from './mail';
+import redisConfiguration from '../redis/redis';
+import { sendEmail } from '../mail/mail';
 import { EmailJobData } from './queue';
 import '@/workers/eventWorker'; // Import to start the Event Worker
 

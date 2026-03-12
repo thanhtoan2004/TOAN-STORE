@@ -1,4 +1,4 @@
-import { RedisRateLimiter } from './redis/rateLimit';
+import { RedisRateLimiter } from '../redis/rateLimit';
 
 /**
  * Rate Limiter (Hệ thống chống DDoS/Spam API) được thiết kế chạy trên RAM của Redis.

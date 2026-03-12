@@ -1,4 +1,4 @@
-import { executeQuery } from './db/mysql';
+import { executeQuery } from '../db/mysql';
 
 /**
  * Loại thông báo trong hệ thống.

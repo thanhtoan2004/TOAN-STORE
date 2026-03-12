@@ -1,6 +1,6 @@
 import { cookies } from 'next/headers';
 import jwt from 'jsonwebtoken';
-import { executeQuery } from './db/mysql';
+import { executeQuery } from '../db/mysql';
 
 /**
  * Payload chứa thông tin nhúng bên trong chuỗi mã hóa JWT của mỗi người dùng.
@@ -38,8 +38,8 @@ export const REFRESH_TOKEN = 'toan_refresh_token';
 export const ACCESS_TOKEN_EXP = '15m'; // 15 minutes
 export const REFRESH_TOKEN_EXP = '7d'; // 7 days
 
-import { db } from './db/drizzle';
-import { adminUsers, roles } from './db/schema';
+import { db } from '../db/drizzle';
+import { adminUsers, roles } from '../db/schema';
 import { eq } from 'drizzle-orm';
 
 /**

@@ -1,4 +1,4 @@
-import { executeQuery } from './db/mysql';
+import { executeQuery } from '../db/mysql';
 import { NextRequest } from 'next/server';
 
 /**

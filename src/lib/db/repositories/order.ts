@@ -115,10 +115,10 @@ export async function createOrder(orderData: {
     const [orderResult]: any = await connection.execute(
       `INSERT INTO orders (
         user_id, order_number, subtotal, total, status, notes, 
-        is_encrypted, shipping_address_snapshot, phone, email, email_hash,
+        is_encrypted, shipping_address_snapshot, phone, phone_encrypted, email, email_encrypted, email_hash,
         shipping_fee, tax, promotion_code, voucher_discount, giftcard_discount, placed_at
       )
-       VALUES (?, ?, ?, ?, 'pending', ?, TRUE, ?, '***', '***', ?, ?, ?, ?, ?, ?, NOW())`,
+       VALUES (?, ?, ?, ?, 'pending', ?, TRUE, ?, '***', ?, '***', ?, ?, ?, ?, ?, ?, ?, NOW())`,
       [
         orderData.userId || null,
         orderData.orderNumber,
@@ -126,6 +126,8 @@ export async function createOrder(orderData: {
         totalAmount,
         orderData.notes || null,
         snapshot,
+        encrypt(orderData.phone),
+        encrypt(orderData.email),
         emailHash,
         shippingFee,
         orderData.tax || 0,
@@ -405,4 +407,96 @@ export async function cancelOrder(orderNumber: string, force: boolean = false) {
   }
 
   return await updateOrderStatus(orderNumber, 'cancelled');
+}
+
+/**
+ * Cron Job logic: Cancellations of "pending" orders that haven't been paid/confirmed
+ * within the specified time window.
+ */
+export async function cleanupExpiredOrders(minutes: number = 30) {
+  // 1. Find expired orders
+  const expiredOrders = await executeQuery<any[]>(
+    `SELECT order_number FROM orders 
+     WHERE status = 'pending' 
+     AND placed_at < DATE_SUB(NOW(), INTERVAL ? MINUTE)`,
+    [minutes]
+  );
+
+  if (expiredOrders.length === 0) return 0;
+
+  // 2. Cancel them using the standard logic to handle stock/events
+  let count = 0;
+  for (const order of expiredOrders) {
+    try {
+      await cancelOrder(order.order_number, true); // force = true to allow cancellation
+      count++;
+    } catch (e) {
+      logger.error(e, `Failed to cleanup order ${order.order_number}:`);
+    }
+  }
+
+  return count;
+}
+
+/**
+ * Chatbot-specific order lookup.
+ * Returns order details including items and their statuses.
+ */
+export async function getOrderStatusForChat(orderNumber: string, phone: string) {
+  // 1. Get order by number
+  const [order]: any = await executeQuery<any[]>(
+    'SELECT id, order_number, status, total, placed_at, shipping_address_snapshot, phone_encrypted FROM orders WHERE order_number = ?',
+    [orderNumber]
+  );
+
+  if (!order) return null;
+
+  // 2. Verify phone number
+  let orderPhone = '';
+  if (order.phone_encrypted) {
+    try {
+      orderPhone = decrypt(order.phone_encrypted);
+    } catch (e) {
+      // Fallback
+    }
+  }
+
+  if (!orderPhone && order.shipping_address_snapshot) {
+    try {
+      const snapshot =
+        typeof order.shipping_address_snapshot === 'string'
+          ? JSON.parse(order.shipping_address_snapshot)
+          : order.shipping_address_snapshot;
+      if (snapshot.phone) {
+        orderPhone = decrypt(snapshot.phone);
+      }
+    } catch (e) {}
+  }
+
+  // Normalize and compare (only numbers)
+  const normalizedInputPhone = phone.replace(/\D/g, '');
+  const normalizedOrderPhone = orderPhone.replace(/\D/g, '');
+
+  if (!normalizedOrderPhone || normalizedInputPhone !== normalizedOrderPhone) {
+    return null; // Phone doesn't match
+  }
+
+  // 3. Get Items
+  const items = await executeQuery<any[]>(
+    'SELECT product_name, size, quantity, unit_price FROM order_items WHERE order_id = ?',
+    [order.id]
+  );
+
+  return {
+    orderNumber: order.order_number,
+    status: order.status,
+    total: order.total,
+    placedAt: order.placed_at,
+    items: items.map((item) => ({
+      name: item.product_name,
+      size: item.size,
+      quantity: item.quantity,
+      price: item.unit_price,
+    })),
+  };
 }
