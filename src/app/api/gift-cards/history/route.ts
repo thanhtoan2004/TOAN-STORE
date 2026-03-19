@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createErrorResponse, createSuccessResponse, withErrorHandling } from '@/lib/api/api-utils';
-import { executeQuery } from '@/lib/db/mysql';
-import { decrypt } from '@/lib/security/encryption';
+import { db } from '@/lib/db/drizzle';
+import { giftCards, giftCardLockouts, giftCardTransactions } from '@/lib/db/schema';
+import { eq, and, sql, desc, or, isNull, gt, gte } from 'drizzle-orm';
+import { decrypt, hashGiftCard } from '@/lib/security/encryption';
+import { ResponseWrapper } from '@/lib/api/api-response';
 
 // Cấu hình giới hạn
 const MAX_IP_ATTEMPTS_PER_30MIN = 8;
@@ -14,166 +16,154 @@ function getClientIp(req: NextRequest) {
   return ip;
 }
 
-// GET - Lấy lịch sử giao dịch thẻ quà tặng
 /**
- * API Tra cứu lịch sử giao dịch của thẻ quà tặng kèm Bảo mật chống Brute Force.
- * Áp dụng Lockout IP sau 8 lần sai và khóa thẻ sau 5 lần sai.
+ * API Tra cứu lịch sử giao dịch của thẻ quà tặng.
  */
-async function giftcardHistoryHandler(req: NextRequest): Promise<NextResponse> {
-  const { searchParams } = new URL(req.url);
-  const cardNumber = searchParams.get('cardNumber');
-  const pin = searchParams.get('pin');
-  const clientIp = getClientIp(req);
+export async function GET(req: NextRequest) {
+  try {
+    const { searchParams } = new URL(req.url);
+    const cardNumber = searchParams.get('cardNumber');
+    const pin = searchParams.get('pin');
+    const clientIp = getClientIp(req);
 
-  if (!cardNumber || !pin) {
-    return createErrorResponse('Thiếu số thẻ hoặc mã PIN', 400);
-  }
+    if (!cardNumber || !pin) {
+      return ResponseWrapper.error('Thiếu số thẻ hoặc mã PIN', 400);
+    }
 
-  // 1. Kiểm tra IP Lockout
-  const ipLockouts = await executeQuery<any[]>(
-    `SELECT attempt_count, locked_until FROM gift_card_lockouts 
-     WHERE ip_address = ? AND (locked_until IS NULL OR locked_until > NOW()) 
-     AND last_attempt >= NOW() - INTERVAL 30 MINUTE`,
-    [clientIp]
-  );
+    const hashedCardNumber = hashGiftCard(cardNumber);
 
-  let currentIpAttempts = 0;
-  let lockoutId = null;
+    // 1. Kiểm tra IP Lockout
+    const [lockout] = await db
+      .select()
+      .from(giftCardLockouts)
+      .where(
+        and(
+          eq(giftCardLockouts.ipAddress, clientIp),
+          or(isNull(giftCardLockouts.lockoutUntil), gt(giftCardLockouts.lockoutUntil, new Date()))!,
+          gte(giftCardLockouts.lastAttempt, sql`NOW() - INTERVAL 30 MINUTE`)
+        )
+      )
+      .orderBy(desc(giftCardLockouts.lastAttempt))
+      .limit(1);
 
-  if (ipLockouts && ipLockouts.length > 0) {
-    const lockout = ipLockouts[0];
-    if (lockout.locked_until && new Date(lockout.locked_until) > new Date()) {
-      return createErrorResponse(
-        'Bạn đã tra cứu sai quá nhiều lần. Vui lòng thử lại sau 30 phút.',
-        429
+    let currentIpAttempts = 0;
+    let lockoutId = null;
+
+    if (lockout) {
+      if (lockout.lockoutUntil && new Date(lockout.lockoutUntil) > new Date()) {
+        return ResponseWrapper.error(
+          'Bạn đã tra cứu sai quá nhiều lần. Vui lòng thử lại sau 30 phút.',
+          429
+        );
+      }
+      currentIpAttempts = lockout.attemptCount || 0;
+      lockoutId = lockout.id;
+    }
+
+    // 2. Tìm thẻ trong DB (Drizzle schema used cardNumberHash)
+    const [card] = await db
+      .select()
+      .from(giftCards)
+      .where(eq(giftCards.cardNumberHash, hashedCardNumber))
+      .limit(1);
+
+    if (!card) {
+      await handleIpPenalty(clientIp, currentIpAttempts, lockoutId);
+      return ResponseWrapper.notFound('Thẻ quà tặng không tồn tại hoặc sai thông tin');
+    }
+
+    // 3. Kiểm tra thẻ đã bị khóa chưa
+    if (card.status === 'locked' || (card.failedAttempts || 0) >= MAX_CARD_FAILED_ATTEMPTS) {
+      return ResponseWrapper.forbidden(
+        'Thẻ đã bị khóa do nhập sai PIN nhiều lần. Vui lòng liên hệ hỗ trợ.'
       );
     }
-    currentIpAttempts = lockout.attempt_count;
-    // Get ID logic
-    const ids = await executeQuery<any[]>(
-      'SELECT id FROM gift_card_lockouts WHERE ip_address = ? ORDER BY last_attempt DESC LIMIT 1',
-      [clientIp]
-    );
-    if (ids.length > 0) lockoutId = ids[0].id;
-  }
 
-  // 2. Tìm thẻ trong DB (Chỉ tìm bằng số thẻ)
-  const cards = await executeQuery<any[]>(
-    `SELECT id, card_number, pin as encrypted_pin, current_balance, status, failed_attempts, expires_at, created_at 
-     FROM gift_cards WHERE card_number = ?`,
-    [cardNumber]
-  );
+    // 4. Xác thực mã PIN
+    const decryptedPin = decrypt(card.pin || '');
+    if (decryptedPin !== pin) {
+      await handleIpPenalty(clientIp, currentIpAttempts, lockoutId);
 
-  if (!cards || cards.length === 0) {
-    // Sai số thẻ hoàn toàn -> Phạt IP
-    await handleIpPenalty(clientIp, currentIpAttempts, lockoutId);
-    return createErrorResponse('Thẻ quà tặng không tồn tại hoặc sai thông tin', 404);
-  }
+      const newFailed = (card.failedAttempts || 0) + 1;
+      const updateData: any = { failedAttempts: newFailed };
+      if (newFailed >= MAX_CARD_FAILED_ATTEMPTS) {
+        updateData.status = 'locked';
+      }
 
-  const card = cards[0];
+      await db.update(giftCards).set(updateData).where(eq(giftCards.id, card.id));
 
-  // 3. Kiểm tra thẻ đã bị khóa chưa
-  if (card.status === 'locked' || card.failed_attempts >= MAX_CARD_FAILED_ATTEMPTS) {
-    return createErrorResponse(
-      'Thẻ đã bị khóa do nhập sai PIN nhiều lần. Vui lòng liên hệ hỗ trợ.',
-      403
-    );
-  }
-
-  // 4. Xác thực mã PIN
-  const decryptedPin = decrypt(card.encrypted_pin);
-  if (decryptedPin !== pin) {
-    // Sai PIN -> Phạt IP + Tăng failed_attempts của thẻ
-    await handleIpPenalty(clientIp, currentIpAttempts, lockoutId);
-
-    const newFailed = (card.failed_attempts || 0) + 1;
-    let query = 'UPDATE gift_cards SET failed_attempts = ? WHERE id = ?';
-    let params: any[] = [newFailed, card.id];
-
-    if (newFailed >= MAX_CARD_FAILED_ATTEMPTS) {
-      query = 'UPDATE gift_cards SET failed_attempts = ?, status = ? WHERE id = ?';
-      params = [newFailed, 'locked', card.id];
+      if (newFailed >= MAX_CARD_FAILED_ATTEMPTS) {
+        return ResponseWrapper.forbidden('Thẻ đã bị khóa do nhập sai PIN quá 5 lần.');
+      }
+      return ResponseWrapper.notFound('Thẻ quà tặng không tồn tại hoặc sai thông tin');
     }
 
-    await executeQuery(query, params);
-
-    if (newFailed >= MAX_CARD_FAILED_ATTEMPTS) {
-      return createErrorResponse('Thẻ đã bị khóa do nhập sai PIN quá 5 lần.', 403);
+    // 5. Thành công -> Reset
+    if (lockoutId) {
+      await db.delete(giftCardLockouts).where(eq(giftCardLockouts.id, lockoutId));
     }
-    return createErrorResponse('Thẻ quà tặng không tồn tại hoặc sai thông tin', 404); // Cố tình báo lỗi chung chung để chặn dò
-  }
+    if ((card.failedAttempts || 0) > 0) {
+      await db.update(giftCards).set({ failedAttempts: 0 }).where(eq(giftCards.id, card.id));
+    }
 
-  // 5. Nếu Thành công -> Reset IP Attempts (Tùy chọn, ở đây ta reset cho sạch lịch sử IP này)
-  if (lockoutId) {
-    await executeQuery('DELETE FROM gift_card_lockouts WHERE id = ?', [lockoutId]);
-  }
-  // Reset failed attempts của bản thân thẻ
-  if (card.failed_attempts > 0) {
-    await executeQuery('UPDATE gift_cards SET failed_attempts = 0 WHERE id = ?', [card.id]);
-  }
+    // 6. Trả về lịch sử giao dịch
+    const transactions = await db
+      .select()
+      .from(giftCardTransactions)
+      .where(eq(giftCardTransactions.giftCardId, card.id))
+      .orderBy(desc(giftCardTransactions.createdAt));
 
-  // 6. Trả về lịch sử giao dịch
-  const transactions = await executeQuery<any[]>(
-    `SELECT 
-      id, transaction_type, amount, balance_before, balance_after, description, created_at, order_id
-     FROM gift_card_transactions 
-     WHERE gift_card_id = ? 
-     ORDER BY created_at DESC`,
-    [card.id]
-  );
-
-  return createSuccessResponse(
-    {
-      card: {
-        cardNumber: card.card_number,
-        currentBalance: card.current_balance,
-        status: card.status,
-        expiresAt: card.expires_at,
-        createdAt: card.created_at,
+    return ResponseWrapper.success(
+      {
+        card: {
+          cardNumber: card.cardNumberHash,
+          currentBalance: card.currentBalance,
+          status: card.status,
+          expiresAt: card.expiresAt,
+          createdAt: card.createdAt,
+        },
+        transactions: transactions.map((t: any) => ({
+          id: t.id,
+          type: t.transactionType,
+          amount: t.amount,
+          balanceBefore: t.balanceBefore,
+          balanceAfter: t.balanceAfter,
+          description: t.description,
+          orderId: t.orderId,
+          createdAt: t.createdAt,
+        })),
       },
-      transactions: transactions.map((t: any) => ({
-        id: t.id,
-        type: t.transaction_type,
-        amount: t.amount,
-        balanceBefore: t.balance_before,
-        balanceAfter: t.balance_after,
-        description: t.description,
-        orderId: t.order_id,
-        createdAt: t.created_at,
-      })),
-    },
-    'Lấy lịch sử thành công'
-  );
+      'Lấy lịch sử thành công'
+    );
+  } catch (error) {
+    console.error('Gift card history error:', error);
+    return ResponseWrapper.serverError('Lỗi server nội bộ', error);
+  }
 }
 
 // Hàm phụ trợ phạt IP
 async function handleIpPenalty(ip: string, currentAttempts: number, lockoutId: number | null) {
   const newAttempts = currentAttempts + 1;
-  let lockedUntil = null;
+  let lockoutUntil = null;
 
   if (newAttempts >= MAX_IP_ATTEMPTS_PER_30MIN) {
-    lockedUntil = new Date(Date.now() + 30 * 60000); // 30 mins
+    lockoutUntil = new Date(Date.now() + 30 * 60000); // 30 mins
   }
 
   if (lockoutId) {
-    await executeQuery(
-      'UPDATE gift_card_lockouts SET attempt_count = ?, locked_until = ?, last_attempt = NOW() WHERE id = ?',
-      [
-        newAttempts,
-        lockedUntil ? lockedUntil.toISOString().slice(0, 19).replace('T', ' ') : null,
-        lockoutId,
-      ]
-    );
+    await db
+      .update(giftCardLockouts)
+      .set({
+        attemptCount: newAttempts,
+        lockoutUntil,
+        lastAttempt: new Date(),
+      })
+      .where(eq(giftCardLockouts.id, lockoutId));
   } else {
-    await executeQuery(
-      'INSERT INTO gift_card_lockouts (ip_address, attempt_count, locked_until) VALUES (?, ?, ?)',
-      [
-        ip,
-        newAttempts,
-        lockedUntil ? lockedUntil.toISOString().slice(0, 19).replace('T', ' ') : null,
-      ]
-    );
+    await db.insert(giftCardLockouts).values({
+      ipAddress: ip,
+      attemptCount: newAttempts,
+      lockoutUntil,
+    });
   }
 }
-
-export const GET = withErrorHandling(giftcardHistoryHandler);

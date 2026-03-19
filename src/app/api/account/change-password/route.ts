@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import bcrypt from 'bcrypt';
-import { executeQuery } from '@/lib/db/mysql';
+import { db } from '@/lib/db/drizzle';
+import { users as usersTable } from '@/lib/db/schema';
+import { eq } from 'drizzle-orm';
 import { verifyAuth } from '@/lib/auth/auth';
 
 /**
@@ -20,20 +22,24 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { currentPassword, newPassword } = body;
 
-    // Get current user
-    const users = (await executeQuery(
-      'SELECT id, password, email, first_name FROM users WHERE id = ?',
-      [session.userId]
-    )) as any[];
+    // Get current user using Drizzle
+    const [user] = await db
+      .select({
+        id: usersTable.id,
+        password: usersTable.password,
+        email: usersTable.email,
+        firstName: usersTable.firstName,
+      })
+      .from(usersTable)
+      .where(eq(usersTable.id, session.userId))
+      .limit(1);
 
-    if (users.length === 0) {
+    if (!user) {
       return NextResponse.json(
         { success: false, message: 'Không tìm thấy người dùng' },
         { status: 404 }
       );
     }
-
-    const user = users[0];
 
     // Verify current password
     const isValidPassword = await bcrypt.compare(currentPassword, user.password);
@@ -48,17 +54,17 @@ export async function POST(request: NextRequest) {
     const hashedPassword = await bcrypt.hash(newPassword, 10);
 
     // Update password
-    await executeQuery(
-      'UPDATE users SET password = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
-      [hashedPassword, session.userId]
-    );
+    await db
+      .update(usersTable)
+      .set({ password: hashedPassword, updatedAt: new Date() })
+      .where(eq(usersTable.id, session.userId));
 
     // Gửi email thông báo đổi mật khẩu (Chạy ngầm)
     const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || '127.0.0.1';
     const time = new Date().toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' });
     try {
       const { sendPasswordChangedEmail } = await import('@/lib/mail/email-templates');
-      await sendPasswordChangedEmail(user.email, user.first_name || 'bạn', time, ip);
+      await sendPasswordChangedEmail(user.email, user.firstName || 'bạn', time, ip);
     } catch (error) {
       console.warn('Could not load email templates:', error);
     }

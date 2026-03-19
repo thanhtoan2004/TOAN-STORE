@@ -54,7 +54,7 @@ export default function AdminNewsPage() {
       const response = await fetch(`/api/admin/news?${params.toString()}`);
       const data = await response.json();
       if (data.success) {
-        setNews(data.data.news);
+        setNews(data.data || []);
       }
     } catch (error) {
       console.error('Error fetching news:', error);
@@ -314,7 +314,7 @@ export default function AdminNewsPage() {
                     Đang tải...
                   </td>
                 </tr>
-              ) : news.length === 0 ? (
+              ) : !news || news.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="px-4 py-8 text-center text-gray-500">
                     Không có tin tức nào

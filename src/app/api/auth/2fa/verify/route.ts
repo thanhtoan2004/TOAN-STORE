@@ -8,8 +8,9 @@ import {
   generateAccessToken,
   generateRefreshToken,
 } from '@/lib/auth/auth';
-import { logSecurityEvent } from '@/lib/security/audit';
+import { logSecurityEvent } from '@/lib/db/repositories/audit';
 import { decrypt, hashEmail } from '@/lib/security/encryption';
+import { ResponseWrapper } from '@/lib/api/api-response';
 
 /**
  * API Xác thực mã OTP và hoàn tất đăng nhập.
@@ -24,10 +25,7 @@ export async function POST(request: NextRequest) {
     const { email, otp } = await request.json();
 
     if (!email || !otp) {
-      return NextResponse.json(
-        { success: false, message: 'Email and OTP are required' },
-        { status: 400 }
-      );
+      return ResponseWrapper.error('Email and OTP are required', 400);
     }
 
     // Find user (Sử dụng Blind Index bằng email_hash)
@@ -38,7 +36,7 @@ export async function POST(request: NextRequest) {
     );
 
     if (users.length === 0) {
-      return NextResponse.json({ success: false, message: 'Invalid credentials' }, { status: 401 });
+      return ResponseWrapper.unauthorized('Invalid credentials');
     }
 
     const user = users[0];
@@ -54,10 +52,7 @@ export async function POST(request: NextRequest) {
         emailHash,
         reason: 'Invalid OTP for 2FA',
       });
-      return NextResponse.json(
-        { success: false, message: 'Mã OTP không hợp lệ hoặc đã hết hạn' },
-        { status: 401 }
-      );
+      return ResponseWrapper.unauthorized('Mã OTP không hợp lệ hoặc đã hết hạn');
     }
 
     // OTP verified — delete it
@@ -101,30 +96,26 @@ export async function POST(request: NextRequest) {
 
     await logSecurityEvent('login_success', ip, user.id, { emailHash, method: '2fa_email' });
 
-    return NextResponse.json({
-      success: true,
-      user: {
-        id: user.id,
-        email: user.email,
-        firstName: user.first_name,
-        lastName: user.last_name,
-        phone:
-          user.is_encrypted && user.phone_encrypted
-            ? decrypt(user.phone_encrypted)
-            : user.phone !== '***'
-              ? user.phone || ''
-              : '',
-        dateOfBirth: user.date_of_birth,
-        gender: user.gender,
-        isActive: user.is_active,
-        isVerified: user.is_verified,
-      },
-    });
+    const authUser = {
+      id: user.id,
+      email: user.email,
+      firstName: user.first_name,
+      lastName: user.last_name,
+      phone:
+        user.is_encrypted && user.phone_encrypted
+          ? decrypt(user.phone_encrypted)
+          : user.phone !== '***'
+            ? user.phone || ''
+            : '',
+      dateOfBirth: user.date_of_birth,
+      gender: user.gender,
+      isActive: user.is_active,
+      isVerified: user.is_verified,
+    };
+
+    return ResponseWrapper.success({ user: authUser }, 'Đăng nhập thành công');
   } catch (error) {
     console.error('2FA verify error:', error);
-    return NextResponse.json(
-      { success: false, message: 'OTP verification failed' },
-      { status: 500 }
-    );
+    return ResponseWrapper.serverError('OTP verification failed', error);
   }
 }

@@ -1,14 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getMeiliClient, PRODUCT_INDEX } from '@/lib/search/meilisearch';
-import { executeQuery } from '@/lib/db/mysql';
+import { db } from '@/lib/db/drizzle';
+import { searchAnalytics } from '@/lib/db/schema';
 import { getCache, setCache } from '@/lib/redis/cache';
+import { ResponseWrapper } from '@/lib/api/api-response';
 
 /**
  * API Tìm kiếm sản phẩm thông minh (Full-text Search).
- * Công nghệ sử dụng:
- * - Meilisearch: Cung cấp kết quả tìm kiếm tức thì, hỗ trợ Highlighting và Typo-tolerance.
- * - Search Analytics: Ghi lại từ khóa và hiệu suất tìm kiếm để Admin phân tích xu hướng người dùng.
- * Ràng buộc: Từ khóa phải từ 2 ký tự trở lên.
  */
 export async function GET(request: NextRequest) {
   try {
@@ -19,13 +17,7 @@ export async function GET(request: NextRequest) {
     const offset = parseInt(searchParams.get('offset') || '0');
 
     if (!q || q.trim().length < 2) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: 'Từ khóa tìm kiếm phải có ít nhất 2 ký tự',
-        },
-        { status: 400 }
-      );
+      return ResponseWrapper.error('Từ khóa tìm kiếm phải có ít nhất 2 ký tự', 400);
     }
 
     const index = getMeiliClient().index(PRODUCT_INDEX);
@@ -36,20 +28,12 @@ export async function GET(request: NextRequest) {
       filters.push(`category_name = "${category}"`);
     }
 
-    // --- Redis Caching Logic ---
     const cacheKey = `search:query:${q}:${category || 'all'}:${limit}:${offset}`;
     const cachedResults = await getCache<any>(cacheKey);
     if (cachedResults) {
-      return NextResponse.json({
-        success: true,
-        data: {
-          ...cachedResults,
-          cached: true,
-        },
-      });
+      return ResponseWrapper.success(cachedResults, undefined, 200, { cached: true });
     }
 
-    // Perform search
     const searchResults = await index.search(q, {
       limit,
       offset,
@@ -61,54 +45,40 @@ export async function GET(request: NextRequest) {
 
     const responseData = {
       products: searchResults.hits,
-      pagination: {
-        total: searchResults.estimatedTotalHits || 0,
-        limit: searchResults.limit,
-        offset: searchResults.offset,
-        hasMore:
-          (searchResults.offset || 0) + (searchResults.limit || 0) <
-          (searchResults.estimatedTotalHits || 0),
-      },
       query: q,
       processingTimeMs: searchResults.processingTimeMs,
     };
 
-    // Save to cache (30 mins)
+    const pagination = {
+      total: searchResults.estimatedTotalHits || 0,
+      limit: searchResults.limit,
+      offset: searchResults.offset,
+      hasMore:
+        (searchResults.offset || 0) + (searchResults.limit || 0) <
+        (searchResults.estimatedTotalHits || 0),
+    };
+
     await setCache(cacheKey, responseData, 1800);
 
-    // Log search query (fire-and-forget)
+    // Log search query
     const ip =
       request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
       request.headers.get('x-real-ip') ||
       '127.0.0.1';
-    executeQuery(
-      `INSERT INTO search_analytics (query, category_filter, results_count, processing_time_ms, ip_address) VALUES (?, ?, ?, ?, ?)`,
-      [
-        q.substring(0, 255),
-        category || null,
-        searchResults.estimatedTotalHits || 0,
-        searchResults.processingTimeMs || 0,
-        ip,
-      ]
-    ).catch(() => {
-      /* silently ignore logging errors */
-    });
 
-    return NextResponse.json({
-      success: true,
-      data: responseData,
-    });
+    db.insert(searchAnalytics)
+      .values({
+        query: q.substring(0, 255),
+        categoryFilter: category || null,
+        resultsCount: searchResults.estimatedTotalHits || 0,
+        processingTimeMs: searchResults.processingTimeMs || 0,
+        ipAddress: ip,
+      })
+      .catch(() => {});
+
+    return ResponseWrapper.success(responseData, 'Search results fetched', 200, pagination);
   } catch (error: any) {
     console.error('Search error details:', error);
-    if (error.response) {
-      console.error('Meilisearch response error:', error.response);
-    }
-    return NextResponse.json(
-      {
-        success: false,
-        message: 'Lỗi khi tìm kiếm sản phẩm',
-      },
-      { status: 500 }
-    );
+    return ResponseWrapper.serverError('Lỗi khi tìm kiếm sản phẩm', error);
   }
 }

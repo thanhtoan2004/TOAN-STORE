@@ -1,6 +1,7 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { getWishlistItemsWithPriceDrop } from '@/lib/db/repositories/wishlist';
 import { sendWishlistSaleEmail } from '@/lib/mail/email-templates';
+import { ResponseWrapper } from '@/lib/api/api-response';
 
 /**
  * GET /api/cron/wishlist-alerts
@@ -10,16 +11,13 @@ import { sendWishlistSaleEmail } from '@/lib/mail/email-templates';
  * Lưu ý: Nên setup endpoint này được gọi tự động mỗi ngày (ví dụ 8h sáng)
  * bằng Vercel Cron Jobs hoặc tương đương.
  */
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
   try {
     // 1. Kiểm tra Vercel Cron Secret (hoặc authorization header) để bảo mật
     const authHeader = request.headers.get('authorization');
     if (process.env.CRON_SECRET) {
       if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
-        return NextResponse.json(
-          { success: false, message: 'Unauthorized cron request' },
-          { status: 401 }
-        );
+        return ResponseWrapper.unauthorized('Unauthorized cron request');
       }
     }
 
@@ -27,7 +25,7 @@ export async function GET(request: Request) {
     const items = await getWishlistItemsWithPriceDrop();
 
     if (!items || items.length === 0) {
-      return NextResponse.json({ success: true, message: 'No price drops found today', count: 0 });
+      return ResponseWrapper.success({ count: 0 }, 'No price drops found today');
     }
 
     // 3. Xử lý gửi email (Nhóm theo User để tránh spam nếu 1 user có nhiều sp giảm)
@@ -54,14 +52,14 @@ export async function GET(request: Request) {
 
     await Promise.allSettled(emailPromises);
 
-    return NextResponse.json({
-      success: true,
-      message: 'Price drop alerts processed successfully',
+    const result = {
       processed: items.length,
       emailsSent: sentCount,
-    });
+    };
+
+    return ResponseWrapper.success(result, 'Price drop alerts processed successfully');
   } catch (error) {
     console.error('Error processing wishlist alerts cron:', error);
-    return NextResponse.json({ success: false, message: 'Internal Server Error' }, { status: 500 });
+    return ResponseWrapper.serverError('Internal Server Error', error);
   }
 }

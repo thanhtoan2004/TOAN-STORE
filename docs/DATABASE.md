@@ -195,6 +195,24 @@ Lưu vết lỗi hệ thống tập trung.
 
 ---
 
+## Loyalty Tables
+
+### `point_transactions`
+
+| Column        | Type            | Description                                |
+| ------------- | --------------- | ------------------------------------------ |
+| id            | BIGINT PK       | —                                          |
+| user_id       | BIGINT FK→users | —                                          |
+| points        | INT             | Số điểm giao dịch (Dương: Earn, Âm: Spend) |
+| type          | ENUM            | `earn`, `redeem`, `expire`, `refund`       |
+| source        | VARCHAR(50)     | Nguồn (order, gift_card, admin, v.v.)      |
+| source_id     | VARCHAR(100)    | ID của resource liên quan (ví dụ order #)  |
+| balance_after | INT             | Số dư khả dụng sau giao dịch               |
+| expires_at    | TIMESTAMP NULL  | Thời điểm điểm này sẽ hết hạn              |
+| created_at    | TIMESTAMP       | —                                          |
+
+---
+
 ## RBAC Tables (Auth)
 
 ### `roles` / `permissions` / `role_permissions`

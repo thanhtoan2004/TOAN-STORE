@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server';
-import { executeQuery } from '@/lib/db/mysql';
+import { db } from '@/lib/db/drizzle';
+import { passwordResets } from '@/lib/db/schema';
+import { eq, and, lt, sql } from 'drizzle-orm';
 import { checkAdminAuth } from '@/lib/auth/auth';
 
-// DELETE - Cleanup expired and used tokens
 /**
  * API Dọn dẹp các mã Token khôi phục mật khẩu (Cleanup).
  * Chức năng: Xóa các token đã hết hạn hoặc đã sử dụng (để lâu hơn 7 ngày) để tối ưu dung lượng DB.
@@ -14,15 +15,20 @@ export async function DELETE() {
       return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
     }
 
-    // Delete expired tokens (older than expiry time)
-    const expiredResult = (await executeQuery(
-      'DELETE FROM password_resets WHERE expires_at < UTC_TIMESTAMP()'
-    )) as any;
+    // Delete expired tokens (older than now)
+    const [expiredResult] = await db
+      .delete(passwordResets)
+      .where(lt(passwordResets.expiresAt, new Date()));
 
     // Delete used tokens older than 7 days
-    const usedResult = (await executeQuery(
-      'DELETE FROM password_resets WHERE used = 1 AND created_at < DATE_SUB(UTC_TIMESTAMP(), INTERVAL 7 DAY)'
-    )) as any;
+    const [usedResult] = await db
+      .delete(passwordResets)
+      .where(
+        and(
+          eq(passwordResets.used, 1),
+          lt(passwordResets.createdAt, sql`DATE_SUB(NOW(), INTERVAL 7 DAY)`)
+        )
+      );
 
     const expiredCount = expiredResult.affectedRows || 0;
     const usedCount = usedResult.affectedRows || 0;
@@ -43,7 +49,6 @@ export async function DELETE() {
   }
 }
 
-// GET - Get token statistics
 /**
  * API Lấy thống kê về tình trạng Token (Tổng số, Đã dùng, Đang hoạt động).
  */
@@ -54,18 +59,18 @@ export async function GET() {
       return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
     }
 
-    const stats = (await executeQuery(`
-      SELECT 
-        COUNT(*) as total,
-        SUM(CASE WHEN used = 1 THEN 1 ELSE 0 END) as used,
-        SUM(CASE WHEN expires_at < UTC_TIMESTAMP() THEN 1 ELSE 0 END) as expired,
-        SUM(CASE WHEN used = 0 AND expires_at > UTC_TIMESTAMP() THEN 1 ELSE 0 END) as active
-      FROM password_resets
-    `)) as any[];
+    const [stats] = await db
+      .select({
+        total: sql<number>`COUNT(*)`,
+        used: sql<number>`SUM(CASE WHEN ${passwordResets.used} = 1 THEN 1 ELSE 0 END)`,
+        expired: sql<number>`SUM(CASE WHEN ${passwordResets.expiresAt} < NOW() THEN 1 ELSE 0 END)`,
+        active: sql<number>`SUM(CASE WHEN ${passwordResets.used} = 0 AND ${passwordResets.expiresAt} > NOW() THEN 1 ELSE 0 END)`,
+      })
+      .from(passwordResets);
 
     return NextResponse.json({
       success: true,
-      data: stats[0],
+      data: stats,
     });
   } catch (error) {
     console.error('Error fetching token stats:', error);

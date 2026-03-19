@@ -1,4 +1,6 @@
-import { executeQuery } from '@/lib/db/mysql';
+import { db } from '../drizzle';
+import { products, productImages, categories, productEmbeddings } from '../schema';
+import { eq, and, ne, sql, isNull } from 'drizzle-orm';
 
 /**
  * Calculates cosine similarity between two vectors
@@ -21,49 +23,74 @@ function cosineSimilarity(vecA: number[], vecB: number[]) {
 export async function getSimilarProducts(productId: number, limit: number = 6) {
   try {
     // 1. Get embedding for the target product
-    const targetEmbedResult = await executeQuery<any[]>(
-      'SELECT embedding FROM product_embeddings WHERE product_id = ?',
-      [productId]
-    );
+    const [targetEmbed] = await db
+      .select({ embedding: productEmbeddings.embedding })
+      .from(productEmbeddings)
+      .where(eq(productEmbeddings.productId, productId))
+      .limit(1);
 
-    if (targetEmbedResult.length === 0) {
+    if (!targetEmbed) {
       // Fallback: If no embedding, return products in same category
-      return executeQuery<any[]>(
-        `
-        SELECT p.id, p.name, p.category_id, p.msrp_price as price, p.price_cache as sale_price, p.slug, p.is_new_arrival,
-               (SELECT url FROM product_images WHERE product_id = p.id AND is_main = 1 LIMIT 1) as image_url,
-               c.name as category
-        FROM products p
-        LEFT JOIN categories c ON p.category_id = c.id
-        WHERE p.category_id = (SELECT category_id FROM products WHERE id = ?)
-        AND p.id != ? AND p.is_active = 1 AND p.deleted_at IS NULL
-        LIMIT ?
-      `,
-        [productId, productId, limit]
-      );
+      const targetProduct = db
+        .select({ categoryId: products.categoryId })
+        .from(products)
+        .where(eq(products.id, productId))
+        .limit(1);
+
+      return await db
+        .select({
+          id: products.id,
+          name: products.name,
+          categoryId: products.categoryId,
+          price: products.msrpPrice,
+          salePrice: products.priceCache,
+          slug: products.slug,
+          isNewArrival: products.isNewArrival,
+          imageUrl: sql<string>`(SELECT url FROM ${productImages} WHERE product_id = ${products.id} AND is_main = 1 LIMIT 1)`,
+          category: categories.name,
+        })
+        .from(products)
+        .leftJoin(categories, eq(products.categoryId, categories.id))
+        .where(
+          and(
+            eq(products.categoryId, sql`(${targetProduct})`),
+            ne(products.id, productId),
+            eq(products.isActive, 1),
+            isNull(products.deletedAt)
+          )
+        )
+        .limit(limit);
     }
 
-    const targetEmbedding = JSON.parse(targetEmbedResult[0].embedding);
+    const targetEmbedding = JSON.parse(targetEmbed.embedding as string);
 
     // 2. Fetch all other product embeddings
-    // NOTE: For thousands of products, this should be optimized with a Vector DB or custom plugin
-    // For this implementation, we use in-memory matching with cache potential.
-    const allEmbeddings = await executeQuery<any[]>(
-      `
-      SELECT pe.product_id, pe.embedding, p.name, p.msrp_price as price, p.price_cache as sale_price, p.slug, p.is_new_arrival,
-             (SELECT url FROM product_images WHERE product_id = p.id AND is_main = 1 LIMIT 1) as image_url,
-             c.name as category
-      FROM product_embeddings pe
-      JOIN products p ON pe.product_id = p.id
-      LEFT JOIN categories c ON p.category_id = c.id
-      WHERE pe.product_id != ? AND p.is_active = 1 AND p.deleted_at IS NULL
-    `,
-      [productId]
-    );
+    const allEmbeds = await db
+      .select({
+        productId: productEmbeddings.productId,
+        embedding: productEmbeddings.embedding,
+        name: products.name,
+        price: products.msrpPrice,
+        salePrice: products.priceCache,
+        slug: products.slug,
+        isNewArrival: products.isNewArrival,
+        imageUrl: sql<string>`(SELECT url FROM ${productImages} WHERE product_id = ${products.id} AND is_main = 1 LIMIT 1)`,
+        category: categories.name,
+      })
+      .from(productEmbeddings)
+      .innerJoin(products, eq(productEmbeddings.productId, products.id))
+      .leftJoin(categories, eq(products.categoryId, categories.id))
+      .where(
+        and(
+          ne(productEmbeddings.productId, productId),
+          eq(products.isActive, 1),
+          isNull(products.deletedAt)
+        )
+      );
 
     // 3. Calculate similarities
-    const recommendations = allEmbeddings.map((item) => {
-      const currentEmbedding = JSON.parse(item.embedding);
+    const recommendations = allEmbeds.map((item) => {
+      const currentEmbedding = JSON.parse(item.embedding as string);
       return {
         ...item,
         similarity: cosineSimilarity(targetEmbedding, currentEmbedding),

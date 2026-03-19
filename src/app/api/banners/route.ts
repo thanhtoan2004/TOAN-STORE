@@ -1,11 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { executeQuery } from '@/lib/db/mysql';
+import { db } from '@/lib/db/drizzle';
+import { banners as bannersTable } from '@/lib/db/schema';
+import { eq, and, or, isNull, sql, lte, gte, asc, desc, inArray } from 'drizzle-orm';
 import { getCache, setCache } from '@/lib/redis/cache';
+import { ResponseWrapper } from '@/lib/api/api-response';
 
 const BANNERS_CACHE_PREFIX = 'global:banners:';
 const CACHE_TTL = 3600; // 1 hour
 
-// GET - Lấy danh sách banners
 /**
  * API Lấy danh sách Banner quảng cáo theo vị trí.
  * Cơ chế:
@@ -27,31 +29,34 @@ export async function GET(request: NextRequest) {
       // Background: Update impression count for active banners even if cached
       if (activeOnly && cachedData.length > 0) {
         const bannerIds = cachedData.map((b) => b.id);
-        executeQuery(
-          `UPDATE banners SET impression_count = impression_count + 1 WHERE id IN (${bannerIds.join(',')})`,
-          []
-        ).catch((e) => console.error('Error logging banner impressions (Background):', e));
+        db.update(bannersTable)
+          .set({ impressionCount: sql`${bannersTable.impressionCount} + 1` })
+          .where(inArray(bannersTable.id, bannerIds))
+          .catch((e) => console.error('Error logging banner impressions (Background):', e));
       }
 
-      return NextResponse.json({
-        success: true,
-        data: cachedData,
-        cached: true,
-      });
+      return ResponseWrapper.success(cachedData, undefined, 200, { cached: true });
     }
 
-    // 2. Fallback to Database
-    let query = 'SELECT * FROM banners WHERE position = ?';
-    const params: any[] = [position];
+    // 2. Fallback to Database using Drizzle ORM
+    const filters = [eq(bannersTable.position, position)];
 
     if (activeOnly) {
-      query +=
-        ' AND is_active = 1 AND (start_date IS NULL OR start_date <= NOW()) AND (end_date IS NULL OR end_date >= NOW())';
+      const now = new Date();
+      filters.push(eq(bannersTable.isActive, 1));
+
+      const startFilter = or(isNull(bannersTable.startDate), lte(bannersTable.startDate, now));
+      const endFilter = or(isNull(bannersTable.endDate), gte(bannersTable.endDate, now));
+
+      if (startFilter) filters.push(startFilter);
+      if (endFilter) filters.push(endFilter);
     }
 
-    query += ' ORDER BY display_order ASC, created_at DESC';
-
-    const banners = await executeQuery<any[]>(query, params);
+    const banners = await db
+      .select()
+      .from(bannersTable)
+      .where(and(...filters))
+      .orderBy(asc(bannersTable.displayOrder), desc(bannersTable.createdAt));
 
     // 3. Save to cache
     await setCache(BANNERS_CACHE_PREFIX + cacheKey, banners, CACHE_TTL);
@@ -59,19 +64,15 @@ export async function GET(request: NextRequest) {
     // 4. Update impression count asynchronously
     if (activeOnly && banners.length > 0) {
       const bannerIds = banners.map((b) => b.id);
-      executeQuery(
-        `UPDATE banners SET impression_count = impression_count + 1 WHERE id IN (${bannerIds.join(',')})`,
-        []
-      ).catch((e) => console.error('Error logging banner impressions:', e));
+      db.update(bannersTable)
+        .set({ impressionCount: sql`${bannersTable.impressionCount} + 1` })
+        .where(inArray(bannersTable.id, bannerIds))
+        .catch((e) => console.error('Error logging banner impressions:', e));
     }
 
-    return NextResponse.json({
-      success: true,
-      data: banners,
-      cached: false,
-    });
+    return ResponseWrapper.success(banners, undefined, 200, { cached: false });
   } catch (error) {
     console.error('Error fetching banners:', error);
-    return NextResponse.json({ success: false, message: 'Lỗi server nội bộ' }, { status: 500 });
+    return ResponseWrapper.serverError('Lỗi server nội bộ', error);
   }
 }

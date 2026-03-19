@@ -38,9 +38,36 @@ export const REFRESH_TOKEN = 'toan_refresh_token';
 export const ACCESS_TOKEN_EXP = '15m'; // 15 minutes
 export const REFRESH_TOKEN_EXP = '7d'; // 7 days
 
+import { eq, and } from 'drizzle-orm';
+import { headers } from 'next/headers';
 import { db } from '../db/drizzle';
-import { adminUsers, roles } from '../db/schema';
-import { eq } from 'drizzle-orm';
+import { adminUsers, roles, settings as settingsTable } from '../db/schema';
+
+/**
+ * Helper to check if IP is in whitelist
+ */
+async function isIPAllowed() {
+  try {
+    const s = await db
+      .select({ value: settingsTable.value })
+      .from(settingsTable)
+      .where(eq(settingsTable.key, 'admin_ip_whitelist'))
+      .limit(1);
+
+    const whitelist = s[0]?.value;
+    if (!whitelist || whitelist.trim() === '') return true; // Disabled if empty
+
+    const allowedIPs = whitelist.split(',').map((ip: string) => ip.trim());
+    const headersList = await headers();
+    const forwardedFor = headersList.get('x-forwarded-for');
+    const clientIP = forwardedFor ? forwardedFor.split(',')[0] : '127.0.0.1';
+
+    return allowedIPs.includes(clientIP) || allowedIPs.includes('*');
+  } catch (error) {
+    console.error('IP Whitelist check failed:', error);
+    return true; // Fallback to allow if error in check
+  }
+}
 
 /**
  * Verify and return admin authentication status
@@ -52,6 +79,12 @@ export async function checkAdminAuth() {
     const token = cookieStore.get(ADMIN_TOKEN)?.value;
 
     if (!token) return null;
+
+    const isAllowed = await isIPAllowed();
+    if (!isAllowed) {
+      console.warn('Admin access denied: IP not in whitelist');
+      return null;
+    }
 
     const decoded = jwt.verify(token, getJwtSecret()) as JWTPayload;
 
@@ -65,7 +98,7 @@ export async function checkAdminAuth() {
       })
       .from(adminUsers)
       .leftJoin(roles, eq(adminUsers.roleId, roles.id))
-      .where(eq(adminUsers.id, decoded.userId))
+      .where(and(eq(adminUsers.id, decoded.userId), eq(adminUsers.isActive, 1)))
       .limit(1);
 
     if (admins.length === 0 || !admins[0].isActive) {

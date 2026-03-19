@@ -89,9 +89,9 @@ function TransactionsPageContent() {
           throw new Error('Failed to fetch');
         }
 
-        const data = await res.json();
-        setTransactions(data.transactions || []);
-        setPagination(data.pagination || { page: 1, limit: 10, total: 0, totalPages: 0 });
+        const result = await res.json();
+        setTransactions(result.data || []);
+        setPagination(result.pagination || { page: 1, limit: 10, total: 0, totalPages: 0 });
       } catch (err) {
         setError(isVi ? 'Không thể tải lịch sử giao dịch' : 'Failed to load transaction history');
       } finally {
@@ -157,6 +157,20 @@ function TransactionsPageContent() {
       gift_card: { vi: 'Gift Card', en: 'Gift Card' },
     };
     return isVi ? labels[type]?.vi || type : labels[type]?.en || type;
+  };
+
+  const getStatusLabel = (status: string) => {
+    const labels: Record<string, { vi: string; en: string }> = {
+      completed: { vi: 'Thành công', en: 'Completed' },
+      pending: { vi: 'Đang chờ', en: 'Pending' },
+      cancelled: { vi: 'Đã hủy', en: 'Cancelled' },
+      earn: { vi: 'Nhận điểm', en: 'Earned' },
+      spend: { vi: 'Dùng điểm', en: 'Spent' },
+      purchase: { vi: 'Mua hàng', en: 'Purchase' },
+      approved: { vi: 'Chấp nhận', en: 'Approved' },
+      rejected: { vi: 'Từ chối', en: 'Rejected' },
+    };
+    return isVi ? labels[status]?.vi || status : labels[status]?.en || status;
   };
 
   const getStatusBadge = (type: string, status: string) => {
@@ -363,7 +377,7 @@ function TransactionsPageContent() {
                         <span
                           className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${getStatusBadge(tx.transaction_type, tx.transaction_status)}`}
                         >
-                          {tx.transaction_status}
+                          {getStatusLabel(tx.transaction_status)}
                         </span>
                       </div>
                       <div className="flex items-center gap-2 text-xs text-gray-500">

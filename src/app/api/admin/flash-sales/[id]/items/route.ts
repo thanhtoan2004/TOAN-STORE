@@ -1,15 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { executeQuery } from '@/lib/db/mysql';
+import { db } from '@/lib/db/drizzle';
+import { flashSales as flashSalesTable, flashSaleItems, products } from '@/lib/db/schema';
+import { eq, and, ne, or, lt, gt, lte, gte, sql } from 'drizzle-orm';
 import { checkAdminAuth } from '@/lib/auth/auth';
 
 /**
  * POST - Add product to flash sale
- */
-/**
- * API Thêm sản phẩm vào đợt Flash Sale hiện tại.
- * Ràng buộc bảo mật (Conflict Check):
- * - Không cho phép 1 sản phẩm tham gia 2 đợt Flash Sale trùng khung giờ.
- * - Giá Flash Sale phải thấp hơn giá bán lẻ hiện tại.
  */
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -18,7 +14,8 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
     }
 
-    const id = (await params).id;
+    const { id: idStr } = await params;
+    const id = parseInt(idStr);
     const body = await request.json();
     const { productId, flashPrice, quantityLimit, discountPercentage } = body;
 
@@ -30,104 +27,124 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     }
 
     // Check if product exists and get price
-    const [product] = await executeQuery<any[]>(
-      `SELECT id, price_cache, msrp_price, name FROM products WHERE id = ?`,
-      [productId]
-    );
+    const [product] = await db
+      .select({
+        id: products.id,
+        priceCache: products.priceCache,
+        msrpPrice: products.msrpPrice,
+        name: products.name,
+      })
+      .from(products)
+      .where(eq(products.id, productId))
+      .limit(1);
 
     if (!product) {
       return NextResponse.json({ success: false, message: 'Product not found' }, { status: 404 });
     }
 
     // Validate Price and Quantity
-    if (flashPrice <= 0) {
+    const fPrice = parseFloat(flashPrice);
+    if (fPrice <= 0) {
       return NextResponse.json(
         { success: false, message: 'Flash price must be greater than 0' },
         { status: 400 }
       );
     }
 
-    if (quantityLimit !== undefined && quantityLimit <= 0) {
+    if (quantityLimit !== undefined && parseInt(quantityLimit) <= 0) {
       return NextResponse.json(
         { success: false, message: 'Quantity limit must be greater than 0' },
         { status: 400 }
       );
     }
 
-    const currentPrice = parseFloat(product.msrp_price || product.price_cache);
-    if (flashPrice >= currentPrice) {
+    const currentPrice = parseFloat(product.msrpPrice || product.priceCache || '0');
+    if (fPrice >= currentPrice) {
       return NextResponse.json(
         {
           success: false,
-          message: `Flash price (${flashPrice}) must be lower than current price (${currentPrice})`,
+          message: `Flash price (${fPrice}) must be lower than current price (${currentPrice})`,
         },
         { status: 400 }
       );
     }
 
-    if (!product) {
-      return NextResponse.json({ success: false, message: 'Product not found' }, { status: 404 });
-    }
-
     // Check for overlapping flash sales for this product
-    const [currentSale]: any = await executeQuery(
-      `SELECT start_time, end_time FROM flash_sales WHERE id = ?`,
-      [id]
-    );
+    const [currentSale] = await db
+      .select({
+        startTime: flashSalesTable.startTime,
+        endTime: flashSalesTable.endTime,
+      })
+      .from(flashSalesTable)
+      .where(eq(flashSalesTable.id, id))
+      .limit(1);
 
-    if (!currentSale || currentSale.length === 0) {
+    if (!currentSale) {
       return NextResponse.json(
         { success: false, message: 'Flash sale session not found' },
         { status: 404 }
       );
     }
 
-    const [overlappingSales]: any = await executeQuery(
-      `SELECT fs.name, fs.start_time, fs.end_time 
-             FROM flash_sale_items fsi
-             JOIN flash_sales fs ON fsi.flash_sale_id = fs.id
-             WHERE fsi.product_id = ? 
-               AND fsi.flash_sale_id != ?
-               AND fs.is_active = 1
-               AND (
-                 (fs.start_time <= ? AND fs.end_time > ?) OR
-                 (fs.start_time < ? AND fs.end_time >= ?) OR
-                 (fs.start_time >= ? AND fs.end_time <= ?)
-               )
-             LIMIT 1`,
-      [
-        productId,
-        id,
-        currentSale[0].start_time,
-        currentSale[0].start_time,
-        currentSale[0].end_time,
-        currentSale[0].end_time,
-        currentSale[0].start_time,
-        currentSale[0].end_time,
-      ]
-    );
+    const overlappingSales = await db
+      .select({
+        name: flashSalesTable.name,
+        startTime: flashSalesTable.startTime,
+        endTime: flashSalesTable.endTime,
+      })
+      .from(flashSaleItems)
+      .innerJoin(flashSalesTable, eq(flashSaleItems.flashSaleId, flashSalesTable.id))
+      .where(
+        and(
+          eq(flashSaleItems.productId, productId),
+          ne(flashSaleItems.flashSaleId, id),
+          eq(flashSalesTable.isActive, 1),
+          or(
+            and(
+              lte(flashSalesTable.startTime, currentSale.startTime),
+              gt(flashSalesTable.endTime, currentSale.startTime)
+            ),
+            and(
+              lt(flashSalesTable.startTime, currentSale.endTime),
+              gte(flashSalesTable.endTime, currentSale.endTime)
+            ),
+            and(
+              gte(flashSalesTable.startTime, currentSale.startTime),
+              lte(flashSalesTable.endTime, currentSale.endTime)
+            )
+          )
+        )
+      )
+      .limit(1);
 
     if (overlappingSales.length > 0) {
       const overlap = overlappingSales[0];
       return NextResponse.json(
         {
           success: false,
-          message: `Sản phẩm này đã tham gia đợt sale "${overlap.name}" diễn ra từ ${new Date(overlap.start_time).toLocaleString()} đến ${new Date(overlap.end_time).toLocaleString()}.`,
+          message: `Sản phẩm này đã tham gia đợt sale "${overlap.name}" diễn ra từ ${overlap.startTime.toLocaleString()} đến ${overlap.endTime.toLocaleString()}.`,
         },
         { status: 400 }
       );
     }
 
     // Insert or Update item
-    await executeQuery(
-      `INSERT INTO flash_sale_items (flash_sale_id, product_id, flash_price, quantity_limit, discount_percentage)
-             VALUES (?, ?, ?, ?, ?)
-             ON DUPLICATE KEY UPDATE 
-                flash_price = VALUES(flash_price),
-                quantity_limit = VALUES(quantity_limit),
-                discount_percentage = VALUES(discount_percentage)`,
-      [id, productId, flashPrice, quantityLimit || 0, discountPercentage || null]
-    );
+    await db
+      .insert(flashSaleItems)
+      .values({
+        flashSaleId: id,
+        productId: productId,
+        flashPrice: String(flashPrice),
+        quantityLimit: quantityLimit || 0,
+        discountPercentage: String(discountPercentage || 0),
+      })
+      .onDuplicateKeyUpdate({
+        set: {
+          flashPrice: String(flashPrice),
+          quantityLimit: quantityLimit || 0,
+          discountPercentage: String(discountPercentage || 0),
+        },
+      });
 
     return NextResponse.json({ success: true, message: 'Product added to flash sale' });
   } catch (error) {
@@ -139,9 +156,6 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 /**
  * DELETE - Remove product from flash sale
  */
-/**
- * API Loại bỏ sản phẩm khỏi đợt Flash Sale.
- */
 export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -152,7 +166,8 @@ export async function DELETE(
       return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
     }
 
-    const id = (await params).id;
+    const { id: idStr } = await params;
+    const id = parseInt(idStr);
     const { searchParams } = new URL(request.url);
     const productId = searchParams.get('productId');
 
@@ -160,10 +175,11 @@ export async function DELETE(
       return NextResponse.json({ success: false, message: 'Missing productId' }, { status: 400 });
     }
 
-    await executeQuery(`DELETE FROM flash_sale_items WHERE flash_sale_id = ? AND product_id = ?`, [
-      id,
-      productId,
-    ]);
+    await db
+      .delete(flashSaleItems)
+      .where(
+        and(eq(flashSaleItems.flashSaleId, id), eq(flashSaleItems.productId, parseInt(productId)))
+      );
 
     return NextResponse.json({ success: true, message: 'Product removed from flash sale' });
   } catch (error) {

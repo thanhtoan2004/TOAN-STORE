@@ -11,7 +11,7 @@ import toast from 'react-hot-toast';
 import PaymentQRCode from '@/components/checkout/PaymentQRCode';
 import { Button } from '@/components/ui/Button';
 import { formatDateTime, formatDate, formatCurrency } from '@/lib/utils/date-utils';
-import { Lock } from 'lucide-react';
+import { Lock, Gift } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -39,11 +39,12 @@ export default function CheckoutPage() {
 
   // Gift Wrapping
   const [giftWrapping, setGiftWrapping] = useState(false);
-  const GIFT_WRAP_FEE = 25000; // 25.000đ
+  const [giftWrapFee, setGiftWrapFee] = useState(25000);
 
   // Payment State
   const [showQR, setShowQR] = useState(false);
   const [isPaid, setIsPaid] = useState(false);
+  const [createdOrderNumber, setCreatedOrderNumber] = useState<string | null>(null);
 
   // Address state
   const [addresses, setAddresses] = useState<any[]>([]);
@@ -81,7 +82,7 @@ export default function CheckoutPage() {
   // Watch selected address to conditionally show fields? Or just rely on state?
   // We keep `useNewAddress` state for visibility, but `form` handles data.
 
-  // Load addresses on mount
+  // Load addresses and settings on mount
   useEffect(() => {
     if (user) {
       loadAddresses();
@@ -92,8 +93,6 @@ export default function CheckoutPage() {
       setVoucherCode('');
       setAppliedVoucher(null);
       setGiftCardNumber('');
-      setGiftCardPin('');
-      setAppliedGiftCard(null);
       setGiftCardPin('');
       setAppliedGiftCard(null);
       form.reset({
@@ -108,7 +107,20 @@ export default function CheckoutPage() {
         note: '',
       });
     }
+    fetchSettings();
   }, [user]);
+
+  const fetchSettings = async () => {
+    try {
+      const response = await fetch('/api/settings');
+      const res = await response.json();
+      if (res.success && res.data) {
+        setGiftWrapFee(res.data.gift_wrap_fee || 25000);
+      }
+    } catch (error) {
+      console.error('Failed to fetch settings:', error);
+    }
+  };
 
   const loadAddresses = async () => {
     if (!user) return;
@@ -116,21 +128,24 @@ export default function CheckoutPage() {
     try {
       const response = await fetch(`/api/addresses?userId=${user.id}`);
       if (response.ok) {
-        const data = await response.json();
-        setAddresses(data);
+        const res = await response.json();
+        if (res.success && Array.isArray(res.data)) {
+          const data = res.data;
+          setAddresses(data);
 
-        // Auto-select default address
-        const defaultAddress = data.find((addr: any) => addr.is_default === 1);
-        if (defaultAddress && data.length > 0) {
-          setSelectedAddressId(defaultAddress.id);
-          fillFormWithAddress(defaultAddress);
-        } else if (data.length > 0) {
-          // Select first address if no default
-          setSelectedAddressId(data[0].id);
-          fillFormWithAddress(data[0]);
-        } else {
-          // No addresses, use new address form
-          setUseNewAddress(true);
+          // Auto-select default address
+          const defaultAddress = data.find((addr: any) => addr.is_default === 1);
+          if (defaultAddress && data.length > 0) {
+            setSelectedAddressId(defaultAddress.id);
+            fillFormWithAddress(defaultAddress);
+          } else if (data.length > 0) {
+            // Select first address if no default
+            setSelectedAddressId(data[0].id);
+            fillFormWithAddress(data[0]);
+          } else {
+            // No addresses, use new address form
+            setUseNewAddress(true);
+          }
         }
       }
     } catch (error) {
@@ -139,12 +154,17 @@ export default function CheckoutPage() {
   };
 
   const fillFormWithAddress = (address: any) => {
-    form.setValue('fullName', address.recipient_name || form.getValues('fullName'));
+    // Map existing address fields to form values
+    // Handles both camelCase (from backend/drizzle) and snake_case (Legacy/API)
+    form.setValue(
+      'fullName',
+      address.recipientName || address.recipient_name || form.getValues('fullName')
+    );
     form.setValue('phone', address.phone || form.getValues('phone'));
-    form.setValue('address', address.address_line || '');
+    form.setValue('address', address.addressLine || address.address_line || '');
     form.setValue('city', address.city || 'TP. Hồ Chí Minh');
-    form.setValue('district', address.state || '');
-    form.setValue('ward', address.postal_code || '');
+    form.setValue('district', address.state || address.district || '');
+    form.setValue('ward', address.postalCode || address.postal_code || '');
   };
 
   const handleAddressSelect = (addressId: number) => {
@@ -175,15 +195,17 @@ export default function CheckoutPage() {
   }
 
   const membershipDiscountAmount = Math.round(subtotal * membershipDiscountPercent);
-  const shippingFee = subtotal > 1000000 || isFreeShippingByTier ? 0 : 30000;
+  const shippingFee = subtotal >= 500000 || isFreeShippingByTier ? 0 : 30000;
 
   const tax = Math.round(subtotal * 0.1);
   const voucherDiscount = appliedVoucher?.discountAmount || 0;
+  const giftWrapCost = giftWrapping ? giftWrapFee : 0;
+
   const giftCardDiscount = Math.min(
     appliedGiftCard?.balance || 0,
-    subtotal + shippingFee + tax - voucherDiscount - membershipDiscountAmount
+    subtotal + shippingFee + tax + giftWrapCost - voucherDiscount - membershipDiscountAmount
   );
-  const giftWrapCost = giftWrapping ? GIFT_WRAP_FEE : 0;
+
   const total = Math.max(
     0,
     subtotal +
@@ -267,19 +289,78 @@ export default function CheckoutPage() {
     if (!user) return toast.error('Vui lòng đăng nhập để đặt hàng');
     if (cartItems.length === 0) return toast.error('Giỏ hàng trống');
 
-    // Payment Logic
-    if (values.paymentMethod === 'bank' && !isPaid) {
-      setShowQR(true);
-      return;
-    }
-
     try {
       setLoading(true);
+
+      // 1. Create Order FIRST for Bank Transfer to get Order Number for SePay
+      if (values.paymentMethod === 'bank' && !isPaid && !createdOrderNumber) {
+        const orderData = {
+          userId: user.id,
+          items: cartItems.map((item) => ({
+            productId: item.productId,
+            productName: item.name,
+            productImage: item.image,
+            price: item.price,
+            size: item.size,
+            color: item.color,
+            quantity: item.quantity,
+          })),
+          shippingAddress: {
+            name: values.fullName,
+            phone: values.phone,
+            address: values.address,
+            city: values.city,
+            district: values.district,
+            ward: values.ward,
+          },
+          phone: values.phone,
+          email: values.email || '',
+          paymentMethod: getPaymentMethodText(values.paymentMethod),
+          totalAmount: subtotal,
+          shippingFee,
+          tax,
+          discount: voucherDiscount + giftCardDiscount + membershipDiscountAmount,
+          membershipDiscount: membershipDiscountAmount,
+          voucherCode: appliedVoucher?.code || null,
+          voucherDiscount: voucherDiscount,
+          giftcardNumber: appliedGiftCard?.cardNumber || null,
+          giftcardDiscount: giftCardDiscount,
+          notes: values.note,
+          paymentStatus: 'pending',
+          has_gift_wrapping: giftWrapping,
+          gift_wrap_cost: giftWrapFee,
+        };
+
+        const response = await fetch('/api/orders', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(orderData),
+        });
+        const result = await response.json();
+
+        if (result.success) {
+          setCreatedOrderNumber(result.data.orderNumber);
+          setShowQR(true);
+          setLoading(false);
+          return;
+        } else {
+          toast.error(result.message || 'Lỗi khi tạo đơn hàng');
+          setLoading(false);
+          return;
+        }
+      }
+
+      // If already has order number but modal was closed
+      if (values.paymentMethod === 'bank' && !isPaid && createdOrderNumber) {
+        setShowQR(true);
+        setLoading(false);
+        return;
+      }
 
       // Determine initial status
       let initialPaymentStatus = 'pending';
       if (values.paymentMethod === 'cod') initialPaymentStatus = 'pending';
-      if (values.paymentMethod === 'bank' && isPaid) initialPaymentStatus = 'paid'; // Or pending_verification
+      if (values.paymentMethod === 'bank' && isPaid) initialPaymentStatus = 'paid';
       if (values.paymentMethod === 'vnpay' || values.paymentMethod === 'momo')
         initialPaymentStatus = 'pending_payment';
 
@@ -317,10 +398,10 @@ export default function CheckoutPage() {
         notes: values.note,
         paymentStatus: initialPaymentStatus,
         has_gift_wrapping: giftWrapping,
-        gift_wrap_cost: GIFT_WRAP_FEE,
+        gift_wrap_cost: giftWrapFee,
       };
 
-      // 1. Create Order
+      // 1. Create Order (if not bank or if bank but already paid)
       const response = await fetch('/api/orders', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -385,7 +466,12 @@ export default function CheckoutPage() {
     setIsPaid(true);
     setShowQR(false);
 
-    // Trigger submission
+    // After SePay, we can just redirect to success page because the order is already created
+    if (createdOrderNumber) {
+      clearCart().catch(console.error);
+      router.push(`/order-success?orderNumber=${createdOrderNumber}`);
+      return;
+    }
     // since we can't easily pass the event 'e' here, we construct a fake one or extract submit logic.
     // calls form submit programmatically or just reuse logic
     const values = form.getValues();
@@ -430,7 +516,7 @@ export default function CheckoutPage() {
         notes: `${values.note} [Đã thanh toán chuyển khoản]`,
         paymentStatus: 'paid',
         has_gift_wrapping: giftWrapping,
-        gift_wrap_cost: GIFT_WRAP_FEE,
+        gift_wrap_cost: giftWrapFee,
       };
       // 3. Create Order
       const orderResponse = await fetch('/api/orders', {
@@ -452,7 +538,7 @@ export default function CheckoutPage() {
 
       // Clear cart asynchronously
       clearCart().catch(console.error);
-      router.push(`/order-success?orderId=${orderResult.data.orderNumber}`);
+      router.push(`/order-success?orderNumber=${orderResult.data.orderNumber}`);
     } catch (error) {
       console.error('Lỗi khi đặt hàng:', error);
       toast.error('Lỗi khi đặt hàng. Vui lòng thử lại.');
@@ -466,7 +552,6 @@ export default function CheckoutPage() {
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <h2 className="text-2xl font-bold mb-4">{t.common.login}</h2>
-          <p className="text-gray-600 mb-6">{t.auth.sign_in_title}</p>
           <p className="text-gray-600 mb-6">{t.auth.sign_in_title}</p>
           <Link href="/sign-in">
             <Button className="rounded-full">{t.common.login}</Button>
@@ -505,7 +590,10 @@ export default function CheckoutPage() {
 
       <Form {...form}>
         <form
-          onSubmit={form.handleSubmit(onSubmit)}
+          onSubmit={form.handleSubmit(onSubmit, (errors) => {
+            console.error('Validation Errors:', errors);
+            toast.error('Vui lòng kiểm tra và điền đầy đủ thông tin giao hàng');
+          })}
           className="toan-container py-8"
           autoComplete="off"
         >
@@ -740,9 +828,7 @@ export default function CheckoutPage() {
                               />
                               <div>
                                 <div className="font-medium">{t.checkout.cod}</div>
-                                <div className="text-sm text-gray-600">
-                                  Thanh toán bằng tiền mặt khi nhận được hàng
-                                </div>
+                                <div className="text-sm text-gray-600">{t.checkout.cod_desc}</div>
                               </div>
                             </label>
                             <label className="flex items-center p-3 border rounded-lg cursor-pointer hover:bg-gray-50">
@@ -756,7 +842,7 @@ export default function CheckoutPage() {
                               <div>
                                 <div className="font-medium">{t.checkout.bank_transfer}</div>
                                 <div className="text-sm text-gray-600">
-                                  Chuyển khoản qua QR Code (VietQR)
+                                  {t.checkout.bank_transfer_desc}
                                 </div>
                               </div>
                             </label>
@@ -770,9 +856,7 @@ export default function CheckoutPage() {
                               />
                               <div>
                                 <div className="font-medium">{t.checkout.momo}</div>
-                                <div className="text-sm text-gray-600">
-                                  Thanh toán qua ví điện tử MoMo
-                                </div>
+                                <div className="text-sm text-gray-600">{t.checkout.momo_desc}</div>
                               </div>
                             </label>
                           </div>
@@ -786,10 +870,8 @@ export default function CheckoutPage() {
                                 className="mr-3"
                               />
                               <div>
-                                <div className="font-medium">VNPay / ATM / QR</div>
-                                <div className="text-sm text-gray-600">
-                                  Thanh toán qua thẻ ATM, Visa, VNPay QR
-                                </div>
+                                <div className="font-medium">{t.checkout.vnpay} / ATM / QR</div>
+                                <div className="text-sm text-gray-600">{t.checkout.vnpay_desc}</div>
                               </div>
                             </label>
                           </div>
@@ -802,7 +884,7 @@ export default function CheckoutPage() {
               </div>
 
               <div className="bg-white rounded-lg shadow-sm border p-6">
-                <h2 className="text-xl font-helvetica-medium mb-4">Ghi chú đơn hàng (tuỳ chọn)</h2>
+                <h2 className="text-xl font-helvetica-medium mb-4">{t.checkout.order_note}</h2>
                 <FormField
                   control={form.control}
                   name="note"
@@ -811,7 +893,7 @@ export default function CheckoutPage() {
                       <FormControl>
                         <textarea
                           rows={3}
-                          placeholder="Ghi chú về đơn hàng..."
+                          placeholder={t.checkout.note_placeholder}
                           className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-black focus:border-transparent"
                           {...field}
                         />
@@ -824,7 +906,7 @@ export default function CheckoutPage() {
 
               {/* Gift Wrapping Option */}
               <div className="bg-white rounded-lg shadow-sm border p-6">
-                <h2 className="text-xl font-helvetica-medium mb-4">Gói quà tặng</h2>
+                <h2 className="text-xl font-helvetica-medium mb-4">{t.checkout.gift_wrap}</h2>
                 <label className="flex items-start gap-3 cursor-pointer">
                   <input
                     type="checkbox"
@@ -833,12 +915,12 @@ export default function CheckoutPage() {
                     className="mt-1 w-4 h-4"
                   />
                   <div>
-                    <span className="font-medium">Gói quà tặng đặc biệt 🎁</span>
-                    <p className="text-sm text-gray-600 mt-1">
-                      Đơn hàng sẽ được gói trong hộp quà cao cấp kèm ribbon và thiệp chúc mừng.
-                    </p>
+                    <span className="font-medium flex items-center gap-2">
+                      {t.checkout.gift_wrap_title} <Gift className="w-4 h-4 text-rose-500" />
+                    </span>
+                    <p className="text-sm text-gray-600 mt-1">{t.checkout.gift_wrap_desc}</p>
                     <p className="text-sm font-medium text-black mt-1">
-                      + {formatCurrency(GIFT_WRAP_FEE)}
+                      + {formatCurrency(giftWrapFee)}
                     </p>
                   </div>
                 </label>
@@ -857,7 +939,7 @@ export default function CheckoutPage() {
                       type="text"
                       value={voucherCode}
                       onChange={(e) => setVoucherCode(e.target.value.toUpperCase())}
-                      placeholder="Nhập mã voucher"
+                      placeholder={t.checkout.voucher_placeholder}
                       className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-black focus:border-transparent"
                     />
                     <Button
@@ -871,22 +953,28 @@ export default function CheckoutPage() {
                   </div>
                   {appliedVoucher && (
                     <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded text-sm text-green-800">
-                      ✓{' '}
-                      {appliedVoucher.description ||
-                        `Giảm ${formatCurrency(appliedVoucher.discountAmount)}`}
+                      <div className="flex justify-between items-center mb-1 font-semibold">
+                        <span>✓ {appliedVoucher.code}</span>
+                        <span>-{formatCurrency(appliedVoucher.discountAmount)}</span>
+                      </div>
+                      <p className="opacity-90">{appliedVoucher.description}</p>
+                      {appliedVoucher.expirationDate && (
+                        <p className="text-[10px] uppercase mt-1 opacity-75">
+                          Hạn dùng: {formatDate(appliedVoucher.expirationDate)}
+                        </p>
+                      )}
                     </div>
                   )}
                 </div>
 
-                {/* Gift Card Section */}
                 <div className="mb-4 pb-4 border-b">
-                  <label className="block text-sm font-medium mb-2">Thẻ quà tặng</label>
+                  <label className="block text-sm font-medium mb-2">{t.checkout.gift_card}</label>
                   <div className="space-y-2">
                     <input
                       type="text"
                       value={giftCardNumber}
                       onChange={(e) => setGiftCardNumber(e.target.value)}
-                      placeholder="Số thẻ (16 số)"
+                      placeholder={t.checkout.gift_card_number}
                       maxLength={16}
                       className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-black focus:border-transparent"
                     />
@@ -895,7 +983,7 @@ export default function CheckoutPage() {
                         type="text"
                         value={giftCardPin}
                         onChange={(e) => setGiftCardPin(e.target.value)}
-                        placeholder="Mã PIN (4 số)"
+                        placeholder={t.checkout.gift_card_pin}
                         maxLength={4}
                         className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-black focus:border-transparent"
                       />
@@ -910,8 +998,21 @@ export default function CheckoutPage() {
                     </div>
                     {appliedGiftCard && (
                       <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded text-sm text-green-800">
-                        ✓ Số dư: {formatCurrency(appliedGiftCard.balance)} • Sử dụng:{' '}
-                        {formatCurrency(giftCardDiscount)}
+                        <div className="flex justify-between items-center mb-1 font-semibold">
+                          <span>
+                            ✓ Gift Card ({appliedGiftCard.cardNumber.slice(-4).padStart(16, '*')})
+                          </span>
+                          <span>-{formatCurrency(giftCardDiscount)}</span>
+                        </div>
+                        <div className="flex justify-between text-xs opacity-90">
+                          <span>Số dư còn lại:</span>
+                          <span>{formatCurrency(appliedGiftCard.balance)}</span>
+                        </div>
+                        {appliedGiftCard.expiresAt && (
+                          <p className="text-[10px] uppercase mt-1 opacity-75">
+                            Hạn dùng: {formatDate(appliedGiftCard.expiresAt)}
+                          </p>
+                        )}
                       </div>
                     )}
                   </div>
@@ -957,9 +1058,12 @@ export default function CheckoutPage() {
                     </div>
                   )}
                   {giftWrapping && (
-                    <div className="flex justify-between">
-                      <span>🎁 Gói quà tặng:</span>
-                      <span>+{formatCurrency(GIFT_WRAP_FEE)}</span>
+                    <div className="flex justify-between items-center">
+                      <span className="flex items-center gap-2">
+                        <Gift className="w-4 h-4 text-rose-500" />
+                        Gói quà tặng:
+                      </span>
+                      <span>+{formatCurrency(giftWrapFee)}</span>
                     </div>
                   )}
                   <hr />
@@ -1000,7 +1104,12 @@ export default function CheckoutPage() {
                 ✕
               </button>
             </div>
-            <PaymentQRCode amount={total} description={`CK Don hang ${user?.email} (Demo)`} />
+            <PaymentQRCode
+              amount={total}
+              description={
+                createdOrderNumber ? `${createdOrderNumber}` : `Thanh toan don hang ${user?.email}`
+              }
+            />
             <div className="mt-4 space-y-2">
               <Button
                 onClick={handleQRPaymentConfirmed}

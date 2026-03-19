@@ -1,22 +1,23 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { logger } from '@/lib/utils/logger';
 import * as Sentry from '@sentry/nextjs';
 import { checkAdminAuth } from '@/lib/auth/auth';
+import { ResponseWrapper } from '@/lib/api/api-response';
 
 /**
  * API Debug: Kiểm tra hệ thống giám sát lỗi (Sentry Diagnostics).
  * Kích hoạt các thông báo lỗi và log thủ công để đảm bảo Sentry đang thu thập dữ liệu đúng cách.
- * Không khả dụng ở môi trường Production.
+ * Chỉ khả dụng ở môi trường phát triển (Development) và yêu cầu quyền Admin.
  */
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
     if (process.env.NODE_ENV === 'production') {
-      return NextResponse.json({ success: false, message: 'Not Found' }, { status: 404 });
+      return ResponseWrapper.notFound();
     }
 
     const admin = await checkAdminAuth();
     if (!admin) {
-      return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
+      return ResponseWrapper.unauthorized();
     }
 
     // 1. Test Sentry directly
@@ -32,16 +33,16 @@ export async function GET() {
       logger.error(e, 'Sentry Diagnostic: Exception via Logger');
     }
 
-    return NextResponse.json({
-      success: true,
-      message: 'Sentry diagnostics triggered. Check your Sentry dashboard.',
+    const result = {
       timestamp: new Date().toISOString(),
-    });
+    };
+
+    return ResponseWrapper.success(
+      result,
+      'Sentry diagnostics triggered. Check your Sentry dashboard.'
+    );
   } catch (error) {
     logger.error(error, 'Sentry Diagnostic: Unexpected Error');
-    return NextResponse.json(
-      { success: false, error: 'Failed to trigger Sentry diagnostics' },
-      { status: 500 }
-    );
+    return ResponseWrapper.serverError('Failed to trigger Sentry diagnostics', error);
   }
 }

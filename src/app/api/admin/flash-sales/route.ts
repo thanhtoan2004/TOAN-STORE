@@ -1,99 +1,101 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { executeQuery } from '@/lib/db/mysql';
+import { db } from '@/lib/db/drizzle';
+import { flashSales as flashSalesTable } from '@/lib/db/schema';
+import { eq, isNull, desc } from 'drizzle-orm';
 import { invalidateCache } from '@/lib/redis/cache';
 import { checkAdminAuth } from '@/lib/auth/auth';
-import { formatDateForMySQL } from '@/lib/utils/date-utils';
-import { logAdminAction } from '@/lib/security/audit';
+import { logAdminAction } from '@/lib/db/repositories/audit';
+import { ResponseWrapper } from '@/lib/api/api-response';
 
 /**
- * GET - List all flash sales for admin
+ * API Quản lý chương trình Flash Sale (Admin).
+ * Chức năng:
+ * - GET: Liệt kê danh sách tất cả các đợt Flash Sale (đã tạo, chưa xóa).
+ * - POST: Tạo mới một chương trình Flash Sale với thời gian bắt đầu/kết thúc cụ thể.
+ * Bảo mật: Yêu cầu quyền Admin.
  */
-/**
- * API Lấy danh sách toàn bộ các đợt Flash Sale (Dòng thời gian).
- */
+
 export async function GET(request: NextRequest) {
   try {
     const admin = await checkAdminAuth();
     if (!admin) {
-      return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
+      return ResponseWrapper.unauthorized();
     }
 
-    const flashSales = await executeQuery<any[]>(
-      `SELECT * FROM flash_sales WHERE deleted_at IS NULL ORDER BY created_at DESC`
-    );
+    const flashSalesData = await db
+      .select({
+        id: flashSalesTable.id,
+        name: flashSalesTable.name,
+        description: flashSalesTable.description,
+        start_time: flashSalesTable.startTime,
+        end_time: flashSalesTable.endTime,
+        is_active: flashSalesTable.isActive,
+        created_at: flashSalesTable.createdAt,
+        updated_at: flashSalesTable.updatedAt,
+      })
+      .from(flashSalesTable)
+      .where(isNull(flashSalesTable.deletedAt))
+      .orderBy(desc(flashSalesTable.createdAt));
 
-    return NextResponse.json({
-      success: true,
-      data: flashSales,
-    });
+    return ResponseWrapper.success(flashSalesData);
   } catch (error) {
     console.error('List flash sales error:', error);
-    return NextResponse.json({ success: false, message: 'Internal server error' }, { status: 500 });
+    return ResponseWrapper.serverError('Lỗi server khi tải danh sách Flash Sale', error);
   }
 }
 
-/**
- * POST - Create matching flash sale
- */
-/**
- * API Khởi tạo một chương trình Flash Sale mới.
- * Lưu ý: Chỉ khởi tạo khung thời gian, sản phẩm sẽ được thêm ở API riêng.
- */
 export async function POST(request: NextRequest) {
   try {
     const admin = await checkAdminAuth();
     if (!admin) {
-      return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
+      return ResponseWrapper.unauthorized();
     }
 
     const body = await request.json();
-    const { name, description, startTime, endTime, isActive } = body;
+    const { name, description, start_time, startTime, end_time, endTime, is_active, isActive } =
+      body;
 
-    if (!name || !startTime || !endTime) {
-      return NextResponse.json(
-        { success: false, message: 'Missing required fields' },
-        { status: 400 }
-      );
+    const finalStart = start_time || startTime;
+    const finalEnd = end_time || endTime;
+    const finalIsActive = is_active !== undefined ? is_active : isActive;
+
+    if (!name || !finalStart || !finalEnd) {
+      return ResponseWrapper.error('Thiếu các trường bắt buộc (name, startTime, endTime)', 400);
     }
 
-    if (new Date(startTime) >= new Date(endTime)) {
-      return NextResponse.json(
-        { success: false, message: 'End time must be after start time' },
-        { status: 400 }
-      );
+    if (new Date(finalStart) >= new Date(finalEnd)) {
+      return ResponseWrapper.error('Thời gian kết thúc phải sau thời gian bắt đầu', 400);
     }
 
-    const result: any = await executeQuery(
-      `INSERT INTO flash_sales (name, description, start_time, end_time, is_active)
-       VALUES (?, ?, ?, ?, ?)`,
-      [
-        name,
-        description || null,
-        formatDateForMySQL(startTime),
-        formatDateForMySQL(endTime),
-        isActive !== undefined ? isActive : 1,
-      ]
-    );
+    const [result] = await db.insert(flashSalesTable).values({
+      name,
+      description: description || null,
+      startTime: new Date(finalStart),
+      endTime: new Date(finalEnd),
+      isActive: finalIsActive !== undefined ? (finalIsActive ? 1 : 0) : 1,
+    });
+
+    const insertId = (result as any).insertId;
 
     // Log audit
     await logAdminAction(
       admin.userId,
       'create_flash_sale',
       'flash_sales',
-      result.insertId,
+      insertId,
+      null,
       { name },
-      request as any
+      request
     );
 
     // Invalidate active flash sale cache
     await invalidateCache('flash-sale:active');
 
-    return NextResponse.json({
-      success: true,
-      data: { id: result.insertId },
-    });
+    const responseData = { id: insertId };
+
+    return ResponseWrapper.success(responseData, 'Đã tạo chương trình Flash Sale thành công');
   } catch (error) {
     console.error('Create flash sale error:', error);
-    return NextResponse.json({ success: false, message: 'Internal server error' }, { status: 500 });
+    return ResponseWrapper.serverError('Lỗi server khi tạo Flash Sale', error);
   }
 }

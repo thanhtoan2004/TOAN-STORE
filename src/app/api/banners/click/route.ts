@@ -1,10 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { executeQuery } from '@/lib/db/mysql';
+import { db } from '@/lib/db/drizzle';
+import { banners } from '@/lib/db/schema';
+import { eq, sql } from 'drizzle-orm';
+import { ResponseWrapper } from '@/lib/api/api-response';
 
-// POST - Track banner click
 /**
+ * POST - Track banner click.
  * API Ghi nhận lượt click vào Banner.
  * Dùng để đo lường hiệu quả (CTR) của các chiến dịch quảng cáo.
+ * Hoạt động công khai (không yêu cầu đăng nhập) để tracking khách vãng lai.
  */
 export async function POST(request: NextRequest) {
   try {
@@ -12,27 +16,18 @@ export async function POST(request: NextRequest) {
     const { bannerId } = body;
 
     if (!bannerId) {
-      return NextResponse.json(
-        { success: false, message: 'Thiếu ID banner' },
-        { status: 400 }
-      );
+      return ResponseWrapper.error('Thiếu ID banner', 400);
     }
 
-    // Increment click count
-    await executeQuery(
-      'UPDATE banners SET click_count = click_count + 1 WHERE id = ?',
-      [bannerId]
-    );
+    // Increment click count using Drizzle
+    await db
+      .update(banners)
+      .set({ clickCount: sql`${banners.clickCount} + 1` })
+      .where(eq(banners.id, Number(bannerId)));
 
-    return NextResponse.json({
-      success: true,
-      message: 'Tracked click'
-    });
+    return ResponseWrapper.success(null, 'Tracked click');
   } catch (error) {
     console.error('Error tracking banner click:', error);
-    return NextResponse.json(
-      { success: false, message: 'Lỗi server nội bộ' },
-      { status: 500 }
-    );
+    return ResponseWrapper.serverError('Lỗi server nội bộ', error);
   }
 }

@@ -1,63 +1,62 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { executeQuery } from '@/lib/db/mysql';
+import { db } from '@/lib/db/drizzle';
+import { contactMessages } from '@/lib/db/schema';
+import { eq, or, like, desc, count, and } from 'drizzle-orm';
 import { checkAdminAuth } from '@/lib/auth/auth';
+import { ResponseWrapper } from '@/lib/api/api-response';
 
 /**
  * API Lấy danh sách tin nhắn liên hệ từ khách hàng.
- * Hỗ trợ lọc theo trạng thái (status) và tìm kiếm theo tên/email.
  */
 export async function GET(request: NextRequest) {
-  const admin = await checkAdminAuth();
-  if (!admin) {
-    return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
-  }
   try {
+    const admin = await checkAdminAuth();
+    if (!admin) {
+      return ResponseWrapper.unauthorized();
+    }
+
     const searchParams = request.nextUrl.searchParams;
     const page = parseInt(searchParams.get('page') || '1');
-    const limit = Math.min(parseInt(searchParams.get('limit') || '20'), 100); // M2: Cap limit
+    const limit = Math.min(parseInt(searchParams.get('limit') || '20'), 100);
     const offset = (page - 1) * limit;
     const status = searchParams.get('status');
     const search = searchParams.get('search');
 
-    let query = 'SELECT * FROM contact_messages WHERE 1=1';
-    const params: any[] = [];
+    const filters: any[] = [];
 
     if (status && status !== 'all') {
-      query += ' AND status = ?';
-      params.push(status);
+      filters.push(eq(contactMessages.status, status as any));
     }
 
     if (search) {
-      query += ' AND (name LIKE ? OR email LIKE ?)';
-      params.push(`%${search}%`, `%${search}%`);
+      filters.push(
+        or(like(contactMessages.name, `%${search}%`), like(contactMessages.email, `%${search}%`))
+      );
     }
 
-    query += ' ORDER BY created_at DESC LIMIT ? OFFSET ?';
-    params.push(limit, offset);
+    const data = await db
+      .select()
+      .from(contactMessages)
+      .where(filters.length > 0 ? and(...filters) : undefined)
+      .orderBy(desc(contactMessages.createdAt))
+      .limit(limit)
+      .offset(offset);
 
-    const data = (await executeQuery(query, params)) as any[];
+    const [countResult] = await db
+      .select({ total: count() })
+      .from(contactMessages)
+      .where(filters.length > 0 ? and(...filters) : undefined);
 
-    let countQuery = 'SELECT COUNT(*) as total FROM contact_messages WHERE 1=1';
-    const countParams: any[] = [];
-    if (status && status !== 'all') {
-      countQuery += ' AND status = ?';
-      countParams.push(status);
-    }
-    if (search) {
-      countQuery += ' AND (name LIKE ? OR email LIKE ?)';
-      countParams.push(`%${search}%`, `%${search}%`);
-    }
+    const total = countResult?.total || 0;
 
-    const [countRow] = (await executeQuery(countQuery, countParams)) as any[];
-    const total = countRow?.total || 0;
-
-    return NextResponse.json({
-      success: true,
-      data,
-      pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
+    return ResponseWrapper.success(data, undefined, 200, {
+      page,
+      limit,
+      total,
+      totalPages: Math.ceil(total / limit),
     });
   } catch (error) {
     console.error('Error fetching contact messages:', error);
-    return NextResponse.json({ success: false }, { status: 500 });
+    return ResponseWrapper.serverError('Internal server error', error);
   }
 }

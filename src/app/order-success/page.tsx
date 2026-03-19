@@ -31,8 +31,12 @@ function OrderSuccessContent() {
           throw new Error('Order not found');
         }
 
-        const data = await response.json();
-        const order = data.order;
+        const result = await response.json();
+        const order = result.data;
+
+        if (!order) {
+          throw new Error('Order data is missing');
+        }
 
         setOrderData({
           id: order.id,
@@ -40,13 +44,20 @@ function OrderSuccessContent() {
           userId: order.user_id,
           items: order.items || [],
           totalAmount: parseFloat(order.total),
+          totalDiscount: parseFloat(order.discount || 0),
+          subtotal: parseFloat(order.subtotal || 0),
+          shippingFee: parseFloat(order.shipping_fee || 0),
+          tax: parseFloat(order.tax || 0),
+          voucherDiscount: parseFloat(order.voucher_discount || 0),
+          giftcardDiscount: parseFloat(order.giftcard_discount || 0),
+          giftWrapCost: parseFloat(order.gift_wrap_cost || 0),
           status: order.status,
           shippingAddress: {
-            fullName: order.shipping_name || '',
-            address: order.shipping_address || '',
-            city: order.shipping_city || '',
+            fullName: order.delivery_name || '',
+            address: order.delivery_address || '',
+            city: order.delivery_city || '',
             postalCode: order.shipping_postal_code || '',
-            phone: order.shipping_phone || '',
+            phone: order.delivery_phone || '',
           },
           paymentMethod: order.payment_method || 'Thanh toán khi nhận hàng',
           estimatedDelivery: order.estimated_delivery || 'Đang cập nhật',
@@ -204,6 +215,82 @@ function OrderSuccessContent() {
               >
                 Nhắc nhở ngày giao hàng (Lịch)
               </Button>
+            </div>
+
+            {/* Order Items Summary */}
+            <div className="mt-8 pt-8 border-t text-left">
+              <h3 className="font-helvetica-medium text-lg mb-4">Chi tiết hàng hóa</h3>
+              <div className="space-y-4 max-h-60 overflow-y-auto pr-2">
+                {orderData.items.map((item, idx) => (
+                  <div key={idx} className="flex justify-between items-center text-sm">
+                    <div className="flex items-center gap-3">
+                      <div className="w-12 h-12 bg-gray-100 rounded overflow-hidden">
+                        <img
+                          src={item.image}
+                          alt={item.name}
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                      <div>
+                        <p className="font-medium line-clamp-1">{item.name}</p>
+                        <p className="text-gray-500 text-xs">
+                          Size: {item.size} × {item.quantity}
+                        </p>
+                      </div>
+                    </div>
+                    <span>{formatCurrency(item.total_price || 0)}</span>
+                  </div>
+                ))}
+              </div>
+
+              <div className="mt-6 space-y-2 pt-4 border-t border-dashed">
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-600">Tạm tính:</span>
+                  <span>{formatCurrency(orderData.subtotal || 0)}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-600">Phí vận chuyển:</span>
+                  <span>{formatCurrency(orderData.shippingFee || 0)}</span>
+                </div>
+                {(orderData.giftWrapCost || 0) > 0 && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600">Phí gói quà:</span>
+                    <span>{formatCurrency(orderData.giftWrapCost || 0)}</span>
+                  </div>
+                )}
+                {(orderData.voucherDiscount || 0) > 0 && (
+                  <div className="flex justify-between text-sm text-green-600">
+                    <span>Giảm giá Voucher:</span>
+                    <span>-{formatCurrency(orderData.voucherDiscount || 0)}</span>
+                  </div>
+                )}
+                {(orderData.giftcardDiscount || 0) > 0 && (
+                  <div className="flex justify-between text-sm text-green-600">
+                    <span>Thẻ quà tặng:</span>
+                    <span>-{formatCurrency(orderData.giftcardDiscount || 0)}</span>
+                  </div>
+                )}
+                {(orderData.totalDiscount || 0) -
+                  (orderData.voucherDiscount || 0) -
+                  (orderData.giftcardDiscount || 0) >
+                  1 && (
+                  <div className="flex justify-between text-sm text-green-600">
+                    <span>Ưu đãi thành viên:</span>
+                    <span>
+                      -
+                      {formatCurrency(
+                        (orderData.totalDiscount || 0) -
+                          (orderData.voucherDiscount || 0) -
+                          (orderData.giftcardDiscount || 0)
+                      )}
+                    </span>
+                  </div>
+                )}
+                <div className="flex justify-between font-bold text-lg pt-2 border-t mt-2">
+                  <span>Tổng thanh toán:</span>
+                  <span className="text-black">{formatCurrency(orderData.totalAmount)}</span>
+                </div>
+              </div>
             </div>
           </div>
 

@@ -1,4 +1,6 @@
-import { executeQuery } from '../connection';
+import { db } from '../drizzle';
+import { contactMessages, customerNotes, userAddresses, users, adminUsers } from '../schema';
+import { eq, and, desc, sql } from 'drizzle-orm';
 import { encrypt, decrypt } from '@/lib/security/encryption';
 
 // Contact message functions
@@ -9,17 +11,14 @@ export async function saveContactMessage(data: {
   message: string;
   userId?: number;
 }) {
-  const query = `
-    INSERT INTO contact_messages (name, email, subject, message, user_id, status)
-    VALUES (?, ?, ?, ?, ?, 'new')`;
-
-  return executeQuery(query, [
-    data.name,
-    data.email,
-    data.subject,
-    data.message,
-    data.userId || null,
-  ]);
+  return await db.insert(contactMessages).values({
+    name: data.name,
+    email: data.email,
+    subject: data.subject,
+    message: data.message,
+    userId: data.userId || null,
+    status: 'new', // match schema
+  });
 }
 
 // Address functions
@@ -28,56 +27,50 @@ export async function getAddresses(userId: number) {
 }
 
 /**
- * Láy danh sách Sổ địa chỉ của người dùng.
- * Bắt buộc phải chạy qua hàm giải mã `decrypt` (AES-256) vì Phone và Địa chỉ là thông tin PII nhạy cảm,
- * database chỉ lưu chuỗi mã hóa không đọc được.
+ * Lấy danh sách Sổ địa chỉ của người dùng.
  */
 export async function getUserAddresses(userId: number) {
-  console.log(`DEBUG: Getting addresses for userId: ${userId}`);
-  const addresses = await executeQuery<any[]>(
-    `SELECT * FROM user_addresses 
-     WHERE user_id = ? 
-     ORDER BY is_default DESC, created_at DESC`,
-    [userId]
-  );
+  const addresses = await db
+    .select()
+    .from(userAddresses)
+    .where(eq(userAddresses.userId, userId))
+    .orderBy(desc(userAddresses.isDefault), desc(userAddresses.createdAt));
 
-  console.log(`DEBUG: Found ${addresses.length} addresses in DB`);
-
-  // Helper: kiểm tra xem decrypt có thất bại hay không (trả về chuỗi hex thô)
-  const safeDecrypt = (encrypted: string, fallback: string) => {
+  const safeDecrypt = (encrypted: string | null, fallback: string) => {
     if (!encrypted) return fallback || '';
     const result = decrypt(encrypted);
-    // Nếu kết quả vẫn chứa dấu ":" và toàn ký tự hex → decrypt đã thất bại ngầm
     if (result && /^[0-9a-f]+:[0-9a-f]+:[0-9a-f]+$/i.test(result)) {
       return fallback || '';
     }
     return result || fallback || '';
   };
 
-  const mapped = addresses.map(({ phone_encrypted, address_encrypted, is_encrypted, ...addr }) => ({
+  return addresses.map(({ phoneEncrypted, addressEncrypted, isEncrypted, ...addr }) => ({
     ...addr,
     phone:
-      is_encrypted && phone_encrypted
-        ? safeDecrypt(phone_encrypted, '')
+      isEncrypted && phoneEncrypted
+        ? safeDecrypt(phoneEncrypted, '')
         : addr.phone !== '***'
-          ? addr.phone
+          ? addr.phone || ''
           : '',
     address_line:
-      is_encrypted && address_encrypted
-        ? safeDecrypt(address_encrypted, '')
-        : addr.address_line !== '***'
-          ? addr.address_line
+      isEncrypted && addressEncrypted
+        ? safeDecrypt(addressEncrypted, '')
+        : addr.addressLine !== '***'
+          ? addr.addressLine || ''
+          : '',
+    // Keep internal compatibility for frontend if needed (address_line vs addressLine mapping)
+    addressLine:
+      isEncrypted && addressEncrypted
+        ? safeDecrypt(addressEncrypted, '')
+        : addr.addressLine !== '***'
+          ? addr.addressLine || ''
           : '',
   }));
-
-  console.log(`DEBUG: Returning ${mapped.length} mapped addresses`);
-  return mapped;
 }
 
 /**
  * Thêm địa chỉ mới vào Database.
- * Thông tin nhạy cảm (Số điện thoại, Số nhà) đều sẽ bị mã hóa bằng `encrypt()` trước khi chui vào DB.
- * Nếu user set tag `is_default`, hàm này sẽ dập tắt cờ default của tất cả địa chỉ cũ trước khi gán.
  */
 export async function addUserAddress(
   userId: number,
@@ -95,28 +88,24 @@ export async function addUserAddress(
 ) {
   // Nếu đây là địa chỉ mặc định, bỏ default của các địa chỉ khác
   if (address.is_default) {
-    await executeQuery('UPDATE user_addresses SET is_default = 0 WHERE user_id = ?', [userId]);
+    await db.update(userAddresses).set({ isDefault: 0 }).where(eq(userAddresses.userId, userId));
   }
 
-  const result = await executeQuery(
-    `INSERT INTO user_addresses 
-     (user_id, label, recipient_name, phone, phone_encrypted, address_line, address_encrypted, city, state, postal_code, country, is_default, is_encrypted)
-     VALUES (?, ?, ?, '***', ?, '***', ?, ?, ?, ?, ?, TRUE)`,
-    [
-      userId,
-      address.label || null,
-      address.recipient_name,
-      encrypt(address.phone),
-      encrypt(address.address_line),
-      address.city,
-      address.state || null,
-      address.postal_code || null,
-      address.country || 'Vietnam',
-      address.is_default ? 1 : 0,
-    ]
-  );
-
-  return result;
+  return await db.insert(userAddresses).values({
+    userId,
+    label: address.label || null,
+    recipientName: address.recipient_name,
+    phone: '***',
+    phoneEncrypted: encrypt(address.phone),
+    addressLine: '***',
+    addressEncrypted: encrypt(address.address_line),
+    city: address.city,
+    state: address.state || null,
+    postalCode: address.postal_code || null,
+    country: address.country || 'Vietnam',
+    isDefault: address.is_default ? 1 : 0,
+    isEncrypted: 1,
+  });
 }
 
 // Alias for compatibility
@@ -146,60 +135,37 @@ export async function updateUserAddress(
 ) {
   // Nếu đây là địa chỉ mặc định, bỏ default của các địa chỉ khác
   if (address.is_default) {
-    await executeQuery('UPDATE user_addresses SET is_default = 0 WHERE user_id = ?', [userId]);
+    await db.update(userAddresses).set({ isDefault: 0 }).where(eq(userAddresses.userId, userId));
   }
 
-  const fields: string[] = [];
-  const values: any[] = [];
+  const updateData: any = {};
 
-  if (address.label !== undefined) {
-    fields.push('label = ?');
-    values.push(address.label);
-  }
-  if (address.recipient_name !== undefined) {
-    fields.push('recipient_name = ?');
-    values.push(address.recipient_name);
-  }
+  if (address.label !== undefined) updateData.label = address.label;
+  if (address.recipient_name !== undefined) updateData.recipientName = address.recipient_name;
   if (address.phone !== undefined) {
-    fields.push('phone_encrypted = ?, phone = "***", is_encrypted = TRUE');
-    values.push(encrypt(address.phone));
+    updateData.phoneEncrypted = encrypt(address.phone);
+    updateData.phone = '***';
+    updateData.isEncrypted = 1;
   }
   if (address.address_line !== undefined) {
-    fields.push('address_encrypted = ?, address_line = "***", is_encrypted = TRUE');
-    values.push(encrypt(address.address_line));
+    updateData.addressEncrypted = encrypt(address.address_line);
+    updateData.addressLine = '***';
+    updateData.isEncrypted = 1;
   }
-  if (address.city !== undefined) {
-    fields.push('city = ?');
-    values.push(address.city);
-  }
-  if (address.state !== undefined) {
-    fields.push('state = ?');
-    values.push(address.state);
-  }
-  if (address.postal_code !== undefined) {
-    fields.push('postal_code = ?');
-    values.push(address.postal_code);
-  }
-  if (address.country !== undefined) {
-    fields.push('country = ?');
-    values.push(address.country);
-  }
-  if (address.is_default !== undefined) {
-    fields.push('is_default = ?');
-    values.push(address.is_default ? 1 : 0);
-  }
+  if (address.city !== undefined) updateData.city = address.city;
+  if (address.state !== undefined) updateData.state = address.state;
+  if (address.postal_code !== undefined) updateData.postalCode = address.postal_code;
+  if (address.country !== undefined) updateData.country = address.country;
+  if (address.is_default !== undefined) updateData.isDefault = address.is_default ? 1 : 0;
 
-  if (fields.length === 0) {
+  if (Object.keys(updateData).length === 0) {
     throw new Error('No fields to update');
   }
 
-  values.push(addressId, userId);
-
-  await executeQuery(
-    `UPDATE user_addresses SET ${fields.join(', ')} 
-     WHERE id = ? AND user_id = ?`,
-    values
-  );
+  await db
+    .update(userAddresses)
+    .set(updateData)
+    .where(and(eq(userAddresses.id, addressId), eq(userAddresses.userId, userId)));
 }
 
 // Alias for compatibility
@@ -213,30 +179,56 @@ export async function updateAddress(userId: number, addressId: number, data: any
 }
 
 export async function deleteUserAddress(addressId: number, userId: number) {
-  await executeQuery('DELETE FROM user_addresses WHERE id = ? AND user_id = ?', [
-    addressId,
-    userId,
-  ]);
+  await db
+    .delete(userAddresses)
+    .where(and(eq(userAddresses.id, addressId), eq(userAddresses.userId, userId)));
 }
 
 export const deleteAddress = deleteUserAddress; // Alias
 
 export async function setDefaultAddress(addressId: number, userId: number) {
   // Bỏ default của tất cả địa chỉ
-  await executeQuery('UPDATE user_addresses SET is_default = 0 WHERE user_id = ?', [userId]);
+  await db.update(userAddresses).set({ isDefault: 0 }).where(eq(userAddresses.userId, userId));
 
   // Set địa chỉ này làm mặc định
-  await executeQuery('UPDATE user_addresses SET is_default = 1 WHERE id = ? AND user_id = ?', [
-    addressId,
-    userId,
-  ]);
+  await db
+    .update(userAddresses)
+    .set({ isDefault: 1 })
+    .where(and(eq(userAddresses.id, addressId), eq(userAddresses.userId, userId)));
 }
 
 /**
  * Xóa tài khoản người dùng.
- * Sử dụng cơ chế SOFT-DELETE (Xóa Mềm). Chỉ gán cờ `is_active = 0` và lưu ngày tháng xóa,
- * chứ tuyệt đối không `DELETE FROM users` để tránh vỡ ràng buộc khóa ngoại với Đơn hàng / Hóa đơn cũ.
  */
 export async function deleteUser(userId: number) {
-  return executeQuery('UPDATE users SET deleted_at = NOW(), is_active = 0 WHERE id = ?', [userId]);
+  return await db
+    .update(users)
+    .set({
+      deletedAt: new Date(),
+      isActive: 0,
+    })
+    .where(eq(users.id, userId));
+}
+
+// Customer Notes Repository
+export async function getCustomerNotes(userId: number) {
+  return await db
+    .select({
+      id: customerNotes.id,
+      note: customerNotes.note,
+      createdAt: customerNotes.createdAt,
+      adminName: adminUsers.fullName,
+    })
+    .from(customerNotes)
+    .leftJoin(adminUsers, eq(customerNotes.adminId, adminUsers.id))
+    .where(eq(customerNotes.userId, userId))
+    .orderBy(desc(customerNotes.createdAt));
+}
+
+export async function addCustomerNote(data: { userId: number; adminId: number; note: string }) {
+  return await db.insert(customerNotes).values({
+    userId: data.userId,
+    adminId: data.adminId,
+    note: data.note,
+  });
 }

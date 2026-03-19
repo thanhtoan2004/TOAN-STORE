@@ -1,16 +1,14 @@
-// Product Variants Helper Functions
-// Use these instead of direct product_sizes queries
-
-import { query } from './mysql';
-import { RowDataPacket, ResultSetHeader } from 'mysql2';
+import { db } from './drizzle';
+import { productVariants, inventory, inventoryLogs, products } from './schema';
+import { eq, and, sql } from 'drizzle-orm';
 
 export interface ProductVariant {
   id: number;
-  product_id: number;
+  productId: number;
   sku: string;
   barcode?: string;
   size?: string;
-  colorId?: number; // Updated to FK
+  colorId?: number;
   attributes?: {
     [key: string]: any;
   };
@@ -19,242 +17,211 @@ export interface ProductVariant {
   height?: number;
   width?: number;
   depth?: number;
-  product_name?: string;
+  productName?: string;
 }
 
 export interface InventoryData {
   id: number;
-  product_variant_id: number;
-  warehouse_id?: number;
+  productVariantId: number;
+  warehouseId?: number;
   quantity: number;
   reserved: number;
-  available: number; // calculated: quantity - reserved
+  available: number;
 }
 
 /**
  * Get all variants for a product with inventory
  */
-export async function getProductVariants(
-  productId: number
-): Promise<(ProductVariant & InventoryData)[]> {
-  const sql = `
-    SELECT 
-      pv.id,
-      pv.product_id,
-      pv.sku,
-      pv.barcode,
-      pv.size,
-      pv.color_id,
-      pv.attributes,
-      pv.price,
-      pv.weight,
-      pv.height,
-      pv.width,
-      pv.depth,
-      i.id as inventory_id,
-      i.warehouse_id,
-      COALESCE(i.quantity, 0) as quantity,
-      COALESCE(i.reserved, 0) as reserved,
-      COALESCE(i.quantity, 0) - COALESCE(i.reserved, 0) as available,
-      COALESCE(i.low_stock_threshold, 10) as low_stock_threshold,
-      COALESCE(i.allow_backorder, 0) as allow_backorder,
-      i.expected_restock_date
-    FROM product_variants pv
-    LEFT JOIN inventory i ON i.product_variant_id = pv.id
-    WHERE pv.product_id = ?
-    ORDER BY pv.id
-  `;
-
-  const results = await query<RowDataPacket[]>(sql, [productId]);
-
-  return results.map((row) => ({
-    ...row,
-    attributes:
-      row.attributes && typeof row.attributes === 'string'
-        ? JSON.parse(row.attributes)
-        : row.attributes || {},
-  })) as (ProductVariant & InventoryData)[];
+export async function getProductVariants(productId: number): Promise<any[]> {
+  return await db
+    .select({
+      id: productVariants.id,
+      productId: productVariants.productId,
+      sku: productVariants.sku,
+      barcode: productVariants.barcode,
+      size: productVariants.size,
+      colorId: productVariants.colorId,
+      attributes: productVariants.attributes,
+      price: productVariants.price,
+      weight: productVariants.weight,
+      height: productVariants.height,
+      width: productVariants.width,
+      depth: productVariants.depth,
+      inventoryId: inventory.id,
+      warehouseId: inventory.warehouseId,
+      quantity: sql<number>`COALESCE(${inventory.quantity}, 0)`,
+      reserved: sql<number>`COALESCE(${inventory.reserved}, 0)`,
+      available: sql<number>`COALESCE(${inventory.quantity}, 0) - COALESCE(${inventory.reserved}, 0)`,
+      lowStockThreshold: sql<number>`COALESCE(${inventory.lowStockThreshold}, 10)`,
+      allowBackorder: sql<number>`COALESCE(${inventory.allowBackorder}, 0)`,
+      expectedRestockDate: inventory.expectedRestockDate,
+    })
+    .from(productVariants)
+    .leftJoin(inventory, eq(inventory.productVariantId, productVariants.id))
+    .where(eq(productVariants.productId, productId))
+    .orderBy(productVariants.id);
 }
 
 /**
  * Get a specific variant by ID
  */
-export async function getVariantById(
-  variantId: number
-): Promise<(ProductVariant & InventoryData) | null> {
-  const sql = `
-    SELECT 
-      pv.*,
-      i.id as inventory_id,
-      i.warehouse_id,
-      COALESCE(i.quantity, 0) as quantity,
-      COALESCE(i.reserved, 0) as reserved,
-      COALESCE(i.quantity, 0) - COALESCE(i.reserved, 0) as available,
-      COALESCE(i.low_stock_threshold, 10) as low_stock_threshold,
-      COALESCE(i.allow_backorder, 0) as allow_backorder,
-      i.expected_restock_date
-    FROM product_variants pv
-    LEFT JOIN inventory i ON i.product_variant_id = pv.id
-    WHERE pv.id = ?
-  `;
+export async function getVariantById(variantId: number): Promise<any | null> {
+  const [row] = await db
+    .select({
+      id: productVariants.id,
+      productId: productVariants.productId,
+      sku: productVariants.sku,
+      barcode: productVariants.barcode,
+      size: productVariants.size,
+      colorId: productVariants.colorId,
+      attributes: productVariants.attributes,
+      price: productVariants.price,
+      weight: productVariants.weight,
+      height: productVariants.height,
+      width: productVariants.width,
+      depth: productVariants.depth,
+      inventoryId: inventory.id,
+      warehouseId: inventory.warehouseId,
+      quantity: sql<number>`COALESCE(${inventory.quantity}, 0)`,
+      reserved: sql<number>`COALESCE(${inventory.reserved}, 0)`,
+      available: sql<number>`COALESCE(${inventory.quantity}, 0) - COALESCE(${inventory.reserved}, 0)`,
+      lowStockThreshold: sql<number>`COALESCE(${inventory.lowStockThreshold}, 10)`,
+      allowBackorder: sql<number>`COALESCE(${inventory.allowBackorder}, 0)`,
+      expectedRestockDate: inventory.expectedRestockDate,
+    })
+    .from(productVariants)
+    .leftJoin(inventory, eq(inventory.productVariantId, productVariants.id))
+    .where(eq(productVariants.id, variantId))
+    .limit(1);
 
-  const results = await query<RowDataPacket[]>(sql, [variantId]);
-
-  if (results.length === 0) return null;
-
-  const row = results[0];
-  return {
-    ...row,
-    attributes:
-      row.attributes && typeof row.attributes === 'string'
-        ? JSON.parse(row.attributes)
-        : row.attributes || {},
-  } as ProductVariant & InventoryData;
+  return row || null;
 }
 
 /**
- * Find variant by product ID and size (backward compatibility)
+ * Find variant by product ID and size
  */
-export async function findVariantBySize(
-  productId: number,
-  size: string
-): Promise<(ProductVariant & InventoryData) | null> {
-  const sql = `
-    SELECT 
-      pv.*,
-      p.name as product_name,
-      i.id as inventory_id,
-      i.warehouse_id,
-      COALESCE(i.quantity, 0) as quantity,
-      COALESCE(i.reserved, 0) as reserved,
-      COALESCE(i.quantity, 0) - COALESCE(i.reserved, 0) as available
-    FROM product_variants pv
-    JOIN products p ON pv.product_id = p.id
-    LEFT JOIN inventory i ON i.product_variant_id = pv.id
-    WHERE pv.product_id = ?
-    AND pv.size = ?
-  `;
+export async function findVariantBySize(productId: number, size: string): Promise<any | null> {
+  const [row] = await db
+    .select({
+      id: productVariants.id,
+      productId: productVariants.productId,
+      sku: productVariants.sku,
+      barcode: productVariants.barcode,
+      size: productVariants.size,
+      colorId: productVariants.colorId,
+      attributes: productVariants.attributes,
+      price: productVariants.price,
+      weight: productVariants.weight,
+      height: productVariants.height,
+      width: productVariants.width,
+      depth: productVariants.depth,
+      productName: products.name,
+      inventoryId: inventory.id,
+      warehouseId: inventory.warehouseId,
+      quantity: sql<number>`COALESCE(${inventory.quantity}, 0)`,
+      reserved: sql<number>`COALESCE(${inventory.reserved}, 0)`,
+      available: sql<number>`COALESCE(${inventory.quantity}, 0) - COALESCE(${inventory.reserved}, 0)`,
+    })
+    .from(productVariants)
+    .innerJoin(products, eq(productVariants.productId, products.id))
+    .leftJoin(inventory, eq(inventory.productVariantId, productVariants.id))
+    .where(and(eq(productVariants.productId, productId), eq(productVariants.size, size)))
+    .limit(1);
 
-  const results = await query<RowDataPacket[]>(sql, [productId, size]);
-
-  if (results.length === 0) return null;
-
-  const row = results[0];
-  return {
-    ...row,
-    attributes:
-      row.attributes && typeof row.attributes === 'string'
-        ? JSON.parse(row.attributes)
-        : row.attributes || {},
-  } as ProductVariant & InventoryData;
+  return row || null;
 }
 
 /**
  * Check if variant has enough stock
  */
 export async function checkStock(variantId: number, requestedQuantity: number): Promise<boolean> {
-  const sql = `
-    SELECT 
-      (COALESCE(i.quantity, 0) - COALESCE(i.reserved, 0)) as available,
-      COALESCE(i.allow_backorder, 0) as allowBackorder
-    FROM inventory i
-    WHERE i.product_variant_id = ?
-  `;
+  const [row] = await db
+    .select({
+      available: sql<number>`COALESCE(${inventory.quantity}, 0) - COALESCE(${inventory.reserved}, 0)`,
+      allowBackorder: sql<number>`COALESCE(${inventory.allowBackorder}, 0)`,
+    })
+    .from(inventory)
+    .where(eq(inventory.productVariantId, variantId))
+    .limit(1);
 
-  const results = await query<RowDataPacket[]>(sql, [variantId]);
+  if (!row) return false;
 
-  if (results.length === 0) return false;
-
-  const { available, allowBackorder } = results[0];
-  return available >= requestedQuantity || allowBackorder === 1;
+  return row.available >= requestedQuantity || row.allowBackorder === 1;
 }
 
 /**
- * Reserve stock for an order (atomic operation)
+ * Reserve stock for an order
  */
 export async function reserveStock(
   variantId: number,
   quantity: number,
   orderId: string
 ): Promise<boolean> {
-  const { getConnection } = await import('./mysql');
-  const connection = await getConnection();
+  return await db.transaction(async (tx) => {
+    const [result] = await tx
+      .update(inventory)
+      .set({
+        reserved: sql`${inventory.reserved} + ${quantity}`,
+      })
+      .where(
+        and(
+          eq(inventory.productVariantId, variantId),
+          sql`(${inventory.quantity} - ${inventory.reserved}) >= ${quantity} OR ${inventory.allowBackorder} = 1`
+        )
+      );
 
-  try {
-    await connection.beginTransaction();
-
-    // Check and update inventory
-    const [rows]: any = await connection.query(
-      `UPDATE inventory 
-       SET reserved = reserved + ?
-       WHERE product_variant_id = ?
-       AND (
-         (quantity - reserved) >= ?
-         OR allow_backorder = 1
-       )`,
-      [quantity, variantId, quantity]
-    );
-
-    if (rows.affectedRows === 0) {
-      await connection.rollback();
+    if (result.affectedRows === 0) {
       return false;
     }
 
-    // Log the reservation
-    await connection.query(
-      `INSERT INTO inventory_logs (inventory_id, quantity_change, reason, reference_id)
-       SELECT id, ?, 'order_reserved', ?
-       FROM inventory
-       WHERE product_variant_id = ?`,
-      [-quantity, orderId, variantId]
-    );
+    const [inv] = await tx
+      .select({ id: inventory.id })
+      .from(inventory)
+      .where(eq(inventory.productVariantId, variantId))
+      .limit(1);
 
-    await connection.commit();
+    if (inv) {
+      await tx.insert(inventoryLogs).values({
+        inventoryId: inv.id,
+        quantityChange: -quantity,
+        reason: 'order_reserved',
+        referenceId: orderId,
+      });
+    }
+
     return true;
-  } catch (error) {
-    await connection.rollback();
-    throw error;
-  } finally {
-    connection.release();
-  }
+  });
 }
 
 /**
- * Release reserved stock (e.g., when order is cancelled)
+ * Release reserved stock
  */
 export async function releaseStock(
   variantId: number,
   quantity: number,
   orderId: string
 ): Promise<void> {
-  const { getConnection } = await import('./mysql');
-  const connection = await getConnection();
+  await db.transaction(async (tx) => {
+    await tx
+      .update(inventory)
+      .set({ reserved: sql`${inventory.reserved} - ${quantity}` })
+      .where(eq(inventory.productVariantId, variantId));
 
-  try {
-    await connection.beginTransaction();
+    const [inv] = await tx
+      .select({ id: inventory.id })
+      .from(inventory)
+      .where(eq(inventory.productVariantId, variantId))
+      .limit(1);
 
-    await connection.query(
-      `UPDATE inventory 
-       SET reserved = reserved - ?
-       WHERE product_variant_id = ?`,
-      [quantity, variantId]
-    );
-
-    await connection.query(
-      `INSERT INTO inventory_logs (inventory_id, quantity_change, reason, reference_id)
-       SELECT id, ?, 'order_cancelled', ?
-       FROM inventory
-       WHERE product_variant_id = ?`,
-      [quantity, orderId, variantId]
-    );
-
-    await connection.commit();
-  } catch (error) {
-    await connection.rollback();
-    throw error;
-  } finally {
-    connection.release();
-  }
+    if (inv) {
+      await tx.insert(inventoryLogs).values({
+        inventoryId: inv.id,
+        quantityChange: quantity,
+        reason: 'order_cancelled',
+        referenceId: orderId,
+      });
+    }
+  });
 }
 
 /**
@@ -265,39 +232,34 @@ export async function deductStock(
   quantity: number,
   orderId: string
 ): Promise<void> {
-  const { getConnection } = await import('./mysql');
-  const connection = await getConnection();
+  await db.transaction(async (tx) => {
+    await tx
+      .update(inventory)
+      .set({
+        quantity: sql`${inventory.quantity} - ${quantity}`,
+        reserved: sql`${inventory.reserved} - ${quantity}`,
+      })
+      .where(eq(inventory.productVariantId, variantId));
 
-  try {
-    await connection.beginTransaction();
+    const [inv] = await tx
+      .select({ id: inventory.id })
+      .from(inventory)
+      .where(eq(inventory.productVariantId, variantId))
+      .limit(1);
 
-    await connection.query(
-      `UPDATE inventory 
-       SET quantity = quantity - ?,
-           reserved = reserved - ?
-       WHERE product_variant_id = ?`,
-      [quantity, quantity, variantId]
-    );
-
-    await connection.query(
-      `INSERT INTO inventory_logs (inventory_id, quantity_change, reason, reference_id)
-       SELECT id, ?, 'order_fulfilled', ?
-       FROM inventory
-       WHERE product_variant_id = ?`,
-      [-quantity, orderId, variantId]
-    );
-
-    await connection.commit();
-  } catch (error) {
-    await connection.rollback();
-    throw error;
-  } finally {
-    connection.release();
-  }
+    if (inv) {
+      await tx.insert(inventoryLogs).values({
+        inventoryId: inv.id,
+        quantityChange: -quantity,
+        reason: 'order_fulfilled',
+        referenceId: orderId,
+      });
+    }
+  });
 }
 
 /**
- * Add stock (restocking, returns, etc.)
+ * Add stock
  */
 export async function addStock(
   variantId: number,
@@ -305,32 +267,25 @@ export async function addStock(
   reason: string = 'restock',
   referenceId?: string
 ): Promise<void> {
-  const { getConnection } = await import('./mysql');
-  const connection = await getConnection();
+  await db.transaction(async (tx) => {
+    await tx
+      .update(inventory)
+      .set({ quantity: sql`${inventory.quantity} + ${quantity}` })
+      .where(eq(inventory.productVariantId, variantId));
 
-  try {
-    await connection.beginTransaction();
+    const [inv] = await tx
+      .select({ id: inventory.id })
+      .from(inventory)
+      .where(eq(inventory.productVariantId, variantId))
+      .limit(1);
 
-    await connection.query(
-      `UPDATE inventory 
-       SET quantity = quantity + ?
-       WHERE product_variant_id = ?`,
-      [quantity, variantId]
-    );
-
-    await connection.query(
-      `INSERT INTO inventory_logs (inventory_id, quantity_change, reason, reference_id)
-       SELECT id, ?, ?, ?
-       FROM inventory
-       WHERE product_variant_id = ?`,
-      [quantity, reason, referenceId, variantId]
-    );
-
-    await connection.commit();
-  } catch (error) {
-    await connection.rollback();
-    throw error;
-  } finally {
-    connection.release();
-  }
+    if (inv) {
+      await tx.insert(inventoryLogs).values({
+        inventoryId: inv.id,
+        quantityChange: quantity,
+        reason: reason as any,
+        referenceId: referenceId || null,
+      });
+    }
+  });
 }

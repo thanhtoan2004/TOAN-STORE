@@ -1,35 +1,49 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { executeQuery } from '@/lib/db/mysql';
+import { db } from '@/lib/db/drizzle';
+import {
+  users,
+  orders as ordersTable,
+  products,
+  giftCards,
+  dailyMetrics,
+  orderItems,
+  inventory,
+  productVariants,
+  productImages,
+} from '@/lib/db/schema';
+import { eq, and, ne, gte, sql, desc, asc, isNull, count, sum, avg, gt, lt } from 'drizzle-orm';
 import { checkAdminAuth } from '@/lib/auth/auth';
+import { ResponseWrapper } from '@/lib/api/api-response';
 
-// GET - Comprehensive dashboard statistics
 /**
  * API Tổng hợp Dữ liệu cho Dashboard Admin (Trang Quản Trị).
- * Đây là Endpoint "Nặng" nhất hệ thống vì nó thực hiện Aggregate dữ liệu từ nhiều bảng SQL:
- * 1. Thống kê cơ bản: Tổng User, Đơn hàng, Doanh thu, Lợi nhuận.
- * 2. Xu hướng: Doanh thu theo ngày (Trends).
- * 3. Tài chính: VAT, Phí vận chuyển, Giảm giá, Giá vốn (COGS).
- * 4. Tồn kho: Cảnh báo hàng sắp hết (Low stock) và Hết hàng (Out of stock).
- * 5. Khách hàng: Top 5 khách hàng chi tiêu nhiều nhất.
+ * Chức năng:
+ * - Thống kê cơ bản (Doanh thu, Đơn hàng, Sản phẩm, Người dùng).
+ * - Phân tích doanh thu theo trạng thái và xu hướng (Trend).
+ * - Chỉ số tài chính (VAT, Chiết khấu, Phí vận chuyển, Lợi nhuận).
+ * - Cảnh báo tồn kho (Sắp hết hàng, Hết hàng).
+ * - Thông tin khách hàng (Khách mới, Khách quay lại, Top khách hàng).
+ * - So sánh doanh thu hôm nay vs hôm qua.
  */
 export async function GET(request: NextRequest) {
   try {
     // Auth check
     const admin = await checkAdminAuth();
     if (!admin) {
-      return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
+      return ResponseWrapper.unauthorized();
     }
     const searchParams = new URL(request.url).searchParams;
     const days = parseInt(searchParams.get('days') || '7');
 
     const [
-      basicStats,
+      basicCountStats,
       revenueByStatus,
       revenueTrend,
       financialStats,
-      inventoryStats,
+      inventorySummary,
       lowStockProducts,
-      customerStats,
+      newCustomersMonth,
+      returningCustomersCount,
       topCustomers,
       recentOrders,
       topProducts,
@@ -37,159 +51,231 @@ export async function GET(request: NextRequest) {
       yesterdayRevenue,
     ] = await Promise.all([
       // 1. Basic statistics
-      executeQuery<any[]>(`
-        SELECT 
-          (SELECT COUNT(*) FROM users) as total_users,
-          (SELECT COUNT(*) FROM orders) as total_orders,
-          (SELECT COUNT(*) FROM products WHERE is_active = 1) as total_products,
-          (SELECT COALESCE(SUM(total), 0) FROM orders WHERE status != 'cancelled' AND status != 'refunded') as total_revenue,
-          (SELECT COALESCE(AVG(total), 0) FROM orders WHERE status = 'delivered') as average_order_value,
-          (SELECT COUNT(*) FROM gift_cards WHERE status = 'active' AND current_balance > 0) as active_gift_cards
-      `),
+      db
+        .select({
+          totalUsers: sql<number>`(SELECT COUNT(*) FROM ${users})`,
+          totalOrders: sql<number>`(SELECT COUNT(*) FROM ${ordersTable})`,
+          totalProducts: sql<number>`(SELECT COUNT(*) FROM ${products} WHERE ${products.isActive} = 1)`,
+          totalRevenue: sql<number>`(SELECT COALESCE(SUM(${ordersTable.total}), 0) FROM ${ordersTable} WHERE ${ordersTable.status} != 'cancelled' AND ${ordersTable.status} != 'refunded')`,
+          averageOrderValue: sql<number>`(SELECT COALESCE(AVG(${ordersTable.total}), 0) FROM ${ordersTable} WHERE ${ordersTable.status} = 'delivered')`,
+          activeGiftCards: sql<number>`(SELECT COUNT(*) FROM ${giftCards} WHERE ${giftCards.status} = 'active' AND ${giftCards.currentBalance} > 0)`,
+        })
+        .from(sql`dual`),
+
       // 2. Revenue by status
-      executeQuery<any[]>(`
-        SELECT status, COUNT(*) as count, COALESCE(SUM(total), 0) as revenue
-        FROM orders GROUP BY status
-      `),
+      db
+        .select({
+          status: ordersTable.status,
+          count: count(ordersTable.id),
+          revenue: sum(ordersTable.total),
+        })
+        .from(ordersTable)
+        .groupBy(ordersTable.status),
+
       // 3. Revenue trend
-      executeQuery<any[]>(
-        `
-        SELECT date, CAST(revenue AS DOUBLE) as revenue, CAST(net_profit AS DOUBLE) as profit, orders_count as order_count
-        FROM daily_metrics WHERE date >= DATE_SUB(CURDATE(), INTERVAL ? DAY) ORDER BY date ASC
-      `,
-        [days]
-      ),
+      db
+        .select({
+          date: dailyMetrics.date,
+          revenue: dailyMetrics.revenue,
+          profit: dailyMetrics.netProfit,
+          orderCount: dailyMetrics.ordersCount,
+        })
+        .from(dailyMetrics)
+        .where(gte(dailyMetrics.date, sql`DATE_SUB(CURDATE(), INTERVAL ${days} DAY)`))
+        .orderBy(asc(dailyMetrics.date)),
+
       // 4. Financial metrics
-      executeQuery<any[]>(`
-        SELECT 
-          COALESCE(SUM(tax), 0) as total_vat,
-          COALESCE(SUM(discount + voucher_discount + giftcard_discount), 0) as total_discounts,
-          COALESCE(SUM(shipping_fee), 0) as total_shipping,
-          COALESCE(SUM(subtotal) - SUM(discount + voucher_discount + giftcard_discount), 0) as net_revenue,
-          (SELECT COALESCE(SUM(oi.cost_price * oi.quantity), 0) FROM order_items oi JOIN orders o ON oi.order_id = o.id WHERE o.status = 'delivered') as total_cost
-        FROM orders WHERE status = 'delivered'
-      `),
+      db
+        .select({
+          totalVat: sum(ordersTable.tax),
+          totalDiscounts: sql<number>`SUM(${ordersTable.discount} + ${ordersTable.voucherDiscount} + ${ordersTable.giftcardDiscount})`,
+          totalShipping: sum(ordersTable.shippingFee),
+          netRevenue: sql<number>`SUM(${ordersTable.subtotal}) - SUM(${ordersTable.discount} + ${ordersTable.voucherDiscount} + ${ordersTable.giftcardDiscount})`,
+          totalCost: sql<number>`(SELECT COALESCE(SUM(oi.${orderItems.costPrice} * oi.${orderItems.quantity}), 0) FROM ${orderItems} oi JOIN ${ordersTable} o ON oi.${orderItems.orderId} = o.${ordersTable.id} WHERE o.${ordersTable.status} = 'delivered')`,
+        })
+        .from(ordersTable)
+        .where(eq(ordersTable.status, 'delivered')),
+
       // 5. Inventory alerts
-      executeQuery<any[]>(`
-        SELECT 
-          (SELECT COUNT(DISTINCT pv.product_id) FROM product_variants pv JOIN inventory i ON pv.id = i.product_variant_id WHERE (i.quantity - i.reserved) > 0 AND (i.quantity - i.reserved) < 10) as low_stock_count,
-          (SELECT COUNT(DISTINCT pv.product_id) FROM product_variants pv JOIN inventory i ON pv.id = i.product_variant_id WHERE (i.quantity - i.reserved) = 0) as out_of_stock_count
-      `),
+      db
+        .select({
+          lowStockCount: sql<number>`(SELECT COUNT(DISTINCT pv.${productVariants.productId}) FROM ${productVariants} pv JOIN ${inventory} i ON pv.${productVariants.id} = i.${inventory.productVariantId} WHERE (i.${inventory.quantity} - i.${inventory.reserved}) > 0 AND (i.${inventory.quantity} - i.${inventory.reserved}) < 10)`,
+          outOfStockCount: sql<number>`(SELECT COUNT(DISTINCT pv.${productVariants.productId}) FROM ${productVariants} pv JOIN ${inventory} i ON pv.${productVariants.id} = i.${inventory.productVariantId} WHERE (i.${inventory.quantity} - i.${inventory.reserved}) = 0)`,
+        })
+        .from(sql`dual`),
+
       // 6. Low stock products
-      executeQuery<any[]>(`
-        SELECT p.id, p.name, SUM(i.quantity - i.reserved) as total_quantity,
-          (SELECT url FROM product_images WHERE product_id = p.id AND is_main = 1 LIMIT 1) as image_url
-        FROM inventory i JOIN product_variants pv ON i.product_variant_id = pv.id JOIN products p ON pv.product_id = p.id
-        WHERE (i.quantity - i.reserved) > 0 AND (i.quantity - i.reserved) < 10
-        GROUP BY p.id, p.name ORDER BY total_quantity ASC LIMIT 5
-      `),
-      // 7. Customer insights
-      executeQuery<any[]>(`
-        SELECT 
-          (SELECT COUNT(*) FROM users WHERE created_at >= DATE_FORMAT(NOW(), '%Y-%m-01')) as new_customers_month,
-          (SELECT COUNT(DISTINCT user_id) FROM orders WHERE user_id IN (SELECT user_id FROM orders GROUP BY user_id HAVING COUNT(*) > 1)) as returning_customers
-      `),
+      db
+        .select({
+          id: products.id,
+          name: products.name,
+          totalQuantity: sql<number>`SUM(${inventory.quantity} - ${inventory.reserved})`.as(
+            'total_quantity'
+          ),
+          imageUrl: sql<string>`(SELECT ${productImages.url} FROM ${productImages} WHERE ${productImages.productId} = ${products.id} ORDER BY ${productImages.isMain} DESC, ${productImages.position} ASC LIMIT 1)`,
+        })
+        .from(inventory)
+        .innerJoin(productVariants, eq(inventory.productVariantId, productVariants.id))
+        .innerJoin(products, eq(productVariants.productId, products.id))
+        .where(
+          and(
+            gt(sql`${inventory.quantity} - ${inventory.reserved}`, 0),
+            lt(sql`${inventory.quantity} - ${inventory.reserved}`, 10)
+          )
+        )
+        .groupBy(products.id, products.name)
+        .orderBy(asc(sql`total_quantity`))
+        .limit(5),
+
+      // 7. Customer insights (New customers)
+      db
+        .select({ count: count() })
+        .from(users)
+        .where(gte(users.createdAt, sql`DATE_FORMAT(NOW(), '%Y-%m-01')`)),
+
+      // 7b. Returning customers
+      db
+        .select({
+          count: sql<number>`(SELECT COUNT(DISTINCT user_id) FROM orders WHERE user_id IN (SELECT user_id FROM orders GROUP BY user_id HAVING COUNT(*) > 1))`,
+        })
+        .from(sql`dual`),
+
       // 8. Top customers
-      executeQuery<any[]>(`
-        SELECT u.id, u.email, u.membership_tier, CONCAT(u.first_name, ' ', u.last_name) as full_name,
-          COALESCE(SUM(o.total), 0) as total_spent, COUNT(o.id) as order_count
-        FROM users u JOIN orders o ON u.id = o.user_id WHERE o.status = 'delivered'
-        GROUP BY u.id, u.email, u.membership_tier, u.first_name, u.last_name ORDER BY total_spent DESC LIMIT 5
-      `),
+      db
+        .select({
+          id: users.id,
+          email: users.email,
+          membershipTier: users.membershipTier,
+          fullName: sql<string>`CONCAT(${users.firstName}, ' ', ${users.lastName})`,
+          totalSpent: sum(ordersTable.total),
+          orderCount: count(ordersTable.id),
+        })
+        .from(users)
+        .innerJoin(ordersTable, eq(users.id, ordersTable.userId))
+        .where(eq(ordersTable.status, 'delivered'))
+        .groupBy(users.id)
+        .orderBy(desc(sum(ordersTable.total)))
+        .limit(5),
+
       // 9. Recent orders
-      executeQuery<any[]>(`
-        SELECT o.*, CONCAT(u.first_name, ' ', u.last_name) as customer_name, u.email as customer_email
-        FROM orders o LEFT JOIN users u ON o.user_id = u.id ORDER BY o.placed_at DESC LIMIT 10
-      `),
+      db
+        .select({
+          order: ordersTable,
+          customerName: sql<string>`CONCAT(${users.firstName}, ' ', ${users.lastName})`,
+          customerEmail: users.email,
+        })
+        .from(ordersTable)
+        .leftJoin(users, eq(ordersTable.userId, users.id))
+        .orderBy(desc(ordersTable.placedAt))
+        .limit(10),
+
       // 10. Top selling products
-      executeQuery<any[]>(`
-        SELECT p.id, p.name, (SELECT url FROM product_images WHERE product_id = p.id AND is_main = 1 LIMIT 1) as primary_image,
-          p.price_cache as price, SUM(oi.quantity) as sold
-        FROM order_items oi JOIN products p ON oi.product_id = p.id GROUP BY p.id, p.name, p.price_cache ORDER BY sold DESC LIMIT 10
-      `),
+      db
+        .select({
+          id: products.id,
+          name: products.name,
+          primary_image: sql<string>`(SELECT ${productImages.url} FROM ${productImages} WHERE ${productImages.productId} = ${products.id} ORDER BY ${productImages.isMain} DESC, ${productImages.position} ASC LIMIT 1)`,
+          price: products.priceCache,
+          sold: sum(orderItems.quantity),
+        })
+        .from(orderItems)
+        .innerJoin(products, eq(orderItems.productId, products.id))
+        .groupBy(products.id)
+        .orderBy(desc(sum(orderItems.quantity)))
+        .limit(10),
+
       // 11. Today Revenue
-      executeQuery<any[]>(
-        `SELECT COALESCE(SUM(total), 0) as revenue FROM orders WHERE DATE(placed_at) = CURDATE()`
-      ),
+      db
+        .select({ revenue: sum(ordersTable.total) })
+        .from(ordersTable)
+        .where(sql`DATE(${ordersTable.placedAt}) = CURDATE()`),
+
       // 12. Yesterday Revenue
-      executeQuery<any[]>(
-        `SELECT COALESCE(SUM(total), 0) as revenue FROM orders WHERE DATE(placed_at) = DATE_SUB(CURDATE(), INTERVAL 1 DAY)`
-      ),
+      db
+        .select({ revenue: sum(ordersTable.total) })
+        .from(ordersTable)
+        .where(sql`DATE(${ordersTable.placedAt}) = DATE_SUB(CURDATE(), INTERVAL 1 DAY)`),
     ]);
 
-    return NextResponse.json({
+    const stats = basicCountStats[0];
+    const fin = financialStats[0];
+    const inv = inventorySummary[0];
+
+    const result = {
       // Basic stats
-      totalRevenue: parseFloat(basicStats[0]?.total_revenue) || 0,
-      totalOrders: parseInt(basicStats[0]?.total_orders) || 0,
-      totalProducts: parseInt(basicStats[0]?.total_products) || 0,
-      totalUsers: parseInt(basicStats[0]?.total_users) || 0,
-      averageOrderValue: parseFloat(basicStats[0]?.average_order_value) || 0,
-      activeGiftCards: parseInt(basicStats[0]?.active_gift_cards) || 0,
+      totalRevenue: Number(stats.totalRevenue) || 0,
+      totalOrders: Number(stats.totalOrders) || 0,
+      totalProducts: Number(stats.totalProducts) || 0,
+      totalUsers: Number(stats.totalUsers) || 0,
+      averageOrderValue: Number(stats.averageOrderValue) || 0,
+      activeGiftCards: Number(stats.activeGiftCards) || 0,
 
       // Revenue by status
       revenueByStatus: revenueByStatus.map((r) => ({
         status: r.status,
-        count: parseInt(r.count),
-        revenue: parseFloat(r.revenue) || 0,
+        count: Number(r.count),
+        revenue: Number(r.revenue) || 0,
       })),
 
       // Revenue trend
       revenueTrend: revenueTrend.map((r) => ({
         date: r.date,
-        revenue: parseFloat(r.revenue) || 0,
-        profit: parseFloat(r.profit) || 0,
-        orderCount: parseInt(r.order_count),
+        revenue: Number(r.revenue) || 0,
+        profit: Number(r.profit) || 0,
+        orderCount: Number(r.orderCount),
       })),
 
       // Financial metrics
-      totalVAT: parseFloat(financialStats[0]?.total_vat) || 0,
-      totalDiscounts: parseFloat(financialStats[0]?.total_discounts) || 0,
-      totalShipping: parseFloat(financialStats[0]?.total_shipping) || 0,
-      netRevenue: parseFloat(financialStats[0]?.net_revenue) || 0,
-      totalCost: parseFloat(financialStats[0]?.total_cost) || 0,
-      totalProfit:
-        (parseFloat(financialStats[0]?.net_revenue) || 0) -
-        (parseFloat(financialStats[0]?.total_cost) || 0),
+      totalVAT: Number(fin.totalVat) || 0,
+      totalDiscounts: Number(fin.totalDiscounts) || 0,
+      totalShipping: Number(fin.totalShipping) || 0,
+      netRevenue: Number(fin.netRevenue) || 0,
+      totalCost: Number(fin.totalCost) || 0,
+      totalProfit: (Number(fin.netRevenue) || 0) - (Number(fin.totalCost) || 0),
       profitMargin:
-        (parseFloat(financialStats[0]?.net_revenue) || 0) > 0
-          ? (((parseFloat(financialStats[0]?.net_revenue) || 0) -
-              (parseFloat(financialStats[0]?.total_cost) || 0)) /
-              parseFloat(financialStats[0]?.net_revenue)) *
-            100
+        Number(fin.netRevenue) > 0
+          ? ((Number(fin.netRevenue) - Number(fin.totalCost)) / Number(fin.netRevenue)) * 100
           : 0,
 
       // Inventory
-      lowStockCount: parseInt(inventoryStats[0]?.low_stock_count) || 0,
-      outOfStockCount: parseInt(inventoryStats[0]?.out_of_stock_count) || 0,
+      lowStockCount: Number(inv.lowStockCount) || 0,
+      outOfStockCount: Number(inv.outOfStockCount) || 0,
       lowStockProducts: lowStockProducts.map((p) => ({
         id: p.id,
         name: p.name,
-        quantity: parseInt(p.total_quantity),
-        image: p.image_url,
+        quantity: Number(p.totalQuantity),
+        image: p.imageUrl,
       })),
 
       // Customer insights
-      newCustomersMonth: parseInt(customerStats[0]?.new_customers_month) || 0,
-      returningCustomers: parseInt(customerStats[0]?.returning_customers) || 0,
+      newCustomersMonth: Number(newCustomersMonth[0].count) || 0,
+      returningCustomers: Number(returningCustomersCount[0].count) || 0,
       topCustomers: topCustomers.map((c) => ({
         id: c.id,
         email: c.email,
-        name: c.full_name,
-        membershipTier: c.membership_tier,
-        totalSpent: parseFloat(c.total_spent) || 0,
-        orderCount: parseInt(c.order_count),
+        name: c.fullName,
+        membershipTier: c.membershipTier,
+        totalSpent: Number(c.totalSpent) || 0,
+        orderCount: Number(c.orderCount),
       })),
 
       // Today vs Yesterday
-      todayRevenue: parseFloat(todayRevenue[0]?.revenue) || 0,
-      yesterdayRevenue: parseFloat(yesterdayRevenue[0]?.revenue) || 0,
+      todayRevenue: Number(todayRevenue[0]?.revenue) || 0,
+      yesterdayRevenue: Number(yesterdayRevenue[0]?.revenue) || 0,
 
       // Existing data
-      recentOrders,
-      topProducts,
-    });
+      recentOrders: recentOrders.map((r) => ({
+        ...r.order,
+        order_number: r.order.orderNumber,
+        customer_name: r.customerName,
+        customer_email: r.customerEmail,
+      })),
+      topProducts: topProducts.map((p) => ({ ...p, sold: Number(p.sold) })),
+    };
+
+    return ResponseWrapper.success(result);
   } catch (error) {
     console.error('Error fetching dashboard stats:', error);
-    return NextResponse.json({ success: false, message: 'Internal server error' }, { status: 500 });
+    return ResponseWrapper.serverError('Internal server error', error);
   }
 }

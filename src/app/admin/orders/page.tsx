@@ -6,13 +6,13 @@ import { formatDateTime, formatCurrency } from '@/lib/utils/date-utils';
 
 interface Order {
   id: number;
-  orderNumber: string;
+  order_number: string;
   userId: number;
-  customerName: string;
-  customerEmail: string;
+  customer_name: string;
+  customer_email: string;
   total: string | number;
   status: string;
-  placedAt: string;
+  placed_at: string;
 }
 
 export default function AdminOrdersPage() {
@@ -187,12 +187,12 @@ export default function AdminOrdersPage() {
                     <tr key={order.id} className="hover:bg-gray-50">
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm font-medium text-gray-900">
-                          #{order.orderNumber}
+                          #{order.order_number}
                         </div>
                       </td>
                       <td className="px-6 py-4">
-                        <div className="text-sm text-gray-900">{order.customerName}</div>
-                        <div className="text-sm text-gray-500">{order.customerEmail}</div>
+                        <div className="text-sm text-gray-900">{order.customer_name}</div>
+                        <div className="text-sm text-gray-500">{order.customer_email}</div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm font-semibold text-gray-900">
@@ -208,7 +208,7 @@ export default function AdminOrdersPage() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm text-gray-900">
-                          {formatDateTime(order.placedAt)}
+                          {formatDateTime(order.placed_at)}
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right space-x-2">

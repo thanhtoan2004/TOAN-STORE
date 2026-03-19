@@ -159,13 +159,10 @@ export default function AdminGiftCardsPage() {
               <tbody className="divide-y divide-gray-200">
                 {giftCards.map((card) => (
                   <tr key={card.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-900 select-all">
                       {card.card_number}
                     </td>
-                    <td
-                      className="px-6 py-4 text-sm text-gray-500 max-w-[200px] truncate"
-                      title={card.pin}
-                    >
+                    <td className="px-6 py-4 text-sm font-mono text-gray-600 select-all">
                       {card.pin}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">

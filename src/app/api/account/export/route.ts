@@ -1,12 +1,23 @@
 import { NextResponse } from 'next/server';
+import { db } from '@/lib/db/drizzle';
+import {
+  users,
+  userAddresses,
+  orders as ordersTable,
+  orderItems,
+  productReviews,
+  products,
+  wishlists,
+  wishlistItems,
+} from '@/lib/db/schema';
+import { eq, desc } from 'drizzle-orm';
 import { verifyAuth } from '@/lib/auth/auth';
-import { executeQuery } from '@/lib/db/mysql';
 import { decrypt } from '@/lib/security/encryption';
 
 /**
  * API Xuất dữ liệu cá nhân (Personal Data Export - GDPR Compliance).
  * Nhiệm vụ:
- * 1. Thu thập toàn bộ dữ liệu liên quan đến User từ 5-6 bảng khác nhau.
+ * 1. Thu thập toàn bộ dữ liệu liên quan đến User từ nhiều bảng khác nhau.
  * 2. Giải mã (Decrypt) các thông tin nhạy cảm đã mã hóa trong DB (Phone, Address).
  * 3. Đóng gói thành file JSON và gửi về trình duyệt với header `attachment` để tự động tải về.
  */
@@ -19,58 +30,72 @@ export async function GET() {
 
     const userId = Number(session.userId);
 
-    // 1. Get User Profile
-    const userProfile = await executeQuery<any[]>(
-      'SELECT email, first_name, last_name, phone, date_of_birth, gender, available_points, lifetime_points, membership_tier, created_at FROM users WHERE id = ?',
-      [userId]
-    );
+    // 1. Get User Profile and dependent data in parallel
+    const [userProfile, addresses, orders, reviews, wishlist] = await Promise.all([
+      db.select().from(users).where(eq(users.id, userId)).limit(1),
+      db.select().from(userAddresses).where(eq(userAddresses.userId, userId)),
+      db
+        .select()
+        .from(ordersTable)
+        .where(eq(ordersTable.userId, userId))
+        .orderBy(desc(ordersTable.placedAt)),
+      db
+        .select({
+          review: productReviews,
+          productName: products.name,
+        })
+        .from(productReviews)
+        .leftJoin(products, eq(productReviews.productId, products.id))
+        .where(eq(productReviews.userId, userId)),
+      db
+        .select({
+          item: wishlistItems,
+          productName: products.name,
+          productSlug: products.slug,
+        })
+        .from(wishlistItems)
+        .innerJoin(wishlists, eq(wishlistItems.wishlistId, wishlists.id))
+        .innerJoin(products, eq(wishlistItems.productId, products.id))
+        .where(eq(wishlists.userId, userId)),
+    ]);
 
     if (userProfile.length === 0) {
       return NextResponse.json({ success: false, message: 'User not found' }, { status: 404 });
     }
 
-    const profile = userProfile[0];
-    // Decrypt profile phone if it was encrypted
+    const profile = { ...userProfile[0] };
+    // Decrypt profile phone/dob if they were encrypted
     if (profile.phone && profile.phone.includes(':')) {
       try {
         profile.phone = decrypt(profile.phone);
-      } catch (e) {
-        // Ignore decryption errors
-      }
+      } catch (e) {}
+    }
+    if (profile.dateOfBirthEncrypted) {
+      try {
+        profile.dateOfBirth = decrypt(profile.dateOfBirthEncrypted) as any;
+      } catch (e) {}
     }
 
-    // 2. Get Addresses
-    const userAddresses = await executeQuery<any[]>(
-      'SELECT * FROM user_addresses WHERE user_id = ?',
-      [userId]
-    );
-
-    const decodedAddresses = userAddresses.map((addr) => {
+    // 2. Process Addresses
+    const decodedAddresses = addresses.map((addr) => {
       const decoded = { ...addr };
       if (addr.phone && addr.phone.includes(':')) {
         try {
           decoded.phone = decrypt(addr.phone);
         } catch (e) {}
       }
-      if (addr.address_line && addr.address_line.includes(':')) {
+      if (addr.addressLine && addr.addressLine.includes(':')) {
         try {
-          decoded.address_line = decrypt(addr.address_line);
+          decoded.addressLine = decrypt(addr.addressLine);
         } catch (e) {}
       }
       return decoded;
     });
 
-    // 3. Get Orders and Items
-    const orders = await executeQuery<any[]>(
-      'SELECT * FROM orders WHERE user_id = ? ORDER BY placed_at DESC',
-      [userId]
-    );
-
+    // 3. Get Order Items for each order
     const orderHistory = await Promise.all(
       orders.map(async (order) => {
-        const items = await executeQuery<any[]>('SELECT * FROM order_items WHERE order_id = ?', [
-          order.id,
-        ]);
+        const items = await db.select().from(orderItems).where(eq(orderItems.orderId, order.id));
         return {
           ...order,
           items,
@@ -78,26 +103,18 @@ export async function GET() {
       })
     );
 
-    // 4. Get Reviews
-    const reviews = await executeQuery<any[]>(
-      'SELECT r.*, p.name as product_name FROM product_reviews r JOIN products p ON r.product_id = p.id WHERE r.user_id = ?',
-      [userId]
-    );
-
-    // 5. Get Wishlist
-    const wishlistItems = await executeQuery<any[]>(
-      'SELECT wi.*, p.name as product_name, p.slug as product_slug FROM wishlist_items wi JOIN wishlists w ON wi.wishlist_id = w.id JOIN products p ON wi.product_id = p.id WHERE w.user_id = ?',
-      [userId]
-    );
-
     // Aggregate all data
     const exportData = {
-      export_date: new Date().toISOString(),
+      exportDate: new Date().toISOString(),
       profile: profile,
       addresses: decodedAddresses,
       orders: orderHistory,
-      reviews: reviews,
-      wishlist: wishlistItems,
+      reviews: reviews.map((r) => ({ ...r.review, productName: r.productName })),
+      wishlist: wishlist.map((i) => ({
+        ...i.item,
+        productName: i.productName,
+        productSlug: i.productSlug,
+      })),
     };
 
     // Return as JSON file download

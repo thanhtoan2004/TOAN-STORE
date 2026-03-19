@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuth } from '@/lib/auth/auth';
 import { uploadImage } from '@/lib/images/cloudinary';
+import { ResponseWrapper } from '@/lib/api/api-response';
 
 const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
 
@@ -16,14 +17,14 @@ export async function POST(request: NextRequest) {
     // 1. Authentication Check
     const session = await verifyAuth();
     if (!session) {
-      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+      return ResponseWrapper.unauthorized();
     }
 
     const formData = await request.formData();
     const file = formData.get('file') as File;
 
     if (!file) {
-      return NextResponse.json({ success: false, error: 'No file uploaded' }, { status: 400 });
+      return ResponseWrapper.error('No file uploaded', 400);
     }
 
     // 2. Strict Type & Size Validation
@@ -44,14 +45,11 @@ export async function POST(request: NextRequest) {
     ];
 
     if (!ALLOWED_MIME_TYPES.includes(file.type)) {
-      return NextResponse.json({ success: false, error: 'File type not allowed' }, { status: 400 });
+      return ResponseWrapper.error('File type not allowed', 400);
     }
 
     if (file.size > MAX_FILE_SIZE) {
-      return NextResponse.json(
-        { success: false, error: 'File too large (max 50MB)' },
-        { status: 400 }
-      );
+      return ResponseWrapper.error('File too large (max 50MB)', 400);
     }
 
     // 3. Convert to Base64 for Cloudinary (Server-side)
@@ -65,11 +63,7 @@ export async function POST(request: NextRequest) {
 
     const result = await uploadImage(base64Image, folder);
 
-    // Add tagging logic or other metadata if needed via a separate call if your uploadImage helper doesn't support it
-    // For now, we use the folder and automatic optimization during upload.
-
-    return NextResponse.json({
-      success: true,
+    return ResponseWrapper.success({
       imageUrl: result.secure_url,
       publicId: result.public_id,
       resourceType: result.resource_type,
@@ -79,6 +73,6 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     console.error('Upload error:', error);
-    return NextResponse.json({ success: false, error: 'Upload failed' }, { status: 500 });
+    return ResponseWrapper.serverError('Upload failed', error);
   }
 }

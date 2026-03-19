@@ -1,210 +1,243 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { executeQuery } from '@/lib/db/mysql';
+import { db } from '@/lib/db/drizzle';
+import {
+  products as productsTable,
+  categories,
+  brands,
+  productImages,
+  wishlistItems,
+  wishlists,
+  users,
+} from '@/lib/db/schema';
+import { eq, and, sql, desc, isNull } from 'drizzle-orm';
 import { checkAdminAuth } from '@/lib/auth/auth';
 import { sendWishlistSaleEmail } from '@/lib/mail/email-templates';
 import { syncProductToMeilisearch, deleteProductFromMeilisearch } from '@/lib/search/meilisearch';
-import { logAdminAction } from '@/lib/security/audit';
-import { invalidateCachePattern } from '@/lib/redis/cache';
+import { logAdminAction } from '@/lib/db/repositories/audit';
+import { invalidateCachePattern, invalidateCache } from '@/lib/redis/cache';
+import { ResponseWrapper } from '@/lib/api/api-response';
 
-// ... (GET method unchanged)
-// GET - Lấy chi tiết sản phẩm
+/**
+ * GET - Lấy chi tiết sản phẩm (Admin).
+ * Chức năng:
+ * - Truy vấn thông tin sản phẩm đầy đủ bao gồm: Danh mục, Thương hiệu.
+ * - Tích hợp danh sách hình ảnh (Images) sắp xếp theo độ ưu tiên.
+ * Bảo mật: Yêu cầu quyền Admin.
+ */
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const admin = await checkAdminAuth();
     if (!admin) {
-      return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
+      return ResponseWrapper.unauthorized();
     }
 
-    const { id } = await params;
+    const { id: idStr } = await params;
+    const id = parseInt(idStr);
+
+    if (isNaN(id)) {
+      return ResponseWrapper.error('ID sản phẩm không hợp lệ', 400);
+    }
 
     // Get product details
-    const products = await executeQuery<any[]>(
-      `SELECT p.*, c.name as category_name, b.name as brand_name 
-       FROM products p
-       LEFT JOIN categories c ON p.category_id = c.id
-       LEFT JOIN brands b ON p.brand_id = b.id
-       WHERE p.id = ?`,
-      [id]
-    );
+    const [productData] = await db
+      .select({
+        product: productsTable,
+        categoryName: categories.name,
+        brandName: brands.name,
+      })
+      .from(productsTable)
+      .leftJoin(categories, eq(productsTable.categoryId, categories.id))
+      .leftJoin(brands, eq(productsTable.brandId, brands.id))
+      .where(eq(productsTable.id, id))
+      .limit(1);
 
-    if (products.length === 0) {
-      return NextResponse.json({ success: false, message: 'Product not found' }, { status: 404 });
+    if (!productData) {
+      return ResponseWrapper.notFound('Không tìm thấy sản phẩm');
     }
 
     // Get images
-    const images = await executeQuery<any[]>(
-      'SELECT * FROM product_images WHERE product_id = ? ORDER BY is_main DESC',
-      [id]
-    );
+    const images = await db
+      .select()
+      .from(productImages)
+      .where(eq(productImages.productId, id))
+      .orderBy(desc(productImages.isMain));
 
     const product = {
-      ...products[0],
+      ...productData.product,
+      category_name: productData.categoryName,
+      brand_name: productData.brandName,
       images,
     };
 
-    return NextResponse.json({
-      success: true,
-      data: product,
-    });
+    return ResponseWrapper.success(product);
   } catch (error) {
     console.error('Error fetching product:', error);
-    return NextResponse.json({ success: false, message: 'Internal server error' }, { status: 500 });
+    return ResponseWrapper.serverError('Lỗi server nội bộ', error);
   }
 }
 
-// PUT - Cập nhật sản phẩm
+/**
+ * PUT - Cập nhật sản phẩm (Admin).
+ * Quy trình phức tạp:
+ * 1. Kiểm tra quyền Admin.
+ * 2. Cập nhật thông tin cơ bản của sản phẩm (Transaction).
+ * 3. Xử lý cập nhật hình ảnh chính và danh sách hình ảnh gallery.
+ * 4. Kiểm tra hạ giá (Price Drop) -> Tự động gửi Email thông báo cho khách hàng trong Wishlist.
+ * 5. Đồng bộ dữ liệu sang Meilisearch phục vụ tìm kiếm.
+ * 6. Xóa cache Redis (Product detail, Product list, Search results).
+ * 7. Ghi log Audit chi tiết hành động.
+ */
 export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const admin = await checkAdminAuth();
     if (!admin) {
-      return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
+      return ResponseWrapper.unauthorized();
     }
 
-    const { id } = await params;
+    const { id: idStr } = await params;
+    const id = parseInt(idStr);
     const body = await request.json();
     const { image_url, gallery_images, ...updates } = body;
 
-    // Get current product state BEFORE update for comparison
-    const currentProducts = await executeQuery<any[]>('SELECT * FROM products WHERE id = ?', [id]);
-
-    const currentProduct = currentProducts[0];
-
-    // Remove immutable fields or fields handled separately if any
-    delete updates.id;
-    delete updates.created_at;
-    delete updates.updated_at;
-
-    const fields = Object.keys(updates);
-
-    if (fields.length > 0) {
-      const setClause = fields.map((f) => `${f} = ?`).join(', ');
-      const values = [...fields.map((f) => updates[f]), id];
-
-      await executeQuery(
-        `UPDATE products SET ${setClause}, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
-        values
-      );
+    if (isNaN(id)) {
+      return ResponseWrapper.error('ID sản phẩm không hợp lệ', 400);
     }
 
-    // Handle Main Image Update
-    if (image_url !== undefined) {
-      const altText = updates.name || '';
-      // Check if main image exists
-      const existingImages = await executeQuery<any[]>(
-        'SELECT id FROM product_images WHERE product_id = ? AND is_main = 1',
-        [id]
-      );
+    // Get current product state BEFORE update
+    const [currentProduct] = await db
+      .select()
+      .from(productsTable)
+      .where(eq(productsTable.id, id))
+      .limit(1);
 
-      if (existingImages.length > 0) {
-        // Update existing main image
-        await executeQuery('UPDATE product_images SET url = ?, alt_text = ? WHERE id = ?', [
-          image_url,
-          altText,
-          existingImages[0].id,
-        ]);
-      } else {
-        // Insert new main image
-        await executeQuery(
-          'INSERT INTO product_images (product_id, url, is_main, alt_text) VALUES (?, ?, 1, ?)',
-          [id, image_url, altText]
-        );
+    if (!currentProduct) {
+      return ResponseWrapper.notFound('Không tìm thấy sản phẩm để cập nhật');
+    }
+
+    // Mapping body fields to Drizzle camelCase schema fields
+    const setClause: any = {};
+    if (updates.name !== undefined) setClause.name = updates.name;
+    if (updates.sku !== undefined) setClause.sku = updates.sku;
+    if (updates.slug !== undefined) setClause.slug = updates.slug;
+    if (updates.price_cache !== undefined) setClause.priceCache = String(updates.price_cache);
+    if (updates.msrp_price !== undefined)
+      setClause.msrpPrice = updates.msrp_price ? String(updates.msrp_price) : null;
+    if (updates.cost_price !== undefined)
+      setClause.costPrice = updates.cost_price ? String(updates.cost_price) : null;
+    if (updates.description !== undefined) setClause.description = updates.description;
+    if (updates.short_description !== undefined)
+      setClause.shortDescription = updates.short_description;
+    if (updates.category_id !== undefined) setClause.categoryId = updates.category_id;
+    if (updates.brand_id !== undefined) setClause.brandId = updates.brand_id;
+    if (updates.collection_id !== undefined) setClause.collectionId = updates.collection_id;
+    if (updates.is_active !== undefined) setClause.isActive = updates.is_active ? 1 : 0;
+    if (updates.is_new_arrival !== undefined)
+      setClause.isNewArrival = updates.is_new_arrival ? 1 : 0;
+    if (updates.gender !== undefined) setClause.gender = updates.gender;
+
+    await db.transaction(async (tx) => {
+      if (Object.keys(setClause).length > 0) {
+        setClause.updatedAt = new Date();
+        await tx.update(productsTable).set(setClause).where(eq(productsTable.id, id));
       }
-    }
 
-    // Handle Gallery Images Update
-    if (Array.isArray(gallery_images)) {
-      const altText = updates.name || '';
-      // Simple approach: Delete old non-main images and insert new ones
-      await executeQuery('DELETE FROM product_images WHERE product_id = ? AND is_main = 0', [id]);
+      // Handle Main Image Update
+      if (image_url !== undefined) {
+        await tx
+          .insert(productImages)
+          .values({
+            productId: id,
+            url: image_url,
+            isMain: 1,
+            altText: updates.name || currentProduct.name,
+          })
+          .onDuplicateKeyUpdate({
+            set: {
+              url: image_url,
+              altText: updates.name || currentProduct.name,
+            },
+          });
+      }
 
-      for (let i = 0; i < gallery_images.length; i++) {
-        const url = gallery_images[i];
-        if (url && url.trim()) {
-          await executeQuery(
-            'INSERT INTO product_images (product_id, url, is_main, position, alt_text) VALUES (?, ?, 0, ?, ?)',
-            [id, url, i + 1, altText]
-          );
+      // Handle Gallery Images Update
+      if (Array.isArray(gallery_images)) {
+        await tx
+          .delete(productImages)
+          .where(and(eq(productImages.productId, id), eq(productImages.isMain, 0)));
+        for (let i = 0; i < gallery_images.length; i++) {
+          const url = gallery_images[i];
+          if (url && url.trim()) {
+            await tx.insert(productImages).values({
+              productId: id,
+              url: url,
+              isMain: 0,
+              position: i + 1,
+              altText: updates.name || currentProduct.name,
+            });
+          }
         }
       }
-    }
+    });
 
     // CHECK FOR PRICE DROP AND SEND EMAILS
-    if (currentProduct && updates.msrp_price) {
-      const oldPrice = parseFloat(currentProduct.msrp_price || currentProduct.price_cache);
+    if (updates.msrp_price) {
+      const oldPrice = parseFloat(currentProduct.msrpPrice || currentProduct.priceCache || '0');
       const newPrice = parseFloat(updates.msrp_price);
 
-      // Detect valid price drop (more than 5% difference to avoid spam?)
-      // For now, just any drop is fine.
       if (newPrice < oldPrice) {
-        // Fetch users who have this product in wishlist
-        const wishlistUsers = await executeQuery<any[]>(
-          `SELECT u.email, u.name 
-                      FROM wishlist w
-                      JOIN users u ON w.user_id = u.id
-                      WHERE w.product_id = ?`,
-          [id]
-        );
+        const interestedUsers = await db
+          .select({
+            email: users.email,
+            firstName: users.firstName,
+          })
+          .from(wishlistItems)
+          .innerJoin(wishlists, eq(wishlistItems.wishlistId, wishlists.id))
+          .innerJoin(users, eq(wishlists.userId, users.id))
+          .where(eq(wishlistItems.productId, id));
 
-        // Send batched emails (simplified)
-        if (wishlistUsers.length > 0) {
-          console.log(`Sending SALE email to ${wishlistUsers.length} users for product ${id}`);
-          wishlistUsers.forEach((user) => {
+        if (interestedUsers.length > 0) {
+          console.log(`Sending SALE email to ${interestedUsers.length} users for product ${id}`);
+          interestedUsers.forEach((user) => {
             sendWishlistSaleEmail(
               user.email,
-              user.name || 'Bạn',
+              user.firstName || 'Customer',
               currentProduct.name,
               oldPrice,
               newPrice,
-              parseInt(id)
+              id
             ).catch(console.error);
           });
         }
       }
     }
 
-    // Sync to Meilisearch
+    // Sync & Invalidate
     await syncProductToMeilisearch(id);
-
-    // Invalidate search query cache
     await invalidateCachePattern('search:query:*');
+    await invalidateCache(`product:detail:${id}`);
+    await invalidateCachePattern('products:list:*');
 
     // Audit Logging
-    if (currentProduct) {
-      const oldValues: any = {};
-      const newValues: any = {};
+    await logAdminAction(
+      admin.userId,
+      'UPDATE_PRODUCT',
+      'products',
+      id,
+      null,
+      { ...setClause, image_url, gallery_images },
+      request
+    );
 
-      // Compare only the fields that were sent in the update
-      Object.keys(updates).forEach((key) => {
-        if (JSON.stringify(currentProduct[key]) !== JSON.stringify(updates[key])) {
-          oldValues[key] = currentProduct[key];
-          newValues[key] = updates[key];
-        }
-      });
-
-      if (Object.keys(newValues).length > 0) {
-        await logAdminAction(
-          admin.userId,
-          'UPDATE_PRODUCT',
-          'products',
-          id,
-          oldValues,
-          newValues,
-          request
-        );
-      }
-    }
-
-    return NextResponse.json({
-      success: true,
-      message: 'Product updated successfully',
-    });
+    return ResponseWrapper.success(null, 'Product updated successfully');
   } catch (error) {
     console.error('Error updating product:', error);
-    return NextResponse.json({ success: false, message: 'Internal server error' }, { status: 500 });
+    return ResponseWrapper.serverError('Lỗi server nội bộ', error);
   }
 }
 
-// DELETE - Xóa sản phẩm (Soft Delete)
+/**
+ * DELETE - Xóa sản phẩm (Soft Delete).
+ */
 export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -212,26 +245,36 @@ export async function DELETE(
   try {
     const admin = await checkAdminAuth();
     if (!admin) {
-      return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
+      return ResponseWrapper.unauthorized();
     }
 
-    const { id } = await params;
+    const { id: idStr } = await params;
+    const id = parseInt(idStr);
 
-    // Thực hiện xóa mềm
-    const result: any = await executeQuery(
-      'UPDATE products SET deleted_at = CURRENT_TIMESTAMP, is_active = 0 WHERE id = ?',
-      [id]
-    );
+    if (isNaN(id)) {
+      return ResponseWrapper.error('ID sản phẩm không hợp lệ', 400);
+    }
+
+    const [result] = await db
+      .update(productsTable)
+      .set({
+        deletedAt: new Date(),
+        isActive: 0,
+        updatedAt: new Date(),
+      })
+      .where(eq(productsTable.id, id));
 
     if (result.affectedRows === 0) {
-      return NextResponse.json({ success: false, message: 'Product not found' }, { status: 404 });
+      return ResponseWrapper.notFound('Không tìm thấy sản phẩm để gợi xóa');
     }
 
     // Delete from Meilisearch
     await deleteProductFromMeilisearch(id);
 
-    // Invalidate search query cache
+    // Invalidate caches
     await invalidateCachePattern('search:query:*');
+    await invalidateCache(`product:detail:${id}`);
+    await invalidateCachePattern('products:list:*');
 
     // Audit Logging
     await logAdminAction(
@@ -239,17 +282,14 @@ export async function DELETE(
       'DELETE_PRODUCT',
       'products',
       id,
-      { is_active: 1, deleted_at: null },
-      { is_active: 0, deleted_at: 'CURRENT_TIMESTAMP' },
+      null,
+      { isActive: 0, deleted: true },
       request
     );
 
-    return NextResponse.json({
-      success: true,
-      message: 'Sản phẩm đã được xóa (Soft Deleted)',
-    });
+    return ResponseWrapper.success(null, 'Sản phẩm đã được xóa (Soft Deleted)');
   } catch (error) {
     console.error('Error deleting product:', error);
-    return NextResponse.json({ success: false, message: 'Internal server error' }, { status: 500 });
+    return ResponseWrapper.serverError('Lỗi server nội bộ', error);
   }
 }

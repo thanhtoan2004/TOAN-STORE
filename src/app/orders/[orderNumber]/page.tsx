@@ -42,6 +42,7 @@ interface OrderData {
   voucherDiscount: number;
   giftcardNumber: string | null;
   giftcardDiscount: number;
+  giftWrapCost: number;
   finalTotal: number;
   estimatedDelivery: string;
   trackingNumber: string;
@@ -108,8 +109,12 @@ export default function OrderDetailPage() {
           throw new Error(errorData.message || 'Order not found');
         }
 
-        const data = await response.json();
-        const order = data.order;
+        const result = await response.json();
+        const order = result.data;
+
+        if (!order) {
+          throw new Error('Order data is missing');
+        }
 
         // Fetch refund status if delivered
         let refundState = null;
@@ -117,8 +122,10 @@ export default function OrderDetailPage() {
           try {
             const refundRes = await fetch('/api/refunds');
             if (refundRes.ok) {
-              const refundData = await refundRes.json();
-              const currentRefund = refundData.refunds.find((r: any) => r.order_id === order.id);
+              const refundResult = await refundRes.json();
+              const currentRefund = refundResult.data?.refunds?.find(
+                (r: any) => r.order_id === order.id
+              );
               if (currentRefund) {
                 refundState = currentRefund.status;
               }
@@ -160,6 +167,7 @@ export default function OrderDetailPage() {
           voucherDiscount: parseFloat(order.voucher_discount || 0),
           giftcardNumber: order.giftcard_number || null,
           giftcardDiscount: parseFloat(order.giftcard_discount || 0),
+          giftWrapCost: parseFloat(order.gift_wrap_cost || 0),
           finalTotal: parseFloat(order.total || 0),
           estimatedDelivery: order.estimated_delivery || 'Đang cập nhật',
           trackingNumber: order.tracking_number || 'Chưa có',
@@ -239,6 +247,25 @@ export default function OrderDetailPage() {
       default:
         return 'bg-gray-100 text-gray-800';
     }
+  };
+
+  const getStatusLabel = (status: string, paymentMethod: string) => {
+    // Nếu đơn hàng đã confirmed/processing và KHÔNG PHẢI COD, thì hiển thị là "Đã thanh toán" cho chuyên nghiệp
+    const methodLower = paymentMethod.toLowerCase();
+    const isCod =
+      methodLower.includes('cod') ||
+      methodLower.includes('nhận hàng') ||
+      methodLower.includes('mặt');
+
+    if ((status === 'confirmed' || status === 'processing') && !isCod) {
+      return t.orders.paid;
+    }
+
+    if (status === 'payment_received') {
+      return t.orders.paid;
+    }
+
+    return t.orders[status as keyof typeof t.orders] || status;
   };
 
   const handleShareOrder = () => {
@@ -360,7 +387,7 @@ export default function OrderDetailPage() {
                 <span
                   className={`inline-block px-4 py-2 rounded-full text-sm font-medium ${getStatusColor(orderData.status)}`}
                 >
-                  {t.orders[orderData.status as keyof typeof t.orders] || orderData.status}
+                  {getStatusLabel(orderData.status, orderData.paymentMethod)}
                 </span>
               </div>
             </div>
@@ -381,6 +408,7 @@ export default function OrderDetailPage() {
                     delivered_at: orderData.dates?.delivered_at,
                     cancelled_at: orderData.dates?.cancelled_at,
                   }}
+                  confirmedLabel={getStatusLabel(orderData.status, orderData.paymentMethod)}
                 />
                 {orderData.trackingNumber && orderData.trackingNumber !== 'Chưa có' && (
                   <div className="mt-4 p-4 bg-blue-50 rounded-lg flex items-center justify-between">
@@ -515,6 +543,26 @@ export default function OrderDetailPage() {
                     <div className="flex justify-between text-green-600">
                       <span>Thẻ quà tặng (****{orderData.giftcardNumber?.slice(-4)}):</span>
                       <span>-{formatCurrency(orderData.giftcardDiscount)}</span>
+                    </div>
+                  )}
+                  {orderData.discount - orderData.voucherDiscount - orderData.giftcardDiscount >
+                    1 && (
+                    <div className="flex justify-between text-green-600">
+                      <span>Ưu đãi thành viên:</span>
+                      <span>
+                        -
+                        {formatCurrency(
+                          orderData.discount -
+                            orderData.voucherDiscount -
+                            orderData.giftcardDiscount
+                        )}
+                      </span>
+                    </div>
+                  )}
+                  {orderData.giftWrapCost > 0 && (
+                    <div className="flex justify-between">
+                      <span>Phí gói quà:</span>
+                      <span>{formatCurrency(orderData.giftWrapCost)}</span>
                     </div>
                   )}
                   <hr />
@@ -805,6 +853,16 @@ function InvoiceSection({ orderData, copyLabel }: { orderData: OrderData; copyLa
             </td>
             <td className="py-1 px-3 text-right border">{formatCurrency(orderData.shippingFee)}</td>
           </tr>
+          {orderData.giftWrapCost > 0 && (
+            <tr>
+              <td colSpan={4} className="py-1 px-3 text-right border">
+                Phí gói quà:
+              </td>
+              <td className="py-1 px-3 text-right border">
+                {formatCurrency(orderData.giftWrapCost)}
+              </td>
+            </tr>
+          )}
           {orderData.tax > 0 && (
             <tr>
               <td colSpan={4} className="py-1 px-3 text-right border">

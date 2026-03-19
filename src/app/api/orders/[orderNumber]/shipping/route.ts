@@ -2,13 +2,14 @@ import { NextRequest, NextResponse } from 'next/server';
 import { executeQuery } from '@/lib/db/mysql';
 import { verifyAuth } from '@/lib/auth/auth';
 import { encrypt } from '@/lib/security/encryption';
+import { ResponseWrapper } from '@/lib/api/api-response';
 
 /**
- * PUT - Update Shipping Address for a specific order
- * Restrictions:
- * 1. User must be authenticated
- * 2. User must own the order
- * 3. Order status must be 'pending', 'pending_payment', or 'paid' (not shipped yet)
+ * PUT - Cập nhật địa chỉ giao hàng cho một đơn hàng cụ thể.
+ * Chế độ bảo mật:
+ * 1. Yêu cầu đăng nhập.
+ * 2. Chỉ chủ sở hữu mới có quyền sửa đổi.
+ * 3. Chỉ được thay đổi nếu đơn hàng chưa được giao (Trạng thái: pending, pending_payment, paid).
  */
 export async function PUT(
   request: NextRequest,
@@ -17,7 +18,7 @@ export async function PUT(
   try {
     const session = await verifyAuth();
     if (!session) {
-      return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
+      return ResponseWrapper.unauthorized();
     }
 
     const resolvedParams = await params;
@@ -26,10 +27,7 @@ export async function PUT(
     const { name, phone, address, city, district, ward } = body;
 
     if (!name || !phone || !address || !city || !district || !ward) {
-      return NextResponse.json(
-        { success: false, message: 'Thiếu thông tin địa chỉ giao hàng cần thiết' },
-        { status: 400 }
-      );
+      return ResponseWrapper.error('Thiếu thông tin địa chỉ giao hàng cần thiết', 400);
     }
 
     // Prepare address snapshot object
@@ -49,28 +47,22 @@ export async function PUT(
     );
 
     if (!orders || orders.length === 0) {
-      return NextResponse.json(
-        { success: false, message: 'Không tìm thấy đơn hàng' },
-        { status: 404 }
-      );
+      return ResponseWrapper.notFound('Không tìm thấy đơn hàng');
     }
 
     const order = orders[0];
 
     // 2. Security checks
     if (order.user_id !== Number(session.userId)) {
-      return NextResponse.json({ success: false, message: 'Forbidden' }, { status: 403 });
+      return ResponseWrapper.forbidden();
     }
 
     // Only allow updating if not shipped yet
     const allowedStatuses = ['pending', 'pending_payment', 'paid'];
     if (!allowedStatuses.includes(order.status)) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: 'Không thể cập nhật địa chỉ. Đơn hàng đã được xử lý hoặc đang giao.',
-        },
-        { status: 400 }
+      return ResponseWrapper.error(
+        'Không thể cập nhật địa chỉ. Đơn hàng đã được xử lý hoặc đang giao.',
+        400
       );
     }
 
@@ -87,12 +79,9 @@ export async function PUT(
       [newAddressSnapshot, phoneEncrypted, order.id]
     );
 
-    return NextResponse.json({
-      success: true,
-      message: 'Cập nhật địa chỉ giao hàng thành công',
-    });
+    return ResponseWrapper.success(null, 'Cập nhật địa chỉ giao hàng thành công');
   } catch (error) {
     console.error('Lỗi khi cập nhật địa chỉ đơn hàng:', error);
-    return NextResponse.json({ success: false, message: 'Lỗi server nội bộ' }, { status: 500 });
+    return ResponseWrapper.serverError('Lỗi server nội bộ', error);
   }
 }

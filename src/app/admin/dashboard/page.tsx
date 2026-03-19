@@ -111,11 +111,26 @@ export default function AdminDashboardPage() {
       0
     );
 
+    // Statistical confidence estimation (Simplified)
+    // We penalize low data points and high variance
+    const meanY = sumY / n;
+    let ssTotal = 0;
+    let ssResCheck = 0;
+    trend.forEach((d, i) => {
+      const yPred = slope * i + intercept;
+      ssTotal += Math.pow(d.revenue - meanY, 2);
+      ssResCheck += Math.pow(d.revenue - yPred, 2);
+    });
+
+    const r2 = ssTotal > 0 ? 1 - ssResCheck / ssTotal : 0;
+    const dataMultiplier = Math.min(1, n / 30); // Higher confidence with more data points (up to 30)
+    const confidenceScore = Math.floor((r2 * 40 + 50) * dataMultiplier + (1 - dataMultiplier) * 30);
+
     return {
       nextDayRevenue: Math.max(0, nextDay),
       nextWeekRevenue: Math.max(0, nextWeek),
-      confidence: Math.min(95, 70 + n * 2), // Mock confidence based on data points
-      trend: slope > 1000 ? 'up' : slope < -1000 ? 'down' : 'stable',
+      confidence: Math.max(10, Math.min(98, confidenceScore)),
+      trend: (slope > 1000 ? 'up' : slope < -1000 ? 'down' : 'stable') as 'up' | 'down' | 'stable',
     };
   };
 
@@ -126,14 +141,16 @@ export default function AdminDashboardPage() {
         fetch('/api/admin/wishlist?limit=5'),
       ]);
 
-      const dashboardData = await dashboardResponse.json();
+      const dashboardResponseData = await dashboardResponse.json();
       const wishlistData = await wishlistResponse.json();
 
-      setStats({
-        ...dashboardData,
-        topWishlistedProducts: wishlistData.success ? wishlistData.data : [],
-        forecast: calculateForecast(dashboardData.revenueTrend),
-      });
+      if (dashboardResponseData.success && dashboardResponseData.data) {
+        setStats({
+          ...(dashboardResponseData.data as DashboardStats),
+          topWishlistedProducts: wishlistData.success ? wishlistData.data.items : [],
+          forecast: calculateForecast(dashboardResponseData.data.revenueTrend) || undefined,
+        });
+      }
     } catch (error) {
       console.error('Error fetching dashboard stats:', error);
     } finally {

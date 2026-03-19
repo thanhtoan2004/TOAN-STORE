@@ -1,98 +1,108 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { executeQuery } from '@/lib/db/mysql';
-
+import { db } from '@/lib/db/drizzle';
+import { users as usersTable } from '@/lib/db/schema';
+import { eq, sql } from 'drizzle-orm';
 import { checkAdminAuth } from '@/lib/auth/auth';
 import { encrypt, decrypt } from '@/lib/security/encryption';
-import { logAdminAction } from '@/lib/security/audit';
+import { logAdminAction } from '@/lib/db/repositories/audit';
+import { ResponseWrapper } from '@/lib/api/api-response';
 
-// PATCH /api/admin/users/[id] - Update user (admin role, status, etc.)
 /**
- * API Cập nhật thông tin người dùng (Quyền admin, Trạng thái, Chặn người dùng).
- * Tự động mã hóa số điện thoại nếu có thay đổi.
+ * PATCH /api/admin/users/[id] - Update user (admin role, status, etc.)
  */
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const admin = await checkAdminAuth();
     if (!admin) {
-      return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
+      return ResponseWrapper.unauthorized();
     }
 
     const { id } = await params;
     const userId = parseInt(id);
     if (isNaN(userId)) {
-      return NextResponse.json({ success: false, message: 'Invalid user ID' }, { status: 400 });
+      return ResponseWrapper.error('Invalid user ID', 400);
     }
 
     const body = await request.json();
-    const updates: string[] = [];
-    const values: any[] = [];
+    const updateData: any = {};
+    let shouldRevokeTokens = false;
 
-    // Build dynamic update query based on provided fields
     if (body.is_active !== undefined) {
-      updates.push('is_active = ?', 'token_version = token_version + 1');
-      values.push(body.is_active ? 1 : 0);
+      updateData.isActive = body.is_active ? 1 : 0;
+      shouldRevokeTokens = true;
     }
 
     if (body.first_name !== undefined) {
-      updates.push('first_name = ?');
-      values.push(body.first_name);
+      updateData.firstName = body.first_name;
     }
 
     if (body.last_name !== undefined) {
-      updates.push('last_name = ?');
-      values.push(body.last_name);
+      updateData.lastName = body.last_name;
     }
 
     if (body.phone !== undefined) {
-      updates.push('phone = ?', 'phone_encrypted = ?', 'is_encrypted = TRUE');
-      values.push('***', encrypt(body.phone));
+      updateData.phone = '***';
+      updateData.phoneEncrypted = encrypt(body.phone);
+      updateData.isEncrypted = 1;
     }
 
     if (body.is_banned !== undefined) {
-      updates.push('is_banned = ?', 'token_version = token_version + 1');
-      values.push(body.is_banned ? 1 : 0);
+      updateData.isBanned = body.is_banned ? 1 : 0;
+      shouldRevokeTokens = true;
     }
 
-    if (updates.length === 0) {
-      return NextResponse.json({ success: false, message: 'No fields to update' }, { status: 400 });
+    if (body.membership_tier !== undefined) {
+      updateData.membershipTier = body.membership_tier;
     }
 
-    // Add userId to values array
-    values.push(userId);
+    if (Object.keys(updateData).length === 0) {
+      return ResponseWrapper.error('No fields to update', 400);
+    }
 
-    // Execute update query
-    await executeQuery(
-      `UPDATE users SET ${updates.join(', ')}, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
-      values
-    );
+    if (shouldRevokeTokens) {
+      updateData.tokenVersion = sql`${usersTable.tokenVersion} + 1`;
+    }
+
+    updateData.updatedAt = new Date();
+
+    await db.update(usersTable).set(updateData).where(eq(usersTable.id, userId));
 
     await logAdminAction(admin.userId, 'PATCH_USER', 'users', userId, null, body, request);
 
-    const [user]: any = (await executeQuery(
-      'SELECT id, email, first_name, last_name, phone, is_active, is_banned, created_at FROM users WHERE id = ?',
-      [userId]
-    )) as any[];
+    const [user] = await db
+      .select({
+        id: usersTable.id,
+        email: usersTable.email,
+        firstName: usersTable.firstName,
+        lastName: usersTable.lastName,
+        phone: usersTable.phone,
+        phoneEncrypted: usersTable.phoneEncrypted,
+        isEncrypted: usersTable.isEncrypted,
+        isActive: usersTable.isActive,
+        isBanned: usersTable.isBanned,
+        createdAt: usersTable.createdAt,
+      })
+      .from(usersTable)
+      .where(eq(usersTable.id, userId))
+      .limit(1);
 
     if (!user) {
-      return NextResponse.json({ success: false, message: 'User not found' }, { status: 404 });
+      return ResponseWrapper.notFound('User not found');
     }
 
-    user.phone = decrypt(user.phone);
+    if (user.isEncrypted && user.phoneEncrypted) {
+      user.phone = decrypt(user.phoneEncrypted);
+    }
 
-    return NextResponse.json({
-      success: true,
-      message: 'User updated successfully',
-      data: user,
-    });
+    return ResponseWrapper.success(user, 'User updated successfully');
   } catch (error) {
     console.error('Error updating user:', error);
-    return NextResponse.json({ success: false, message: 'Failed to update user' }, { status: 500 });
+    return ResponseWrapper.serverError('Failed to update user', error);
   }
 }
 
-// DELETE /api/admin/users/[id] - Delete user (optional, for future use)
 /**
- * API Xóa người dùng (Soft Delete).
+ * DELETE /api/admin/users/[id] - Delete user (Soft Delete)
  */
 export async function DELETE(
   request: NextRequest,
@@ -101,20 +111,24 @@ export async function DELETE(
   try {
     const admin = await checkAdminAuth();
     if (!admin) {
-      return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
+      return ResponseWrapper.unauthorized();
     }
 
     const { id } = await params;
     const userId = parseInt(id);
     if (isNaN(userId)) {
-      return NextResponse.json({ success: false, message: 'Invalid user ID' }, { status: 400 });
+      return ResponseWrapper.error('Invalid user ID', 400);
     }
 
-    // Soft delete
-    await executeQuery(
-      'UPDATE users SET deleted_at = CURRENT_TIMESTAMP, is_active = 0, token_version = token_version + 1, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
-      [userId]
-    );
+    await db
+      .update(usersTable)
+      .set({
+        deletedAt: new Date(),
+        isActive: 0,
+        tokenVersion: sql`${usersTable.tokenVersion} + 1`,
+        updatedAt: new Date(),
+      })
+      .where(eq(usersTable.id, userId));
 
     await logAdminAction(
       admin.userId,
@@ -126,12 +140,9 @@ export async function DELETE(
       request
     );
 
-    return NextResponse.json({
-      success: true,
-      message: 'User deleted successfully',
-    });
+    return ResponseWrapper.success(null, 'User deleted successfully');
   } catch (error) {
     console.error('Error deleting user:', error);
-    return NextResponse.json({ success: false, message: 'Failed to delete user' }, { status: 500 });
+    return ResponseWrapper.serverError('Failed to delete user', error);
   }
 }

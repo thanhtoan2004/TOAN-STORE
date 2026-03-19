@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { executeQuery } from '@/lib/db/mysql';
+import { db } from '@/lib/db/drizzle';
+import { newsletterSubscriptions as newsletterTable } from '@/lib/db/schema';
+import { eq } from 'drizzle-orm';
 import { withRateLimit } from '@/lib/api/with-rate-limit';
 import { hashEmail } from '@/lib/security/encryption';
+import { ResponseWrapper } from '@/lib/api/api-response';
 
 /**
  * API Đăng ký bản tin (Newsletter Subscription).
@@ -15,54 +18,47 @@ async function newsletterHandler(request: NextRequest): Promise<NextResponse> {
     const { email, name } = await request.json();
 
     if (!email || !email.includes('@')) {
-      return NextResponse.json({ success: false, message: 'Email không hợp lệ' }, { status: 400 });
+      return ResponseWrapper.error('Email không hợp lệ', 400);
     }
 
     // Kiểm tra email đã đăng ký chưa (Sử dụng Blind Index)
     const emailHash = hashEmail(email);
-    const existing = await executeQuery<any[]>(
-      'SELECT id, status FROM newsletter_subscriptions WHERE email_hash = ?',
-      [emailHash]
-    );
+    const [existing] = await db
+      .select()
+      .from(newsletterTable)
+      .where(eq(newsletterTable.emailHash, emailHash))
+      .limit(1);
 
-    if (existing.length > 0) {
-      if (existing[0].status === 'subscribed') {
-        return NextResponse.json(
-          { success: false, message: 'Email này đã đăng ký nhận tin' },
-          { status: 400 }
-        );
+    if (existing) {
+      if (existing.status === 'active') {
+        return ResponseWrapper.error('Email này đã đăng ký nhận tin', 400);
       } else {
         // Reactive subscription
-        await executeQuery(
-          'UPDATE newsletter_subscriptions SET status = ?, unsubscribed_at = NULL WHERE email_hash = ?',
-          ['subscribed', emailHash]
-        );
-        return NextResponse.json({
-          success: true,
-          message: 'Đã kích hoạt lại đăng ký nhận tin!',
-        });
+        await db
+          .update(newsletterTable)
+          .set({ status: 'active', unsubscribedAt: null })
+          .where(eq(newsletterTable.emailHash, emailHash));
+
+        return ResponseWrapper.success(null, 'Đã kích hoạt lại đăng ký nhận tin!');
       }
     }
 
-    // Thêm subscription mới (Mask email gốc, lưu hash)
-    await executeQuery(
-      'INSERT INTO newsletter_subscriptions (email, email_hash, name, status) VALUES ("***", ?, ?, ?)',
-      [emailHash, name || null, 'subscribed']
-    );
+    // Thêm subscription mới với PII protection
+    const { encrypt } = await import('@/lib/security/encryption');
 
-    return NextResponse.json({
-      success: true,
-      message: 'Đăng ký nhận tin thành công!',
+    await db.insert(newsletterTable).values({
+      email: '***',
+      emailHash,
+      emailEncrypted: encrypt(email),
+      isEncrypted: 1,
+      name: name || null,
+      status: 'active',
     });
+
+    return ResponseWrapper.success(null, 'Đăng ký nhận tin thành công!');
   } catch (error) {
     console.error('Newsletter subscription error:', error);
-    return NextResponse.json(
-      {
-        success: false,
-        message: 'Không thể đăng ký nhận tin',
-      },
-      { status: 500 }
-    );
+    return ResponseWrapper.serverError('Không thể đăng ký nhận tin', error);
   }
 }
 

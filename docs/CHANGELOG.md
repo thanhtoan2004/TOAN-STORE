@@ -4,7 +4,43 @@ Tất cả thay đổi quan trọng được ghi nhận tại đây theo format 
 
 ---
 
-## [2.15.0] - 2026-03-12
+## [2.17.0] - 2026-03-16
+
+### 🛡️ Admin & User API Security Audit (Priority 1)
+
+- **Response Standardization (`ResponseWrapper`)** — Hoàn tất việc chuyển đổi toàn bộ hệ thống API (Admin & User) sang sử dụng `ResponseWrapper`. Đảm bảo mọi phản hồi đều nhất quán về cấu trúc `{ success, data, message, pagination }` và mã lỗi HTTP tiêu chuẩn (401, 403, 404, 429, 500).
+- **Super Admin RBAC Hardening** — Thắt chặt quyền hạn cho các tác vụ nhạy cảm. Chỉ `Super Admin` mới được phép quản lý danh sách Admin (`/api/admin/admins`), cập nhật cài đặt hệ thống (`/api/admin/settings`), và xem nhật ký hệ thống (`/api/admin/audit-logs`).
+- **Payment Anti-Fraud (Price Guard v2)** — Nâng cấp API tạo liên kết thanh toán VNPAY (`/api/payment/vnpay/create_url`) với cơ chế đối soát giá trị đơn hàng trực tiếp từ Database. Chặn đứng các nỗ lực thay đổi số tiền cần thanh toán từ phía trình duyệt.
+- **Admin Self-Protection** — Ngăn chặn tuyệt đối việc quản trị viên tự vô hiệu hóa tài khoản của chính mình thông qua API, đảm bảo luôn có ít nhất một tài khoản quản trị hoạt động.
+
+### 📦 User-Facing API Enhancements
+
+- **Consistent Error Messaging** — Cập nhật các API Đơn hàng, Giỏ hàng, Wishlist, và Thông tin cá nhân để trả về thông báo lỗi thân thiện và chi tiết, giúp Frontend dễ dàng xử lý trạng thái UI.
+- **Improved Data Integrity** — Triển khai Database Transactions và Row-level Locking (`FOR UPDATE`) cho toàn bộ luồng tạo đơn hàng và thanh toán phía người dùng, đảm bảo tính nguyên tử (atomic) của dữ liệu.
+
+---
+
+## [2.16.0] - 2026-03-16
+
+### 🛡️ Order Logic & Financial Integrity (Priority 1)
+
+- **Standardized Total Calculation** — Khắc phục triệt để lỗi tính toán `totalAmount` trong `createOrder`. Đảm bảo phí vận chuyển (`shippingFee`), phí gói quà (`giftWrapCost`), thuế (`tax`) và các loại chiết khấu (Membership, Voucher, Gift Card) được áp dụng nhất quán và chính xác.
+- **Inventory Restoration Fix** — Cải thiện logic hoàn kho (`refundOrderSideEffects`) khi đơn hàng bị Hủy hoặc Hoàn tiền. Hệ thống hiện tự động khôi phục tình trạng "Active" cho Voucher cá nhân, cho phép khách hàng tái sử dụng sau khi hủy đơn.
+- **Refund Logic Accuracy** — Sửa lỗi logic ghi log hoàn tiền. Admin duyệt hoàn trả hiện ghi nhận chính xác số tiền thực tế từ yêu cầu của khách thay vì giá trị mặc định (0đ).
+
+### ✨ Loyalty & Automation (Priority 1)
+
+- **Automated Membership Rewards** — Tự động hóa hoàn toàn quy trình tích điểm. Khi đơn hàng chuyển sang `delivered`, hệ thống tự động tặng điểm (1đ / 1.000đ) và kiểm tra thăng hạng ngay lập tức.
+- **Platinum Membership Tier** — Bổ sung hạng thành viên cao cấp nhất: **Platinum** (ngưỡng 100.000 điểm tích luỹ), đi kèm quyền lợi chiết khấu ưu đãi tối đa.
+- **Points Expiry Management** — Triển khai hệ thống dọn dẹp điểm hết hạn. Bổ sung bảng `point_transactions` và Cron Job tự động xử lý hàng ngày để đảm bảo tính minh bạch của chương trình Loyalty.
+- **Flash Sale Oversell Protection** — Tích hợp logic cập nhật `quantitySold` nguyên tử (atomic) ngay khi đơn hàng được tạo, ngăn chặn hoàn toàn việc bán vượt mức số lượng khuyến mãi trong các chương trình Flash Sale.
+
+### 📧 Operational Improvements
+
+- **Detailed Shipping Alerts** — Email thông báo đang giao hàng (`order.shipped`) hiện hiển thị chính xác Mã vận đơn (Tracking #) và Đơn vị vận chuyển thực tế từ Database, loại bỏ hoàn toàn các placeholder "Chưa có".
+- **i18n Standardization** — Hoàn tất quốc tế hóa (i18n) cho các hộp thoại nhạy cảm trong giỏ hàng (Xóa giỏ hàng), đảm bảo trải nghiệm nhất quán cho tiếng Việt và tiếng Anh.
+
+---
 
 ### ✨ UX & Performance Hardening
 

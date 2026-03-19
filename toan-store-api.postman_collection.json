@@ -1269,6 +1269,7 @@
               "name": "Tạo đơn hàng",
               "request": {
                 "method": "POST",
+                "description": "Tạo đơn hàng mới.\n\n**Business Logic:**\n- `tax` (VAT) được tính tự động 10% nếu khách hàng không gửi lên.\n- `totalAmount` sẽ được tính toán lại server-side để đảm bảo an toàn.",
                 "body": {
                   "mode": "raw",
                   "raw": "{\n    \"userId\": 1,\n    \"items\": [],\n    \"shippingAddress\": \"123 Main St\",\n    \"phone\": \"0123456789\",\n    \"email\": \"user@example.com\"\n}",
@@ -5018,6 +5019,33 @@
                       "path": ["api", "payment", "confirm"]
                     }
                   }
+                },
+                {
+                  "name": "SePay Webhook (Auto Bank Transfer)",
+                  "request": {
+                    "method": "POST",
+                    "header": [
+                      {
+                        "key": "x-sepay-secret",
+                        "value": "YOUR_SEPAY_SECRET_KEY"
+                      }
+                    ],
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n    \"content\": \"ORD123456 thanh toan\",\n    \"transferAmount\": 1500000,\n    \"transferType\": \"IN\",\n    \"gateway\": \"VCB\",\n    \"transactionDate\": \"2024-03-20 10:00:00\"\n}",
+                      "options": {
+                        "raw": {
+                          "language": "json"
+                        }
+                      }
+                    },
+                    "url": {
+                      "raw": "{{baseUrl}}/api/webhooks/sepay",
+                      "host": ["{{baseUrl}}"],
+                      "path": ["api", "webhooks", "sepay"]
+                    },
+                    "description": "Webhook nhận thông báo chuyển khoản từ SePay. Hệ thống sẽ tự động xác nhận đơn hàng dựa trên nội dung chuyển khoản."
+                  }
                 }
               ]
             },
@@ -5185,6 +5213,7 @@
               "name": "Danh sách / Chi tiết Audit-logs",
               "request": {
                 "method": "GET",
+                "description": "**Security:** Chỉ Super Admin mới có quyền xem nhật ký hệ thống.",
                 "header": [
                   {
                     "key": "Authorization",
@@ -5198,6 +5227,44 @@
                   "path": ["api", "admin", "audit-logs"]
                 }
               }
+            },
+            {
+              "name": "Admins Management",
+              "item": [
+                {
+                  "name": "Danh sách Admin",
+                  "request": {
+                    "method": "GET",
+                    "description": "**Security:** Chỉ Super Admin mới có quyền truy cập.",
+                    "url": {
+                      "raw": "{{baseUrl}}/api/admin/admins",
+                      "host": ["{{baseUrl}}"],
+                      "path": ["api", "admin", "admins"]
+                    }
+                  }
+                },
+                {
+                  "name": "Cập nhật quyền/Trạng thái Admin",
+                  "request": {
+                    "method": "PATCH",
+                    "description": "**Security:** Chỉ Super Admin mới có quyền sửa đổi Admin khác. Không thể tự khóa tài khoản chính mình.",
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n    \"id\": 2,\n    \"is_active\": false,\n    \"role_id\": 1\n}",
+                      "options": {
+                        "raw": {
+                          "language": "json"
+                        }
+                      }
+                    },
+                    "url": {
+                      "raw": "{{baseUrl}}/api/admin/admins",
+                      "host": ["{{baseUrl}}"],
+                      "path": ["api", "admin", "admins"]
+                    }
+                  }
+                }
+              ]
             }
           ]
         },

@@ -1,7 +1,8 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { executeQuery } from '@/lib/db/mysql';
 import bcrypt from 'bcrypt';
 import { hashEmail } from '@/lib/security/encryption';
+import { ResponseWrapper } from '@/lib/api/api-response';
 
 /**
  * API Đặt lại mật khẩu mới thông qua Token.
@@ -15,7 +16,7 @@ export async function POST(req: Request) {
     const { token, password } = await req.json();
 
     if (!token || !password) {
-      return NextResponse.json({ message: 'Thiếu thông tin' }, { status: 400 });
+      return ResponseWrapper.error('Thiếu thông tin', 400);
     }
 
     // Validate token
@@ -26,7 +27,7 @@ export async function POST(req: Request) {
     )) as any[];
 
     if (resets.length === 0) {
-      return NextResponse.json({ message: 'Token không hợp lệ hoặc đã hết hạn' }, { status: 400 });
+      return ResponseWrapper.error('Token không hợp lệ hoặc đã hết hạn', 400);
     }
 
     const resetRecord = resets[0];
@@ -44,12 +45,9 @@ export async function POST(req: Request) {
     // Mark token as used
     await executeQuery('UPDATE password_resets SET used = 1 WHERE id = ?', [resetRecord.id]);
 
-    return NextResponse.json({
-      success: true,
-      message: 'Đặt lại mật khẩu thành công',
-    });
+    return ResponseWrapper.success(null, 'Đặt lại mật khẩu thành công');
   } catch (error) {
     console.error('Reset password error:', error);
-    return NextResponse.json({ message: 'Có lỗi xảy ra. Vui lòng thử lại sau.' }, { status: 500 });
+    return ResponseWrapper.serverError('Có lỗi xảy ra. Vui lòng thử lại sau.', error);
   }
 }

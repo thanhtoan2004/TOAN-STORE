@@ -1,25 +1,34 @@
-import { executeQuery, pool } from '../connection';
+import { db } from '../drizzle';
+import { giftCards, giftCardTransactions } from '../schema';
+import { eq, and, gt, or, isNull, sql } from 'drizzle-orm';
 
 export interface GiftCard {
   id: number;
-  card_number_hash: string;
-  card_number_last4: string;
+  cardNumberHash: string;
+  cardNumberLast4: string;
   pin: string;
-  original_balance: number;
-  current_balance: number;
+  originalBalance: number;
+  currentBalance: number;
   status: 'active' | 'used' | 'expired' | 'inactive';
-  expiration_date: string;
+  expirationDate: string;
 }
 
-// Based on order.ts scan, table is 'gift_cards', column 'card_number'.
-// line 596: SELECT id, current_balance FROM gift_cards WHERE card_number = ?
+export async function getGiftCardByNumber(cardNumber: string): Promise<any | null> {
+  // Assuming cardNumber here is the hash or needs hashing,
+  // but looking at getGiftCardByNumber implementation, it uses `cardNumber_hash` column.
+  const [card] = await db
+    .select()
+    .from(giftCards)
+    .where(
+      and(
+        eq(giftCards.cardNumberHash, cardNumber),
+        eq(giftCards.status, 'active'),
+        or(isNull(giftCards.expirationDate), gt(giftCards.expirationDate, new Date()))
+      )
+    )
+    .limit(1);
 
-export async function getGiftCardByNumber(cardNumber: string): Promise<GiftCard | null> {
-  const cards = await executeQuery<GiftCard[]>(
-    `SELECT * FROM gift_cards WHERE card_number_hash = ? AND status = 'active' AND (expiration_date IS NULL OR expiration_date > NOW())`,
-    [cardNumber]
-  );
-  return cards.length > 0 ? cards[0] : null;
+  return card || null;
 }
 
 export async function deductGiftCardBalance(
@@ -28,17 +37,15 @@ export async function deductGiftCardBalance(
   orderId: number | string,
   description: string = ''
 ) {
-  const connection = await pool.getConnection();
-  try {
-    await connection.beginTransaction();
+  return await db.transaction(async (tx) => {
+    const [card] = await tx
+      .select({ currentBalance: giftCards.currentBalance })
+      .from(giftCards)
+      .where(eq(giftCards.id, id))
+      .forUpdate();
 
-    const [rows]: any = await connection.execute(
-      'SELECT current_balance FROM gift_cards WHERE id = ? FOR UPDATE',
-      [id]
-    );
-
-    if (rows.length === 0) throw new Error('Gift card not found');
-    const currentBalance = Number(rows[0].current_balance);
+    if (!card) throw new Error('Gift card not found');
+    const currentBalance = Number(card.currentBalance);
 
     if (currentBalance < amount) {
       throw new Error('Insufficient gift card balance');
@@ -47,27 +54,23 @@ export async function deductGiftCardBalance(
     const newBalance = currentBalance - amount;
     const status = newBalance === 0 ? 'used' : 'active';
 
-    await connection.execute('UPDATE gift_cards SET current_balance = ?, status = ? WHERE id = ?', [
-      newBalance,
-      status,
-      id,
-    ]);
+    await tx
+      .update(giftCards)
+      .set({ currentBalance: String(newBalance), status })
+      .where(eq(giftCards.id, id));
 
-    await connection.execute(
-      `INSERT INTO gift_card_transactions 
-       (gift_card_id, transaction_type, amount, balance_before, balance_after, description, order_id)
-       VALUES (?, 'redeem', ?, ?, ?, ?, ?)`,
-      [id, amount, currentBalance, newBalance, description, orderId]
-    );
+    await tx.insert(giftCardTransactions).values({
+      giftCardId: id,
+      transactionType: 'redeem',
+      amount: String(amount),
+      balanceBefore: String(currentBalance),
+      balanceAfter: String(newBalance),
+      description,
+      orderId: Number(orderId),
+    });
 
-    await connection.commit();
     return true;
-  } catch (error) {
-    await connection.rollback();
-    throw error;
-  } finally {
-    connection.release();
-  }
+  });
 }
 
 export async function refundGiftCardBalance(
@@ -76,38 +79,32 @@ export async function refundGiftCardBalance(
   orderId: number | string,
   description: string = ''
 ) {
-  const connection = await pool.getConnection();
-  try {
-    await connection.beginTransaction();
+  return await db.transaction(async (tx) => {
+    const [card] = await tx
+      .select({ currentBalance: giftCards.currentBalance })
+      .from(giftCards)
+      .where(eq(giftCards.id, id))
+      .forUpdate();
 
-    const [rows]: any = await connection.execute(
-      'SELECT current_balance FROM gift_cards WHERE id = ? FOR UPDATE',
-      [id]
-    );
-
-    if (rows.length === 0) throw new Error('Gift card not found');
-    const currentBalance = Number(rows[0].current_balance);
+    if (!card) throw new Error('Gift card not found');
+    const currentBalance = Number(card.currentBalance);
     const newBalance = currentBalance + amount;
 
-    await connection.execute('UPDATE gift_cards SET current_balance = ?, status = ? WHERE id = ?', [
-      newBalance,
-      'active',
-      id,
-    ]);
+    await tx
+      .update(giftCards)
+      .set({ currentBalance: String(newBalance), status: 'active' })
+      .where(eq(giftCards.id, id));
 
-    await connection.execute(
-      `INSERT INTO gift_card_transactions 
-       (gift_card_id, transaction_type, amount, balance_before, balance_after, description, order_id)
-       VALUES (?, 'refund', ?, ?, ?, ?, ?)`,
-      [id, amount, currentBalance, newBalance, description, orderId]
-    );
+    await tx.insert(giftCardTransactions).values({
+      giftCardId: id,
+      transactionType: 'refund',
+      amount: String(amount),
+      balanceBefore: String(currentBalance),
+      balanceAfter: String(newBalance),
+      description,
+      orderId: Number(orderId),
+    });
 
-    await connection.commit();
     return true;
-  } catch (error) {
-    await connection.rollback();
-    throw error;
-  } finally {
-    connection.release();
-  }
+  });
 }

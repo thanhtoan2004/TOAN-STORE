@@ -15,6 +15,8 @@ import {
   longtext,
   date,
   mysqlView,
+  time,
+  datetime,
 } from 'drizzle-orm/mysql-core';
 import { relations, sql } from 'drizzle-orm';
 
@@ -114,17 +116,23 @@ export const userConsents = mysqlTable(
   {
     id: serial('id').primaryKey(),
     userId: bigint('user_id', { mode: 'number', unsigned: true }).notNull(),
-    consentType: varchar('consent_type', { length: 50 }).notNull(),
+    purpose: mysqlEnum('purpose', [
+      'marketing',
+      'analytics',
+      'personalization',
+      'third_party',
+    ]).notNull(),
     isGranted: tinyint('is_granted').default(0),
-    grantedAt: timestamp('granted_at'),
-    revokedAt: timestamp('revoked_at'),
     ipAddress: varchar('ip_address', { length: 45 }),
     userAgent: text('user_agent'),
+    version: int('version').default(1),
+    grantedAt: timestamp('granted_at'),
+    revokedAt: timestamp('revoked_at'),
     createdAt: timestamp('created_at').defaultNow(),
-    updatedAt: timestamp('updated_at').defaultNow().onUpdateNow(),
   },
   (table) => ({
-    unq: unique('uk_user_consent_type').on(table.userId, table.consentType),
+    userPurposeIdx: index('idx_user_purpose').on(table.userId, table.purpose),
+    createdAtIdx: index('idx_created_at').on(table.createdAt),
   })
 );
 
@@ -144,6 +152,7 @@ export const categories = mysqlTable(
     metaTitle: varchar('meta_title', { length: 255 }),
     metaDescription: text('meta_description'),
     createdAt: timestamp('created_at').defaultNow(),
+    updatedAt: timestamp('updated_at').defaultNow().onUpdateNow(),
     deletedAt: timestamp('deleted_at'),
   },
   (table) => ({
@@ -232,7 +241,9 @@ export const brands = mysqlTable('brands', {
 export const attributes = mysqlTable('attributes', {
   id: serial('id').primaryKey(),
   name: varchar('name', { length: 100 }).notNull().unique(),
-  type: mysqlEnum('type', ['text', 'number', 'select', 'color', 'size']).default('text'),
+  slug: varchar('slug', { length: 100 }).notNull().unique(),
+  type: mysqlEnum('type', ['text', 'number', 'select', 'color', 'boolean']).default('text'),
+  isFilterable: tinyint('is_filterable').default(1),
   createdAt: timestamp('created_at').defaultNow(),
 });
 
@@ -444,9 +455,11 @@ export const inventoryTransfers = mysqlTable('inventory_transfers', {
 export const inventoryLogs = mysqlTable('inventory_logs', {
   id: serial('id').primaryKey(),
   inventoryId: bigint('inventory_id', { mode: 'number', unsigned: true }).notNull(),
+  adminId: bigint('admin_id', { mode: 'number', unsigned: true }), // Track who made the change
   quantityChange: int('quantity_change').notNull(),
-  reason: varchar('reason', { length: 255 }).notNull(), // restock, order_reserved, order_cancelled, order_fulfilled, transfer, adjustment
+  reason: varchar('reason', { length: 255 }).notNull(), // restock, order_reserved, order_cancelled, order_fulfilled, transfer, adjustment, return
   referenceId: varchar('reference_id', { length: 100 }), // order_id or transfer_id
+  notes: text('notes'),
   createdAt: timestamp('created_at').defaultNow(),
 });
 
@@ -474,77 +487,60 @@ export const orders = mysqlTable(
     id: serial('id').primaryKey(),
     orderNumber: varchar('order_number', { length: 100 }).notNull(),
     userId: bigint('user_id', { mode: 'number', unsigned: true }),
+    subtotal: decimal('subtotal', { precision: 12, scale: 2 }).notNull().default('0.00'),
+    shippingFee: decimal('shipping_fee', { precision: 12, scale: 2 }).default('0.00'),
+    discount: decimal('discount', { precision: 12, scale: 2 }).default('0.00'),
+    promotionCode: varchar('promotion_code', { length: 50 }),
+    promotionType: mysqlEnum('promotion_type', ['voucher', 'coupon', 'none']).default('none'),
+    couponId: bigint('coupon_id', { mode: 'number', unsigned: true }),
+    voucherId: bigint('voucher_id', { mode: 'number', unsigned: true }),
+    voucherDiscount: decimal('voucher_discount', { precision: 12, scale: 2 }).default('0.00'),
+    giftcardDiscount: decimal('giftcard_discount', { precision: 12, scale: 2 }).default('0.00'),
+    giftcardId: bigint('giftcard_id', { mode: 'number', unsigned: true }),
+    membershipDiscount: decimal('membership_discount', { precision: 12, scale: 2 }).default('0.00'),
+    tax: decimal('tax', { precision: 12, scale: 2 }).default('0.00'),
+    total: decimal('total', { precision: 12, scale: 2 }).notNull().default('0.00'),
+    currency: varchar('currency', { length: 10 }).default('VND'),
+    shippingAddressSnapshot: json('shipping_address_snapshot'),
     status: mysqlEnum('status', [
       'pending',
+      'pending_payment_confirmation',
+      'payment_received',
+      'confirmed',
       'processing',
       'shipped',
       'delivered',
       'cancelled',
-      'returned',
       'refunded',
     ]).default('pending'),
-    subtotal: decimal('subtotal', { precision: 12, scale: 2 }).notNull().default('0.00'),
-    totalAmount: decimal('total', { precision: 12, scale: 2 }).notNull().default('0.00'),
     placedAt: timestamp('placed_at').defaultNow(),
-    createdAt: timestamp('created_at').defaultNow(),
     updatedAt: timestamp('updated_at').defaultNow().onUpdateNow(),
+    paymentMethod: varchar('payment_method', { length: 50 }).default('cod'),
+    paymentStatus: mysqlEnum('payment_status', ['pending', 'paid', 'failed', 'refunded']).default(
+      'pending'
+    ),
+    trackingNumber: varchar('tracking_number', { length: 100 }),
+    carrier: varchar('carrier', { length: 100 }),
+    shippedAt: timestamp('shipped_at'),
+    deliveredAt: timestamp('delivered_at'),
+    paymentConfirmedAt: timestamp('payment_confirmed_at'),
+    cancelledAt: timestamp('cancelled_at'),
     notes: text('notes'),
+    hasGiftWrapping: tinyint('has_gift_wrapping').default(0),
+    giftWrapCost: decimal('gift_wrap_cost', { precision: 12, scale: 2 }).default('0.00'),
+    surveySent: tinyint('survey_sent').default(0),
     isEncrypted: tinyint('is_encrypted').default(0),
-    // Snapshot fields for direct compatibility if needed, but primary data is in split tables
-    shippingAddressSnapshot: json('shipping_address_snapshot'),
-    billingAddressSnapshot: json('billing_address_snapshot'),
+    phone: varchar('phone', { length: 20 }).default('***'),
+    email: varchar('email', { length: 255 }).default('***'),
+    emailHash: varchar('email_hash', { length: 64 }),
+    createdAt: timestamp('created_at').defaultNow(),
   },
   (table) => ({
     orderNumberUnq: unique('order_number').on(table.orderNumber),
     userIdIdx: index('user_id').on(table.userId),
     statusIdx: index('status').on(table.status),
-    createdAtIdx: index('idx_order_created').on(table.createdAt),
-  })
-);
-
-export const orderShippingDetails = mysqlTable(
-  'order_shipping_details',
-  {
-    orderId: bigint('order_id', { mode: 'number', unsigned: true })
-      .notNull()
-      .primaryKey()
-      .references(() => orders.id, { onDelete: 'cascade' }),
-    recipientName: varchar('recipient_name', { length: 255 }),
-    phone: varchar('phone', { length: 255 }),
-    addressLine: varchar('address_line', { length: 255 }),
-    ward: varchar('ward', { length: 100 }),
-    district: varchar('district', { length: 100 }),
-    city: varchar('city', { length: 100 }),
-    postalCode: varchar('postal_code', { length: 20 }),
-    carrier: varchar('carrier', { length: 100 }),
-    trackingNumber: varchar('tracking_number', { length: 100 }),
-    shippingFee: decimal('shipping_fee', { precision: 12, scale: 2 }).default('0.00'),
-    shippedAt: timestamp('shipped_at'),
-    deliveredAt: timestamp('delivered_at'),
-  },
-  (table) => ({
-    trackingIdx: index('idx_tracking').on(table.trackingNumber),
-  })
-);
-
-export const orderPaymentDetails = mysqlTable(
-  'order_payment_details',
-  {
-    orderId: bigint('order_id', { mode: 'number', unsigned: true })
-      .notNull()
-      .primaryKey()
-      .references(() => orders.id, { onDelete: 'cascade' }),
-    paymentMethod: varchar('payment_method', { length: 50 }),
-    paymentStatus: mysqlEnum('payment_status', ['pending', 'paid', 'failed', 'refunded']).default(
-      'pending'
-    ),
-    transactionId: varchar('transaction_id', { length: 255 }),
-    amountPaid: decimal('amount_paid', { precision: 12, scale: 2 }).default('0.00'),
-    confirmedAt: timestamp('confirmed_at'),
-  },
-  (table) => ({
-    paymentStatusIdx: index('idx_payment_status').on(table.paymentStatus),
-    transactionIdx: index('idx_transaction').on(table.transactionId),
+    emailHashIdx: index('idx_email_hash').on(table.emailHash),
+    placedAtIdx: index('idx_placed_at').on(table.placedAt),
   })
 );
 
@@ -555,20 +551,24 @@ export const orderItems = mysqlTable(
     orderId: bigint('order_id', { mode: 'number', unsigned: true }).notNull(),
     productId: bigint('product_id', { mode: 'number', unsigned: true }),
     productVariantId: bigint('product_variant_id', { mode: 'number', unsigned: true }),
+    inventoryId: bigint('inventory_id', { mode: 'number', unsigned: true }),
     productName: varchar('product_name', { length: 500 }).notNull(),
-    sku: varchar('sku', { length: 100 }),
-    size: varchar('size', { length: 10 }).notNull(),
-    quantity: int('quantity').notNull(),
+    sku: varchar('sku', { length: 200 }),
+    size: varchar('size', { length: 10 }),
+    quantity: int('quantity').notNull().default(1),
     unitPrice: decimal('unit_price', { precision: 12, scale: 2 }).notNull(),
-    totalPrice: decimal('total_price', { precision: 12, scale: 2 }).notNull(),
-    discountAmount: decimal('discount_amount', { precision: 12, scale: 2 }).default('0.00'),
-    taxAmount: decimal('tax_amount', { precision: 12, scale: 2 }).default('0.00'),
     costPrice: decimal('cost_price', { precision: 12, scale: 2 }).default('0.00'),
+    totalPrice: decimal('total_price', { precision: 12, scale: 2 }).notNull(),
+    flashSaleItemId: bigint('flash_sale_item_id', { mode: 'number', unsigned: true }),
+    createdAt: timestamp('created_at').defaultNow(),
+    updatedAt: timestamp('updated_at').defaultNow().onUpdateNow(),
+    deletedAt: timestamp('deleted_at'),
   },
   (table) => ({
     orderIdx: index('order_id').on(table.orderId),
     productIdx: index('product_id').on(table.productId),
     variantIdx: index('product_variant_id').on(table.productVariantId),
+    inventoryIdx: index('inventory_id').on(table.inventoryId),
   })
 );
 
@@ -576,28 +576,31 @@ export const giftCards = mysqlTable(
   'gift_cards',
   {
     id: serial('id').primaryKey(),
-    cardNumberHash: varchar('card_number_hash', { length: 255 }).notNull(),
+    cardNumberHash: varchar('card_number_hash', { length: 64 }).notNull(),
     cardNumberLast4: varchar('card_number_last4', { length: 4 }).notNull(),
-    initialBalance: decimal('initial_balance', { precision: 12, scale: 2 }).notNull(),
-    currentBalance: decimal('current_balance', { precision: 12, scale: 2 }).notNull(),
-    currency: varchar('currency', { length: 3 }).default('VND'),
-    status: mysqlEnum('status', [
-      'active',
-      'inactive',
-      'exhausted',
-      'expired',
-      'cancelled',
-    ]).default('active'),
-    expiryDate: timestamp('expiry_date'),
-    createdByAdminId: bigint('created_by_admin_id', { mode: 'number', unsigned: true }),
-    recipientEmail: varchar('recipient_email', { length: 255 }),
+    cardNumberEncrypted: text('card_number_encrypted'),
+    pin: varchar('pin', { length: 255 }).notNull(),
+    initialBalance: decimal('initial_balance', { precision: 12, scale: 2 })
+      .notNull()
+      .default('0.00'),
+    currentBalance: decimal('current_balance', { precision: 12, scale: 2 })
+      .notNull()
+      .default('0.00'),
+    currency: varchar('currency', { length: 10 }).default('VND'),
+    status: mysqlEnum('status', ['active', 'inactive', 'expired', 'used', 'locked']).default(
+      'active'
+    ),
+    failedAttempts: int('failed_attempts').default(0),
+    purchasedBy: bigint('purchased_by', { mode: 'number', unsigned: true }),
+    purchasedAt: timestamp('purchased_at'),
+    expiresAt: timestamp('expires_at'),
     createdAt: timestamp('created_at').defaultNow(),
     updatedAt: timestamp('updated_at').defaultNow().onUpdateNow(),
   },
   (table) => ({
     cardNumberHashUnq: unique('idx_card_hash').on(table.cardNumberHash),
-    recipientIdx: index('idx_gift_recipient').on(table.recipientEmail),
-    statusExpiryIdx: index('idx_gift_status_expiry').on(table.status, table.expiryDate),
+    purchasedIdx: index('idx_gift_purchased').on(table.purchasedBy),
+    statusIdx: index('idx_gift_status').on(table.status),
   })
 );
 
@@ -607,10 +610,16 @@ export const giftCardTransactions = mysqlTable(
     id: serial('id').primaryKey(),
     giftCardId: bigint('gift_card_id', { mode: 'number', unsigned: true }).notNull(),
     orderId: bigint('order_id', { mode: 'number', unsigned: true }),
-    type: mysqlEnum('type', ['redeem', 'refund', 'adjust', 'expire']).notNull(),
+    transactionType: mysqlEnum('transaction_type', [
+      'purchase',
+      'redeem',
+      'refund',
+      'adjustment',
+    ]).notNull(),
     amount: decimal('amount', { precision: 12, scale: 2 }).notNull(),
+    balanceBefore: decimal('balance_before', { precision: 12, scale: 2 }).notNull(),
     balanceAfter: decimal('balance_after', { precision: 12, scale: 2 }).notNull(),
-    description: text('description'),
+    description: varchar('description', { length: 500 }),
     createdAt: timestamp('created_at').defaultNow(),
   },
   (table) => ({
@@ -624,44 +633,17 @@ export const giftCardLockouts = mysqlTable(
   {
     id: serial('id').primaryKey(),
     ipAddress: varchar('ip_address', { length: 45 }).notNull(),
-    failedAttempts: int('failed_attempts').default(0),
+    cardNumber: varchar('card_number', { length: 16 }),
+    attemptCount: int('attempt_count').default(1),
+    lastAttempt: timestamp('last_attempt').defaultNow().onUpdateNow(),
     lockoutUntil: timestamp('lockout_until'),
     createdAt: timestamp('created_at').defaultNow(),
-    updatedAt: timestamp('updated_at').defaultNow().onUpdateNow(),
   },
   (table) => ({
-    ipUnq: unique('ip_address').on(table.ipAddress),
+    ipIdx: index('idx_ip_address').on(table.ipAddress),
   })
 );
 // --- VIEWS ---
-
-export const ordersFull = mysqlView('orders_full', {
-  id: bigint('id', { mode: 'number', unsigned: true }),
-  orderNumber: varchar('order_number', { length: 100 }),
-  status: varchar('status', { length: 50 }),
-  totalAmount: decimal('total_amount', { precision: 12, scale: 2 }),
-  recipientName: varchar('recipient_name', { length: 255 }),
-  phone: varchar('phone', { length: 255 }),
-  addressLine: varchar('address_line', { length: 255 }),
-  paymentMethod: varchar('payment_method', { length: 50 }),
-  paymentStatus: varchar('payment_status', { length: 50 }),
-  placedAt: timestamp('placed_at'),
-}).as(
-  sql`SELECT 
-    o.id, 
-    o.order_number, 
-    o.status, 
-    o.total_amount, 
-    s.recipient_name, 
-    s.phone, 
-    s.address_line, 
-    p.payment_method, 
-    p.payment_status, 
-    o.placed_at
-  FROM ${orders} o
-  LEFT JOIN ${orderShippingDetails} s ON o.id = s.order_id
-  LEFT JOIN ${orderPaymentDetails} p ON o.id = p.order_id`
-);
 
 export const carts = mysqlTable('carts', {
   id: serial('id').primaryKey(),
@@ -700,23 +682,32 @@ export const wishlistItems = mysqlTable('wishlist_items', {
 
 // --- MARKETING & PROMOTIONS ---
 
-export const banners = mysqlTable('banners', {
-  id: serial('id').primaryKey(),
-  title: varchar('title', { length: 255 }).notNull(),
-  description: text('description'),
-  imageUrl: varchar('image_url', { length: 1000 }).notNull(),
-  mobileImageUrl: varchar('mobile_image_url', { length: 1000 }),
-  linkUrl: varchar('link_url', { length: 1000 }),
-  linkText: varchar('link_text', { length: 100 }),
-  position: varchar('position', { length: 50 }).default('homepage'),
-  displayOrder: int('display_order').default(0),
-  startDate: timestamp('start_date'),
-  endDate: timestamp('end_date'),
-  isActive: tinyint('is_active').default(1),
-  clickCount: int('click_count').default(0),
-  impressionCount: int('impression_count').default(0),
-  createdAt: timestamp('created_at').defaultNow(),
-});
+export const banners = mysqlTable(
+  'banners',
+  {
+    id: serial('id').primaryKey(),
+    title: varchar('title', { length: 255 }).notNull(),
+    description: text('description'),
+    imageUrl: varchar('image_url', { length: 1000 }).notNull(),
+    mobileImageUrl: varchar('mobile_image_url', { length: 1000 }),
+    linkUrl: varchar('link_url', { length: 1000 }),
+    linkText: varchar('link_text', { length: 100 }),
+    position: varchar('position', { length: 50 }).default('homepage'),
+    displayOrder: int('display_order').default(0),
+    startDate: timestamp('start_date'),
+    endDate: timestamp('end_date'),
+    isActive: tinyint('is_active').default(1),
+    clickCount: int('click_count').default(0),
+    impressionCount: int('impression_count').default(0),
+    createdAt: timestamp('created_at').defaultNow(),
+    updatedAt: timestamp('updated_at').defaultNow().onUpdateNow(),
+  },
+  (table) => ({
+    positionIdx: index('idx_banner_position').on(table.position),
+    orderIdx: index('idx_banner_order').on(table.displayOrder),
+    activeIdx: index('idx_banner_active').on(table.isActive),
+  })
+);
 
 export const coupons = mysqlTable(
   'coupons',
@@ -726,7 +717,11 @@ export const coupons = mysqlTable(
     description: varchar('description', { length: 255 }),
     discountType: mysqlEnum('discount_type', ['fixed', 'percent']).default('fixed'),
     discountValue: decimal('discount_value', { precision: 12, scale: 2 }).notNull(),
+    applicableTier: mysqlEnum('applicable_tier', ['bronze', 'silver', 'gold', 'platinum']).default(
+      'bronze'
+    ),
     minOrderAmount: decimal('min_order_amount', { precision: 12, scale: 2 }),
+    applicableCategories: json('applicable_categories'),
     maxDiscountAmount: decimal('max_discount_amount', { precision: 12, scale: 2 }),
     startsAt: timestamp('starts_at'),
     endsAt: timestamp('ends_at'),
@@ -734,9 +729,11 @@ export const coupons = mysqlTable(
     usageLimitPerUser: int('usage_limit_per_user'),
     createdAt: timestamp('created_at').defaultNow(),
     deletedAt: timestamp('deleted_at'),
+    updatedAt: timestamp('updated_at').defaultNow().onUpdateNow(),
   },
   (table) => ({
     unq: unique('code').on(table.code),
+    deletedAtIdx: index('idx_deleted_at').on(table.deletedAt),
   })
 );
 
@@ -744,8 +741,8 @@ export const couponUsage = mysqlTable(
   'coupon_usage',
   {
     id: serial('id').primaryKey(),
-    couponId: bigint('coupon_id', { mode: 'number', unsigned: true }).notNull(),
-    userId: bigint('user_id', { mode: 'number', unsigned: true }).notNull(),
+    couponId: bigint('coupon_id', { mode: 'number', unsigned: true }),
+    userId: bigint('user_id', { mode: 'number', unsigned: true }),
     orderId: bigint('order_id', { mode: 'number', unsigned: true }).notNull(),
     usedAt: timestamp('used_at').defaultNow(),
   },
@@ -776,6 +773,8 @@ export const vouchers = mysqlTable(
     validFrom: timestamp('valid_from').defaultNow(),
     validUntil: timestamp('valid_until'),
     redeemedAt: timestamp('redeemed_at'),
+    usageLimit: int('usage_limit').default(1),
+    usageLimitPerUser: int('usage_limit_per_user').default(1),
     createdAt: timestamp('created_at').defaultNow(),
     updatedAt: timestamp('updated_at').defaultNow().onUpdateNow(),
     deletedAt: timestamp('deleted_at'),
@@ -790,32 +789,42 @@ export const vouchers = mysqlTable(
   })
 );
 
-export const flashSales = mysqlTable('flash_sales', {
-  id: serial('id').primaryKey(),
-  name: varchar('name', { length: 255 }).notNull(),
-  description: text('description'),
-  startTime: timestamp('start_time').notNull(),
-  endTime: timestamp('end_time').notNull(),
-  status: mysqlEnum('status', ['upcoming', 'active', 'ended', 'cancelled']).default('upcoming'),
-  createdAt: timestamp('created_at').defaultNow(),
-  deletedAt: timestamp('deleted_at'),
-});
+export const flashSales = mysqlTable(
+  'flash_sales',
+  {
+    id: serial('id').primaryKey(),
+    name: varchar('name', { length: 255 }).notNull(),
+    description: text('description'),
+    startTime: timestamp('start_time').notNull(),
+    endTime: timestamp('end_time').notNull(),
+    isActive: tinyint('is_active').default(1),
+    createdAt: timestamp('created_at').defaultNow(),
+    updatedAt: timestamp('updated_at').defaultNow().onUpdateNow(),
+    deletedAt: timestamp('deleted_at'),
+  },
+  (table) => ({
+    activeIdx: index('idx_flash_active').on(table.isActive),
+    deletedAtIdx: index('idx_flash_deleted').on(table.deletedAt),
+  })
+);
 
 export const flashSaleItems = mysqlTable(
   'flash_sale_items',
   {
     id: serial('id').primaryKey(),
     flashSaleId: bigint('flash_sale_id', { mode: 'number', unsigned: true }).notNull(),
-    productVariantId: bigint('product_variant_id', { mode: 'number', unsigned: true }).notNull(),
-    salePrice: decimal('sale_price', { precision: 12, scale: 2 }).notNull(),
-    quantityLimit: int('quantity_limit').notNull(),
-    soldCount: int('sold_count').default(0),
+    productId: bigint('product_id', { mode: 'number', unsigned: true }).notNull(),
+    discountPercentage: decimal('discount_percentage', { precision: 5, scale: 2 }).notNull(),
+    flashPrice: decimal('flash_price', { precision: 12, scale: 2 }).notNull(),
+    quantityLimit: int('quantity_limit'),
+    quantitySold: int('quantity_sold').default(0),
+    perUserLimit: int('per_user_limit').default(1),
     createdAt: timestamp('created_at').defaultNow(),
     deletedAt: timestamp('deleted_at'),
   },
   (table) => ({
     flashSaleIdx: index('idx_flash_sale_id').on(table.flashSaleId),
-    variantIdx: index('idx_flash_variant').on(table.productVariantId),
+    productIdx: index('idx_flash_product').on(table.productId),
     deletedAtIdx: index('idx_flash_items_deleted').on(table.deletedAt),
   })
 );
@@ -824,9 +833,13 @@ export const flashSaleItems = mysqlTable(
 
 export const faqCategories = mysqlTable('faq_categories', {
   id: serial('id').primaryKey(),
-  name: varchar('name', { length: 100 }).notNull(),
-  slug: varchar('slug', { length: 100 }).notNull().unique(),
+  name: varchar('name', { length: 200 }).notNull(),
+  slug: varchar('slug', { length: 255 }).notNull().unique(),
+  description: text('description'),
+  icon: varchar('icon', { length: 100 }),
   position: int('position').default(0),
+  isActive: tinyint('is_active').default(1),
+  createdAt: timestamp('created_at').defaultNow(),
 });
 
 export const faqs = mysqlTable(
@@ -834,14 +847,17 @@ export const faqs = mysqlTable(
   {
     id: serial('id').primaryKey(),
     categoryId: bigint('category_id', { mode: 'number', unsigned: true }).notNull(),
-    question: text('question').notNull(),
-    answer: longtext('answer').notNull(),
+    question: varchar('question', { length: 500 }).notNull(),
+    answer: text('answer').notNull(),
     position: int('position').default(0),
     isActive: tinyint('is_active').default(1),
+    helpfulCount: int('helpful_count').default(0),
     createdAt: timestamp('created_at').defaultNow(),
+    updatedAt: timestamp('updated_at').defaultNow().onUpdateNow(),
   },
   (table) => ({
-    categoryIdx: index('category_id').on(table.categoryId),
+    categoryIdx: index('idx_faq_category').on(table.categoryId),
+    isActiveIdx: index('idx_faq_active').on(table.isActive),
   })
 );
 
@@ -862,19 +878,21 @@ export const news = mysqlTable(
     id: serial('id').primaryKey(),
     title: varchar('title', { length: 255 }).notNull(),
     slug: varchar('slug', { length: 255 }).notNull().unique(),
-    summary: text('summary'),
-    content: longtext('content'),
-    thumbnailUrl: varchar('thumbnail_url', { length: 1000 }),
-    categoryId: bigint('category_id', { mode: 'number', unsigned: true }),
-    authorId: bigint('author_id', { mode: 'number', unsigned: true }),
-    isActive: tinyint('is_active').default(1),
+    excerpt: text('excerpt'),
+    content: longtext('content').notNull(),
+    imageUrl: varchar('image_url', { length: 500 }),
+    category: varchar('category', { length: 100 }),
+    authorId: bigint('author_id', { mode: 'number', unsigned: true }).default(1),
     publishedAt: timestamp('published_at'),
+    isPublished: tinyint('is_published').default(0),
+    views: int('views').default(0),
     createdAt: timestamp('created_at').defaultNow(),
+    updatedAt: timestamp('updated_at').defaultNow().onUpdateNow(),
   },
   (table) => ({
     slugIdx: unique('slug').on(table.slug),
-    activeCreatedIdx: index('idx_news_active_created').on(table.isActive, table.createdAt),
-    categoryIdx: index('idx_news_category').on(table.categoryId),
+    publishedIdx: index('idx_news_published').on(table.isPublished, table.publishedAt),
+    categoryIdx: index('idx_news_category').on(table.category),
   })
 );
 
@@ -883,15 +901,20 @@ export const newsComments = mysqlTable(
   {
     id: serial('id').primaryKey(),
     newsId: bigint('news_id', { mode: 'number', unsigned: true }).notNull(),
-    userId: bigint('user_id', { mode: 'number', unsigned: true }),
-    content: text('content').notNull(),
+    userId: bigint('user_id', { mode: 'number', unsigned: true }).notNull(),
     parentId: bigint('parent_id', { mode: 'number', unsigned: true }),
+    comment: text('comment').notNull(),
     status: mysqlEnum('status', ['pending', 'approved', 'rejected']).default('approved'),
+    likesCount: int('likes_count').default(0),
+    isEdited: tinyint('is_edited').default(0),
     createdAt: timestamp('created_at').defaultNow(),
+    updatedAt: timestamp('updated_at').defaultNow().onUpdateNow(),
   },
   (table) => ({
-    newsIdx: index('news_id').on(table.newsId),
-    userIdIdx: index('user_id').on(table.userId),
+    newsIdx: index('idx_news_id').on(table.newsId),
+    userIdIdx: index('idx_user_id').on(table.userId),
+    parentIdx: index('idx_parent_id').on(table.parentId),
+    statusIdx: index('idx_status').on(table.status),
   })
 );
 
@@ -908,14 +931,6 @@ export const newsCommentLikes = mysqlTable(
   })
 );
 
-export const newsletterSubscriptions = mysqlTable('newsletter_subscriptions', {
-  id: serial('id').primaryKey(),
-  email: varchar('email', { length: 255 }).notNull().unique(),
-  status: mysqlEnum('status', ['subscribed', 'unsubscribed']).default('subscribed'),
-  token: varchar('token', { length: 255 }),
-  createdAt: timestamp('created_at').defaultNow(),
-});
-
 // --- ADMIN & RBAC ---
 
 export const roles = mysqlTable('roles', {
@@ -927,7 +942,7 @@ export const roles = mysqlTable('roles', {
 
 export const permissions = mysqlTable('permissions', {
   id: serial('id').primaryKey(),
-  name: varchar('name', { length: 100 }).notNull().unique(), // e.g., 'read:orders', 'write:products'
+  name: varchar('name', { length: 150 }).notNull().unique(), // e.g., 'read:orders', 'write:products'
   description: varchar('description', { length: 255 }),
 });
 
@@ -943,16 +958,59 @@ export const rolePermissions = mysqlTable(
   })
 );
 
-export const adminUsers = mysqlTable('admin_users', {
-  id: serial('id').primaryKey(),
-  username: varchar('username', { length: 100 }).notNull().unique(),
-  email: varchar('email', { length: 255 }).notNull().unique(),
-  password: varchar('password', { length: 255 }).notNull(),
-  fullName: varchar('full_name', { length: 255 }),
-  roleId: bigint('role_id', { mode: 'number', unsigned: true }),
-  isActive: tinyint('is_active').default(1),
-  createdAt: timestamp('created_at').defaultNow(),
-});
+export const adminUsers = mysqlTable(
+  'admin_users',
+  {
+    id: serial('id').primaryKey(),
+    username: varchar('username', { length: 100 }).notNull().unique(),
+    email: varchar('email', { length: 255 }).notNull(),
+    emailHash: varchar('email_hash', { length: 64 }).unique(),
+    emailEncrypted: text('email_encrypted'),
+    isEncrypted: tinyint('is_encrypted').default(0),
+    password: varchar('password', { length: 255 }),
+    fullName: varchar('full_name', { length: 255 }),
+    bio: text('bio'),
+    avatarUrl: varchar('avatar_url', { length: 1000 }),
+    socialLinks: json('social_links'),
+    isActive: tinyint('is_active').default(1),
+    lastLogin: timestamp('last_login'),
+    roleId: bigint('role_id', { mode: 'number', unsigned: true }),
+    createdAt: timestamp('created_at').defaultNow(),
+    updatedAt: timestamp('updated_at').defaultNow().onUpdateNow(),
+    deletedAt: timestamp('deleted_at'),
+    failedLoginAttempts: int('failed_login_attempts').default(0),
+    lockoutUntil: timestamp('lockout_until'),
+    twoFactorSecret: text('two_factor_secret'),
+    twoFactorEnabled: tinyint('two_factor_enabled').default(0),
+    twoFactorType: varchar('two_factor_type', { length: 20 }).default('email'), // 'email' or 'totp'
+    twoFactorBackupCodes: json('two_factor_backup_codes'),
+  },
+  (table) => ({
+    emailHashIdx: index('idx_admin_email_hash').on(table.emailHash),
+    roleIdx: index('idx_admin_role').on(table.roleId),
+  })
+);
+
+export const newsletterSubscriptions = mysqlTable(
+  'newsletter_subscriptions',
+  {
+    id: serial('id').primaryKey(),
+    email: varchar('email', { length: 255 }).notNull().default('***'),
+    emailHash: varchar('email_hash', { length: 64 }).unique(),
+    emailEncrypted: text('email_encrypted'),
+    isEncrypted: tinyint('is_encrypted').default(0),
+    name: varchar('name', { length: 255 }),
+    status: mysqlEnum('status', ['active', 'unsubscribed', 'bounced']).default('active'),
+    userId: bigint('user_id', { mode: 'number', unsigned: true }),
+    subscribedAt: timestamp('subscribed_at').defaultNow(),
+    unsubscribedAt: timestamp('unsubscribed_at'),
+  },
+  (table) => ({
+    emailHashIdx: index('idx_newsletter_email_hash').on(table.emailHash),
+    emailIdx: index('idx_newsletter_email').on(table.email),
+    userIdx: index('idx_newsletter_user').on(table.userId),
+  })
+);
 
 export const adminActivityLogs = mysqlTable('admin_activity_logs', {
   id: serial('id').primaryKey(),
@@ -985,10 +1043,12 @@ export const supportChats = mysqlTable('support_chats', {
   id: serial('id').primaryKey(),
   userId: bigint('user_id', { mode: 'number', unsigned: true }),
   guestEmail: varchar('guest_email', { length: 255 }),
+  guestEmailHash: varchar('guest_email_hash', { length: 255 }),
   guestName: varchar('guest_name', { length: 255 }),
   status: mysqlEnum('status', ['waiting', 'active', 'resolved', 'closed']).default('waiting'),
   accessToken: varchar('access_token', { length: 255 }),
   assignedAdminId: bigint('assigned_admin_id', { mode: 'number', unsigned: true }),
+  firstResponseAt: timestamp('first_response_at'),
   lastMessageAt: timestamp('last_message_at').defaultNow(),
   createdAt: timestamp('created_at').defaultNow(),
 });
@@ -1037,10 +1097,14 @@ export const productReviews = mysqlTable(
     productId: bigint('product_id', { mode: 'number', unsigned: true }).notNull(),
     userId: bigint('user_id', { mode: 'number', unsigned: true }),
     rating: tinyint('rating').notNull(),
+    title: varchar('title', { length: 255 }),
     comment: text('comment'),
     authorName: varchar('author_name', { length: 255 }),
     status: mysqlEnum('status', ['pending', 'approved', 'rejected']).default('pending'),
     isFeatured: tinyint('is_featured').default(0),
+    isVerifiedPurchase: tinyint('is_verified_purchase').default(0),
+    helpfulCount: int('helpful_count').default(0),
+    adminReply: text('admin_reply'),
     createdAt: timestamp('created_at').defaultNow(),
     orderId: bigint('order_id', { mode: 'number', unsigned: true }),
     updatedAt: timestamp('updated_at').defaultNow().onUpdateNow(),
@@ -1064,8 +1128,12 @@ export const reviewMedia = mysqlTable(
   {
     id: serial('id').primaryKey(),
     reviewId: bigint('review_id', { mode: 'number', unsigned: true }).notNull(),
-    mediaType: mysqlEnum('media_type', ['image', 'video']).default('image'),
-    url: varchar('url', { length: 1000 }).notNull(),
+    mediaUrl: varchar('media_url', { length: 500 }).notNull(),
+    mediaType: varchar('media_type', { length: 50 }).notNull(),
+    mimeType: varchar('mime_type', { length: 100 }),
+    thumbnailUrl: varchar('thumbnail_url', { length: 500 }),
+    position: int('position').default(0),
+    fileSize: int('file_size').default(0),
     createdAt: timestamp('created_at').defaultNow(),
   },
   (table) => ({
@@ -1075,25 +1143,49 @@ export const reviewMedia = mysqlTable(
 
 // --- STORES ---
 
-export const stores = mysqlTable('stores', {
-  id: serial('id').primaryKey(),
-  name: varchar('name', { length: 255 }).notNull(),
-  address: text('address').notNull(),
-  phone: varchar('phone', { length: 50 }),
-  latitude: decimal('latitude', { precision: 10, scale: 8 }),
-  longitude: decimal('longitude', { precision: 11, scale: 8 }),
-  isActive: tinyint('is_active').default(1),
-  createdAt: timestamp('created_at').defaultNow(),
-});
+export const stores = mysqlTable(
+  'stores',
+  {
+    id: serial('id').primaryKey(),
+    name: varchar('name', { length: 255 }).notNull(),
+    slug: varchar('slug', { length: 255 }).notNull().unique(),
+    storeCode: varchar('store_code', { length: 50 }).unique(),
+    address: text('address').notNull(),
+    city: varchar('city', { length: 100 }).notNull(),
+    state: varchar('state', { length: 100 }),
+    country: varchar('country', { length: 100 }).default('Vietnam'),
+    postalCode: varchar('postal_code', { length: 20 }),
+    phone: varchar('phone', { length: 50 }),
+    email: varchar('email', { length: 255 }),
+    latitude: decimal('latitude', { precision: 10, scale: 8 }),
+    longitude: decimal('longitude', { precision: 11, scale: 8 }),
+    description: text('description'),
+    features: json('features'),
+    imageUrl: varchar('image_url', { length: 1000 }),
+    isActive: tinyint('is_active').default(1),
+    openingDate: date('opening_date'),
+    createdAt: timestamp('created_at').defaultNow(),
+    updatedAt: timestamp('updated_at').defaultNow().onUpdateNow(),
+  },
+  (table) => ({
+    cityIdx: index('idx_store_city').on(table.city),
+  })
+);
 
-export const storeHours = mysqlTable('store_hours', {
-  id: serial('id').primaryKey(),
-  storeId: bigint('store_id', { mode: 'number', unsigned: true }).notNull(),
-  dayOfWeek: tinyint('day_of_week').notNull(), // 0-6
-  openTime: varchar('open_time', { length: 5 }), // HH:mm
-  closeTime: varchar('close_time', { length: 5 }),
-  isClosed: tinyint('is_closed').default(0),
-});
+export const storeHours = mysqlTable(
+  'store_hours',
+  {
+    id: serial('id').primaryKey(),
+    storeId: bigint('store_id', { mode: 'number', unsigned: true }).notNull(),
+    dayOfWeek: tinyint('day_of_week').notNull(), // 0-6
+    openTime: time('open_time'),
+    closeTime: time('close_time'),
+    isClosed: tinyint('is_closed').default(0),
+  },
+  (table) => ({
+    storeIdx: index('idx_store_hours_store').on(table.storeId),
+  })
+);
 
 // --- ADVANCED METADATA ---
 
@@ -1154,11 +1246,15 @@ export const refundRequests = mysqlTable(
     id: serial('id').primaryKey(),
     orderId: bigint('order_id', { mode: 'number', unsigned: true }).notNull(),
     userId: bigint('user_id', { mode: 'number', unsigned: true }).notNull(),
+    amount: decimal('amount', { precision: 12, scale: 2 }).notNull().default('0.00'),
     reason: text('reason').notNull(),
+    images: text('images'), // Store image URLs as JSON or newline-separated
     status: mysqlEnum('status', ['pending', 'approved', 'rejected']).default('pending'),
-    adminNotes: text('admin_notes'),
+    adminResponse: text('admin_response'),
+    adminNotes: text('admin_notes'), // Keep existing if it was there, but DB showed admin_response
     createdAt: timestamp('created_at').defaultNow(),
     updatedAt: timestamp('updated_at').defaultNow().onUpdateNow(),
+    deletedAt: timestamp('deleted_at'),
   },
   (table) => ({
     orderIdx: index('order_id').on(table.orderId),
@@ -1188,16 +1284,27 @@ export const transactions = mysqlTable(
   {
     id: serial('id').primaryKey(),
     orderId: bigint('order_id', { mode: 'number', unsigned: true }).notNull(),
-    paymentMethod: varchar('payment_method', { length: 50 }).notNull(),
-    amount: decimal('amount', { precision: 12, scale: 2 }).notNull(),
-    status: varchar('status', { length: 50 }).notNull(), // e.g., 'captured', 'authorized', 'failed'
-    providerTransactionId: varchar('provider_transaction_id', { length: 255 }),
-    providerData: json('provider_data'),
+    userId: bigint('user_id', { mode: 'number', unsigned: true }),
+    paymentProvider: mysqlEnum('payment_provider', [
+      'vnpay',
+      'momo',
+      'zalopay',
+      'bank_transfer',
+      'cod',
+    ]).notNull(),
+    transactionCode: varchar('transaction_code', { length: 100 }),
+    amount: decimal('amount', { precision: 15, scale: 2 }).notNull(),
+    status: mysqlEnum('status', ['pending', 'success', 'failed', 'refunded'])
+      .default('pending')
+      .notNull(),
+    responseData: json('response_data'),
     createdAt: timestamp('created_at').defaultNow(),
+    updatedAt: timestamp('updated_at').defaultNow().onUpdateNow(),
   },
   (table) => ({
-    orderIdx: index('order_id').on(table.orderId),
-    providerUnq: unique('provider_tx_unq').on(table.providerTransactionId),
+    orderIdx: index('idx_tx_order').on(table.orderId),
+    userIdx: index('idx_tx_user').on(table.userId),
+    providerIdx: index('idx_tx_provider').on(table.paymentProvider),
   })
 );
 
@@ -1206,6 +1313,7 @@ export const shipments = mysqlTable(
   {
     id: serial('id').primaryKey(),
     orderId: bigint('order_id', { mode: 'number', unsigned: true }).notNull(),
+    warehouseId: bigint('warehouse_id', { mode: 'number', unsigned: true }),
     trackingNumber: varchar('tracking_number', { length: 100 }),
     carrier: varchar('carrier', { length: 100 }),
     status: varchar('status', { length: 50 }).default('preparing'),
@@ -1250,10 +1358,10 @@ export const systemLogs = mysqlTable(
 );
 
 export const systemConfig = mysqlTable('system_config', {
-  id: serial('id').primaryKey(),
-  configKey: varchar('config_key', { length: 100 }).notNull().unique(),
-  configValue: text('config_value'),
-  description: text('description'),
+  id: bigint('id', { mode: 'number', unsigned: true }).primaryKey().autoincrement(),
+  key: varchar('key', { length: 255 }).notNull().unique(),
+  value: text('value'),
+  description: varchar('description', { length: 255 }),
   updatedAt: timestamp('updated_at').defaultNow().onUpdateNow(),
 });
 
@@ -1268,8 +1376,120 @@ export const contactMessages = mysqlTable('contact_messages', {
   id: serial('id').primaryKey(),
   name: varchar('name', { length: 255 }).notNull(),
   email: varchar('email', { length: 255 }).notNull(),
-  subject: varchar('subject', { length: 255 }),
+  subject: varchar('subject', { length: 500 }).notNull(),
   message: text('message').notNull(),
-  status: mysqlEnum('status', ['unread', 'read', 'replied']).default('unread'),
+  status: mysqlEnum('status', [
+    'new',
+    'read',
+    'replied',
+    'in_progress',
+    'resolved',
+    'closed',
+  ]).default('new'),
+  userId: bigint('user_id', { mode: 'number', unsigned: true }),
+  adminNotes: text('admin_notes'),
   createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow().onUpdateNow(),
 });
+export const settings = mysqlTable('settings', {
+  id: bigint('id', { mode: 'number', unsigned: true }).primaryKey().autoincrement(),
+  key: varchar('key', { length: 255 }).notNull().unique(),
+  value: text('value'),
+  valueType: varchar('value_type', { length: 50 }).default('string'),
+  updatedAt: timestamp('updated_at').defaultNow().onUpdateNow(),
+});
+
+export const passwordResets = mysqlTable(
+  'password_resets',
+  {
+    id: serial('id').primaryKey(),
+    email: varchar('email', { length: 255 }).notNull(),
+    token: varchar('token', { length: 255 }).notNull().unique(),
+    expiresAt: datetime('expires_at').notNull(),
+    used: tinyint('used').default(0),
+    createdAt: timestamp('created_at').defaultNow(),
+  },
+  (table) => ({
+    tokenIdx: index('idx_token').on(table.token),
+    emailIdx: index('idx_email').on(table.email),
+    expiresIdx: index('idx_expires_at').on(table.expiresAt),
+  })
+);
+
+export const sepayTransactions = mysqlTable(
+  'sepay_transactions',
+  {
+    id: serial('id').primaryKey(),
+    sepayId: bigint('sepay_id', { mode: 'number' }).unique(),
+    gateway: varchar('gateway', { length: 100 }),
+    transactionDate: timestamp('transaction_date'),
+    accountNumber: varchar('account_number', { length: 100 }),
+    transferType: mysqlEnum('transfer_type', ['in', 'out']),
+    transferAmount: decimal('transfer_amount', { precision: 20, scale: 2 }),
+    accumulated: decimal('accumulated', { precision: 20, scale: 2 }),
+    content: text('content'),
+    code: varchar('code', { length: 100 }), // The extracted code for matching
+    referenceCode: varchar('reference_code', { length: 255 }),
+    description: text('description'), // Original raw description
+    createdAt: timestamp('created_at').defaultNow(),
+  },
+  (table) => ({
+    sepayIdIdx: index('idx_sepay_id').on(table.sepayId),
+    codeIdx: index('idx_sepay_code').on(table.code),
+  })
+);
+
+export const customerNotes = mysqlTable(
+  'customer_notes',
+  {
+    id: serial('id').primaryKey(),
+    userId: bigint('user_id', { mode: 'number', unsigned: true }).notNull(),
+    adminId: bigint('admin_id', { mode: 'number', unsigned: true }).notNull(),
+    note: text('note').notNull(),
+    createdAt: timestamp('created_at').defaultNow(),
+    updatedAt: timestamp('updated_at').defaultNow().onUpdateNow(),
+  },
+  (table) => ({
+    userIdIdx: index('idx_note_user').on(table.userId),
+  })
+);
+
+export const media = mysqlTable(
+  'media',
+  {
+    id: serial('id').primaryKey(),
+    fileName: varchar('file_name', { length: 255 }).notNull(),
+    filePath: varchar('file_path', { length: 500 }).notNull().unique(), // URL or relative path
+    fileSize: int('file_size'), // in bytes
+    mimeType: varchar('mime_type', { length: 100 }),
+    width: int('width'),
+    height: int('height'),
+    altText: varchar('alt_text', { length: 255 }),
+    folder: varchar('folder', { length: 100 }).default('general'),
+    createdAt: timestamp('created_at').defaultNow(),
+    updatedAt: timestamp('updated_at').defaultNow().onUpdateNow(),
+  },
+  (table) => ({
+    pathIdx: index('idx_media_path').on(table.filePath),
+    createdIdx: index('idx_media_created').on(table.createdAt),
+  })
+);
+
+export const bulkDiscounts = mysqlTable(
+  'bulk_discounts',
+  {
+    id: serial('id').primaryKey(),
+    name: varchar('name', { length: 255 }).notNull(),
+    discountPercentage: int('discount_percentage').notNull(),
+    categoryId: bigint('category_id', { mode: 'number', unsigned: true }), // Null means all categories
+    startTime: timestamp('start_time').notNull(),
+    endTime: timestamp('end_time').notNull(),
+    isActive: tinyint('is_active').default(1),
+    createdAt: timestamp('created_at').defaultNow(),
+    updatedAt: timestamp('updated_at').defaultNow().onUpdateNow(),
+  },
+  (table) => ({
+    activeIdx: index('idx_bulk_active').on(table.isActive),
+    timeIdx: index('idx_bulk_time').on(table.startTime, table.endTime),
+  })
+);

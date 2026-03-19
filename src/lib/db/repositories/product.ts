@@ -1,52 +1,73 @@
-import { executeQuery } from '../connection';
+import { db } from '../drizzle';
+import {
+  products,
+  productVariants,
+  inventory,
+  productImages,
+  categories,
+  sports,
+  productGenderCategories,
+} from '../schema';
+import {
+  eq,
+  and,
+  sql,
+  desc,
+  asc,
+  lt,
+  gt,
+  gte,
+  lte,
+  or,
+  inArray,
+  isNull,
+  count,
+  exists,
+} from 'drizzle-orm';
 
 /**
  * Repository xử lý các thao tác liên quan đến Sản phẩm (Products).
- * Bao gồm: Truy vấn danh sách, Tìm kiếm Full-text, Chi tiết sản phẩm và Biến thể.
  */
 
 // Product functions
 export async function getProductSizes(productId: number) {
-  return executeQuery(
-    `
-    SELECT 
-        pv.size, 
-        i.quantity as stock, 
-        i.reserved, 
-        pv.price as price_adjustment,
-        COALESCE(i.allow_backorder, 0) as allow_backorder,
-        i.expected_restock_date,
-        pv.sku
-    FROM product_variants pv
-    LEFT JOIN inventory i ON i.product_variant_id = pv.id
-    WHERE pv.product_id = ?
-    ORDER BY CAST(pv.size AS DECIMAL(10,1))`,
-    [productId]
-  );
+  return await db
+    .select({
+      size: productVariants.size,
+      stock: sql<number>`SUM(COALESCE(${inventory.quantity}, 0))`,
+      reserved: sql<number>`SUM(COALESCE(${inventory.reserved}, 0))`,
+      priceAdjustment: sql<string>`MAX(${productVariants.price})`, // Pick one price
+      allowBackorder: sql<number>`MAX(COALESCE(${inventory.allowBackorder}, 0))`,
+      expectedRestockDate: sql<string>`MAX(${inventory.expectedRestockDate})`,
+      sku: sql<string>`MAX(${productVariants.sku})`, // Pick one SKU
+    })
+    .from(productVariants)
+    .leftJoin(inventory, eq(inventory.productVariantId, productVariants.id))
+    .where(eq(productVariants.productId, productId))
+    .groupBy(productVariants.size)
+    .orderBy(sql`CAST(${productVariants.size} AS DECIMAL(10,1))`);
 }
 
 export async function getProductById(productId: number) {
-  const [product] = await executeQuery<any[]>(
-    `
-    SELECT * FROM products WHERE id = ? AND is_active = 1 AND deleted_at IS NULL`,
-    [productId]
-  );
-  return product;
+  const [product] = await db
+    .select()
+    .from(products)
+    .where(and(eq(products.id, productId), eq(products.isActive, 1), isNull(products.deletedAt)))
+    .limit(1);
+  return product || null;
 }
 
 export async function getProductBySlug(slug: string) {
-  const [product] = await executeQuery<any[]>(
-    `
-    SELECT * FROM products WHERE slug = ? AND is_active = 1 AND deleted_at IS NULL`,
-    [slug]
-  );
-  return product;
+  const [product] = await db
+    .select()
+    .from(products)
+    .where(and(eq(products.slug, slug), eq(products.isActive, 1), isNull(products.deletedAt)))
+    .limit(1);
+  return product || null;
 }
 
 /**
  * Hàm truy vấn danh sách sản phẩm chính cho trang Shop.
- * Hỗ trợ các bộ lọc phức tạp (Category, Sport, Price, Gender) và Phân trang (Pagination).
- * Tối ưu: Sử dụng SQL Whitelist để Sort tránh SQL Injection.
  */
 export async function getProducts(filters: {
   category?: string;
@@ -56,143 +77,224 @@ export async function getProducts(filters: {
   maxPrice?: number;
   search?: string;
   isNewArrival?: boolean;
-  sort?: string; // Whitelist logic applies
+  sort?: string;
   limit?: number;
   offset?: number;
 }) {
-  let whereClause = `WHERE p.is_active = 1 AND p.deleted_at IS NULL`;
-  const params: any[] = [];
+  const conditions = [eq(products.isActive, 1), isNull(products.deletedAt)];
 
   if (filters.search) {
-    whereClause += ' AND MATCH(p.name, p.sku, p.description) AGAINST(?)';
-    params.push(filters.search);
+    conditions.push(
+      sql`MATCH(${products.name}, ${products.sku}, ${products.description}) AGAINST(${filters.search})`
+    );
   }
 
   if (filters.category) {
-    whereClause +=
-      ' AND p.category_id = (SELECT id FROM categories WHERE slug = ? OR name = ? LIMIT 1)';
-    params.push(filters.category, filters.category);
+    const categorySubquery = db
+      .select({ id: categories.id })
+      .from(categories)
+      .where(or(eq(categories.slug, filters.category), eq(categories.name, filters.category)))
+      .limit(1);
+    conditions.push(eq(products.categoryId, sql`(${categorySubquery})`));
   }
 
   if (filters.sport) {
-    whereClause += ' AND p.sport_id = (SELECT id FROM sports WHERE slug = ? OR name = ? LIMIT 1)';
-    params.push(filters.sport, filters.sport);
+    const sportSubquery = db
+      .select({ id: sports.id })
+      .from(sports)
+      .where(or(eq(sports.slug, filters.sport), eq(sports.name, filters.sport)))
+      .limit(1);
+    conditions.push(eq(products.sportId, sql`(${sportSubquery})`));
   }
 
   if (filters.gender) {
-    whereClause +=
-      ' AND EXISTS (SELECT 1 FROM product_gender_categories pgc WHERE pgc.product_id = p.id AND pgc.gender = ?)';
-    params.push(filters.gender);
+    conditions.push(
+      exists(
+        db
+          .select()
+          .from(productGenderCategories)
+          .where(
+            and(
+              eq(productGenderCategories.productId, products.id),
+              eq(productGenderCategories.gender, filters.gender as any)
+            )
+          )
+      )
+    );
   }
 
   if (filters.minPrice !== undefined) {
-    whereClause += ' AND (p.msrp_price >= ? OR (p.msrp_price IS NULL AND p.price_cache >= ?))';
-    params.push(filters.minPrice, filters.minPrice);
+    conditions.push(
+      or(
+        gte(products.msrpPrice, String(filters.minPrice)),
+        and(isNull(products.msrpPrice), gte(products.priceCache, String(filters.minPrice)))!
+      )!
+    );
   }
 
   if (filters.maxPrice !== undefined) {
-    whereClause += ' AND (p.msrp_price <= ? OR (p.msrp_price IS NULL AND p.price_cache <= ?))';
-    params.push(filters.maxPrice, filters.maxPrice);
+    conditions.push(
+      or(
+        lte(products.msrpPrice, String(filters.maxPrice)),
+        and(isNull(products.msrpPrice), lte(products.priceCache, String(filters.maxPrice)))!
+      )!
+    );
   }
 
   if (filters.isNewArrival) {
-    whereClause += ' AND p.created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)';
+    conditions.push(gte(products.createdAt, sql`DATE_SUB(NOW(), INTERVAL 30 DAY)`));
   }
 
   // 1. Get Total Count
-  const countQuery = `SELECT COUNT(*) as total FROM products p ${whereClause}`;
-  const [countResult]: any = await executeQuery(countQuery, params);
+  const [countResult] = await db
+    .select({ total: count() })
+    .from(products)
+    .where(and(...conditions));
+
   const total = countResult?.total || 0;
 
-  // 2. Get Products
-  let query = `
-    SELECT 
-      p.*,
-      (SELECT url FROM product_images WHERE product_id = p.id AND is_main = 1 LIMIT 1) as image_url,
-      (SELECT media_type FROM product_images WHERE product_id = p.id AND is_main = 1 LIMIT 1) as main_media_type,
-      (SELECT COUNT(*) FROM product_variants WHERE product_id = p.id) as variant_count,
-      (SELECT name FROM categories WHERE id = p.category_id) as category
-      ${filters.search ? `, MATCH(p.name, p.sku, p.description) AGAINST(?) as relevance` : ''}
-    FROM products p
-    ${whereClause}`;
-
-  if (filters.search) params.push(filters.search);
-
-  // FIX H3: SQL ORDER BY via whitelist (sort BEFORE LIMIT for correct pagination)
-  const sortMap: Record<string, string> = {
-    'price-asc': 'p.price_cache ASC',
-    'price-desc': 'p.price_cache DESC',
-    discount: '(COALESCE(p.msrp_price, p.price_cache) - p.price_cache) DESC',
-    name: 'p.name ASC',
-    newest: 'p.created_at DESC',
+  // 2. Build Query
+  const selectFields: any = {
+    id: products.id,
+    name: products.name,
+    slug: products.slug,
+    priceCache: products.priceCache,
+    msrpPrice: products.msrpPrice,
+    shortDescription: products.shortDescription,
+    description: products.description,
+    sku: products.sku,
+    categoryId: products.categoryId,
+    sportId: products.sportId,
+    createdAt: products.createdAt,
+    imageUrl: productImages.url,
+    mainMediaType: productImages.mediaType,
+    variantCount: sql<number>`(SELECT COUNT(*) FROM ${productVariants} pv WHERE pv.product_id = ${products.id})`,
+    category: categories.name,
+    isNewArrival: products.isNewArrival,
   };
 
   if (filters.search) {
-    query += ` ORDER BY relevance DESC, ${sortMap[filters.sort || 'newest'] || 'p.created_at DESC'}`;
-  } else {
-    query += ` ORDER BY ${sortMap[filters.sort || 'newest'] || 'p.created_at DESC'}`;
+    selectFields.relevance = sql`MATCH(${products.name}, ${products.sku}, ${products.description}) AGAINST(${filters.search})`;
   }
 
+  const sortMap: Record<string, any> = {
+    'price-asc': asc(products.priceCache),
+    'price-desc': desc(products.priceCache),
+    discount: desc(
+      sql`(COALESCE(${products.msrpPrice}, ${products.priceCache}) - ${products.priceCache})`
+    ),
+    name: asc(products.name),
+    newest: desc(products.createdAt),
+  };
+
+  const orderBy: any[] = [];
+  if (filters.search) {
+    orderBy.push(desc(sql`relevance`));
+  }
+  orderBy.push(sortMap[filters.sort || 'newest'] || desc(products.createdAt));
+
+  let finalQuery = db
+    .select(selectFields)
+    .from(products)
+    .leftJoin(
+      productImages,
+      and(eq(productImages.productId, products.id), eq(productImages.isMain, 1))
+    )
+    .leftJoin(categories, eq(categories.id, products.categoryId))
+    .where(and(...conditions))
+    .orderBy(...orderBy);
+
   if (filters.limit) {
-    query += ` LIMIT ${filters.limit}`;
+    finalQuery = finalQuery.limit(filters.limit) as any;
     if (filters.offset !== undefined) {
-      query += ` OFFSET ${filters.offset}`;
+      finalQuery = finalQuery.offset(filters.offset) as any;
     }
   }
 
-  const items = await executeQuery<any[]>(query, params);
+  const items = await finalQuery;
   return { items, total };
 }
 
 // Chatbot Search Function
-/**
- * Hàm tìm kiếm sản phẩm dành riêng cho Chatbot AI.
- * Ưu tiên: Sử dụng Full-Text Search (FTS) với độ chính xác và trọng số (relevance) cao.
- * Có cơ chế Fallback sang LIKE nếu DB chưa được cấu hình FTS.
- */
 export async function searchProductsForChat(keyword: string) {
   try {
-    // Ưu tiên 1: Tìm kiếm theo Full-Text Search để lấy kết quả có độ liên quan cao nhất
-    const products = await executeQuery<any[]>(
-      `SELECT p.id, p.name, p.price_cache, p.msrp_price, p.slug, p.short_description,
-               (SELECT url FROM product_images WHERE product_id = p.id AND is_main = 1 LIMIT 1) as image_url,
-               MATCH(p.name, p.sku, p.description) AGAINST(?) as relevance
-        FROM products p
-        WHERE MATCH(p.name, p.sku, p.description) AGAINST(?) AND p.is_active = 1 AND p.deleted_at IS NULL
-        ORDER BY relevance DESC
-        LIMIT 5`,
-      [keyword, keyword]
-    );
+    const items = await db
+      .select({
+        id: products.id,
+        name: products.name,
+        price_cache: products.priceCache,
+        msrp_price: products.msrpPrice,
+        slug: products.slug,
+        short_description: products.shortDescription,
+        imageUrl: productImages.url,
+        relevance: sql`MATCH(${products.name}, ${products.sku}, ${products.description}) AGAINST(${keyword})`,
+      })
+      .from(products)
+      .leftJoin(
+        productImages,
+        and(eq(productImages.productId, products.id), eq(productImages.isMain, 1))
+      )
+      .where(
+        and(
+          sql`MATCH(${products.name}, ${products.sku}, ${products.description}) AGAINST(${keyword})`,
+          eq(products.isActive, 1),
+          isNull(products.deletedAt)
+        )
+      )
+      .orderBy(desc(sql`relevance`))
+      .limit(5);
 
-    // For each product, fetch available sizes and ratings via helper
-    const result = await formatProductsForChat(products);
-    return result;
+    return await formatProductsForChat(items);
   } catch (error) {
     console.error('Chatbot Search Error:', error);
     // Fallback to LIKE if FTS fails
-    const products = await executeQuery<any[]>(
-      `SELECT p.id, p.name, p.price_cache, p.msrp_price, p.slug, p.short_description,
-               (SELECT url FROM product_images WHERE product_id = p.id AND is_main = 1 LIMIT 1) as image_url
-        FROM products p
-        WHERE p.name LIKE ? AND p.is_active = 1 AND p.deleted_at IS NULL
-        LIMIT 5`,
-      [`%${keyword}%`]
-    );
-    return formatProductsForChat(products);
+    const items = await db
+      .select({
+        id: products.id,
+        name: products.name,
+        price_cache: products.priceCache,
+        msrp_price: products.msrpPrice,
+        slug: products.slug,
+        short_description: products.shortDescription,
+        imageUrl: productImages.url,
+      })
+      .from(products)
+      .leftJoin(
+        productImages,
+        and(eq(productImages.productId, products.id), eq(productImages.isMain, 1))
+      )
+      .where(
+        and(
+          sql`${products.name} LIKE ${`%${keyword}%`}`,
+          eq(products.isActive, 1),
+          isNull(products.deletedAt)
+        )
+      )
+      .limit(5);
+    return await formatProductsForChat(items);
   }
 }
 
 export async function getNewArrivalsForChat() {
   try {
-    const products = await executeQuery<any[]>(
-      `SELECT p.id, p.name, p.price_cache, p.msrp_price, p.slug,
-               (SELECT url FROM product_images WHERE product_id = p.id AND is_main = 1 LIMIT 1) as image_url
-        FROM products p
-        WHERE p.is_active = 1 AND p.deleted_at IS NULL
-        ORDER BY p.created_at DESC 
-        LIMIT 5`
-    );
-    return formatProductsForChat(products);
+    const items = await db
+      .select({
+        id: products.id,
+        name: products.name,
+        price_cache: products.priceCache,
+        msrp_price: products.msrpPrice,
+        slug: products.slug,
+        imageUrl: productImages.url,
+      })
+      .from(products)
+      .leftJoin(
+        productImages,
+        and(eq(productImages.productId, products.id), eq(productImages.isMain, 1))
+      )
+      .where(and(eq(products.isActive, 1), isNull(products.deletedAt)))
+      .orderBy(desc(products.createdAt))
+      .limit(5);
+    return await formatProductsForChat(items);
   } catch (error) {
     console.error('Chatbot New Arrivals Error:', error);
     return [];
@@ -201,15 +303,30 @@ export async function getNewArrivalsForChat() {
 
 export async function getDiscountedProductsForChat() {
   try {
-    const products = await executeQuery<any[]>(
-      `SELECT id, name, price_cache, msrp_price, slug,
-               (SELECT url FROM product_images WHERE product_id = p.id AND is_main = 1 LIMIT 1) as image_url
-        FROM products p
-        WHERE p.is_active = 1 AND p.msrp_price < p.price_cache AND p.deleted_at IS NULL
-        ORDER BY (p.price_cache - p.msrp_price) DESC 
-        LIMIT 5`
-    );
-    return formatProductsForChat(products);
+    const items = await db
+      .select({
+        id: products.id,
+        name: products.name,
+        price_cache: products.priceCache,
+        msrp_price: products.msrpPrice,
+        slug: products.slug,
+        imageUrl: productImages.url,
+      })
+      .from(products)
+      .leftJoin(
+        productImages,
+        and(eq(productImages.productId, products.id), eq(productImages.isMain, 1))
+      )
+      .where(
+        and(
+          eq(products.isActive, 1),
+          lt(products.msrpPrice, products.priceCache),
+          isNull(products.deletedAt)
+        )
+      )
+      .orderBy(desc(sql`(${products.priceCache} - ${products.msrpPrice})`))
+      .limit(5);
+    return await formatProductsForChat(items);
   } catch (error) {
     console.error('Chatbot Discount Error:', error);
     return [];
@@ -218,17 +335,34 @@ export async function getDiscountedProductsForChat() {
 
 export async function getProductsByCategoryForChat(categorySlug: string) {
   try {
-    const products = await executeQuery<any[]>(
-      `SELECT p.id, p.name, p.price_cache, p.msrp_price, p.slug,
-               (SELECT url FROM product_images WHERE product_id = p.id AND is_main = 1 LIMIT 1) as image_url
-        FROM products p
-        JOIN categories c ON p.category_id = c.id
-        WHERE p.is_active = 1 AND (c.slug = ? OR c.name LIKE ?) AND p.deleted_at IS NULL
-        ORDER BY p.created_at DESC 
-        LIMIT 5`,
-      [categorySlug, `%${categorySlug}%`]
-    );
-    return formatProductsForChat(products);
+    const items = await db
+      .select({
+        id: products.id,
+        name: products.name,
+        price_cache: products.priceCache,
+        msrp_price: products.msrpPrice,
+        slug: products.slug,
+        imageUrl: productImages.url,
+      })
+      .from(products)
+      .leftJoin(
+        productImages,
+        and(eq(productImages.productId, products.id), eq(productImages.isMain, 1))
+      )
+      .innerJoin(categories, eq(products.categoryId, categories.id))
+      .where(
+        and(
+          eq(products.isActive, 1),
+          or(
+            eq(categories.slug, categorySlug),
+            sql`${categories.name} LIKE ${`%${categorySlug}%`}`
+          ),
+          isNull(products.deletedAt)
+        )
+      )
+      .orderBy(desc(products.createdAt))
+      .limit(5);
+    return await formatProductsForChat(items);
   } catch (error) {
     console.error('Chatbot Category Error:', error);
     return [];
@@ -237,32 +371,37 @@ export async function getProductsByCategoryForChat(categorySlug: string) {
 
 /**
  * Helper định dạng dữ liệu sản phẩm cho hội thoại Chatbot.
- * Tối ưu hiệu năng: Gom tất cả ID sản phẩm để chỉ chạy 1 câu Query lấy Size duy nhất (Batching),
- * tránh lỗi N+1 query làm chậm hệ thống.
  */
-export async function formatProductsForChat(products: any[]) {
-  if (products.length === 0) return [];
+export async function formatProductsForChat(productsList: any[]) {
+  if (productsList.length === 0) return [];
 
-  const productIds = products.map((p) => p.id);
+  const productIds = productsList.map((p) => p.id);
 
   // Batch fetch available sizes for all products
-  const allSizes = await executeQuery<any[]>(
-    `SELECT pv.product_id, pv.size, (COALESCE(i.quantity, 0) - COALESCE(i.reserved, 0)) as stock 
-         FROM product_variants pv 
-         LEFT JOIN inventory i ON i.product_variant_id = pv.id
-         WHERE pv.product_id IN (?) AND (COALESCE(i.quantity, 0) - COALESCE(i.reserved, 0)) > 0
-         ORDER BY CAST(pv.size AS DECIMAL(10,1))`,
-    [productIds as any]
-  );
+  const allSizes = await db
+    .select({
+      productId: productVariants.productId,
+      size: productVariants.size,
+      stock: sql<number>`COALESCE(${inventory.quantity}, 0) - COALESCE(${inventory.reserved}, 0)`,
+    })
+    .from(productVariants)
+    .leftJoin(inventory, eq(inventory.productVariantId, productVariants.id))
+    .where(
+      and(
+        inArray(productVariants.productId, productIds),
+        sql`(COALESCE(${inventory.quantity}, 0) - COALESCE(${inventory.reserved}, 0)) > 0`
+      )
+    )
+    .orderBy(sql`CAST(${productVariants.size} AS DECIMAL(10,1))`);
 
-  // Group sizes by product_id
+  // Group sizes by productId
   const sizesByProduct: Record<string, string[]> = {};
   allSizes.forEach((s) => {
-    if (!sizesByProduct[s.product_id]) sizesByProduct[s.product_id] = [];
-    sizesByProduct[s.product_id].push(s.size);
+    if (!sizesByProduct[s.productId]) sizesByProduct[s.productId] = [];
+    sizesByProduct[s.productId].push(s.size || '');
   });
 
-  return products.map((p) => {
+  return productsList.map((p) => {
     const availableSizes = (sizesByProduct[p.id] || []).join(', ');
     const price = p.price_cache;
     const originalPrice =
@@ -273,7 +412,7 @@ export async function formatProductsForChat(products: any[]) {
       name: p.name,
       price: price,
       originalPrice: originalPrice,
-      image_url: p.image_url || '/images/placeholder.png',
+      image_url: p.imageUrl || '/images/placeholder.png',
       sizes: availableSizes || 'Hết hàng',
       link: `/products/${p.slug || p.id}`,
     };
@@ -281,9 +420,9 @@ export async function formatProductsForChat(products: any[]) {
 }
 
 export async function softDeleteProduct(productId: number) {
-  return executeQuery('UPDATE products SET deleted_at = NOW() WHERE id = ?', [productId]);
+  return await db.update(products).set({ deletedAt: new Date() }).where(eq(products.id, productId));
 }
 
 export async function restoreProduct(productId: number) {
-  return executeQuery('UPDATE products SET deleted_at = NULL WHERE id = ?', [productId]);
+  return await db.update(products).set({ deletedAt: null }).where(eq(products.id, productId));
 }

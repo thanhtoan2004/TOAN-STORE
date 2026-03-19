@@ -8,8 +8,8 @@ import {
   generateRefreshToken,
 } from '@/lib/auth/auth';
 import { getRedisConnection } from '@/lib/redis/redis';
-import { createErrorResponse } from '@/lib/api/api-utils';
 import { executeQuery } from '@/lib/db/mysql';
+import { ResponseWrapper } from '@/lib/api/api-response';
 
 /**
  * API Làm mới Token (Token Refresh).
@@ -24,13 +24,13 @@ export async function POST(req: NextRequest) {
     const refreshToken = cookieStore.get(REFRESH_TOKEN)?.value;
 
     if (!refreshToken) {
-      return createErrorResponse('No refresh token provided', 401, 'MISSING_REFRESH_TOKEN');
+      return ResponseWrapper.unauthorized('No refresh token provided');
     }
 
     // 1. Verify JWT signature and expiration
     const decoded = verifyRefreshToken(refreshToken);
     if (!decoded) {
-      return createErrorResponse('Invalid or expired refresh token', 401, 'INVALID_REFRESH_TOKEN');
+      return ResponseWrapper.unauthorized('Invalid or expired refresh token');
     }
 
     // 2. Check against Redis (for revocation/rotation)
@@ -55,7 +55,7 @@ export async function POST(req: NextRequest) {
         await redis.del(`refresh_token:${decoded.userId}`);
       } catch (e) {}
 
-      return createErrorResponse('Token security breach detected', 401, 'SECURITY_BREACH');
+      return ResponseWrapper.unauthorized('Token security breach detected');
     }
 
     // 3. Verify User and Token Version in Database
@@ -65,14 +65,14 @@ export async function POST(req: NextRequest) {
     )) as any[];
 
     if (users.length === 0 || !users[0].is_active) {
-      return createErrorResponse('User not found or inactive', 401, 'USER_INACTIVE');
+      return ResponseWrapper.unauthorized('User not found or inactive');
     }
 
     const user = users[0];
 
     // Security check: Verify token version matches database
     if (decoded.tv !== user.token_version) {
-      return createErrorResponse('Session expired. Please log in again.', 401, 'SESSION_EXPIRED');
+      return ResponseWrapper.unauthorized('Session expired. Please log in again.');
     }
 
     // 4. Generate New Tokens (Rotation)
@@ -109,12 +109,9 @@ export async function POST(req: NextRequest) {
       sameSite: 'strict',
     });
 
-    return NextResponse.json({
-      success: true,
-      message: 'Token refreshed successfully',
-    });
+    return ResponseWrapper.success(null, 'Token refreshed successfully');
   } catch (error) {
     console.error('Error in token refresh:', error);
-    return createErrorResponse('Internal server error', 500);
+    return ResponseWrapper.serverError('Internal server error', error);
   }
 }

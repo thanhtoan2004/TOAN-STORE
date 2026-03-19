@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { executeQuery } from '@/lib/db/mysql';
+import { db } from '@/lib/db/drizzle';
+import { users, orders as ordersTable } from '@/lib/db/schema';
+import { eq, ne, gte, sql, desc, count, sum, and, isNull, inArray } from 'drizzle-orm';
 import { checkAdminAuth } from '@/lib/auth/auth';
 
 /**
@@ -13,16 +15,6 @@ import { checkAdminAuth } from '@/lib/auth/auth';
  * - Dormant:       Everything else
  */
 
-interface CustomerRFM {
-  id: number;
-  email: string;
-  name: string;
-  membership_tier: string;
-  recency_days: number;
-  frequency: number;
-  monetary: number;
-}
-
 function classifySegment(r: number, f: number, m: number): string {
   if (r <= 30 && f >= 3 && m >= 5000000) return 'Champions';
   if (r <= 60 && f >= 2 && m >= 2000000) return 'Loyal';
@@ -33,14 +25,8 @@ function classifySegment(r: number, f: number, m: number): string {
   return 'Dormant';
 }
 
-// GET - Customer segmentation via RFM analysis
 /**
  * API Phân đoạn khách hàng (Customer Segmentation) dựa trên mô hình RFM.
- * RFM là viết tắt của:
- * - Recency (R): Thời gian kể từ lần mua cuối cùng.
- * - Frequency (F): Tổng số đơn hàng đã thực hiện.
- * - Monetary (M): Tổng giá trị chi tiêu từ trước đến nay.
- * Kết quả giúp Admin nhận diện được các nhóm khách hàng: Champions (Vip), Loyal (Trung thành), New (Mới), At Risk (Nguy cơ rời bỏ), v.v.
  */
 export async function GET(request: NextRequest) {
   try {
@@ -49,22 +35,36 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
     }
 
-    // RFM query: Recency (days since last order), Frequency (order count), Monetary (total spent)
-    const customers = await executeQuery<CustomerRFM[]>(`
-      SELECT 
-        u.id,
-        u.email,
-        CONCAT(COALESCE(u.first_name, ''), ' ', COALESCE(u.last_name, '')) as name,
-        u.membership_tier,
-        DATEDIFF(NOW(), MAX(o.placed_at)) as recency_days,
-        COUNT(o.id) as frequency,
-        COALESCE(SUM(o.total), 0) as monetary
-      FROM users u
-      JOIN orders o ON u.id = o.user_id
-      WHERE o.status NOT IN ('cancelled', 'refunded')
-        AND u.deleted_at IS NULL
-      GROUP BY u.id, u.email, u.first_name, u.last_name, u.membership_tier
-    `);
+    const [customers, tierDistribution] = await Promise.all([
+      // RFM query
+      db
+        .select({
+          id: users.id,
+          email: users.email,
+          name: sql<string>`CONCAT(COALESCE(${users.firstName}, ''), ' ', COALESCE(${users.lastName}, ''))`,
+          membershipTier: users.membershipTier,
+          recencyDays: sql<number>`DATEDIFF(NOW(), MAX(${ordersTable.placedAt}))`,
+          frequency: count(ordersTable.id),
+          monetary: sql<number>`COALESCE(SUM(${ordersTable.total}), 0)`,
+        })
+        .from(users)
+        .innerJoin(ordersTable, eq(users.id, ordersTable.userId))
+        .where(
+          and(notInArray(ordersTable.status, ['cancelled', 'refunded']), isNull(users.deletedAt))
+        )
+        .groupBy(users.id),
+
+      // Membership tier distribution
+      db
+        .select({
+          tier: users.membershipTier,
+          count: count(),
+        })
+        .from(users)
+        .where(isNull(users.deletedAt))
+        .groupBy(users.membershipTier)
+        .orderBy(sql`FIELD(${users.membershipTier}, 'platinum', 'gold', 'silver', 'bronze')`),
+    ]);
 
     // Classify each customer
     const segmentMap: Record<string, { count: number; revenue: number; customers: any[] }> = {
@@ -78,7 +78,7 @@ export async function GET(request: NextRequest) {
     };
 
     for (const c of customers) {
-      const r = Number(c.recency_days) || 999;
+      const r = Number(c.recencyDays) || 999;
       const f = Number(c.frequency) || 0;
       const m = Number(c.monetary) || 0;
       const segment = classifySegment(r, f, m);
@@ -89,17 +89,16 @@ export async function GET(request: NextRequest) {
         id: c.id,
         email: c.email,
         name: c.name?.trim() || c.email,
-        membershipTier: c.membership_tier,
+        membershipTier: c.membershipTier,
         recencyDays: r,
         orderCount: f,
         totalSpent: m,
       });
     }
 
-    // Sort customers within each segment by monetary value (highest first)
+    // Sort and limit
     for (const seg of Object.values(segmentMap)) {
       seg.customers.sort((a: any, b: any) => b.totalSpent - a.totalSpent);
-      // Limit to top 10 per segment for response size
       seg.customers = seg.customers.slice(0, 10);
     }
 
@@ -113,21 +112,8 @@ export async function GET(request: NextRequest) {
     // Overall stats
     const totalCustomers = customers.length;
     const totalRevenue = customers.reduce((sum, c) => sum + Number(c.monetary), 0);
-    const avgOrderValue =
-      totalCustomers > 0
-        ? totalRevenue / customers.reduce((sum, c) => sum + Number(c.frequency), 0)
-        : 0;
-
-    // Membership tier distribution
-    const tierDistribution = await executeQuery<any[]>(`
-      SELECT 
-        membership_tier as tier,
-        COUNT(*) as count
-      FROM users
-      WHERE deleted_at IS NULL
-      GROUP BY membership_tier
-      ORDER BY FIELD(membership_tier, 'platinum', 'gold', 'silver', 'bronze')
-    `);
+    const totalOrdersCount = customers.reduce((sum, c) => sum + Number(c.frequency), 0);
+    const avgOrderValue = totalCustomers > 0 ? totalRevenue / totalOrdersCount : 0;
 
     return NextResponse.json({
       success: true,
@@ -145,4 +131,12 @@ export async function GET(request: NextRequest) {
     console.error('Customer segmentation error:', error);
     return NextResponse.json({ success: false, message: 'Internal server error' }, { status: 500 });
   }
+}
+
+// Helper to handle notInArray
+function notInArray(column: any, values: string[]) {
+  return sql`${column} NOT IN (${sql.join(
+    values.map((v) => sql`${v}`),
+    sql`, `
+  )})`;
 }

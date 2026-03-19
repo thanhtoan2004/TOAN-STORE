@@ -1,9 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { executeQuery } from '@/lib/db/mysql';
+import { db } from '@/lib/db/drizzle';
+import {
+  products as productsTable,
+  productImages,
+  categories as categoriesTable,
+} from '@/lib/db/schema';
+import { eq, and, sql, isNull, ne } from 'drizzle-orm';
+import { ResponseWrapper } from '@/lib/api/api-response';
 
 /**
  * API Lấy danh sách sản phẩm liên quan (You may also like).
- * Chức năng: Tìm ngẫu nhiên 4 sản phẩm trong cùng danh mục để hiển thị gợi ý mở rộng cho khách hàng.
  */
 export async function GET(request: NextRequest, { params }: { params: Promise<{ slug: string }> }) {
   try {
@@ -12,59 +18,64 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     // Resolve product ID from slug or ID
     const isNumericId = /^\d+$/.test(slug);
     let productId: number;
+    let categoryId: number | null = null;
 
     if (isNumericId) {
       productId = parseInt(slug);
     } else {
-      const products = (await executeQuery('SELECT id FROM products WHERE slug = ?', [
-        slug,
-      ])) as any[];
+      const [product] = await db
+        .select({ id: productsTable.id, categoryId: productsTable.categoryId })
+        .from(productsTable)
+        .where(and(eq(productsTable.slug, slug), isNull(productsTable.deletedAt)))
+        .limit(1);
 
-      if (products.length === 0) {
-        return NextResponse.json(
-          { success: false, message: 'Sản phẩm không tồn tại' },
-          { status: 404 }
-        );
+      if (!product) {
+        return ResponseWrapper.notFound('Sản phẩm không tồn tại');
       }
-      productId = products[0].id;
+      productId = product.id;
+      categoryId = product.categoryId;
     }
 
-    // 1. Get current product's category
-    const currentProduct = (await executeQuery('SELECT category_id FROM products WHERE id = ?', [
-      productId,
-    ])) as any[];
+    if (!categoryId) {
+      const [currentProduct] = await db
+        .select({ categoryId: productsTable.categoryId })
+        .from(productsTable)
+        .where(eq(productsTable.id, productId))
+        .limit(1);
 
-    if (currentProduct.length === 0) {
-      return NextResponse.json({ success: false, message: 'Product not found' }, { status: 404 });
+      if (!currentProduct) {
+        return ResponseWrapper.notFound('Product not found');
+      }
+      categoryId = currentProduct.categoryId;
     }
-
-    const categoryId = currentProduct[0].category_id;
 
     // 2. data fetch - related products in same category
-    // exclude current product, limit 4
-    const relatedProducts = await executeQuery(
-      `SELECT 
-        p.id, 
-        p.name, 
-        p.slug, 
-        p.price_cache as price, 
-        p.msrp_price as sale_price,
-        p.is_new_arrival,
-        (SELECT url FROM product_images WHERE product_id = p.id AND is_main = 1 LIMIT 1) as image_url,
-        (SELECT name FROM categories WHERE id = p.category_id) as category
-       FROM products p
-       WHERE p.category_id = ? AND p.id != ? AND p.is_active = 1
-       ORDER BY RAND()
-       LIMIT 4`,
-      [categoryId, productId]
-    );
+    const relatedProducts = await db
+      .select({
+        id: productsTable.id,
+        name: productsTable.name,
+        slug: productsTable.slug,
+        price: productsTable.priceCache,
+        salePrice: productsTable.msrpPrice,
+        isNewArrival: productsTable.isNewArrival,
+        imageUrl: sql<string>`(SELECT url FROM ${productImages} WHERE product_id = ${productsTable.id} AND is_main = 1 LIMIT 1)`,
+        category: sql<string>`(SELECT name FROM ${categoriesTable} WHERE id = ${productsTable.categoryId})`,
+      })
+      .from(productsTable)
+      .where(
+        and(
+          eq(productsTable.categoryId, categoryId!),
+          ne(productsTable.id, productId),
+          eq(productsTable.isActive, 1),
+          isNull(productsTable.deletedAt)
+        )
+      )
+      .orderBy(sql`RAND()`)
+      .limit(4);
 
-    return NextResponse.json({
-      success: true,
-      data: relatedProducts,
-    });
+    return ResponseWrapper.success(relatedProducts);
   } catch (error) {
     console.error('Get related products error:', error);
-    return NextResponse.json({ success: false, message: 'Internal server error' }, { status: 500 });
+    return ResponseWrapper.serverError('Internal server error', error);
   }
 }

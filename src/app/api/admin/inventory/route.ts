@@ -2,11 +2,12 @@ import { NextRequest } from 'next/server';
 import { db } from '@/lib/db/drizzle';
 import {
   inventory as inventorySchema,
+  inventoryLogs,
   productVariants,
   products,
-  stores as warehouses,
+  warehouses,
 } from '@/lib/db/schema';
-import { eq, and, sql, asc, count } from 'drizzle-orm';
+import { eq, and, sql, asc, count, like, or } from 'drizzle-orm';
 import { ResponseWrapper } from '@/lib/api/api-response';
 import { logger } from '@/lib/utils/logger';
 import { withPermission } from '@/lib/auth/rbac-api';
@@ -26,7 +27,11 @@ export const GET = withPermission('manage:inventory', async (request: NextReques
     const filters = [];
     if (search) {
       filters.push(
-        sql`(${products.name} LIKE ${`%%${search}%%`} OR ${products.sku} LIKE ${`%%${search}%%`} OR ${productVariants.size} LIKE ${`%%${search}%%`})`
+        or(
+          like(products.name, `%${search}%`),
+          like(products.sku, `%${search}%`),
+          like(productVariants.size, `%${search}%`)
+        )!
       );
     }
     if (warehouseId) {
@@ -36,16 +41,16 @@ export const GET = withPermission('manage:inventory', async (request: NextReques
     const data = await db
       .select({
         id: inventorySchema.id,
-        productId: products.id,
-        productName: products.name,
-        productSku: products.sku,
-        variantId: productVariants.id,
-        variantSize: productVariants.size,
-        variantColor: productVariants.colorId,
+        product_id: products.id,
+        product_name: products.name,
+        product_sku: products.sku,
+        variant_id: productVariants.id,
+        variant_size: productVariants.size,
+        variant_color: productVariants.colorId,
         quantity: inventorySchema.quantity,
         reserved: inventorySchema.reserved,
-        warehouseName: warehouses.name,
-        warehouseId: inventorySchema.warehouseId,
+        warehouse_name: warehouses.name,
+        warehouse_id: inventorySchema.warehouseId,
       })
       .from(inventorySchema)
       .innerJoin(productVariants, eq(inventorySchema.productVariantId, productVariants.id))
@@ -85,102 +90,148 @@ export const GET = withPermission('manage:inventory', async (request: NextReques
  */
 export const POST = withPermission('manage:inventory', async (request: Request) => {
   try {
-    const { product_id, size, color, quantity, warehouse_id } = await request.json();
+    const { product_id, size, color, quantity, warehouse_id, reason, notes, inventory_id, mode } =
+      await request.json();
     const targetWarehouseId = warehouse_id || 1;
+    const auth = await import('@/lib/auth/auth').then((m) => m.checkAdminAuth());
+    const adminId = auth?.userId;
+
+    // Direct adjustment by Inventory ID
+    if (mode === 'adjust' && inventory_id) {
+      await db
+        .update(inventorySchema)
+        .set({ quantity: sql`${inventorySchema.quantity} + ${quantity || 0}` })
+        .where(eq(inventorySchema.id, inventory_id));
+
+      await db.insert(inventoryLogs).values({
+        inventoryId: inventory_id,
+        adminId: adminId as any,
+        quantityChange: quantity || 0,
+        reason: reason || 'adjustment',
+        notes: notes || null,
+      });
+
+      return ResponseWrapper.success(null, 'Inventory adjusted successfully');
+    }
 
     if (!product_id || !size) {
       return ResponseWrapper.error('Product ID and Size are required', 400);
     }
 
-    // 1. Get or Create Variant
-    let variantId: number;
-    const existingVariants = await db
-      .select()
-      .from(productVariants)
-      .where(
-        and(
-          eq(productVariants.productId, product_id),
-          eq(productVariants.size, size),
-          color ? eq(productVariants.colorId, color) : sql`${productVariants.colorId} IS NULL`
-        )
-      );
+    await db.transaction(async (tx) => {
+      // 1. Get or Create Variant
+      let variantId: number;
+      const [existingVariant] = await (
+        tx
+          .select()
+          .from(productVariants)
+          .where(
+            and(
+              eq(productVariants.productId, product_id),
+              eq(productVariants.size, size),
+              color ? eq(productVariants.colorId, color) : sql`${productVariants.colorId} IS NULL`
+            )
+          ) as any
+      ).forUpdate();
 
-    if (existingVariants.length > 0) {
-      variantId = existingVariants[0].id;
-    } else {
-      const [insertResult] = await db.insert(productVariants).values({
-        productId: product_id,
-        size,
-        colorId: color || null,
-      });
-      variantId = (insertResult as any).insertId;
-    }
-
-    // 2. Update or Create Inventory
-    const existingInv = await db
-      .select()
-      .from(inventorySchema)
-      .where(
-        and(
-          eq(inventorySchema.productVariantId, variantId),
-          eq(inventorySchema.warehouseId, targetWarehouseId)
-        )
-      );
-
-    if (existingInv.length > 0) {
-      const oldQty = existingInv[0].quantity;
-      const newQty = oldQty + (quantity || 0);
-
-      await db
-        .update(inventorySchema)
-        .set({ quantity: newQty })
-        .where(eq(inventorySchema.id, existingInv[0].id));
-
-      // RESTOCK TRIGGER
-      if (oldQty <= 0 && newQty > 0) {
-        // Trigger restock emails in background
-        try {
-          const product = await db
-            .select()
-            .from(products)
-            .where(eq(products.id, product_id))
-            .then((r) => r[0]);
-          if (product) {
-            const { wishlists, wishlistItems, users } = await import('@/lib/db/schema');
-            const interestedUsers = await db
-              .select({
-                email: users.email,
-                firstName: users.firstName,
-              })
-              .from(wishlistItems)
-              .innerJoin(wishlists, eq(wishlistItems.wishlistId, wishlists.id))
-              .innerJoin(users, eq(wishlists.userId, users.id))
-              .where(eq(wishlistItems.productId, product.id));
-
-            if (interestedUsers.length > 0) {
-              const { sendWishlistRestockEmail } = await import('@/lib/mail/email-templates');
-              // Fire and forget (or at least don't block response)
-              interestedUsers.forEach((user) => {
-                sendWishlistRestockEmail(
-                  user.email,
-                  user.firstName || 'Customer',
-                  product.name,
-                  product.id
-                ).catch(logger.error);
-              });
-            }
-          }
-        } catch (e) {
-          logger.error(e, 'Failed to process restock emails');
-        }
+      if (existingVariant) {
+        variantId = existingVariant.id;
+      } else {
+        const [insertResult] = await tx.insert(productVariants).values({
+          productId: product_id,
+          size,
+          colorId: color || null,
+        });
+        variantId = (insertResult as any).insertId;
       }
-    } else {
-      await db.insert(inventorySchema).values({
-        productVariantId: variantId,
-        quantity: quantity || 0,
-        warehouseId: targetWarehouseId,
-      });
-    }
+
+      // 2. Update or Create Inventory
+      const [existingInv] = await (
+        tx
+          .select()
+          .from(inventorySchema)
+          .where(
+            and(
+              eq(inventorySchema.productVariantId, variantId),
+              eq(inventorySchema.warehouseId, targetWarehouseId)
+            )
+          ) as any
+      ).forUpdate();
+
+      if (existingInv) {
+        const oldQty = existingInv.quantity;
+        const newQty = oldQty + (quantity || 0);
+
+        await tx
+          .update(inventorySchema)
+          .set({ quantity: newQty })
+          .where(eq(inventorySchema.id, existingInv.id));
+
+        // Log the change
+        await tx.insert(inventoryLogs).values({
+          inventoryId: existingInv.id,
+          adminId: adminId as any,
+          quantityChange: quantity || 0,
+          reason: reason || 'restock',
+          notes: notes || null,
+        });
+
+        // RESTOCK TRIGGER (As a follow-up after transaction commit would be better, but we can do it here if careful)
+        if (oldQty <= 0 && newQty > 0) {
+          // Note: Restock logic remains same, will fire post-transaction if needed or in-transaction if lightweight
+          try {
+            const product = await tx
+              .select()
+              .from(products)
+              .where(eq(products.id, product_id))
+              .then((r) => r[0]);
+
+            if (product) {
+              const { wishlists, wishlistItems, users } = await import('@/lib/db/schema');
+              const interestedUsers = await tx
+                .select({
+                  email: users.email,
+                  firstName: users.firstName,
+                })
+                .from(wishlistItems)
+                .innerJoin(wishlists, eq(wishlistItems.wishlistId, wishlists.id))
+                .innerJoin(users, eq(wishlists.userId, users.id))
+                .where(eq(wishlistItems.productId, product.id));
+
+              if (interestedUsers.length > 0) {
+                const { sendWishlistRestockEmail } = await import('@/lib/mail/email-templates');
+                interestedUsers.forEach((user) => {
+                  sendWishlistRestockEmail(
+                    user.email,
+                    user.firstName || 'Customer',
+                    product.name,
+                    product.id
+                  ).catch(logger.error);
+                });
+              }
+            }
+          } catch (e) {
+            logger.error(e, 'Failed to process restock emails');
+          }
+        }
+      } else {
+        const [insertResult] = await tx.insert(inventorySchema).values({
+          productVariantId: variantId,
+          quantity: quantity || 0,
+          warehouseId: targetWarehouseId,
+        });
+        const newInvId = (insertResult as any).insertId;
+
+        // Log the initialization
+        await tx.insert(inventoryLogs).values({
+          inventoryId: newInvId,
+          adminId: adminId as any,
+          quantityChange: quantity || 0,
+          reason: 'init',
+          notes: notes || 'Initial stock entry',
+        });
+      }
+    });
 
     return ResponseWrapper.success(null, 'Inventory updated successfully');
   } catch (error) {

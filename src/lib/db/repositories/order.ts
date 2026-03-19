@@ -1,62 +1,90 @@
-import { executeQuery, pool } from '../connection';
-import { RedisLock } from '@/lib/redis/lock';
+import { db } from '../drizzle';
+import {
+  orders,
+  orderItems,
+  giftCards,
+  giftCardTransactions,
+  couponUsage,
+  vouchers,
+  coupons,
+  inventory,
+  productVariants,
+  products,
+  productImages,
+  categories,
+  users,
+  flashSaleItems,
+  pointTransactions,
+} from '../schema';
+import { eq, and, sql, desc, lt, count, isNull } from 'drizzle-orm';
 import { eventBus } from '@/lib/events/eventBus';
-import { encrypt, decrypt, hashEmail } from '@/lib/security/encryption';
+import { encrypt, decrypt, hashEmail, hashGiftCard } from '@/lib/security/encryption';
 import { logger } from '@/lib/utils/logger';
 import { isValidStatusTransition, getStockAction } from '@/lib/orders/order-logic';
 
 /**
  * Helper to handle side effects when an order is cancelled or refunded
  */
-async function refundOrderSideEffects(connection: any, orderNumber: string) {
-  const [orderInfo]: any = await connection.execute(
-    'SELECT id, promotion_code FROM orders WHERE order_number = ?',
-    [orderNumber]
-  );
+async function refundOrderSideEffects(tx: any, orderNumber: string) {
+  const [orderInfo] = await tx
+    .select({ id: orders.id, promotionCode: orders.promotionCode })
+    .from(orders)
+    .where(eq(orders.orderNumber, orderNumber))
+    .limit(1);
 
-  if (orderInfo.length === 0) return;
-  const orderId = orderInfo[0].id;
+  if (!orderInfo) return;
+  const orderId = orderInfo.id;
 
   // 1. REFUND Gift Card if used
-  const [giftTransactions]: any = await connection.execute(
-    'SELECT gift_card_id, amount FROM gift_card_transactions WHERE order_id = ? AND transaction_type = "redeem"',
-    [orderId]
-  );
-
-  for (const trans of giftTransactions) {
-    const [cards]: any = await connection.execute(
-      'SELECT current_balance FROM gift_cards WHERE id = ? FOR UPDATE',
-      [trans.gift_card_id]
+  const giftTransactions = await tx
+    .select({ giftCardId: giftCardTransactions.giftCardId, amount: giftCardTransactions.amount })
+    .from(giftCardTransactions)
+    .where(
+      and(
+        eq(giftCardTransactions.orderId, orderId),
+        eq(giftCardTransactions.transactionType, 'redeem')
+      )
     );
 
-    if (cards.length > 0) {
-      const newBalance = Number(cards[0].current_balance) + Number(trans.amount);
-      await connection.execute(
-        'UPDATE gift_cards SET current_balance = ?, status = "active" WHERE id = ?',
-        [newBalance, trans.gift_card_id]
-      );
+  for (const trans of giftTransactions) {
+    const [card] = await tx
+      .select({ currentBalance: giftCards.currentBalance })
+      .from(giftCards)
+      .where(eq(giftCards.id, trans.giftCardId))
+      .for('update');
 
-      await connection.execute(
-        `INSERT INTO gift_card_transactions 
-         (gift_card_id, transaction_type, amount, balance_before, balance_after, description, order_id)
-         VALUES (?, 'refund', ?, ?, ?, ?, ?)`,
-        [
-          trans.gift_card_id,
-          trans.amount,
-          cards[0].current_balance,
-          newBalance,
-          `Hoàn tiền đơn hàng ${orderNumber}`,
-          orderId,
-        ]
-      );
+    if (card) {
+      const newBalance = Number(card.currentBalance) + Number(trans.amount);
+      await tx
+        .update(giftCards)
+        .set({ currentBalance: String(newBalance), status: 'active' })
+        .where(eq(giftCards.id, trans.giftCardId));
+
+      await tx.insert(giftCardTransactions).values({
+        giftCardId: trans.giftCardId,
+        transactionType: 'refund',
+        amount: trans.amount,
+        balanceBefore: card.currentBalance,
+        balanceAfter: String(newBalance),
+        description: `Hoàn tiền đơn hàng ${orderNumber}`,
+        orderId: orderId,
+      });
     }
   }
 
-  // 2. Reverse Coupon Usage
-  if (orderInfo[0].promotion_code) {
-    await connection.execute('DELETE FROM coupon_usage WHERE order_id = ?', [orderId]);
+  // 2. Reverse Coupon/Voucher Usage
+  if (orderInfo.promotionCode) {
+    // Try to delete from couponUsage
+    const deleteResult = await tx.delete(couponUsage).where(eq(couponUsage.orderId, orderId));
+
+    // Also try to restore personal voucher if it was one
+    await tx
+      .update(vouchers)
+      .set({ status: 'active', redeemedAt: null })
+      .where(and(eq(vouchers.code, orderInfo.promotionCode), eq(vouchers.status, 'redeemed')));
+
     logger.info(
-      `[Coupon] Reversed usage of ${orderInfo[0].promotion_code} for order ${orderNumber}`
+      `[Promotion] Reversed usage of ${orderInfo.promotionCode} for order ${orderNumber}`
     );
   }
 }
@@ -73,12 +101,15 @@ export async function createOrder(orderData: {
   voucherDiscount?: number;
   giftcardNumber?: string | null;
   giftcardDiscount?: number;
+  membershipDiscount?: number;
   shippingAddress: any;
   phone: string;
   email: string;
   paymentMethod?: string;
   paymentStatus?: string;
   notes?: string;
+  hasGiftWrapping?: boolean;
+  giftWrapCost?: number;
   items: Array<{
     productId: number;
     productName: string;
@@ -86,293 +117,472 @@ export async function createOrder(orderData: {
     size: string;
     quantity: number;
     price: number;
+    productVariantId: number;
+    sku?: string;
+    costPrice?: number;
+    flashSaleItemId?: number | null;
   }>;
 }) {
-  const connection = await pool.getConnection();
-
-  try {
-    await connection.beginTransaction();
-
+  return await db.transaction(async (tx) => {
     const shippingFee = orderData.shippingFee || 0;
     const subtotal = orderData.items.reduce((sum, item) => sum + item.price * item.quantity, 0);
-    const totalAmount = subtotal + shippingFee - (orderData.discount || 0) + (orderData.tax || 0);
+    // Automatic 10% VAT calculation if not provided by client, for financial consistency
+    const taxValue = orderData.tax !== undefined ? orderData.tax : Math.round(subtotal * 0.1);
+
+    const totalAmount =
+      subtotal +
+      shippingFee +
+      taxValue +
+      (orderData.giftWrapCost || 0) -
+      (orderData.discount || 0) -
+      (orderData.giftcardDiscount || 0);
 
     let shippingAddr =
       typeof orderData.shippingAddress === 'string'
         ? JSON.parse(orderData.shippingAddress)
         : orderData.shippingAddress;
 
-    // 1. Create Order (Unified Table Mapping)
-    // SECURITY: Full Masking for phone/email in snapshot plus separate columns
-    const emailHash = hashEmail(shippingAddr.email);
+    const emailHash = hashEmail(shippingAddr.email || orderData.email);
     const snapshot = JSON.stringify({
       ...shippingAddr,
-      phone: encrypt(shippingAddr.phone),
-      email: encrypt(shippingAddr.email),
-      address: encrypt(shippingAddr.address),
+      phone: encrypt(shippingAddr.phone || orderData.phone),
+      email: encrypt(shippingAddr.email || orderData.email),
+      address: encrypt(shippingAddr.address || ''),
     });
 
-    const [orderResult]: any = await connection.execute(
-      `INSERT INTO orders (
-        user_id, order_number, subtotal, total, status, notes, 
-        is_encrypted, shipping_address_snapshot, phone, phone_encrypted, email, email_encrypted, email_hash,
-        shipping_fee, tax, promotion_code, voucher_discount, giftcard_discount, placed_at
-      )
-       VALUES (?, ?, ?, ?, 'pending', ?, TRUE, ?, '***', ?, '***', ?, ?, ?, ?, ?, ?, ?, NOW())`,
-      [
-        orderData.userId || null,
-        orderData.orderNumber,
-        subtotal,
-        totalAmount,
-        orderData.notes || null,
-        snapshot,
-        encrypt(orderData.phone),
-        encrypt(orderData.email),
-        emailHash,
-        shippingFee,
-        orderData.tax || 0,
-        orderData.voucherCode || null,
-        orderData.voucherDiscount || 0,
-        orderData.giftcardDiscount || 0,
-      ]
-    );
+    const [orderResult] = await tx.insert(orders).values({
+      userId: orderData.userId || null,
+      orderNumber: orderData.orderNumber,
+      subtotal: String(subtotal),
+      total: String(totalAmount),
+      status: 'pending',
+      notes: orderData.notes || null,
+      isEncrypted: 1,
+      shippingAddressSnapshot: snapshot,
+      phone: '***',
+      email: '***',
+      emailHash,
+      shippingFee: String(shippingFee),
+      tax: String(taxValue),
+      promotionCode: orderData.voucherCode || null,
+      voucherDiscount: String(orderData.voucherDiscount || 0),
+      giftcardDiscount: String(orderData.giftcardDiscount || 0),
+      membershipDiscount: String(orderData.membershipDiscount || 0),
+      discount: String(orderData.discount || 0),
+      hasGiftWrapping: orderData.hasGiftWrapping ? 1 : 0,
+      giftWrapCost: String(orderData.giftWrapCost || 0),
+      placedAt: new Date(),
+    });
 
     const orderId = orderResult.insertId;
 
     // 2. Process Voucher/Coupon Usage (Atomic)
     if (orderData.voucherCode) {
-      // Try updating coupons first
-      const [couponUpdate]: any = await connection.execute(
-        `INSERT INTO coupon_usage (coupon_id, user_id, order_id, discount_amount)
-         SELECT id, ?, ?, ? FROM coupons WHERE code = ?`,
-        [orderData.userId || null, orderId, orderData.voucherDiscount || 0, orderData.voucherCode]
-      );
+      // Find coupon ID
+      const [coupon] = await tx
+        .select({ id: coupons.id })
+        .from(coupons)
+        .where(eq(coupons.code, orderData.voucherCode))
+        .limit(1);
 
-      if (couponUpdate.affectedRows === 0) {
+      if (coupon) {
+        await tx.insert(couponUsage).values({
+          couponId: coupon.id,
+          userId: orderData.userId || null,
+          orderId: orderId,
+        });
+      } else {
         // Redaction: Update personal voucher status to redeemed
-        await connection.execute(
-          `UPDATE vouchers SET status = 'redeemed', redeemed_at = NOW() 
-           WHERE code = ? AND status = 'active'`,
-          [orderData.voucherCode]
-        );
+        await tx
+          .update(vouchers)
+          .set({ status: 'redeemed', redeemedAt: new Date() })
+          .where(and(eq(vouchers.code, orderData.voucherCode), eq(vouchers.status, 'active')));
       }
     }
 
     // 3. Process Gift Card (Secure)
     if (orderData.giftcardNumber && orderData.giftcardDiscount && orderData.giftcardDiscount > 0) {
-      const [cards]: any = await connection.execute(
-        'SELECT id, current_balance, status FROM gift_cards WHERE card_number = ? FOR UPDATE',
-        [orderData.giftcardNumber]
-      );
+      const cardHash = hashGiftCard(orderData.giftcardNumber);
+      const [card] = await tx
+        .select({
+          id: giftCards.id,
+          currentBalance: giftCards.currentBalance,
+          status: giftCards.status,
+        })
+        .from(giftCards)
+        .where(eq(giftCards.cardNumberHash, cardHash))
+        .for('update');
 
-      if (cards.length > 0) {
-        const card = cards[0];
-        const newBalance = Number(card.current_balance) - Number(orderData.giftcardDiscount);
-        await connection.execute(
-          'UPDATE gift_cards SET current_balance = ?, status = ? WHERE id = ?',
-          [newBalance, newBalance <= 0 ? 'used' : 'active', card.id]
-        );
+      if (card) {
+        const newBalance = Number(card.currentBalance) - Number(orderData.giftcardDiscount);
+        await tx
+          .update(giftCards)
+          .set({
+            currentBalance: String(newBalance),
+            status: newBalance <= 0 ? 'used' : 'active',
+          })
+          .where(eq(giftCards.id, card.id));
 
-        await connection.execute(
-          `INSERT INTO gift_card_transactions (gift_card_id, transaction_type, amount, balance_before, balance_after, description, order_id)
-           VALUES (?, 'redeem', ?, ?, ?, ?, ?)`,
-          [
-            card.id,
-            orderData.giftcardDiscount,
-            card.current_balance,
-            newBalance,
-            `Thanh toán đơn ${orderData.orderNumber}`,
-            orderId,
-          ]
-        );
+        await tx.insert(giftCardTransactions).values({
+          giftCardId: card.id,
+          transactionType: 'redeem',
+          amount: String(orderData.giftcardDiscount),
+          balanceBefore: card.currentBalance,
+          balanceAfter: String(newBalance),
+          description: `Thanh toán đơn ${orderData.orderNumber}`,
+          orderId: orderId,
+        });
       }
     }
 
     // 4. Create Order Items & stock reservation
     for (const item of orderData.items) {
-      const [variants]: any = await connection.execute(
-        'SELECT id, sku FROM product_variants WHERE product_id = ? AND size = ? LIMIT 1',
-        [item.productId, item.size]
-      );
-      const variantId = variants[0]?.id;
+      const variantId = item.productVariantId;
+      const costPrice = item.costPrice || 0;
 
-      const [products]: any = await connection.execute(
-        'SELECT cost_price FROM products WHERE id = ? LIMIT 1',
-        [item.productId]
-      );
-      const costPrice = products[0]?.cost_price || 0;
+      const [stockItem] = await tx
+        .select({ id: inventory.id, quantity: inventory.quantity })
+        .from(inventory)
+        .where(
+          and(
+            eq(inventory.productVariantId, variantId),
+            sql`${inventory.quantity} >= ${item.quantity}`
+          )
+        )
+        .for('update');
 
-      const [stock]: any = await connection.execute(
-        'SELECT id FROM inventory WHERE product_variant_id = ? AND quantity >= ? LIMIT 1 FOR UPDATE',
-        [variantId, item.quantity]
-      );
+      if (!stockItem) throw new Error(`Hết hàng: ${item.productName}`);
 
-      if (!stock.length) throw new Error(`Hết hàng: ${item.productName}`);
+      await tx
+        .update(inventory)
+        .set({
+          quantity: sql`${inventory.quantity} - ${item.quantity}`,
+          reserved: sql`${inventory.reserved} + ${item.quantity}`,
+        })
+        .where(eq(inventory.id, stockItem.id));
 
-      await connection.execute(
-        'UPDATE inventory SET quantity = quantity - ?, reserved = reserved + ? WHERE id = ?',
-        [item.quantity, item.quantity, stock[0].id]
-      );
+      // Update Flash Sale Sold Count if applicable
+      if (item.flashSaleItemId) {
+        await tx
+          .update(flashSaleItems)
+          .set({
+            quantitySold: sql`${flashSaleItems.quantitySold} + ${item.quantity}`,
+          })
+          .where(eq(flashSaleItems.id, item.flashSaleItemId));
+      }
 
-      await connection.execute(
-        `INSERT INTO order_items (order_id, product_id, product_variant_id, inventory_id, product_name, sku, size, quantity, unit_price, cost_price, total_price)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [
-          orderId,
-          item.productId,
-          variantId,
-          stock[0].id,
-          item.productName,
-          variants[0]?.sku,
-          item.size,
-          item.quantity,
-          item.price,
-          costPrice,
-          item.price * item.quantity,
-        ]
-      );
+      await tx.insert(orderItems).values({
+        orderId,
+        productId: item.productId,
+        productVariantId: variantId,
+        inventoryId: stockItem.id,
+        productName: item.productName,
+        sku: item.sku || null,
+        size: item.size,
+        quantity: item.quantity,
+        unitPrice: String(item.price),
+        costPrice: String(costPrice),
+        totalPrice: String(item.price * item.quantity),
+        flashSaleItemId: item.flashSaleItemId || null,
+      });
     }
 
-    await connection.commit();
     eventBus
       .publish('order.created', { orderId, orderNumber: orderData.orderNumber })
       .catch(() => {});
+
     return orderId;
-  } catch (error) {
-    await connection.rollback();
-    throw error;
-  } finally {
-    connection.release();
-  }
+  });
 }
 
 export async function getOrdersByUserId(userId: number, page: number = 1, limit: number = 20) {
   const offset = (page - 1) * limit;
   const safeLimit = Math.min(limit, 100);
 
-  const query = `
-    SELECT 
-      o.id, o.order_number, o.status, o.subtotal, o.total,
-      o.placed_at,
-      COUNT(DISTINCT oi.id) as item_count,
-      (SELECT url FROM product_images pi 
-       JOIN order_items oi2 ON pi.product_id = oi2.product_id 
-       WHERE oi2.order_id = o.id AND pi.is_main = 1 
-       LIMIT 1) as preview_image
-    FROM orders o
-    LEFT JOIN order_items oi ON o.id = oi.order_id
-    WHERE o.user_id = ?
-    GROUP BY o.id
-    ORDER BY o.placed_at DESC
-    LIMIT ? OFFSET ?`;
+  const items = await db
+    .select({
+      id: orders.id,
+      orderNumber: orders.orderNumber,
+      status: orders.status,
+      subtotal: orders.subtotal,
+      total: orders.total,
+      placedAt: orders.placedAt,
+      itemCount: count(orderItems.id),
+      previewImage: sql<string>`(SELECT url FROM ${productImages} pi 
+                                JOIN ${orderItems} oi2 ON pi.product_id = oi2.product_id 
+                                WHERE oi2.order_id = ${orders.id} AND pi.is_main = 1 
+                                LIMIT 1)`,
+    })
+    .from(orders)
+    .leftJoin(orderItems, eq(orders.id, orderItems.orderId))
+    .where(eq(orders.userId, userId))
+    .groupBy(orders.id)
+    .orderBy(desc(orders.placedAt))
+    .limit(safeLimit)
+    .offset(offset);
 
-  const orders = await executeQuery<any[]>(query, [userId, safeLimit, offset]);
-  const [countResult]: any = await executeQuery(
-    'SELECT COUNT(*) as total FROM orders WHERE user_id = ?',
-    [userId]
-  );
+  const [countResult] = await db
+    .select({ total: count() })
+    .from(orders)
+    .where(eq(orders.userId, userId));
 
   return {
-    items: orders,
-    total: countResult[0]?.total || 0,
+    items,
+    total: countResult?.total || 0,
     page,
     limit: safeLimit,
   };
 }
 
 export async function getOrderByNumber(orderNumber: string) {
-  return await executeQuery<any[]>(`SELECT * FROM orders WHERE order_number = ?`, [orderNumber]);
+  return await db.select().from(orders).where(eq(orders.orderNumber, orderNumber));
 }
 
 export async function getOrderById(id: number) {
-  const rows = await executeQuery<any[]>(
-    `SELECT o.*, u.full_name as user_name, u.email as user_email 
-     FROM orders o 
-     LEFT JOIN users u ON o.user_id = u.id 
-     WHERE o.id = ?`,
-    [id]
-  );
-  return rows[0] || null;
+  const [order] = await db
+    .select({
+      id: orders.id,
+      order_number: orders.orderNumber,
+      user_id: orders.userId,
+      status: orders.status,
+      total: orders.total,
+      subtotal: orders.subtotal,
+      shipping_fee: orders.shippingFee,
+      discount: orders.discount,
+      promotion_code: orders.promotionCode,
+      promotion_type: orders.promotionType,
+      voucher_discount: orders.voucherDiscount,
+      giftcard_discount: orders.giftcardDiscount,
+      tax: orders.tax,
+      currency: orders.currency,
+      shipping_address_snapshot: orders.shippingAddressSnapshot,
+      placed_at: orders.placedAt,
+      created_at: orders.createdAt,
+      updated_at: orders.updatedAt,
+      payment_method: orders.paymentMethod,
+      payment_status: orders.paymentStatus,
+      tracking_number: orders.trackingNumber,
+      carrier: orders.carrier,
+      shipped_at: orders.shippedAt,
+      delivered_at: orders.deliveredAt,
+      payment_confirmed_at: orders.paymentConfirmedAt,
+      cancelled_at: orders.cancelledAt,
+      notes: orders.notes,
+      is_encrypted: orders.isEncrypted,
+      phone: orders.phone,
+      email: orders.email,
+      email_hash: orders.emailHash,
+      customer_name: users.fullName,
+      customer_email: users.email,
+    })
+    .from(orders)
+    .leftJoin(users, eq(orders.userId, users.id))
+    .where(eq(orders.id, id))
+    .limit(1);
+
+  if (!order) return null;
+
+  // Trích xuất thông tin giao hàng từ snapshot
+  let deliveryInfo: any = {};
+  if (order.shipping_address_snapshot) {
+    try {
+      const snapshot =
+        typeof order.shipping_address_snapshot === 'string'
+          ? JSON.parse(order.shipping_address_snapshot)
+          : order.shipping_address_snapshot;
+
+      deliveryInfo = {
+        delivery_name: snapshot.recipientName || snapshot.fullName || '',
+        delivery_phone: snapshot.phone ? decrypt(snapshot.phone) : snapshot.phoneNumber || '',
+        delivery_address: snapshot.address ? decrypt(snapshot.address) : snapshot.street || '',
+        delivery_city: snapshot.city || '',
+        delivery_district: snapshot.district || '',
+      };
+    } catch (e) {
+      console.error('Error parsing shipping snapshot:', e);
+    }
+  }
+
+  // Lấy danh sách sản phẩm trong đơn hàng
+  const items = await db
+    .select({
+      id: orderItems.id,
+      product_id: orderItems.productId,
+      product_variant_id: orderItems.productVariantId,
+      product_name: orderItems.productName,
+      sku: orderItems.sku,
+      size: orderItems.size,
+      quantity: orderItems.quantity,
+      unit_price: orderItems.unitPrice,
+      total_price: orderItems.totalPrice,
+      created_at: orderItems.createdAt,
+    })
+    .from(orderItems)
+    .where(eq(orderItems.orderId, id));
+
+  return {
+    ...order,
+    ...deliveryInfo,
+    items: items || [],
+  };
 }
 
 /**
  * Update Order Status with Business Logic (Stock, Events, etc.)
+ * Supports nested transactions via the optional 'existingTx' parameter to prevent deadlocks in IPN handlers.
  */
-export async function updateOrderStatus(orderNumber: string, status: string) {
-  const connection = await pool.getConnection();
-
-  try {
-    await connection.beginTransaction();
-
+export async function updateOrderStatus(orderNumber: string, status: string, existingTx?: any) {
+  const logic = async (tx: any) => {
     // 1. Get current order
-    const [currentOrder]: any = await connection.execute(
-      'SELECT id, status, order_number FROM orders WHERE order_number = ? FOR UPDATE',
-      [orderNumber]
-    );
+    const [currentOrder] = await tx
+      .select({ id: orders.id, status: orders.status, orderNumber: orders.orderNumber })
+      .from(orders)
+      .where(eq(orders.orderNumber, orderNumber))
+      .for('update');
 
-    if (currentOrder.length === 0) throw new Error('Order not found');
-    const oldStatus = currentOrder[0].status;
+    if (!currentOrder) throw new Error('Order not found');
+    const oldStatus = currentOrder.status;
 
     // 2. Validate Transition
-    if (!isValidStatusTransition(oldStatus, status)) {
+    if (!isValidStatusTransition(oldStatus || 'pending', status)) {
       throw new Error(`Invalid status transition from ${oldStatus} to ${status}`);
     }
 
     // 3. Determine Stock Action
-    const stockAction = getStockAction(oldStatus, status);
+    const stockAction = getStockAction(oldStatus || 'pending', status);
 
     if (stockAction !== 'none') {
-      const [items]: any = await connection.execute(
-        'SELECT inventory_id, quantity FROM order_items WHERE order_id = ?',
-        [currentOrder[0].id]
-      );
+      const items = await tx
+        .select({ inventoryId: orderItems.inventoryId, quantity: orderItems.quantity })
+        .from(orderItems)
+        .where(eq(orderItems.orderId, currentOrder.id));
 
       for (const item of items) {
-        if (stockAction === 'finalize') {
-          // Move from reserved to finalized (already deducted from quantity in createOrder, just clear reserved)
-          await connection.execute(
-            'UPDATE inventory SET reserved = GREATEST(0, reserved - ?) WHERE id = ?',
-            [item.quantity, item.inventory_id]
-          );
-        } else if (stockAction === 'release') {
+        if (item.inventoryId && stockAction === 'finalize') {
+          // Move from reserved to finalized
+          await tx
+            .update(inventory)
+            .set({ reserved: sql`GREATEST(0, ${inventory.reserved} - ${item.quantity})` })
+            .where(eq(inventory.id, item.inventoryId!));
+        } else if (item.inventoryId && stockAction === 'release') {
           // Restore quantity and clear reserved
-          await connection.execute(
-            'UPDATE inventory SET quantity = quantity + ?, reserved = GREATEST(0, reserved - ?) WHERE id = ?',
-            [item.quantity, item.quantity, item.inventory_id]
-          );
+          await tx
+            .update(inventory)
+            .set({
+              quantity: sql`${inventory.quantity} + ${item.quantity}`,
+              reserved: sql`GREATEST(0, ${inventory.reserved} - ${item.quantity})`,
+            })
+            .where(eq(inventory.id, item.inventoryId!));
         }
       }
     }
 
-    // 4. If status is refunded, handle side effects
-    if (status === 'refunded') {
-      await refundOrderSideEffects(connection, orderNumber);
+    // 4. If status is refunded or cancelled, handle side effects (Gift Card & Promotions)
+    if (status === 'refunded' || status === 'cancelled') {
+      await refundOrderSideEffects(tx, orderNumber);
     }
 
     // 5. Update Status & Timestamps
-    let timestampField = '';
+    const updateData: any = { status };
     if (status === 'cancelled') {
-      timestampField = ', cancelled_at = NOW()';
+      updateData.cancelledAt = new Date();
     } else if (['payment_received', 'confirmed', 'processing'].includes(status)) {
-      timestampField = ', payment_confirmed_at = COALESCE(payment_confirmed_at, NOW())';
+      updateData.paymentConfirmedAt = sql`COALESCE(${orders.paymentConfirmedAt}, NOW())`;
     } else if (status === 'shipped') {
-      timestampField = ', shipped_at = COALESCE(shipped_at, NOW())';
+      updateData.shippedAt = sql`COALESCE(${orders.shippedAt}, NOW())`;
     } else if (status === 'delivered') {
-      timestampField = ', delivered_at = COALESCE(delivered_at, NOW())';
+      updateData.deliveredAt = sql`COALESCE(${orders.deliveredAt}, NOW())`;
     }
 
-    await connection.execute(
-      `UPDATE orders SET status = ? ${timestampField} WHERE order_number = ?`,
-      [status, orderNumber]
-    );
+    await tx.update(orders).set(updateData).where(eq(orders.orderNumber, orderNumber));
 
-    await connection.commit();
+    // New: If order is delivered, award points and check for tier upgrade
+    if (status === 'delivered' && oldStatus !== 'delivered') {
+      const orderData = await tx
+        .select({ userId: orders.userId, total: orders.total })
+        .from(orders)
+        .where(eq(orders.orderNumber, orderNumber))
+        .limit(1);
+
+      const userId = orderData[0]?.userId;
+      const totalAmount = parseFloat(orderData[0]?.total || '0');
+
+      if (userId) {
+        // 1 point per 1,000 VND spent
+        const pointsEarned = Math.floor(totalAmount / 1000);
+
+        if (pointsEarned > 0) {
+          // Record point transaction
+          const [user] = await tx
+            .select({
+              lifetimePoints: users.lifetimePoints,
+              availablePoints: users.availablePoints,
+              membershipTier: users.membershipTier,
+              email: users.email,
+              fullName: users.fullName,
+              firstName: users.firstName,
+              lastName: users.lastName,
+            })
+            .from(users)
+            .where(eq(users.id, userId))
+            .for('update');
+
+          if (user) {
+            const newLifetimePoints = user.lifetimePoints + pointsEarned;
+            const newAvailablePoints = user.availablePoints + pointsEarned;
+
+            // Determine new tier
+            let newTier = user.membershipTier;
+            if (newLifetimePoints >= 100000) newTier = 'platinum';
+            else if (newLifetimePoints >= 20000) newTier = 'gold';
+            else if (newLifetimePoints >= 5000) newTier = 'silver';
+
+            // Update user
+            const userUpdate: any = {
+              lifetimePoints: newLifetimePoints,
+              availablePoints: newAvailablePoints,
+            };
+
+            if (newTier !== user.membershipTier) {
+              userUpdate.membershipTier = newTier;
+              userUpdate.tierUpdatedAt = new Date();
+
+              // Publish tier upgraded event
+              eventBus
+                .publish('tier.upgraded', {
+                  userId,
+                  email: user.email,
+                  fullName:
+                    user.fullName || `${user.firstName} ${user.lastName}`.trim() || 'Thành viên',
+                  oldTier: user.membershipTier,
+                  newTier,
+                  totalPoints: newLifetimePoints,
+                })
+                .catch(console.error);
+            }
+
+            await tx.update(users).set(userUpdate).where(eq(users.id, userId));
+
+            // Log point transaction
+            await tx.insert(pointTransactions).values({
+              userId,
+              points: pointsEarned,
+              type: 'earn',
+              source: 'order',
+              sourceId: orderNumber,
+              balanceAfter: newAvailablePoints,
+              description: `Tích điểm từ đơn hàng #${orderNumber}`,
+            });
+          }
+        }
+      }
+    }
 
     // 6. Emit Event
     if (oldStatus !== status) {
       eventBus
         .publish('order.updated', {
-          orderId: currentOrder[0].id,
+          orderId: currentOrder.id,
           orderNumber,
           oldStatus,
           newStatus: status,
@@ -382,22 +592,26 @@ export async function updateOrderStatus(orderNumber: string, status: string) {
     }
 
     return true;
-  } catch (error) {
-    await connection.rollback();
-    throw error;
-  } finally {
-    connection.release();
+  };
+
+  if (existingTx) {
+    return await logic(existingTx);
   }
+
+  return await db.transaction(async (tx) => {
+    return await logic(tx);
+  });
 }
 
 /**
  * Cancel Order Logic (Wraps updateOrderStatus with specific checks)
  */
 export async function cancelOrder(orderNumber: string, force: boolean = false) {
-  const order = (await getOrderByNumber(orderNumber)) as any;
-  if (!order || order.length === 0) throw new Error('Order not found');
+  const result = await getOrderByNumber(orderNumber);
+  if (!result || result.length === 0) throw new Error('Order not found');
+  const order = result[0];
 
-  const currentStatus = order[0].status;
+  const currentStatus = order.status;
 
   if (!force) {
     // Regular users can only cancel pending orders
@@ -415,12 +629,15 @@ export async function cancelOrder(orderNumber: string, force: boolean = false) {
  */
 export async function cleanupExpiredOrders(minutes: number = 30) {
   // 1. Find expired orders
-  const expiredOrders = await executeQuery<any[]>(
-    `SELECT order_number FROM orders 
-     WHERE status = 'pending' 
-     AND placed_at < DATE_SUB(NOW(), INTERVAL ? MINUTE)`,
-    [minutes]
-  );
+  const expiredOrders = await db
+    .select({ orderNumber: orders.orderNumber })
+    .from(orders)
+    .where(
+      and(
+        eq(orders.status, 'pending'),
+        lt(orders.placedAt, sql`DATE_SUB(NOW(), INTERVAL ${minutes} MINUTE)`)
+      )
+    );
 
   if (expiredOrders.length === 0) return 0;
 
@@ -428,10 +645,10 @@ export async function cleanupExpiredOrders(minutes: number = 30) {
   let count = 0;
   for (const order of expiredOrders) {
     try {
-      await cancelOrder(order.order_number, true); // force = true to allow cancellation
+      await cancelOrder(order.orderNumber, true); // force = true to allow cancellation
       count++;
     } catch (e) {
-      logger.error(e, `Failed to cleanup order ${order.order_number}:`);
+      logger.error(e, `Failed to cleanup order ${order.orderNumber}:`);
     }
   }
 
@@ -440,33 +657,33 @@ export async function cleanupExpiredOrders(minutes: number = 30) {
 
 /**
  * Chatbot-specific order lookup.
- * Returns order details including items and their statuses.
  */
 export async function getOrderStatusForChat(orderNumber: string, phone: string) {
   // 1. Get order by number
-  const [order]: any = await executeQuery<any[]>(
-    'SELECT id, order_number, status, total, placed_at, shipping_address_snapshot, phone_encrypted FROM orders WHERE order_number = ?',
-    [orderNumber]
-  );
+  const [order] = await db
+    .select({
+      id: orders.id,
+      orderNumber: orders.orderNumber,
+      status: orders.status,
+      total: orders.total,
+      placedAt: orders.placedAt,
+      shippingAddressSnapshot: orders.shippingAddressSnapshot,
+    })
+    .from(orders)
+    .where(eq(orders.orderNumber, orderNumber))
+    .limit(1);
 
   if (!order) return null;
 
   // 2. Verify phone number
   let orderPhone = '';
-  if (order.phone_encrypted) {
-    try {
-      orderPhone = decrypt(order.phone_encrypted);
-    } catch (e) {
-      // Fallback
-    }
-  }
 
-  if (!orderPhone && order.shipping_address_snapshot) {
+  if (!orderPhone && order.shippingAddressSnapshot) {
     try {
       const snapshot =
-        typeof order.shipping_address_snapshot === 'string'
-          ? JSON.parse(order.shipping_address_snapshot)
-          : order.shipping_address_snapshot;
+        typeof order.shippingAddressSnapshot === 'string'
+          ? JSON.parse(order.shippingAddressSnapshot)
+          : order.shippingAddressSnapshot;
       if (snapshot.phone) {
         orderPhone = decrypt(snapshot.phone);
       }
@@ -482,21 +699,26 @@ export async function getOrderStatusForChat(orderNumber: string, phone: string) 
   }
 
   // 3. Get Items
-  const items = await executeQuery<any[]>(
-    'SELECT product_name, size, quantity, unit_price FROM order_items WHERE order_id = ?',
-    [order.id]
-  );
+  const items = await db
+    .select({
+      name: orderItems.productName,
+      size: orderItems.size,
+      quantity: orderItems.quantity,
+      price: orderItems.unitPrice,
+    })
+    .from(orderItems)
+    .where(eq(orderItems.orderId, order.id));
 
   return {
-    orderNumber: order.order_number,
+    orderNumber: order.orderNumber,
     status: order.status,
     total: order.total,
-    placedAt: order.placed_at,
+    placedAt: order.placedAt,
     items: items.map((item) => ({
-      name: item.product_name,
+      name: item.name,
       size: item.size,
       quantity: item.quantity,
-      price: item.unit_price,
+      price: item.price,
     })),
   };
 }

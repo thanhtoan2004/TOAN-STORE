@@ -52,38 +52,68 @@ export function encrypt(text: string): string {
 export function decrypt(encryptedText: string): string {
   if (!encryptedText || !encryptedText.includes(':')) return encryptedText;
 
+  const parts = encryptedText.split(':');
+  if (parts.length < 3) return encryptedText;
+
+  const iv = Buffer.from(parts[0], 'hex');
+  const authTag = Buffer.from(parts[1], 'hex');
+  const encrypted = parts[2];
+
+  // Try decoding with current key
   try {
-    const parts = encryptedText.split(':');
-    if (parts.length < 3) return encryptedText;
-
-    const iv = Buffer.from(parts[0], 'hex');
-    const authTag = Buffer.from(parts[1], 'hex');
-    const encrypted = parts[2];
-
     const decipher = crypto.createDecipheriv(ALGORITHM, getEncryptionKey(), iv);
     decipher.setAuthTag(authTag);
-
     let decrypted = decipher.update(encrypted, 'hex', 'utf8');
     decrypted += decipher.final('utf8');
-
     return decrypted;
   } catch (error) {
-    // If decryption fails, it might be plain text (Legacy Data)
-    // Audit: Add a warning log to track when this happens in production
-    console.warn(
-      'Decryption failed, falling back to plaintext. This may be legacy unencrypted data or an invalid key.'
-    );
-    return encryptedText;
+    // If it fails, it might have been encrypted with the legacy default key
+    const DEFAULT_KEY = crypto
+      .createHash('sha256')
+      .update('default-secret-key-must-be-changed-in-production')
+      .digest();
+
+    // Skip if default key is the same as current key
+    if (getEncryptionKey().equals(DEFAULT_KEY)) return encryptedText;
+
+    try {
+      const decipherFallback = crypto.createDecipheriv(ALGORITHM, DEFAULT_KEY, iv);
+      decipherFallback.setAuthTag(authTag);
+      let decrypted = decipherFallback.update(encrypted, 'hex', 'utf8');
+      decrypted += decipherFallback.final('utf8');
+      return decrypted;
+    } catch (fallbackError) {
+      console.warn('Decryption failed for both current and legacy keys.');
+      return encryptedText;
+    }
   }
 }
 /**
  * Hàm Băm Email (Blind Index).
  * Sử dụng SHA-256 để tạo mã băm cố định từ email.
- * Cho phép tìm kiếm người dùng mà không cần lưu email dạng rõ (plaintext).
  */
 export function hashEmail(email: string): string {
   if (!email) return '';
-  // Chuẩn hóa email trước khi hash (lowercase, trim)
   const normalized = email.toLowerCase().trim();
   return crypto.createHash('sha256').update(normalized).digest('hex');
+}
+
+/**
+ * Hàm Băm Số Thẻ Quà Tặng (Blind Index).
+ * Dùng SHA-256 để tra cứu thẻ mà không cần lưu số thẻ gốc.
+ */
+export function hashGiftCard(cardNumber: string): string {
+  if (!cardNumber) return '';
+  const normalized = cardNumber.replace(/\s/g, '');
+  return crypto.createHash('sha256').update(normalized).digest('hex');
+}
+
+export function normalizePhone(phone: string): string {
+  if (!phone) return '';
+  return phone.replace(/\D/g, '');
+}
+
+export function normalizeEmail(email: string): string {
+  if (!email) return '';
+  return email.toLowerCase().trim();
 }

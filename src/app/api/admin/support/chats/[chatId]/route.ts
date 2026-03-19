@@ -7,6 +7,7 @@ import {
   markMessagesAsRead,
 } from '@/lib/db/supportChat';
 import { checkAdminAuth } from '@/lib/auth/auth';
+import { ResponseWrapper } from '@/lib/api/api-response';
 
 /**
  * API Lấy chi tiết lịch sử trò chuyện (Messages) của một phiên chat.
@@ -18,35 +19,20 @@ export async function GET(
   try {
     const admin = await checkAdminAuth();
     if (!admin) {
-      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+      return ResponseWrapper.unauthorized();
     }
     const { chatId: chatIdStr } = await params;
     const chatId = parseInt(chatIdStr);
 
     const chat = await getSupportChat(chatId);
     if (!chat) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: 'Chat not found',
-        },
-        { status: 404 }
-      );
+      return ResponseWrapper.notFound('Chat not found');
     }
 
-    return NextResponse.json({
-      success: true,
-      chat,
-    });
+    return ResponseWrapper.success(chat);
   } catch (error) {
     console.error('Get chat details error:', error);
-    return NextResponse.json(
-      {
-        success: false,
-        error: 'Failed to get chat details',
-      },
-      { status: 500 }
-    );
+    return ResponseWrapper.serverError('Failed to get chat details', error);
   }
 }
 
@@ -64,7 +50,7 @@ export async function POST(
   try {
     const admin = await checkAdminAuth();
     if (!admin) {
-      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+      return ResponseWrapper.unauthorized();
     }
     const { chatId: chatIdStr } = await params;
     const chatId = parseInt(chatIdStr);
@@ -73,42 +59,21 @@ export async function POST(
 
     const chat = await getSupportChat(chatId);
     if (!chat) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: 'Chat not found',
-        },
-        { status: 404 }
-      );
+      return ResponseWrapper.notFound('Chat not found');
     }
 
     switch (action) {
       case 'assign':
         if (!adminId) {
-          return NextResponse.json(
-            {
-              success: false,
-              error: 'Admin ID is required',
-            },
-            { status: 400 }
-          );
+          return ResponseWrapper.error('Admin ID is required', 400);
         }
         await assignChatToAdmin(chatId, adminId);
         await markMessagesAsRead(chatId, 'customer');
-        return NextResponse.json({
-          success: true,
-          message: 'Chat assigned successfully',
-        });
+        return ResponseWrapper.success(null, 'Chat assigned successfully');
 
       case 'send_message':
         if ((!message || !message.trim()) && !body.imageUrl && !adminId) {
-          return NextResponse.json(
-            {
-              success: false,
-              error: 'Message or image and admin ID are required',
-            },
-            { status: 400 }
-          );
+          return ResponseWrapper.error('Message or image and admin ID are required', 400);
         }
         const messageId = await createSupportMessage({
           chatId,
@@ -117,35 +82,17 @@ export async function POST(
           message: message?.trim() || '',
           imageUrl: body.imageUrl,
         });
-        return NextResponse.json({
-          success: true,
-          messageId,
-        });
+        return ResponseWrapper.success({ messageId }, 'Message sent successfully');
 
       case 'resolve':
         await updateChatStatus(chatId, 'resolved');
-        return NextResponse.json({
-          success: true,
-          message: 'Chat resolved successfully',
-        });
+        return ResponseWrapper.success(null, 'Chat resolved successfully');
 
       default:
-        return NextResponse.json(
-          {
-            success: false,
-            error: 'Invalid action',
-          },
-          { status: 400 }
-        );
+        return ResponseWrapper.error('Invalid action', 400);
     }
   } catch (error) {
     console.error('Admin chat action error:', error);
-    return NextResponse.json(
-      {
-        success: false,
-        error: 'Failed to perform action',
-      },
-      { status: 500 }
-    );
+    return ResponseWrapper.serverError('Failed to perform action', error);
   }
 }

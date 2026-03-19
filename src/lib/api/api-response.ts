@@ -5,18 +5,26 @@ export type ApiResponse<T> = {
   message?: string;
   data?: T;
   pagination?: any;
+  metadata?: any;
   error?: string;
   timestamp: string;
 };
 
 export class ResponseWrapper {
-  static success<T>(data: T, message?: string, status: number = 200, pagination?: any) {
+  static success<T>(
+    data: T | null = null,
+    message?: string,
+    status: number = 200,
+    pagination?: any,
+    metadata?: any
+  ) {
     return NextResponse.json(
       {
         success: true,
         message,
         data,
         pagination,
+        metadata,
         timestamp: new Date().toISOString(),
       },
       { status }

@@ -1,9 +1,10 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
 import { getCart, addToCart, clearCart } from '@/lib/db/mysql';
 import { findVariantBySize, checkStock } from '@/lib/db/variants';
 import { verifyAuth } from '@/lib/auth/auth';
 import { withRateLimit } from '@/lib/api/with-rate-limit';
 import { getCache, setCache, invalidateCache } from '@/lib/redis/cache';
+import { ResponseWrapper } from '@/lib/api/api-response';
 
 // GET - Lấy giỏ hàng của user
 /**
@@ -15,7 +16,7 @@ export async function GET(request: NextRequest) {
   try {
     const session = await verifyAuth();
     if (!session) {
-      return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
+      return ResponseWrapper.unauthorized();
     }
     const userId = session.userId;
     const cacheKey = `user:cart:${userId}`;
@@ -23,11 +24,7 @@ export async function GET(request: NextRequest) {
     // Try to get from cache
     const cachedCart = await getCache<any[]>(cacheKey);
     if (cachedCart) {
-      return NextResponse.json({
-        success: true,
-        data: cachedCart,
-        cached: true,
-      });
+      return ResponseWrapper.success(cachedCart, undefined, 200, { cached: true });
     }
 
     // Lấy giỏ hàng từ database
@@ -36,10 +33,11 @@ export async function GET(request: NextRequest) {
     // Map to expected format
     const formattedItems = (cartItems as any[]).map((item) => ({
       id: item.id,
-      productId: item.product_id,
+      productId: item.productId,
       name: item.name,
-      image: item.image_url,
-      price: parseFloat(item.price) || parseFloat(item.item_price) || 0,
+      slug: item.slug,
+      image: item.imageUrl || '/placeholder.png',
+      price: parseFloat(item.price) || parseFloat(item.itemPrice) || 0,
       size: item.size,
       color: item.color,
       quantity: item.quantity,
@@ -49,13 +47,10 @@ export async function GET(request: NextRequest) {
     // Set cache (5 minutes)
     await setCache(cacheKey, formattedItems, 300);
 
-    return NextResponse.json({
-      success: true,
-      data: formattedItems,
-    });
+    return ResponseWrapper.success(formattedItems);
   } catch (error) {
     console.error('Lỗi khi lấy giỏ hàng:', error);
-    return NextResponse.json({ success: false, message: 'Lỗi server nội bộ' }, { status: 500 });
+    return ResponseWrapper.serverError('Lỗi server nội bộ', error);
   }
 }
 
@@ -64,7 +59,7 @@ export async function DELETE(request: NextRequest) {
   try {
     const session = await verifyAuth();
     if (!session) {
-      return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
+      return ResponseWrapper.unauthorized();
     }
     const userId = session.userId;
 
@@ -74,13 +69,10 @@ export async function DELETE(request: NextRequest) {
     // Invalidate cache
     await invalidateCache(`user:cart:${userId}`);
 
-    return NextResponse.json({
-      success: true,
-      message: 'Đã xóa tất cả sản phẩm khỏi giỏ hàng',
-    });
+    return ResponseWrapper.success(null, 'Đã xóa tất cả sản phẩm khỏi giỏ hàng');
   } catch (error) {
     console.error('Lỗi khi xóa giỏ hàng:', error);
-    return NextResponse.json({ success: false, message: 'Lỗi server nội bộ' }, { status: 500 });
+    return ResponseWrapper.serverError('Lỗi server nội bộ', error);
   }
 }
 
@@ -92,9 +84,7 @@ export const POST = withRateLimit(
 
       // Xử lý thêm vào giỏ hàng (Hỗ trợ cả đơn lẻ và hàng loạt)
       const session = await verifyAuth();
-      if (!session) {
-        return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
-      }
+      if (!session) return ResponseWrapper.unauthorized();
       const userId = session.userId;
       const { productId, quantity = 1, size, items } = body;
 
@@ -108,56 +98,39 @@ export const POST = withRateLimit(
         }
 
         if (results.addedCount === 0 && items.length > 0) {
-          return NextResponse.json(
-            {
-              success: false,
-              message:
-                'Không có sản phẩm nào khả dụng để đặt lại (có thể do hết hàng hoặc size không còn tồn tại).',
-              skipped: results.skippedItems,
-            },
-            { status: 400 }
+          return ResponseWrapper.error(
+            'Không có sản phẩm nào khả dụng để đặt lại (có thể do hết hàng hoặc size không còn tồn tại).',
+            400,
+            { skipped: results.skippedItems }
           );
         }
 
-        return NextResponse.json({
-          success: true,
-          message: `Đã thêm ${results.addedCount} sản phẩm vào giỏ hàng.`,
-          skipped: results.skippedItems,
-        });
+        return ResponseWrapper.success(
+          { skipped: results.skippedItems },
+          `Đã thêm ${results.addedCount} sản phẩm vào giỏ hàng.`
+        );
       }
 
       // Trường hợp 2: Thêm đơn lẻ (Single Add)
       if (!productId || !size) {
-        return NextResponse.json(
-          { success: false, message: 'Thiếu productId hoặc size' },
-          { status: 400 }
-        );
+        return ResponseWrapper.error('Thiếu productId hoặc size', 400);
       }
 
       if (quantity < 1) {
-        return NextResponse.json(
-          { success: false, message: 'Số lượng phải lớn hơn 0' },
-          { status: 400 }
-        );
+        return ResponseWrapper.error('Số lượng phải lớn hơn 0', 400);
       }
 
       const variant = await findVariantBySize(parseInt(productId), size);
       if (!variant) {
-        return NextResponse.json(
-          { success: false, message: 'Size không tồn tại' },
-          { status: 404 }
-        );
+        return ResponseWrapper.error('Size không tồn tại', 404);
       }
 
       const hasAvailable = await checkStock(variant.id, quantity);
       if (!hasAvailable) {
-        return NextResponse.json(
-          {
-            success: false,
-            message: `Sản phẩm này hiện đã hết hàng và không hỗ trợ đặt trước.`,
-            available: variant.available,
-          },
-          { status: 400 }
+        return ResponseWrapper.error(
+          `Sản phẩm này hiện đã hết hàng và không hỗ trợ đặt trước.`,
+          400,
+          { available: variant.available }
         );
       }
 
@@ -166,13 +139,10 @@ export const POST = withRateLimit(
       // Invalidate cache
       await invalidateCache(`user:cart:${userId}`);
 
-      return NextResponse.json({
-        success: true,
-        message: 'Đã thêm vào giỏ hàng',
-      });
+      return ResponseWrapper.success(null, 'Đã thêm vào giỏ hàng');
     } catch (error) {
       console.error('Lỗi khi thêm vào giỏ hàng:', error);
-      return NextResponse.json({ success: false, message: 'Lỗi server nội bộ' }, { status: 500 });
+      return ResponseWrapper.serverError('Lỗi server nội bộ', error);
     }
   },
   {

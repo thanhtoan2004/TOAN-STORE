@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { executeQuery } from '@/lib/db/mysql';
+import { db } from '@/lib/db/drizzle';
+import { news as newsTable } from '@/lib/db/schema';
+import { eq, and, desc, count } from 'drizzle-orm';
+import { ResponseWrapper } from '@/lib/api/api-response';
 
 // GET - Public news list
 /**
@@ -8,50 +11,53 @@ import { executeQuery } from '@/lib/db/mysql';
  * Hỗ trợ phân trang và lọc theo danh mục.
  */
 export async function GET(request: NextRequest) {
-    try {
-        const { searchParams } = new URL(request.url);
-        const limit = parseInt(searchParams.get('limit') || '10');
-        const category = searchParams.get('category') || '';
-        const page = parseInt(searchParams.get('page') || '1');
-        const offset = (page - 1) * limit;
+  try {
+    const { searchParams } = new URL(request.url);
+    const limit = parseInt(searchParams.get('limit') || '10');
+    const category = searchParams.get('category') || '';
+    const page = parseInt(searchParams.get('page') || '1');
+    const offset = (page - 1) * limit;
 
-        const whereConditions = ['is_published = 1'];
-        const queryParams: any[] = [];
+    const filters = [eq(newsTable.isPublished, 1)];
 
-        if (category) {
-            whereConditions.push('category = ?');
-            queryParams.push(category);
-        }
-
-        const whereClause = whereConditions.join(' AND ');
-
-        const news = await executeQuery(`
-      SELECT 
-        id, title, slug, excerpt, image_url, category, published_at, views
-      FROM news
-      WHERE ${whereClause}
-      ORDER BY published_at DESC
-      LIMIT ? OFFSET ?
-    `, [...queryParams, limit, offset]);
-
-        const [countRow] = await executeQuery(`
-      SELECT COUNT(*) as total FROM news WHERE ${whereClause}
-    `, queryParams) as any[];
-
-        return NextResponse.json({
-            success: true,
-            data: {
-                news,
-                pagination: {
-                    page,
-                    limit,
-                    total: countRow?.total || 0,
-                    totalPages: Math.ceil((countRow?.total || 0) / limit)
-                }
-            }
-        });
-    } catch (error) {
-        console.error('Error fetching public news:', error);
-        return NextResponse.json({ success: false, message: 'Error fetching news' }, { status: 500 });
+    if (category) {
+      filters.push(eq(newsTable.category, category));
     }
+
+    // 1. Get Count
+    const [countResult] = await db
+      .select({ total: count() })
+      .from(newsTable)
+      .where(and(...filters));
+
+    const total = countResult?.total || 0;
+
+    // 2. Get News
+    const news = await db
+      .select({
+        id: newsTable.id,
+        title: newsTable.title,
+        slug: newsTable.slug,
+        excerpt: newsTable.excerpt,
+        imageUrl: newsTable.imageUrl,
+        category: newsTable.category,
+        publishedAt: newsTable.publishedAt,
+        views: newsTable.views,
+      })
+      .from(newsTable)
+      .where(and(...filters))
+      .orderBy(desc(newsTable.publishedAt))
+      .limit(limit)
+      .offset(offset);
+
+    return ResponseWrapper.success(news, undefined, 200, {
+      page,
+      limit,
+      total,
+      totalPages: Math.ceil(total / limit),
+    });
+  } catch (error) {
+    console.error('Error fetching public news:', error);
+    return ResponseWrapper.serverError('Error fetching news', error);
+  }
 }

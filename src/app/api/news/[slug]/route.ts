@@ -1,43 +1,51 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { executeQuery } from '@/lib/db/mysql';
+import { db } from '@/lib/db/drizzle';
+import { news as newsTable, adminUsers } from '@/lib/db/schema';
+import { eq, and, sql } from 'drizzle-orm';
+import { ResponseWrapper } from '@/lib/api/api-response';
 
-// GET - Get news by slug
-export async function GET(
-    request: NextRequest,
-    { params }: { params: Promise<{ slug: string }> }
-) {
-    try {
-        const { slug } = await params;
+/**
+ * API Lấy chi tiết một bài tin tức theo Slug.
+ * Dùng cho trang chi tiết tin tức (Blog Detail Page).
+ * Tự động tăng lượt xem (Views) mỗi khi truy cập.
+ */
+export async function GET(request: NextRequest, { params }: { params: Promise<{ slug: string }> }) {
+  try {
+    const { slug } = await params;
 
-        const result = await executeQuery(`
-      SELECT 
-        n.*,
-        n.author_id,
-        au.full_name as author_name
-      FROM news n
-      LEFT JOIN admin_users au ON n.author_id = au.id
-      WHERE n.slug = ? AND n.is_published = 1
-    `, [slug]) as any[];
+    const result = await db
+      .select({
+        id: newsTable.id,
+        title: newsTable.title,
+        slug: newsTable.slug,
+        excerpt: newsTable.excerpt,
+        content: newsTable.content,
+        imageUrl: newsTable.imageUrl,
+        category: newsTable.category,
+        authorId: newsTable.authorId,
+        authorName: adminUsers.fullName,
+        publishedAt: newsTable.publishedAt,
+        views: newsTable.views,
+        createdAt: newsTable.createdAt,
+      })
+      .from(newsTable)
+      .leftJoin(adminUsers, eq(newsTable.authorId, adminUsers.id))
+      .where(and(eq(newsTable.slug, slug), eq(newsTable.isPublished, 1)))
+      .limit(1);
 
-        if (result.length === 0) {
-            return NextResponse.json(
-                { success: false, message: 'News not found' },
-                { status: 404 }
-            );
-        }
-
-        // Increment view count
-        await executeQuery('UPDATE news SET views = views + 1 WHERE slug = ?', [slug]);
-
-        return NextResponse.json({
-            success: true,
-            data: result[0]
-        });
-    } catch (error) {
-        console.error('Error fetching news detail:', error);
-        return NextResponse.json(
-            { success: false, message: 'Error fetching news' },
-            { status: 500 }
-        );
+    if (result.length === 0) {
+      return ResponseWrapper.notFound('News not found');
     }
+
+    // Increment view count asynchronously
+    db.update(newsTable)
+      .set({ views: sql`${newsTable.views} + 1` })
+      .where(eq(newsTable.slug, slug))
+      .catch((err) => console.error('Error incrementing news views:', err));
+
+    return ResponseWrapper.success(result[0]);
+  } catch (error) {
+    console.error('Error fetching news detail:', error);
+    return ResponseWrapper.serverError('Error fetching news', error);
+  }
 }

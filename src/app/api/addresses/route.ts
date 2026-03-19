@@ -1,6 +1,7 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { getAddresses, addAddress } from '@/lib/db/mysql';
 import { verifyAuth } from '@/lib/auth/auth';
+import { ResponseWrapper } from '@/lib/api/api-response';
 
 // GET: Fetch user addresses
 /**
@@ -10,19 +11,15 @@ export async function GET(request: Request) {
   try {
     const session = await verifyAuth();
     if (!session) {
-      return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
+      return ResponseWrapper.unauthorized();
     }
     const userId = Number(session.userId);
 
     const addresses = await getAddresses(userId);
-    console.log(`DEBUG: API GET /api/addresses - Found ${addresses.length} addresses`);
-    return NextResponse.json(addresses);
+    return ResponseWrapper.success(addresses);
   } catch (error: any) {
-    console.error('DEBUG: Error details:', error.message, error.stack);
-    return NextResponse.json(
-      { message: 'Internal Server Error', error: error.message },
-      { status: 500 }
-    );
+    console.error('Error fetching addresses:', error);
+    return ResponseWrapper.serverError('Lỗi server nội bộ', error);
   }
 }
 
@@ -34,22 +31,27 @@ export async function POST(request: Request) {
   try {
     const session = await verifyAuth();
     if (!session) {
-      return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
+      return ResponseWrapper.unauthorized();
     }
     const userId = Number(session.userId);
 
     const body = await request.json();
     const { userId: bodyUserId, ...addressData } = body;
 
+    // Validate required fields
+    if (!addressData.recipientName && !addressData.fullName && !addressData.name) {
+      return ResponseWrapper.error('Thiếu tên người nhận', 400);
+    }
+    if (!addressData.phone) return ResponseWrapper.error('Thiếu số điện thoại', 400);
+    if (!addressData.addressLine && !addressData.address)
+      return ResponseWrapper.error('Thiếu địa chỉ', 400);
+    if (!addressData.city) return ResponseWrapper.error('Thiếu tỉnh/thành phố', 400);
+
     const newAddressId = await addAddress(userId, addressData);
-    return NextResponse.json({
-      success: true,
-      id: newAddressId,
-      message: 'Address added successfully',
-    });
+    return ResponseWrapper.success({ id: newAddressId }, 'Đã thêm địa chỉ thành công');
   } catch (error) {
     console.error('Error adding address:', error);
-    return NextResponse.json({ message: 'Internal Server Error' }, { status: 500 });
+    return ResponseWrapper.serverError('Lỗi hệ thống khi thêm địa chỉ', error);
   }
 }
 
@@ -61,7 +63,7 @@ export async function PUT(request: Request) {
   try {
     const session = await verifyAuth();
     if (!session) {
-      return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
+      return ResponseWrapper.unauthorized();
     }
     const userId = Number(session.userId);
 
@@ -79,24 +81,15 @@ export async function PUT(request: Request) {
 
     if (action === 'setDefault') {
       await setDefaultAddress(parseInt(addressId), userId);
-      return NextResponse.json({
-        success: true,
-        message: 'Address set as default successfully',
-      });
+      return ResponseWrapper.success(null, 'Đã đặt địa chỉ làm mặc định');
     } else {
       // Default action is update
       await updateAddress(userId, parseInt(addressId), addressData);
-      return NextResponse.json({
-        success: true,
-        message: 'Address updated successfully',
-      });
+      return ResponseWrapper.success(null, 'Cập nhật địa chỉ thành công');
     }
   } catch (error: any) {
     console.error('Error updating address:', error);
-    return NextResponse.json(
-      { success: false, message: 'Internal Server Error', error: error.message },
-      { status: 500 }
-    );
+    return ResponseWrapper.serverError('Lỗi hệ thống khi cập nhật địa chỉ', error);
   }
 }
 
@@ -109,7 +102,7 @@ export async function DELETE(request: Request) {
   try {
     const session = await verifyAuth();
     if (!session) {
-      return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
+      return ResponseWrapper.unauthorized();
     }
     const userId = Number(session.userId);
 
@@ -117,18 +110,15 @@ export async function DELETE(request: Request) {
     const addressId = searchParams.get('addressId');
 
     if (!addressId) {
-      return NextResponse.json({ message: 'Address ID is required' }, { status: 400 });
+      return ResponseWrapper.error('Address ID is required', 400);
     }
 
     const { deleteAddress } = await import('@/lib/db/mysql');
     await deleteAddress(userId, parseInt(addressId));
 
-    return NextResponse.json({
-      success: true,
-      message: 'Address deleted successfully',
-    });
+    return ResponseWrapper.success(null, 'Đã xóa địa chỉ thành công');
   } catch (error) {
     console.error('Error deleting address:', error);
-    return NextResponse.json({ message: 'Internal Server Error' }, { status: 500 });
+    return ResponseWrapper.serverError('Lỗi hệ thống khi xóa địa chỉ', error);
   }
 }

@@ -9,6 +9,7 @@ services:
     environment:
       MYSQL_ALLOW_EMPTY_PASSWORD: "yes"
       MYSQL_DATABASE: toan_store
+      MYSQL_ROOT_HOST: "%"
     ports:
       - "3307:3306" # Tránh xung đột với MySQL cài sẵn (cổng 3306)
     volumes:

@@ -1,105 +1,116 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { executeQuery } from '@/lib/db/mysql';
+import { db } from '@/lib/db/drizzle';
+import { coupons as couponsTable, couponUsage } from '@/lib/db/schema';
+import { eq, and, sql, desc, count, isNull, or, lte, gte, lt, gt } from 'drizzle-orm';
 import { invalidateCache } from '@/lib/redis/cache';
 import { checkAdminAuth } from '@/lib/auth/auth';
+import { logAdminAction } from '@/lib/db/repositories/audit';
+import { ResponseWrapper } from '@/lib/api/api-response';
 
-// GET - Lấy danh sách coupons (cho admin)
 /**
- * API Lấy danh sách toàn bộ mã giảm giá (Coupons).
- * Hỗ trợ lọc theo trạng thái Đang hoạt động (Active) hoặc Hết hạn.
+ * GET - Lấy danh sách coupons (cho admin).
+ * Chức năng:
+ * - Hỗ trợ lọc theo trạng thái hoạt động (isActive = true/false).
+ * - Phân trang (Pagination) và giới hạn số lượng trả về (Max 100).
+ * - Tự động tính toán số lần đã sử dụng (times_used) cho từng mã.
+ * Bảo mật: Yêu cầu quyền Admin.
  */
 export async function GET(request: NextRequest) {
   try {
     const admin = await checkAdminAuth();
     if (!admin) {
-      return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
+      return ResponseWrapper.unauthorized();
     }
+
     const { searchParams } = new URL(request.url);
     const page = parseInt(searchParams.get('page') || '1');
-    const limit = Math.min(parseInt(searchParams.get('limit') || '20'), 100); // M2: Cap limit
+    const limit = Math.min(parseInt(searchParams.get('limit') || '20'), 100);
     const offset = (page - 1) * limit;
-    const isActive = searchParams.get('isActive'); // 'true', 'false', or null for all
+    const isActiveParam = searchParams.get('isActive'); // 'true', 'false', or null for all
 
-    let query = `
-      SELECT 
-        c.*,
-        COUNT(cu.id) as times_used
-      FROM coupons c
-      LEFT JOIN coupon_usage cu ON c.id = cu.coupon_id
-      WHERE c.deleted_at IS NULL
-    `;
-    const params: any[] = [];
+    const now = new Date();
+    const filters = [isNull(couponsTable.deletedAt)];
 
-    let whereClause = '';
-
-    // Filter by active status if specified
-    if (isActive !== null) {
-      const now = new Date().toISOString();
-      if (isActive === 'true') {
-        whereClause =
-          ' AND (c.starts_at IS NULL OR c.starts_at <= ?) AND (c.ends_at IS NULL OR c.ends_at >= ?)';
-        params.push(now, now);
-      } else if (isActive === 'false') {
-        whereClause = ' AND (c.starts_at > ? OR c.ends_at < ?)';
-        params.push(now, now);
-      }
+    if (isActiveParam === 'true') {
+      filters.push(or(isNull(couponsTable.startsAt), lte(couponsTable.startsAt, now))!);
+      filters.push(or(isNull(couponsTable.endsAt), gte(couponsTable.endsAt, now))!);
+    } else if (isActiveParam === 'false') {
+      filters.push(
+        or(
+          and(sql`${couponsTable.startsAt} IS NOT NULL`, gt(couponsTable.startsAt, now))!,
+          and(sql`${couponsTable.endsAt} IS NOT NULL`, lt(couponsTable.endsAt, now))!
+        )!
+      );
     }
 
-    query += whereClause;
-    query += ' GROUP BY c.id ORDER BY c.created_at DESC LIMIT ? OFFSET ?';
-    params.push(limit, offset);
+    // 1. Get coupons with usage count
+    const coupons = await db
+      .select({
+        id: couponsTable.id,
+        code: couponsTable.code,
+        description: couponsTable.description,
+        discount_type: couponsTable.discountType,
+        discount_value: couponsTable.discountValue,
+        min_order_amount: couponsTable.minOrderAmount,
+        max_discount_amount: couponsTable.maxDiscountAmount,
+        starts_at: couponsTable.startsAt,
+        ends_at: couponsTable.endsAt,
+        usage_limit: couponsTable.usageLimit,
+        usage_limit_per_user: couponsTable.usageLimitPerUser,
+        applicable_tier: couponsTable.applicableTier,
+        created_at: couponsTable.createdAt,
+        updated_at: couponsTable.updatedAt,
+        times_used: count(couponUsage.id),
+      })
+      .from(couponsTable)
+      .leftJoin(couponUsage, eq(couponsTable.id, couponUsage.couponId))
+      .where(and(...filters))
+      .groupBy(couponsTable.id)
+      .orderBy(desc(couponsTable.createdAt))
+      .limit(limit)
+      .offset(offset);
 
-    const coupons = await executeQuery<any[]>(query, params);
+    // 2. Get total count
+    const [countResult] = await db
+      .select({ total: count() })
+      .from(couponsTable)
+      .where(and(...filters));
 
-    // Get total count
-    let countQuery = 'SELECT COUNT(*) as total FROM coupons WHERE deleted_at IS NULL';
-    const countParams: any[] = [];
+    const total = countResult?.total || 0;
 
-    if (isActive !== null) {
-      const now = new Date().toISOString();
-      if (isActive === 'true') {
-        countQuery +=
-          ' AND (starts_at IS NULL OR starts_at <= ?) AND (ends_at IS NULL OR ends_at >= ?)';
-        countParams.push(now, now);
-      } else if (isActive === 'false') {
-        countQuery += ' AND (starts_at > ? OR ends_at < ?)';
-        countParams.push(now, now);
-      }
-    }
-
-    const [countRow] = await executeQuery<any[]>(countQuery, countParams);
-    const total = countRow?.total || 0;
-
-    return NextResponse.json({
-      success: true,
-      data: {
-        coupons,
-        pagination: {
-          page,
-          limit,
-          total,
-          totalPages: Math.ceil(total / limit),
-        },
+    const result = {
+      coupons,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
       },
-    });
+    };
+
+    return ResponseWrapper.success(result);
   } catch (error) {
     console.error('Error fetching coupons:', error);
-    return NextResponse.json({ success: false, message: 'Lỗi server nội bộ' }, { status: 500 });
+    return ResponseWrapper.serverError('Lỗi server nội bộ', error);
   }
 }
 
-// POST - Tạo coupon mới (admin only)
 /**
- * API Tạo mã giảm giá mới.
- * Hỗ trợ nhiều loại: Giảm theo số tiền cố định (Fixed) hoặc Phần trăm (Percent).
- * Có cài đặt hạn mức sử dụng (Usage limit) và hạng thành viên tối thiểu.
+ * POST - Tạo coupon mới (admin only).
+ * Quy trình:
+ * 1. Kiểm tra tính hợp lệ của dữ liệu đầu vào (Code, Type, Value).
+ * 2. Kiểm tra trùng mã (Case-insensitive check cho bản ghi chưa xóa).
+ * 3. Chèn dữ liệu mới vào DB.
+ * 4. Xóa cache Redis để mã mới có hiệu lực ngay lập tức.
+ * 5. Ghi log Audit.
  */
 export async function POST(request: NextRequest) {
   try {
     const admin = await checkAdminAuth();
     if (!admin) {
-      return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
+      return ResponseWrapper.unauthorized();
     }
+
     const body = await request.json();
     const {
       code,
@@ -115,176 +126,173 @@ export async function POST(request: NextRequest) {
       applicable_tier,
     } = body;
 
-    // Validate required fields
     if (!code || !discount_type || !discount_value) {
-      return NextResponse.json(
-        { success: false, message: 'Thiếu thông tin bắt buộc' },
-        { status: 400 }
+      return ResponseWrapper.error(
+        'Thiếu thông tin bắt buộc (code, discount_type, discount_value)',
+        400
       );
     }
 
-    // Validate discount type
     if (!['fixed', 'percent'].includes(discount_type)) {
-      return NextResponse.json(
-        { success: false, message: 'Loại giảm giá không hợp lệ' },
-        { status: 400 }
-      );
+      return ResponseWrapper.error('Loại giảm giá không hợp lệ (fixed hoặc percent)', 400);
     }
 
-    // Validate discount value
     if (discount_type === 'percent' && (discount_value < 0 || discount_value > 100)) {
-      return NextResponse.json(
-        { success: false, message: 'Phần trăm giảm giá phải từ 0-100' },
-        { status: 400 }
-      );
+      return ResponseWrapper.error('Phần trăm giảm giá phải từ 0-100', 400);
     }
 
-    // Check if code already exists
-    const [existing] = await executeQuery<any[]>(
-      'SELECT id FROM coupons WHERE code = ? AND deleted_at IS NULL',
-      [code]
-    );
+    const [existing] = await db
+      .select({ id: couponsTable.id })
+      .from(couponsTable)
+      .where(and(eq(couponsTable.code, code.toUpperCase()), isNull(couponsTable.deletedAt)))
+      .limit(1);
 
-    if (existing && existing.length > 0) {
-      return NextResponse.json(
-        { success: false, message: 'Mã giảm giá đã tồn tại' },
-        { status: 400 }
-      );
+    if (existing) {
+      return ResponseWrapper.error('Mã giảm giá đã tồn tại', 400);
     }
 
-    // Insert coupon
-    await executeQuery(
-      `INSERT INTO coupons 
-       (code, description, discount_type, discount_value, min_order_amount, max_discount_amount, starts_at, ends_at, usage_limit, usage_limit_per_user, applicable_tier)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [
-        code.toUpperCase(),
-        description || '',
-        discount_type,
-        discount_value,
-        min_order_amount || null,
-        max_discount_amount || null,
-        starts_at || null,
-        ends_at || null,
-        usage_limit || null,
-        usage_limit_per_user || null,
-        applicable_tier || 'bronze',
-      ]
-    );
+    await db.insert(couponsTable).values({
+      code: code.toUpperCase(),
+      description: description || null,
+      discountType: discount_type,
+      discountValue: String(discount_value),
+      minOrderAmount: min_order_amount ? String(min_order_amount) : null,
+      maxDiscountAmount: max_discount_amount ? String(max_discount_amount) : null,
+      startsAt: starts_at ? new Date(starts_at) : null,
+      endsAt: ends_at ? new Date(ends_at) : null,
+      usageLimit: usage_limit || null,
+      usageLimitPerUser: usage_limit_per_user || null,
+      applicableTier: applicable_tier || 'bronze',
+    });
 
-    // Invalidate cache
     await invalidateCache('promo-codes:available');
 
-    return NextResponse.json({
-      success: true,
-      message: 'Tạo mã giảm giá thành công',
-    });
+    await logAdminAction(
+      admin.userId,
+      'CREATE_COUPON',
+      'coupons',
+      0,
+      null,
+      { code, discount_type, discount_value },
+      request
+    );
+
+    return ResponseWrapper.success(null, 'Tạo mã giảm giá thành công');
   } catch (error) {
     console.error('Error creating coupon:', error);
-    return NextResponse.json({ success: false, message: 'Lỗi server nội bộ' }, { status: 500 });
+    return ResponseWrapper.serverError('Lỗi server nội bộ', error);
   }
 }
 
-// PUT - Cập nhật coupon (admin only)
 /**
- * API Cập nhật thông tin mã giảm giá.
+ * PUT - Cập nhật coupon (admin only).
+ * Hỗ trợ cập nhật các trường cụ thể dựa trên ID truyền vào Body.
  */
 export async function PUT(request: NextRequest) {
   try {
     const admin = await checkAdminAuth();
     if (!admin) {
-      return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
+      return ResponseWrapper.unauthorized();
     }
+
     const body = await request.json();
     const { id, ...updates } = body;
 
     if (!id) {
-      return NextResponse.json(
-        { success: false, message: 'Thiếu ID mã giảm giá' },
-        { status: 400 }
-      );
+      return ResponseWrapper.error('Thiếu ID mã giảm giá', 400);
     }
 
-    // Build update query dynamically
-    const allowedFields = [
-      'description',
-      'discount_type',
-      'discount_value',
-      'min_order_amount',
-      'max_discount_amount',
-      'starts_at',
-      'ends_at',
-      'usage_limit',
-      'usage_limit_per_user',
-      'applicable_tier',
-    ];
+    const setClause: any = {};
+    if (updates.description !== undefined) setClause.description = updates.description;
+    if (updates.discount_type !== undefined) setClause.discountType = updates.discount_type;
+    if (updates.discount_value !== undefined)
+      setClause.discountValue = String(updates.discount_value);
+    if (updates.min_order_amount !== undefined)
+      setClause.minOrderAmount = updates.min_order_amount ? String(updates.min_order_amount) : null;
+    if (updates.max_discount_amount !== undefined)
+      setClause.maxDiscountAmount = updates.max_discount_amount
+        ? String(updates.max_discount_amount)
+        : null;
+    if (updates.starts_at !== undefined)
+      setClause.startsAt = updates.starts_at ? new Date(updates.starts_at) : null;
+    if (updates.ends_at !== undefined)
+      setClause.endsAt = updates.ends_at ? new Date(updates.ends_at) : null;
+    if (updates.usage_limit !== undefined) setClause.usageLimit = updates.usage_limit;
+    if (updates.usage_limit_per_user !== undefined)
+      setClause.usageLimitPerUser = updates.usage_limit_per_user;
+    if (updates.applicable_tier !== undefined) setClause.applicableTier = updates.applicable_tier;
 
-    const updateFields: string[] = [];
-    const updateValues: any[] = [];
-
-    Object.keys(updates).forEach((key) => {
-      if (allowedFields.includes(key)) {
-        updateFields.push(`${key} = ?`);
-        updateValues.push(updates[key]);
-      }
-    });
-
-    if (updateFields.length === 0) {
-      return NextResponse.json(
-        { success: false, message: 'Không có trường nào để cập nhật' },
-        { status: 400 }
-      );
+    if (Object.keys(setClause).length === 0) {
+      return ResponseWrapper.error('Không có trường nào để cập nhật', 400);
     }
 
-    updateValues.push(id);
+    setClause.updatedAt = new Date();
 
-    await executeQuery(`UPDATE coupons SET ${updateFields.join(', ')} WHERE id = ?`, updateValues);
+    await db
+      .update(couponsTable)
+      .set(setClause)
+      .where(eq(couponsTable.id, Number(id)));
 
-    // Invalidate cache
     await invalidateCache('promo-codes:available');
 
-    return NextResponse.json({
-      success: true,
-      message: 'Cập nhật mã giảm giá thành công',
-    });
+    await logAdminAction(
+      admin.userId,
+      'UPDATE_COUPON',
+      'coupons',
+      Number(id),
+      null,
+      setClause,
+      request
+    );
+
+    return ResponseWrapper.success(null, 'Cập nhật mã giảm giá thành công');
   } catch (error) {
     console.error('Error updating coupon:', error);
-    return NextResponse.json({ success: false, message: 'Lỗi server nội bộ' }, { status: 500 });
+    return ResponseWrapper.serverError('Lỗi server nội bộ', error);
   }
 }
 
-// DELETE - Xóa coupon (admin only)
 /**
- * API Xóa mã giảm giá (Soft Delete).
+ * DELETE - Xóa coupon (admin only).
+ * Sử dụng Soft Delete bằng cách đánh dấu `deletedAt`.
  */
 export async function DELETE(request: NextRequest) {
   try {
     const admin = await checkAdminAuth();
     if (!admin) {
-      return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
+      return ResponseWrapper.unauthorized();
     }
+
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
 
     if (!id) {
-      return NextResponse.json(
-        { success: false, message: 'Thiếu ID mã giảm giá' },
-        { status: 400 }
-      );
+      return ResponseWrapper.error('Thiếu ID mã giảm giá', 400);
     }
 
-    // Soft delete
-    await executeQuery('UPDATE coupons SET deleted_at = CURRENT_TIMESTAMP WHERE id = ?', [id]);
+    await db
+      .update(couponsTable)
+      .set({
+        deletedAt: new Date(),
+        updatedAt: new Date(),
+      })
+      .where(eq(couponsTable.id, Number(id)));
 
-    // Invalidate cache
     await invalidateCache('promo-codes:available');
 
-    return NextResponse.json({
-      success: true,
-      message: 'Xóa mã giảm giá thành công',
-    });
+    await logAdminAction(
+      admin.userId,
+      'DELETE_COUPON',
+      'coupons',
+      Number(id),
+      null,
+      { deleted: true },
+      request
+    );
+
+    return ResponseWrapper.success(null, 'Xóa mã giảm giá thành công');
   } catch (error) {
     console.error('Error deleting coupon:', error);
-    return NextResponse.json({ success: false, message: 'Lỗi server nội bộ' }, { status: 500 });
+    return ResponseWrapper.serverError('Lỗi server nội bộ', error);
   }
 }

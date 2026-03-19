@@ -36,7 +36,7 @@ export default function AdminRefundsPage() {
       const query = filterStatus ? `?status=${filterStatus}` : '';
       const res = await fetch(`/api/admin/refunds${query}`);
       const data = await res.json();
-      setRefunds(data.refunds || []);
+      setRefunds(data.data?.refunds || []);
     } catch (error) {
       console.error(error);
       toast.error('Lỗi tải danh sách hoàn tiền');

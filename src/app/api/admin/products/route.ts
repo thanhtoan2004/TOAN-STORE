@@ -2,10 +2,10 @@ import { NextRequest } from 'next/server';
 import { checkAdminAuth } from '@/lib/auth/auth';
 import { invalidateCache, invalidateCachePattern } from '@/lib/redis/cache';
 import { syncProductToMeilisearch, deleteProductFromMeilisearch } from '@/lib/search/meilisearch';
-import { logAdminAction } from '@/lib/security/audit';
+import { logAdminAction } from '@/lib/db/repositories/audit';
 import { db } from '@/lib/db/drizzle';
 import { products, productImages, categories } from '@/lib/db/schema';
-import { eq, and, like, sql, desc } from 'drizzle-orm';
+import { eq, and, like, or, sql, desc } from 'drizzle-orm';
 import { ResponseWrapper } from '@/lib/api/api-response';
 import { logger } from '@/lib/utils/logger';
 
@@ -34,9 +34,7 @@ export async function GET(request: NextRequest) {
     const filters = [sql`${products.deletedAt} IS NULL`];
 
     if (search) {
-      filters.push(
-        sql`(${products.name} LIKE ${`%%${search}%%`} OR ${products.sku} LIKE ${`%%${search}%%`})`
-      );
+      filters.push(or(like(products.name, `%${search}%`), like(products.sku, `%${search}%`))!);
     }
     if (status) {
       filters.push(eq(products.isActive, status === 'active' ? 1 : 0));
@@ -48,12 +46,12 @@ export async function GET(request: NextRequest) {
         sku: products.sku,
         name: products.name,
         slug: products.slug,
-        priceCache: products.priceCache,
-        msrpPrice: products.msrpPrice,
-        isActive: products.isActive,
-        createdAt: products.createdAt,
-        primaryImage: sql<string>`(SELECT url FROM product_images WHERE product_id = ${products.id} AND is_main = 1 LIMIT 1)`,
-        categoryName: categories.name,
+        price_cache: products.priceCache,
+        msrp_price: products.msrpPrice,
+        is_active: products.isActive,
+        created_at: products.createdAt,
+        primary_image: sql<string>`(SELECT url FROM product_images WHERE product_id = ${products.id} AND is_main = 1 LIMIT 1)`,
+        category_name: categories.name,
       })
       .from(products)
       .leftJoin(categories, eq(products.categoryId, categories.id))
@@ -119,48 +117,52 @@ export async function POST(request: NextRequest) {
     // Validate using ResponseWrapper
     if (!name?.trim()) return ResponseWrapper.error('Invalid product name', 400);
 
-    const [result] = await db.insert(products).values({
-      sku: sku || `NK-${Date.now()}`,
-      name,
-      slug: slug || name.toLowerCase().replace(/\s+/g, '-'),
-      priceCache: String(price_cache || 0),
-      msrpPrice: msrp_price ? String(msrp_price) : null,
-      description: description || '',
-      shortDescription: short_description || '',
-      brandId: brand_id ? Number(brand_id) : null,
-      categoryId: category_id ? Number(category_id) : null,
-      collectionId: collection_id ? Number(collection_id) : null,
-      isActive: is_active !== undefined ? Number(is_active) : 1,
-      isNewArrival: is_new_arrival ? 1 : 0,
+    const productId = await db.transaction(async (tx) => {
+      const [result] = await tx.insert(products).values({
+        sku: sku || `NK-${Date.now()}`,
+        name,
+        slug: slug || name.toLowerCase().replace(/\s+/g, '-'),
+        priceCache: String(price_cache || 0),
+        msrpPrice: msrp_price ? String(msrp_price) : null,
+        description: description || '',
+        shortDescription: short_description || '',
+        brandId: brand_id ? Number(brand_id) : null,
+        categoryId: category_id ? Number(category_id) : null,
+        collectionId: collection_id ? Number(collection_id) : null,
+        isActive: is_active !== undefined ? Number(is_active) : 1,
+        isNewArrival: is_new_arrival ? 1 : 0,
+      });
+
+      const newId = result.insertId;
+
+      // Insert main image
+      if (image_url) {
+        await tx.insert(productImages).values({
+          productId: newId,
+          url: image_url,
+          isMain: 1,
+          altText: name,
+        });
+      }
+
+      // Audit Logging (within transaction to ensure record existence)
+      await logAdminAction(
+        admin.userId,
+        'CREATE_PRODUCT',
+        'products',
+        newId,
+        null,
+        { sku, name, slug, price_cache, is_active: is_active ?? 1 },
+        request
+      );
+
+      return newId;
     });
 
-    const productId = result.insertId;
-
-    // Insert main image
-    if (image_url) {
-      await db.insert(productImages).values({
-        productId,
-        url: image_url,
-        isMain: 1,
-        altText: name,
-      });
-    }
-
-    // Invalidate & Sync
+    // Invalidate & Sync (Outside transaction to avoid holding DB locks during external API calls)
     await invalidateCachePattern('products:list:*');
     await invalidateCachePattern('search:query:*');
     await syncProductToMeilisearch(productId);
-
-    // Audit Logging
-    await logAdminAction(
-      admin.userId,
-      'CREATE_PRODUCT',
-      'products',
-      productId,
-      null,
-      { sku, name, slug, price_cache, is_active: is_active ?? 1 },
-      request
-    );
 
     return ResponseWrapper.success({ id: productId }, 'Product created successfully', 201);
   } catch (error) {
@@ -185,22 +187,44 @@ export async function PUT(request: NextRequest) {
       'name',
       'slug',
       'sku',
+      'price_cache',
       'priceCache',
+      'msrp_price',
       'msrpPrice',
+      'cost_price',
       'costPrice',
       'description',
+      'short_description',
       'shortDescription',
+      'category_id',
       'categoryId',
+      'brand_id',
       'brandId',
+      'collection_id',
       'collectionId',
+      'is_active',
       'isActive',
+      'is_new_arrival',
       'isNewArrival',
       'gender',
     ];
     const filteredUpdates: any = {};
     Object.keys(updates).forEach((key) => {
       if (allowedFields.includes(key)) {
-        filteredUpdates[key] = updates[key];
+        // Map snake_case to camelCase for Drizzle if needed
+        const mapping: any = {
+          price_cache: 'priceCache',
+          msrp_price: 'msrpPrice',
+          cost_price: 'costPrice',
+          short_description: 'shortDescription',
+          category_id: 'categoryId',
+          brand_id: 'brandId',
+          collection_id: 'collectionId',
+          is_active: 'isActive',
+          is_new_arrival: 'isNewArrival',
+        };
+        const targetKey = mapping[key] || key;
+        filteredUpdates[targetKey] = updates[key];
       }
     });
 

@@ -213,9 +213,8 @@ export default function AccountSettings() {
   const loadSessions = async () => {
     setLoadingSessions(true);
     try {
-      const res = await fetch('/api/account/sessions');
-      const data = await res.json();
-      if (data.success) setSessions(data.sessions || []);
+      const res = await (await fetch('/api/account/sessions')).json();
+      if (res.success) setSessions(res.data || []);
     } catch (e) {
       console.error('Failed to load sessions:', e);
     } finally {
@@ -267,8 +266,10 @@ export default function AccountSettings() {
     try {
       const response = await fetch(`/api/addresses?userId=${user.id}`);
       if (response.ok) {
-        const data = await response.json();
-        setAddresses(data);
+        const res = await response.json();
+        if (res.success && Array.isArray(res.data)) {
+          setAddresses(res.data);
+        }
       }
     } catch (error) {
       console.error('DEBUG: loadAddresses Fetch Error:', error);

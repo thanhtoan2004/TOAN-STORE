@@ -1,13 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { executeQuery } from '@/lib/db/mysql';
+import { db } from '@/lib/db/drizzle';
+import { orders as ordersTable, orderItems } from '@/lib/db/schema';
+import { eq, and, sql, desc } from 'drizzle-orm';
 import { verifyAuth } from '@/lib/auth/auth';
+import { ResponseWrapper } from '@/lib/api/api-response';
 
-// GET - Check if user has purchased a product
+/**
+ * API Kiểm tra xem người dùng đã mua sản phẩm này chưa.
+ * Dùng để xác thực quyền đánh giá sản phẩm (Verified Purchase).
+ */
 export async function GET(request: NextRequest) {
   try {
     const session = await verifyAuth();
     if (!session) {
-      return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
+      return ResponseWrapper.unauthorized();
     }
     const userId = Number(session.userId);
 
@@ -15,33 +21,36 @@ export async function GET(request: NextRequest) {
     const productId = searchParams.get('productId');
 
     if (!productId) {
-      return NextResponse.json({ success: false, message: 'Missing productId' }, { status: 400 });
+      return ResponseWrapper.error('Missing productId', 400);
     }
 
     // Check if user has purchased this product
-    const purchaseCheck = await executeQuery<any[]>(
-      `SELECT DISTINCT o.id, o.order_number, o.placed_at
-       FROM orders o
-       INNER JOIN order_items oi ON o.id = oi.order_id
-       WHERE o.user_id = ? 
-         AND oi.product_id = ? 
-         AND o.status NOT IN ('cancelled', 'failed')
-       ORDER BY o.placed_at DESC
-       LIMIT 1`,
-      [userId, parseInt(productId)]
-    );
+    const purchaseResult = await db
+      .select({
+        id: ordersTable.id,
+        orderNumber: ordersTable.orderNumber,
+        placedAt: ordersTable.placedAt,
+      })
+      .from(ordersTable)
+      .innerJoin(orderItems, eq(ordersTable.id, orderItems.orderId))
+      .where(
+        and(
+          eq(ordersTable.userId, userId),
+          eq(orderItems.productId, parseInt(productId)),
+          sql`${ordersTable.status} NOT IN ('cancelled', 'failed')`
+        )
+      )
+      .orderBy(desc(ordersTable.placedAt))
+      .limit(1);
 
-    const hasPurchased = purchaseCheck && purchaseCheck.length > 0;
+    const hasPurchased = purchaseResult.length > 0;
 
-    return NextResponse.json({
-      success: true,
-      data: {
-        hasPurchased,
-        purchaseInfo: hasPurchased ? purchaseCheck[0] : null,
-      },
+    return ResponseWrapper.success({
+      hasPurchased,
+      purchaseInfo: hasPurchased ? purchaseResult[0] : null,
     });
   } catch (error) {
     console.error('Error checking purchase status:', error);
-    return NextResponse.json({ success: false, message: 'Internal server error' }, { status: 500 });
+    return ResponseWrapper.serverError('Internal server error', error);
   }
 }

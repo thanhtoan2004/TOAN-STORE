@@ -39,10 +39,10 @@ export default function CartPage() {
 
   const handleClearCart = async () => {
     showAlert({
-      title: 'Xác nhận xóa giỏ hàng',
-      message: 'Bạn có chắc chắn muốn xóa tất cả sản phẩm trong giỏ hàng không?',
-      confirmText: 'Xác nhận xóa',
-      cancelText: 'Hủy',
+      title: t.cart.clear_cart_confirm_title,
+      message: t.cart.clear_cart_confirm_msg,
+      confirmText: t.cart.clear_cart,
+      cancelText: t.common.cancel,
       onConfirm: async () => {
         const success = await clearCart();
         if (!success) {
@@ -147,7 +147,7 @@ export default function CartPage() {
                         {/* Product Image */}
                         <Link href={`/products/${item.slug || item.productId}`}>
                           <Image
-                            src={item.image}
+                            src={item.image || '/placeholder.png'}
                             alt={item.name}
                             width={96}
                             height={96}

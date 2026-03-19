@@ -1,11 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { sendOrderConfirmationEmail } from '@/lib/mail/email-templates';
 import { checkAdminAuth } from '@/lib/auth/auth';
+import { ResponseWrapper } from '@/lib/api/api-response';
 
-/**
- * API endpoint to send order confirmation email
- * Called after successful order placement (Admin/System only)
- */
 /**
  * API Gửi lại Email xác nhận đơn hàng (Manual Trigger).
  * Sử dụng khi:
@@ -17,19 +14,13 @@ export async function POST(request: NextRequest) {
   try {
     const admin = await checkAdminAuth();
     if (!admin) {
-      return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
+      return ResponseWrapper.unauthorized();
     }
     const body = await request.json();
     const { orderDetails } = body;
 
     if (!orderDetails) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: 'Order details are required',
-        },
-        { status: 400 }
-      );
+      return ResponseWrapper.error('Order details are required', 400);
     }
 
     // Validate required fields
@@ -43,13 +34,7 @@ export async function POST(request: NextRequest) {
     ];
     for (const field of required) {
       if (!orderDetails[field]) {
-        return NextResponse.json(
-          {
-            success: false,
-            message: `Missing required field: ${field}`,
-          },
-          { status: 400 }
-        );
+        return ResponseWrapper.error(`Missing required field: ${field}`, 400);
       }
     }
 
@@ -57,27 +42,14 @@ export async function POST(request: NextRequest) {
     const sent = await sendOrderConfirmationEmail(orderDetails);
 
     if (sent) {
-      return NextResponse.json({
-        success: true,
-        message: 'Order confirmation email sent successfully',
-      });
+      return ResponseWrapper.success(null, 'Order confirmation email sent successfully');
     } else {
-      return NextResponse.json(
-        {
-          success: false,
-          message: 'Failed to send email (SMTP not configured or error occurred)',
-        },
-        { status: 500 }
+      return ResponseWrapper.serverError(
+        'Failed to send email (SMTP not configured or error occurred)'
       );
     }
   } catch (error) {
     console.error('Send order email API error:', error);
-    return NextResponse.json(
-      {
-        success: false,
-        message: 'Internal server error',
-      },
-      { status: 500 }
-    );
+    return ResponseWrapper.serverError('Internal server error', error);
   }
 }

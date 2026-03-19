@@ -2,24 +2,24 @@
 import { useEffect } from 'react';
 
 // import React from 'react';
-import Link from 'next/link'
-import Image from 'next/image'
-import { Heart, Menu, ChevronDown, User, Star, Zap, Crown, ShieldCheck } from 'lucide-react'
-import CartIcon from '@/components/ui/CartIcon'
-import SearchBar from '@/components/ui/SearchBar'
-import SearchOverlay from '@/components/search/SearchOverlay'
-import MobileMenuOverlay from '@/components/layout/MobileMenuOverlay'
-import NotificationBell from '@/components/notifications/NotificationBell'
-import { useWishlist } from "@/contexts/WishlistContext";
+import Link from 'next/link';
+import Image from 'next/image';
+import { Heart, Menu, ChevronDown, User, Star, Zap, Crown, ShieldCheck } from 'lucide-react';
+import CartIcon from '@/components/ui/CartIcon';
+import SearchBar from '@/components/ui/SearchBar';
+import SearchOverlay from '@/components/search/SearchOverlay';
+import MobileMenuOverlay from '@/components/layout/MobileMenuOverlay';
+import NotificationBell from '@/components/notifications/NotificationBell';
+import { useWishlist } from '@/contexts/WishlistContext';
 import { useState } from 'react';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuTrigger
-} from '@/components/ui/DropdownMenu'
+  DropdownMenuTrigger,
+} from '@/components/ui/DropdownMenu';
 import { useLanguage } from '@/contexts/LanguageContext';
-import { useAuth } from "@/contexts/AuthContext";
+import { useAuth } from '@/contexts/AuthContext';
 
 /**
  * Header Component
@@ -58,16 +58,31 @@ const Header = () => {
       {/* Top mini-nav: Thanh điều hướng phụ phía trên cùng (Ẩn trên mobile vì đã có BottomNavBar) */}
       <div className="bg-[#f5f5f5] py-2 hidden md:block">
         <div className="toan-container flex justify-between items-center text-xs">
-
           {/* Logo các thương hiệu con (Jordan, Converse) */}
           <div className="flex space-x-1.5">
-            <Link href="/categories?sport=basketball" className="flex items-center hover:opacity-70 transition-opacity">
-              <svg className="w-6 h-6" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+            <Link
+              href="/categories?sport=basketball"
+              className="flex items-center hover:opacity-70 transition-opacity"
+            >
+              <svg
+                className="w-6 h-6"
+                viewBox="0 0 24 24"
+                fill="currentColor"
+                xmlns="http://www.w3.org/2000/svg"
+              >
                 <path d="M17.09 11l-5.7-9.15c-.11-.17-.32-.17-.43 0L5.25 11h11.84zm.82 1H6.09l-.57 9.25c-.01.18.13.32.31.32h12.34c.18 0 .32-.14.31-.32l-.57-9.25z" />
               </svg>
             </Link>
-            <Link href="/categories?brand=converse" className="flex items-center hover:opacity-70 transition-opacity">
-              <svg className="w-6 h-6" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+            <Link
+              href="/categories?brand=converse"
+              className="flex items-center hover:opacity-70 transition-opacity"
+            >
+              <svg
+                className="w-6 h-6"
+                viewBox="0 0 24 24"
+                fill="currentColor"
+                xmlns="http://www.w3.org/2000/svg"
+              >
                 <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
               </svg>
             </Link>
@@ -75,9 +90,13 @@ const Header = () => {
 
           {/* Menu công cụ bổ sung (Tìm cửa hàng, Trợ giúp, Tài khoản) */}
           <div className="flex space-x-4 font-helvetica text-[11px]">
-            <Link href="/store" className="hover:text-black text-[#757575]">{t.common.find_store}</Link>
+            <Link href="/store" className="hover:text-black text-[#757575]">
+              {t.common.find_store}
+            </Link>
             <span className="text-[#757575]">|</span>
-            <Link href="/help" className="hover:text-black text-[#757575]">{t.common.help}</Link>
+            <Link href="/help" className="hover:text-black text-[#757575]">
+              {t.common.help}
+            </Link>
             <span className="text-[#757575]">|</span>
 
             {/* Hiển thị Menu thả xuống (Dropdown) nếu người dùng ĐÃ đăng nhập */}
@@ -98,14 +117,22 @@ const Header = () => {
                       )}
                     </div>
                     <span className="max-w-[120px] truncate">
-                      {(user as any)?.firstName && (user as any)?.lastName ? `${(user as any).firstName} ${(user as any).lastName}` : user?.email}
+                      {(user as any)?.firstName && (user as any)?.lastName
+                        ? `${(user as any).firstName} ${(user as any).lastName}`
+                        : user?.email}
                     </span>
                     {user?.membershipTier && (
-                      <div className={`p-0.5 rounded-sm ${user.membershipTier === 'platinum' ? 'text-indigo-600' :
-                        user.membershipTier === 'gold' ? 'text-yellow-600' :
-                          user.membershipTier === 'silver' ? 'text-gray-500' :
-                            'text-amber-700'
-                        }`}>
+                      <div
+                        className={`p-0.5 rounded-sm ${
+                          user.membershipTier === 'platinum'
+                            ? 'text-indigo-600'
+                            : user.membershipTier === 'gold'
+                              ? 'text-yellow-600'
+                              : user.membershipTier === 'silver'
+                                ? 'text-gray-500'
+                                : 'text-amber-700'
+                        }`}
+                      >
                         {user.membershipTier === 'platinum' && <ShieldCheck className="w-3 h-3" />}
                         {user.membershipTier === 'gold' && <Crown className="w-3 h-3" />}
                         {user.membershipTier === 'silver' && <Zap className="w-3 h-3" />}
@@ -116,13 +143,19 @@ const Header = () => {
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="w-48">
                     <DropdownMenuItem asChild>
-                      <Link href="/orders" className="w-full cursor-pointer">{t.common.my_orders}</Link>
+                      <Link href="/orders" className="w-full cursor-pointer">
+                        {t.common.my_orders}
+                      </Link>
                     </DropdownMenuItem>
                     <DropdownMenuItem asChild>
-                      <Link href="/wishlist" className="w-full cursor-pointer">{t.common.wishlist}</Link>
+                      <Link href="/account/transactions" className="w-full cursor-pointer">
+                        {t.common.transactions}
+                      </Link>
                     </DropdownMenuItem>
                     <DropdownMenuItem asChild>
-                      <Link href="/account/settings" className="w-full cursor-pointer">{t.common.settings}</Link>
+                      <Link href="/account/settings" className="w-full cursor-pointer">
+                        {t.common.settings}
+                      </Link>
                     </DropdownMenuItem>
                     <DropdownMenuItem onClick={logout} className="cursor-pointer text-red-600">
                       {t.common.logout}
@@ -133,9 +166,13 @@ const Header = () => {
             ) : (
               // Hiển thị link Đăng ký / Đăng nhập nếu CHƯA đăng nhập
               <>
-                <Link href="/sign-up" className="hover:text-black text-[#757575]">{t.common.register}</Link>
+                <Link href="/sign-up" className="hover:text-black text-[#757575]">
+                  {t.common.register}
+                </Link>
                 <span className="text-[#757575]">|</span>
-                <Link href="/sign-in" className="hover:text-black text-[#757575]">{t.common.login}</Link>
+                <Link href="/sign-in" className="hover:text-black text-[#757575]">
+                  {t.common.login}
+                </Link>
               </>
             )}
           </div>
@@ -145,12 +182,21 @@ const Header = () => {
       {/* Main navigation: Khu vực menu chính (Logo, Links, Icons) */}
       <div className="toan-container py-4">
         <div className="flex items-center justify-between">
-
           {/* Logo chính của ứng dụng */}
           <div>
             <Link href="/">
-              <svg className="h-16 w-32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path fill="currentColor" fillRule="evenodd" d="M21 8.719L7.836 14.303C6.74 14.768 5.818 15 5.075 15c-.836 0-1.445-.295-1.819-.884-.485-.76-.273-1.982.559-3.272.494-.754 1.122-1.446 1.734-2.108-.144.234-1.415 2.349-.025 3.345.275.2.666.298 1.147.298.386 0 .829-.063 1.316-.19L21 8.719z" clipRule="evenodd" />
+              <svg
+                className="h-16 w-32"
+                viewBox="0 0 24 24"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path
+                  fill="currentColor"
+                  fillRule="evenodd"
+                  d="M21 8.719L7.836 14.303C6.74 14.768 5.818 15 5.075 15c-.836 0-1.445-.295-1.819-.884-.485-.76-.273-1.982.559-3.272.494-.754 1.122-1.446 1.734-2.108-.144.234-1.415 2.349-.025 3.345.275.2.666.298 1.147.298.386 0 .829-.063 1.316-.19L21 8.719z"
+                  clipRule="evenodd"
+                />
               </svg>
             </Link>
           </div>
@@ -170,7 +216,6 @@ const Header = () => {
 
           {/* Khu vực Tìm kiếm & Các Icon (Yêu thích, Giỏ hàng) */}
           <div className="flex items-center space-x-4">
-
             {/* Thanh tìm kiếm (Mở SearchOverlay khi click) */}
             <div className="hidden md:block w-64" onClick={() => setIsSearchOpen(true)}>
               <div className="pointer-events-none">
@@ -228,8 +273,7 @@ const Header = () => {
         links={mainNavigationLinks}
       />
     </header>
-  )
-}
+  );
+};
 
-export default Header
-
+export default Header;

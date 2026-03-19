@@ -2,12 +2,17 @@ import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuth } from '@/lib/auth/auth';
 import { executeQuery } from '@/lib/db/mysql';
 import { formatDateTime } from '@/lib/utils/date-utils';
+import { ResponseWrapper } from '@/lib/api/api-response';
 
+/**
+ * API Xuất lịch sử giao dịch ra tệp CSV.
+ * Hỗ trợ khách hàng lưu trữ và đối soát chi tiêu.
+ */
 export async function GET(request: NextRequest) {
   try {
     const session = await verifyAuth();
     if (!session) {
-      return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
+      return ResponseWrapper.unauthorized();
     }
 
     const userId = Number(session.userId);
@@ -134,6 +139,6 @@ export async function GET(request: NextRequest) {
     });
   } catch (error) {
     console.error('Export CSV error:', error);
-    return NextResponse.json({ message: 'Internal Server Error' }, { status: 500 });
+    return ResponseWrapper.serverError('Internal server error', error);
   }
 }

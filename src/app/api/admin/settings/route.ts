@@ -1,47 +1,59 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
 import { checkAdminAuth } from '@/lib/auth/auth';
 import { getSettings, updateSetting } from '@/lib/db/settings';
+import { logAdminAction } from '@/lib/db/repositories/audit';
+import { ResponseWrapper } from '@/lib/api/api-response';
 
 /**
- * API Lấy toàn bộ cấu hình hệ thống (Settings).
- * Bao gồm các thông số về Header, Footer, SEO, và các cấu hình nghiệp vụ khác.
+ * GET - Lấy toàn bộ cấu hình hệ thống (Settings).
  */
 export async function GET(request: NextRequest) {
   try {
     const admin = await checkAdminAuth();
-    if (!admin) {
-      return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
-    }
+    if (!admin) return ResponseWrapper.unauthorized();
 
     const settings = await getSettings();
-    return NextResponse.json({ success: true, data: settings });
+    return ResponseWrapper.success(settings);
   } catch (error) {
     console.error('Error fetching settings:', error);
-    return NextResponse.json({ success: true, data: {} });
+    return ResponseWrapper.serverError('Internal server error', error);
   }
 }
 
 /**
- * API Cập nhật cấu hình hệ thống.
- * Hỗ trợ cập nhật hàng loạt các cặp Key-Value vào bảng settings.
+ * PUT - Cập nhật cấu hình hệ thống.
  */
 export async function PUT(request: NextRequest) {
-  const admin = await checkAdminAuth();
-  if (!admin) {
-    return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
-  }
-
   try {
-    const settings = await request.json();
+    const admin = await checkAdminAuth();
+    if (!admin) return ResponseWrapper.unauthorized();
+
+    // RBAC: Only Super Admin can change system settings
+    if (admin.role !== 'Super Admin') {
+      return ResponseWrapper.forbidden('Only Super Admins can update system settings');
+    }
+
+    const updates = await request.json();
 
     // Update each setting in database
-    for (const [key, value] of Object.entries(settings)) {
+    for (const [key, value] of Object.entries(updates)) {
       await updateSetting(key, value);
     }
 
-    return NextResponse.json({ success: true, message: 'Settings saved' });
+    // Audit Logging
+    await logAdminAction(
+      admin.userId,
+      'UPDATE_SETTINGS',
+      'settings',
+      'system',
+      null,
+      updates,
+      request
+    );
+
+    return ResponseWrapper.success(null, 'Settings saved successfully');
   } catch (error) {
     console.error('Error saving settings:', error);
-    return NextResponse.json({ success: false, message: 'Error saving settings' }, { status: 500 });
+    return ResponseWrapper.serverError('Error saving settings', error);
   }
 }

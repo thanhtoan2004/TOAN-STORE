@@ -15,6 +15,11 @@ export async function GET(request: NextRequest) {
     const admin = await checkAdminAuth();
     if (!admin) return ResponseWrapper.unauthorized();
 
+    // SECURITY: Only Super Admins can access audit logs
+    if (admin.role !== 'super_admin') {
+      return ResponseWrapper.forbidden('Only Super Admins can view administrative audit logs');
+    }
+
     const { searchParams } = new URL(request.url);
     const page = parseInt(searchParams.get('page') || '1');
     const limit = Math.min(parseInt(searchParams.get('limit') || '20'), 100); // M2: Cap limit
@@ -43,6 +48,15 @@ export async function GET(request: NextRequest) {
         ipAddress: adminActivityLogs.ipAddress,
         userAgent: adminActivityLogs.userAgent,
         createdAt: adminActivityLogs.createdAt,
+        // Keep snake_case for backward compatibility if needed elsewhere
+        admin_user_id: adminActivityLogs.adminUserId,
+        admin_name: adminUsers.fullName,
+        admin_username: adminUsers.username,
+        old_values: adminActivityLogs.oldValues,
+        new_values: adminActivityLogs.newValues,
+        ip_address: adminActivityLogs.ipAddress,
+        user_agent: adminActivityLogs.userAgent,
+        created_at: adminActivityLogs.createdAt,
       })
       .from(adminActivityLogs)
       .leftJoin(adminUsers, eq(adminActivityLogs.adminUserId, adminUsers.id))

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { AUTH_TOKEN, REFRESH_TOKEN, verifyAuth, verifyRefreshToken } from '@/lib/auth/auth';
 import { getRedisConnection } from '@/lib/redis/redis';
+import { ResponseWrapper } from '@/lib/api/api-response';
 
 /**
  * API Đăng xuất người dùng.
@@ -40,12 +41,9 @@ export async function POST(req: NextRequest) {
     cookieStore.delete(REFRESH_TOKEN);
     cookieStore.delete('toan_admin_session');
 
-    return NextResponse.json({
-      success: true,
-      message: 'Logged out successfully',
-    });
+    return ResponseWrapper.success(null, 'Logged out successfully');
   } catch (error) {
     console.error('Logout error:', error);
-    return NextResponse.json({ success: false, error: 'Internal server error' }, { status: 500 });
+    return ResponseWrapper.serverError('Internal server error', error);
   }
 }

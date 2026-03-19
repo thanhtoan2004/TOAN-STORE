@@ -1,6 +1,7 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { executeQuery } from '@/lib/db/mysql';
 import { checkAdminAuth } from '@/lib/auth/auth';
+import { ResponseWrapper } from '@/lib/api/api-response';
 
 /**
  * API Lấy thông tin chi tiết của tài khoản Admin hiện tại.
@@ -8,17 +9,17 @@ import { checkAdminAuth } from '@/lib/auth/auth';
  * 1. Xác thực phiên đăng nhập của Admin (kiểm tra JWT cookie).
  * 2. Truy vấn thông tin từ bảng `admin_users` dựa trên ID trong session.
  */
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
     const session = await checkAdminAuth();
 
     if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return ResponseWrapper.unauthorized();
     }
 
     // Lấy thông tin người dùng từ CSDL admin_users kèm Role Name (Unified Point 1)
     const admins = (await executeQuery(
-      `SELECT au.id, au.email, au.full_name, au.is_active, r.name as role 
+      `SELECT au.id, au.email, au.full_name, au.is_active, au.role_id, r.name as role 
              FROM admin_users au
              LEFT JOIN roles r ON au.role_id = r.id
              WHERE au.id = ?`,
@@ -26,22 +27,23 @@ export async function GET() {
     )) as any[];
 
     if (admins.length === 0) {
-      return NextResponse.json({ error: 'Không tìm thấy tài khoản admin' }, { status: 404 });
+      return ResponseWrapper.notFound('Không tìm thấy tài khoản admin');
     }
 
     const admin = admins[0];
 
-    return NextResponse.json({
-      user: {
-        id: admin.id,
-        email: admin.email,
-        fullName: admin.full_name,
-        isActive: admin.is_active,
-        role: admin.role || 'admin',
-      },
-    });
+    const authAdmin = {
+      id: admin.id,
+      email: admin.email,
+      fullName: admin.full_name,
+      isActive: admin.is_active === 1,
+      role: admin.role || 'admin',
+      roleId: admin.role_id || null,
+    };
+
+    return ResponseWrapper.success({ user: authAdmin });
   } catch (error) {
     console.error('Lỗi xác thực admin:', error);
-    return NextResponse.json({ error: 'Phiên đăng nhập không hợp lệ' }, { status: 401 });
+    return ResponseWrapper.unauthorized('Phiên đăng nhập không hợp lệ');
   }
 }

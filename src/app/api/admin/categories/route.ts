@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server';
 import { checkAdminAuth } from '@/lib/auth/auth';
-import { logAdminAction } from '@/lib/security/audit';
+import { logAdminAction } from '@/lib/db/repositories/audit';
 import { db } from '@/lib/db/drizzle';
 import { categories as categoriesSchema } from '@/lib/db/schema';
 import { eq, sql, asc } from 'drizzle-orm';
@@ -20,7 +20,18 @@ export async function GET(request: NextRequest) {
     if (!admin) return ResponseWrapper.unauthorized();
 
     const data = await db
-      .select()
+      .select({
+        id: categoriesSchema.id,
+        name: categoriesSchema.name,
+        slug: categoriesSchema.slug,
+        description: categoriesSchema.description,
+        image_url: categoriesSchema.imageUrl,
+        position: categoriesSchema.position,
+        is_active: categoriesSchema.isActive,
+        created_at: categoriesSchema.createdAt,
+        updated_at: categoriesSchema.updatedAt,
+        deleted_at: categoriesSchema.deletedAt,
+      })
       .from(categoriesSchema)
       .where(sql`${categoriesSchema.deletedAt} IS NULL`)
       .orderBy(asc(categoriesSchema.position));
@@ -41,13 +52,14 @@ export async function POST(request: NextRequest) {
     const admin = await checkAdminAuth();
     if (!admin) return ResponseWrapper.unauthorized();
 
-    const { name, slug, description, image_url, position } = await request.json();
+    const body = await request.json();
+    const { name, slug, description, image_url, imageUrl, position } = body;
 
     const [result] = await db.insert(categoriesSchema).values({
       name,
       slug,
       description,
-      imageUrl: image_url,
+      imageUrl: image_url || imageUrl || null,
       position: position || 0,
       isActive: 1,
     });

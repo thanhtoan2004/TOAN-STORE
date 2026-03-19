@@ -1,6 +1,8 @@
-import { NextResponse } from 'next/server';
-import { executeQuery } from '@/lib/db/mysql';
+import { NextRequest, NextResponse } from 'next/server';
+import { db } from '@/lib/db/drizzle';
+import { sql } from 'drizzle-orm';
 import { getRedisConnection } from '@/lib/redis/redis';
+import { ResponseWrapper } from '@/lib/api/api-response';
 
 /**
  * API Kiểm tra sức khỏe hệ thống (Health Check).
@@ -10,39 +12,42 @@ import { getRedisConnection } from '@/lib/redis/redis';
  * Trả về mã lỗi 503 nếu một trong các dịch vụ cốt lõi gặp sự cố.
  */
 export async function GET() {
-  const status = {
-    uptime: process.uptime(),
-    timestamp: new Date().toISOString(),
-    services: {
-      database: 'unknown',
-      redis: 'unknown',
-    },
-    ok: false,
+  const services = {
+    database: 'unknown',
+    redis: 'unknown',
   };
 
   try {
-    // 1. Check Database
-    await executeQuery('SELECT 1');
-    status.services.database = 'healthy';
+    // 1. Check Database using Drizzle
+    await db.execute(sql`SELECT 1`);
+    services.database = 'healthy';
   } catch (error) {
     console.error('Health Check - Database Error:', error);
-    status.services.database = 'unhealthy';
+    services.database = 'unhealthy';
   }
 
   try {
     // 2. Check Redis
     const redis = getRedisConnection();
     await redis.ping();
-    status.services.redis = 'healthy';
+    services.redis = 'healthy';
   } catch (error) {
     console.error('Health Check - Redis Error:', error);
-    status.services.redis = 'unhealthy';
+    services.redis = 'unhealthy';
   }
 
   // 3. Overall Status
-  status.ok = status.services.database === 'healthy' && status.services.redis === 'healthy';
+  const isOk = services.database === 'healthy' && services.redis === 'healthy';
 
-  const httpStatus = status.ok ? 200 : 503;
+  const data = {
+    uptime: process.uptime(),
+    services,
+  };
 
-  return NextResponse.json(status, { status: httpStatus });
+  if (isOk) {
+    return ResponseWrapper.success(data, 'System is healthy');
+  } else {
+    // Return 503 Service Unavailable if any core service is down
+    return ResponseWrapper.error('Some services are unhealthy', 503, data);
+  }
 }

@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextRequest, NextResponse } from 'next/server';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import {
@@ -11,6 +10,7 @@ import {
 import { withRateLimit } from '@/lib/api/with-rate-limit';
 import { redis } from '@/lib/redis/redis';
 import crypto from 'crypto';
+import { ResponseWrapper } from '@/lib/api/api-response';
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
 
@@ -91,22 +91,22 @@ const tools = [
  */
 async function chatHandler(req: NextRequest) {
   if (!process.env.GEMINI_API_KEY) {
-    return NextResponse.json({ error: 'Gemini API key not configured' }, { status: 500 });
+    return ResponseWrapper.error('Gemini API key not configured', 500);
   }
 
   try {
     let body;
     try {
       const textBody = await req.text();
-      if (!textBody) return NextResponse.json({ error: 'Empty request body' }, { status: 400 });
+      if (!textBody) return ResponseWrapper.error('Empty request body', 400);
       body = JSON.parse(textBody);
     } catch (jsonErr) {
       console.error('Invalid JSON:', jsonErr);
-      return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
+      return ResponseWrapper.error('Invalid JSON body', 400);
     }
 
     const { message, history } = body;
-    if (!message) return NextResponse.json({ error: 'Message is required' }, { status: 400 });
+    if (!message) return ResponseWrapper.error('Message is required', 400);
 
     // --- FAST PATH: Rule-based Intent Detection (Bypass AI for speed) ---
     const lowerMsg = message.trim().toLowerCase();
@@ -144,7 +144,7 @@ async function chatHandler(req: NextRequest) {
 
           // Cache Fast Path result
           await redis.set(cacheKey, JSON.stringify(response), 'EX', 3600);
-          return NextResponse.json(response);
+          return ResponseWrapper.success(response);
         } catch (e) {
           console.error('Fast Path Search Error', e);
         }
@@ -185,17 +185,17 @@ async function chatHandler(req: NextRequest) {
 
       // Xử lý logic hội thoại 1-1 bằng if...else đơn giản, không cần đưa vào AI
       if (orderId && !phone) {
-        return NextResponse.json({
+        return ResponseWrapper.success({
           text: `Mình đã ghi nhận mã đơn ${orderId}. Bạn vui lòng cung cấp Số điện thoại đã dùng để đặt hàng để mình tra cứu nhé! 📦`,
           dataType: 'products',
         });
       } else if (!orderId && phone) {
-        return NextResponse.json({
+        return ResponseWrapper.success({
           text: `Cảm ơn bạn. Tuy nhiên thiếu mã đơn hàng mất rồi. Kèm với số điện thoại ${phone}, bạn vui lòng cung cấp thêm Mã đơn hàng (Ví dụ: NK...) nữa nhé! 📝`,
           dataType: 'products',
         });
       } else if (!orderId && !phone) {
-        return NextResponse.json({
+        return ResponseWrapper.success({
           text: `Dạ được ạ. Để mình có thể kiểm tra trạng thái đơn hàng giúp bạn, bạn vui lòng cung cấp **Mã đơn hàng** (Ví dụ: NK123...) và **Số điện thoại** đã dùng để đặt hàng nhé! 📦`,
           dataType: 'products',
         });
@@ -212,7 +212,7 @@ async function chatHandler(req: NextRequest) {
             data: order,
             dataType: 'order',
           };
-          return NextResponse.json(response);
+          return ResponseWrapper.success(response);
         } catch (e) {
           console.error('Fast Path Order Error', e);
         }
@@ -374,7 +374,7 @@ QUY TẮC BẢO MẬT & VẬN HÀNH:
 
     // Bắt lỗi sập toàn bộ Model (Ví dụ hết quota, đứt cáp...) khiến AI không trả về được chữ nào.
     if (!finalResponseText) {
-      return NextResponse.json({
+      return ResponseWrapper.success({
         text: 'Hệ thống AI của TOAN Store hiện tại đang quá tải do có quá nhiều yêu cầu cùng lúc. Bạn vui lòng đợi khoảng 1 phút rồi thử lại giúp mình nhé! 👟🙏',
       });
     }
@@ -385,10 +385,10 @@ QUY TẮC BẢO MẬT & VẬN HÀNH:
       dataType: toolDataType, // 'products' | 'order' | 'intent_add_to_cart'
     };
 
-    return NextResponse.json(responseData);
+    return ResponseWrapper.success(responseData);
   } catch (error) {
     console.error('Critical Gemini Error:', error);
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+    return ResponseWrapper.serverError('Internal Server Error', error);
   }
 }
 

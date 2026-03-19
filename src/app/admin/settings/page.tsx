@@ -14,7 +14,9 @@ interface Settings {
   tax_rate: number;
   shipping_cost_domestic: number;
   shipping_cost_international: number;
+  gift_wrap_fee: number;
   maintenance_mode: boolean;
+  admin_ip_whitelist: string;
 }
 
 export default function SettingsPage() {
@@ -29,7 +31,9 @@ export default function SettingsPage() {
     tax_rate: 0.1,
     shipping_cost_domestic: 30000,
     shipping_cost_international: 100000,
-    maintenance_mode: false
+    gift_wrap_fee: 25000,
+    maintenance_mode: false,
+    admin_ip_whitelist: '',
   });
 
   const [loading, setLoading] = useState(true);
@@ -49,10 +53,14 @@ export default function SettingsPage() {
         // Ensure types are correct from database strings
         const formattedSettings = {
           ...data.data,
-          maintenance_mode: data.data.maintenance_mode === 'true' || data.data.maintenance_mode === '1' || data.data.maintenance_mode === true,
+          maintenance_mode:
+            data.data.maintenance_mode === 'true' ||
+            data.data.maintenance_mode === '1' ||
+            data.data.maintenance_mode === true,
           tax_rate: parseFloat(data.data.tax_rate) || 0,
           shipping_cost_domestic: parseFloat(data.data.shipping_cost_domestic) || 0,
-          shipping_cost_international: parseFloat(data.data.shipping_cost_international) || 0
+          shipping_cost_international: parseFloat(data.data.shipping_cost_international) || 0,
+          gift_wrap_fee: parseFloat(data.data.gift_wrap_fee) || 25000,
         };
         setSettings(formattedSettings);
       }
@@ -63,23 +71,25 @@ export default function SettingsPage() {
     }
   };
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+  const handleChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
+  ) => {
     const { name, value, type } = e.target;
 
     if (type === 'checkbox') {
-      setSettings(prev => ({
+      setSettings((prev) => ({
         ...prev,
-        [name]: (e.target as HTMLInputElement).checked
+        [name]: (e.target as HTMLInputElement).checked,
       }));
     } else if (type === 'number') {
-      setSettings(prev => ({
+      setSettings((prev) => ({
         ...prev,
-        [name]: parseFloat(value)
+        [name]: parseFloat(value),
       }));
     } else {
-      setSettings(prev => ({
+      setSettings((prev) => ({
         ...prev,
-        [name]: value
+        [name]: value,
       }));
     }
   };
@@ -93,7 +103,7 @@ export default function SettingsPage() {
       const response = await fetch('/api/admin/settings', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(settings)
+        body: JSON.stringify(settings),
       });
 
       const data = await response.json();
@@ -130,7 +140,9 @@ export default function SettingsPage() {
         {/* Header */}
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Cài đặt chung</h1>
-          <p className="mt-1 text-sm text-gray-500">Quản lý thông tin cửa hàng và cài đặt hệ thống</p>
+          <p className="mt-1 text-sm text-gray-500">
+            Quản lý thông tin cửa hàng và cài đặt hệ thống
+          </p>
         </div>
 
         {/* Form */}
@@ -161,9 +173,7 @@ export default function SettingsPage() {
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Email
-                    </label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
                     <input
                       type="email"
                       name="store_email"
@@ -187,9 +197,7 @@ export default function SettingsPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Địa chỉ
-                  </label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Địa chỉ</label>
                   <input
                     type="text"
                     name="store_address"
@@ -213,9 +221,7 @@ export default function SettingsPage() {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Quốc gia
-                    </label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Quốc gia</label>
                     <input
                       type="text"
                       name="store_country"
@@ -296,6 +302,23 @@ export default function SettingsPage() {
                     />
                   </div>
                 </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Phí gói quà
+                    </label>
+                    <input
+                      type="number"
+                      name="gift_wrap_fee"
+                      value={settings.gift_wrap_fee}
+                      onChange={handleChange}
+                      step="1000"
+                      min="0"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent"
+                    />
+                  </div>
+                </div>
               </div>
             </section>
 
@@ -313,6 +336,45 @@ export default function SettingsPage() {
                 <label className="ml-2 text-sm font-medium text-gray-700">
                   Bật chế độ bảo trì (khách hàng sẽ không thể truy cập)
                 </label>
+              </div>
+            </section>
+
+            {/* Cài đặt bảo mật */}
+            <section className="border-t pt-6">
+              <h2 className="text-xl font-semibold mb-4 text-red-600">Bảo mật & Quản trị</h2>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    IP Whitelist (Admin Panel)
+                  </label>
+                  <input
+                    type="text"
+                    name="admin_ip_whitelist"
+                    placeholder="Ví dụ: 1.1.1.1, 8.8.8.8 (Để trống để bỏ qua check IP)"
+                    value={settings.admin_ip_whitelist}
+                    onChange={handleChange}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                  />
+                  <p className="mt-1 text-xs text-gray-500 italic">
+                    * Các IP được phép truy cập vào trang Admin, cách nhau bởi dấu phẩy. Dùng * để
+                    cho phép tất cả.
+                  </p>
+                </div>
+
+                <div className="bg-gray-50 p-4 rounded-lg flex items-center justify-between">
+                  <div>
+                    <h3 className="text-sm font-semibold">Nhật ký hoạt động (Audit Logs)</h3>
+                    <p className="text-xs text-gray-500">
+                      Xem lịch sử các thay đổi và đăng nhập của Admin.
+                    </p>
+                  </div>
+                  <a
+                    href="/admin/audit-logs"
+                    className="text-xs font-bold text-black border border-black px-3 py-1 rounded hover:bg-black hover:text-white transition-colors"
+                  >
+                    Xem log →
+                  </a>
+                </div>
               </div>
             </section>
 

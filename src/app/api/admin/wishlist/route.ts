@@ -1,78 +1,86 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { executeQuery } from '@/lib/db/mysql';
+import { db } from '@/lib/db/drizzle';
+import {
+  products as productsTable,
+  wishlistItems,
+  wishlists as wishlistsTable,
+  productImages,
+} from '@/lib/db/schema';
+import { eq, and, sql, desc, count, countDistinct } from 'drizzle-orm';
 import { checkAdminAuth } from '@/lib/auth/auth';
+import { ResponseWrapper } from '@/lib/api/api-response';
 
 /**
- * API Thống kê Wishlist (Danh sách mong muốn).
- * Chức năng:
- * 1. Xếp hạng các sản phẩm được đưa vào Wishlist nhiều nhất.
- * 2. Cung cấp số liệu tổng quan về mức độ quan tâm của khách hàng đối với từng sản phẩm.
- * 3. Hỗ trợ Admin trong việc đưa ra quyết định nhập hàng hoặc khuyến mãi.
+ * GET - Thống kê Wishlist (Danh sách mong muốn).
+ * Updated: 2026-03-13 - Fix order by alias issue
  */
 export async function GET(request: NextRequest) {
   try {
     const admin = await checkAdminAuth();
     if (!admin) {
-      return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
+      return ResponseWrapper.unauthorized();
     }
+
     const { searchParams } = new URL(request.url);
     const page = parseInt(searchParams.get('page') || '1');
-    const limit = Math.min(parseInt(searchParams.get('limit') || '20'), 100); // M2: Cap limit
+    const limit = Math.min(parseInt(searchParams.get('limit') || '20'), 100);
     const offset = (page - 1) * limit;
 
-    // Get wishlist items with product info and count how many times each product is in wishlists
-    const data = (await executeQuery(
-      `SELECT p.id, p.name, p.sku, 
-              COALESCE(MAX(pi.url), '') as image_url,
-              COUNT(DISTINCT wi.id) as wishlist_count, COUNT(DISTINCT w.user_id) as unique_users
-       FROM products p
-       INNER JOIN wishlist_items wi ON p.id = wi.product_id
-       INNER JOIN wishlists w ON wi.wishlist_id = w.id
-       LEFT JOIN product_images pi ON p.id = pi.product_id AND pi.is_main = 1
-       GROUP BY p.id
-       ORDER BY wishlist_count DESC
-       LIMIT ? OFFSET ?`,
-      [limit, offset]
-    )) as any[];
+    // 1. Get wishlist items ranking
+    const data = await db
+      .select({
+        id: productsTable.id,
+        name: productsTable.name,
+        sku: productsTable.sku,
+        image_url: sql<string>`(SELECT ${productImages.url} FROM ${productImages} WHERE ${productImages.productId} = ${productsTable.id} ORDER BY ${productImages.isMain} DESC, ${productImages.position} ASC LIMIT 1)`,
+        wishlist_count: count(wishlistItems.id),
+        unique_users: countDistinct(wishlistsTable.userId),
+      })
+      .from(productsTable)
+      .innerJoin(wishlistItems, eq(productsTable.id, wishlistItems.productId))
+      .innerJoin(wishlistsTable, eq(wishlistItems.wishlistId, wishlistsTable.id))
+      .groupBy(productsTable.id)
+      .orderBy(desc(count(wishlistItems.id)))
+      .limit(limit)
+      .offset(offset);
 
-    const [countRow] = (await executeQuery(
-      'SELECT COUNT(DISTINCT product_id) as total FROM wishlist_items'
-    )) as any[];
+    // 2. Get total products wishlisted
+    const [countRow] = await db
+      .select({ total: countDistinct(wishlistItems.productId) })
+      .from(wishlistItems);
     const totalProductsWishlisted = countRow?.total || 0;
 
-    // Summary + wishlists (the container per user)
-    const wishlistSummaryRows = await executeQuery<any[]>(
-      `SELECT 
-         (SELECT COUNT(*) FROM wishlists) as total_wishlists,
-         (SELECT COUNT(*) FROM wishlist_items) as total_wishlist_items,
-         (SELECT COUNT(DISTINCT user_id) FROM wishlists) as total_users_with_wishlist
-       `
-    );
-    const summary = wishlistSummaryRows?.[0] || {
-      total_wishlists: 0,
-      total_wishlist_items: 0,
-      total_users_with_wishlist: 0,
+    // 3. Get Summary stats
+    const [totalWishlists] = await db.select({ val: count() }).from(wishlistsTable);
+    const [totalWishlistItems] = await db.select({ val: count() }).from(wishlistItems);
+    const [totalUsersWithWishlist] = await db
+      .select({ val: countDistinct(wishlistsTable.userId) })
+      .from(wishlistsTable);
+
+    const summary = {
+      total_wishlists: totalWishlists?.val || 0,
+      total_wishlist_items: totalWishlistItems?.val || 0,
+      total_users_with_wishlist: totalUsersWithWishlist?.val || 0,
     };
 
-    // Show latest wishlists with item counts (no pagination needed for now)
-    const wishlists = await executeQuery<any[]>(
-      `SELECT 
-         w.id,
-         w.user_id,
-         w.name,
-         w.is_default,
-         w.created_at,
-         COUNT(wi.id) as item_count
-       FROM wishlists w
-       LEFT JOIN wishlist_items wi ON wi.wishlist_id = w.id
-       GROUP BY w.id
-       ORDER BY w.created_at DESC
-       LIMIT 50`
-    );
+    // 4. Get latest wishlists
+    const wishlists = await db
+      .select({
+        id: wishlistsTable.id,
+        user_id: wishlistsTable.userId,
+        name: wishlistsTable.name,
+        is_default: wishlistsTable.isDefault,
+        created_at: wishlistsTable.createdAt,
+        item_count: count(wishlistItems.id),
+      })
+      .from(wishlistsTable)
+      .leftJoin(wishlistItems, eq(wishlistsTable.id, wishlistItems.wishlistId))
+      .groupBy(wishlistsTable.id)
+      .orderBy(desc(wishlistsTable.createdAt))
+      .limit(50);
 
-    return NextResponse.json({
-      success: true,
-      data,
+    const result = {
+      items: data,
       wishlists,
       summary,
       pagination: {
@@ -81,9 +89,11 @@ export async function GET(request: NextRequest) {
         total: totalProductsWishlisted,
         totalPages: Math.ceil(totalProductsWishlisted / limit),
       },
-    });
+    };
+
+    return ResponseWrapper.success(result);
   } catch (error) {
     console.error('Error fetching wishlist stats:', error);
-    return NextResponse.json({ success: false }, { status: 500 });
+    return ResponseWrapper.serverError('Internal server error', error);
   }
 }

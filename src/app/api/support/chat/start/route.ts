@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createSupportChat, getUserActiveChat, getGuestActiveChat } from '@/lib/db/supportChat';
 import { verifyAuth } from '@/lib/auth/auth';
+import { ResponseWrapper } from '@/lib/api/api-response';
 
 /**
  * API Bắt đầu phiên hỗ trợ trực tuyến (Support Chat).
@@ -18,13 +19,7 @@ export async function POST(request: NextRequest) {
 
     // Validation
     if (!userId && (!guestEmail || !guestName)) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: 'Login or guest information is required',
-        },
-        { status: 400 }
-      );
+      return ResponseWrapper.error('Login or guest information is required', 400);
     }
 
     // Check if user already has an active chat
@@ -36,12 +31,13 @@ export async function POST(request: NextRequest) {
     }
 
     if (existingChat) {
-      return NextResponse.json({
-        success: true,
-        chatId: existingChat.id,
-        status: existingChat.status,
-        message: 'Resumed existing chat session',
-      });
+      return ResponseWrapper.success(
+        {
+          chatId: existingChat.id,
+          status: existingChat.status,
+        },
+        'Resumed existing chat session'
+      );
     }
 
     const { chatId, accessToken } = await createSupportChat({
@@ -51,21 +47,16 @@ export async function POST(request: NextRequest) {
       initialMessage,
     });
 
-    return NextResponse.json({
-      success: true,
-      chatId,
-      accessToken,
-      status: 'waiting',
-      message: 'Chat session created',
-    });
+    return ResponseWrapper.success(
+      {
+        chatId,
+        accessToken,
+        status: 'waiting',
+      },
+      'Chat session created'
+    );
   } catch (error) {
     console.error('Start chat error:', error);
-    return NextResponse.json(
-      {
-        success: false,
-        error: 'Failed to start chat',
-      },
-      { status: 500 }
-    );
+    return ResponseWrapper.serverError('Failed to start chat', error);
   }
 }

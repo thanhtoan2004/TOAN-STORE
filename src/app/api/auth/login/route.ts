@@ -1,13 +1,11 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import { cookies } from 'next/headers';
-import { executeQuery } from '@/lib/db/mysql';
-import {
-  createErrorResponse,
-  validateRequiredFields,
-  withErrorHandling,
-} from '@/lib/api/api-utils';
+import { db } from '@/lib/db/drizzle';
+import { users as usersTable } from '@/lib/db/schema';
+import { eq, and, isNull, sql } from 'drizzle-orm';
+import { validateRequiredFields, withErrorHandling } from '@/lib/api/api-utils';
 import { User, LoginRequest, AuthResponse } from '@/types/auth';
 import {
   AUTH_TOKEN,
@@ -16,10 +14,11 @@ import {
   generateRefreshToken,
 } from '@/lib/auth/auth';
 import { withRateLimit } from '@/lib/api/with-rate-limit';
-import { logSecurityEvent } from '@/lib/security/audit';
+import { logSecurityEvent } from '@/lib/db/repositories/audit';
 import { getRedisConnection } from '@/lib/redis/redis';
 import { decrypt, hashEmail } from '@/lib/security/encryption';
 import { IpBlocklistRepository } from '@/lib/db/repositories/ip-blocklist';
+import { ResponseWrapper } from '@/lib/api/api-response';
 
 /**
  * API Xử lý Đăng nhập người dùng.
@@ -31,23 +30,24 @@ import { IpBlocklistRepository } from '@/lib/db/repositories/ip-blocklist';
  * 5. Check 2FA: Nếu bật, yêu cầu xác thực OTP trước khi cấp Token.
  */
 async function loginHandler(req: Request): Promise<NextResponse> {
-  const body: Partial<LoginRequest> = await req.json();
+  let body: Partial<LoginRequest>;
+  try {
+    body = await req.json();
+  } catch (err) {
+    return ResponseWrapper.error('Dữ liệu yêu cầu không hợp lệ.', 400);
+  }
   const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || '127.0.0.1';
 
   // 0. Check if IP is blocked
   const isIpBlocked = await IpBlocklistRepository.isBlocked(ip);
   if (isIpBlocked) {
-    return createErrorResponse(
-      'Địa chỉ IP của bạn tạm thời bị chặn do hoạt động nghi vấn.',
-      403,
-      'IP_BLOCKED'
-    );
+    return ResponseWrapper.forbidden('Địa chỉ IP của bạn tạm thời bị chặn do hoạt động nghi vấn.');
   }
 
   // Validate required fields
   const validation = validateRequiredFields(body, ['email', 'password']);
   if (!validation.isValid) {
-    return createErrorResponse(validation.error, 400, 'VALIDATION_ERROR');
+    return ResponseWrapper.error(validation.error, 400);
   }
 
   const { email, password } = body as LoginRequest;
@@ -55,29 +55,29 @@ async function loginHandler(req: Request): Promise<NextResponse> {
   // Validate email format
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   if (!emailRegex.test(email)) {
-    return createErrorResponse('Email không hợp lệ', 400, 'INVALID_EMAIL');
+    return ResponseWrapper.error('Email không hợp lệ', 400);
   }
 
   // Validate password length
   if (password.length < 6) {
-    return createErrorResponse('Mật khẩu phải có ít nhất 6 ký tự', 400, 'INVALID_PASSWORD');
+    return ResponseWrapper.error('Mật khẩu phải có ít nhất 6 ký tự', 400);
   }
 
   // Find user by email hash (Blind Index)
   const emailHash = hashEmail(email);
-  const users = (await executeQuery(
-    'SELECT * FROM users WHERE email_hash = ? AND deleted_at IS NULL',
-    [emailHash]
-  )) as User[];
+  const users = await db
+    .select()
+    .from(usersTable)
+    .where(and(eq(usersTable.emailHash, emailHash), isNull(usersTable.deletedAt)));
 
   if (users.length === 0) {
     await logSecurityEvent('login_failed', ip, null, { emailHash, reason: 'User not found' });
-    return createErrorResponse('Email hoặc mật khẩu không chính xác', 401, 'INVALID_CREDENTIALS');
+    return ResponseWrapper.unauthorized('Email hoặc mật khẩu không chính xác');
   }
 
   const user = users[0];
   const realEmail =
-    user.is_encrypted && user.email_encrypted ? decrypt(user.email_encrypted) : user.email;
+    user.isEncrypted && user.emailEncrypted ? decrypt(user.emailEncrypted) : (user.email ?? '');
 
   // Account lockout check (Redis-backed, 5 attempts, 15 min lockout)
   const MAX_ATTEMPTS = 5;
@@ -92,7 +92,7 @@ async function loginHandler(req: Request): Promise<NextResponse> {
 
     if (
       currentAttempts >= MAX_ATTEMPTS ||
-      (user.lockout_until && new Date(user.lockout_until) > new Date())
+      (user.lockoutUntil && new Date(user.lockoutUntil) > new Date())
     ) {
       const ttl = await redis.ttl(lockoutKey);
       const minutesLeft = Math.ceil(ttl / 60) || 15;
@@ -101,10 +101,9 @@ async function loginHandler(req: Request): Promise<NextResponse> {
         attempts: currentAttempts,
         reason: 'Account locked',
       });
-      return createErrorResponse(
+      return ResponseWrapper.error(
         `Tài khoản tạm khóa do đăng nhập sai quá nhiều. Vui lòng thử lại sau ${minutesLeft} phút.`,
-        429,
-        'ACCOUNT_LOCKED'
+        429
       );
     }
   } catch (e) {
@@ -112,30 +111,28 @@ async function loginHandler(req: Request): Promise<NextResponse> {
   }
 
   // Check if user is banned
-  const isBanned = user.is_banned === 1 || user.is_banned === '1' || user.is_banned === true;
+  const isBanned =
+    user.isBanned === 1 || (user.isBanned as any) === '1' || user.isBanned === (true as any);
 
   if (isBanned) {
     await logSecurityEvent('login_failed', ip, user.id, { emailHash, reason: 'Account banned' });
-    return createErrorResponse(
-      'Tài khoản của bạn đã bị khóa. Vui lòng liên hệ admin để được hỗ trợ.',
-      403,
-      'ACCOUNT_BANNED'
+    return ResponseWrapper.forbidden(
+      'Tài khoản của bạn đã bị khóa. Vui lòng liên hệ admin để được hỗ trợ.'
     );
   }
 
   // Check if user is active
-  const isActive = user.is_active === 1 || user.is_active === '1' || user.is_active === true;
+  const isActive =
+    user.isActive === 1 || (user.isActive as any) === '1' || user.isActive === (true as any);
   if (!isActive) {
     await logSecurityEvent('login_failed', ip, user.id, { emailHash, reason: 'Account inactive' });
-    return createErrorResponse(
-      'Tài khoản của bạn chưa được kích hoạt. Vui lòng kiểm tra email hoặc liên hệ admin.',
-      403,
-      'ACCOUNT_INACTIVE'
+    return ResponseWrapper.forbidden(
+      'Tài khoản của bạn chưa được kích hoạt. Vui lòng kiểm tra email hoặc liên hệ admin.'
     );
   }
 
   // Verify password
-  const isPasswordValid = await bcrypt.compare(password, user.password);
+  const isPasswordValid = await bcrypt.compare(password, user.password ?? '');
 
   if (!isPasswordValid) {
     // Increment failed attempts in Redis
@@ -148,15 +145,18 @@ async function loginHandler(req: Request): Promise<NextResponse> {
 
       // PERSISTENT LOCKOUT in DB
       if (newAttempts >= MAX_ATTEMPTS) {
-        await executeQuery(
-          'UPDATE users SET failed_login_attempts = ?, lockout_until = DATE_ADD(NOW(), INTERVAL 15 MINUTE) WHERE id = ?',
-          [newAttempts, user.id]
-        );
+        await db
+          .update(usersTable)
+          .set({
+            failedLoginAttempts: newAttempts,
+            lockoutUntil: sql`DATE_ADD(NOW(), INTERVAL 15 MINUTE)`,
+          })
+          .where(eq(usersTable.id, user.id));
       } else {
-        await executeQuery('UPDATE users SET failed_login_attempts = ? WHERE id = ?', [
-          newAttempts,
-          user.id,
-        ]);
+        await db
+          .update(usersTable)
+          .set({ failedLoginAttempts: newAttempts })
+          .where(eq(usersTable.id, user.id));
       }
 
       const remaining = MAX_ATTEMPTS - newAttempts;
@@ -171,10 +171,9 @@ async function loginHandler(req: Request): Promise<NextResponse> {
         if (newAttempts >= MAX_ATTEMPTS * 2) {
           await IpBlocklistRepository.blockIp(ip, `Brute-force attempt on account: ${email}`, 120); // Block for 2 hours
         }
-        return createErrorResponse(
+        return ResponseWrapper.error(
           `Tài khoản tạm khóa do đăng nhập sai quá nhiều. Vui lòng thử lại sau 15 phút.`,
-          429,
-          'ACCOUNT_LOCKED'
+          429
         );
       }
     } catch (e) {
@@ -182,7 +181,7 @@ async function loginHandler(req: Request): Promise<NextResponse> {
         emailHash,
         reason: 'Invalid password',
       });
-      return createErrorResponse('Email hoặc mật khẩu không chính xác', 401, 'INVALID_CREDENTIALS');
+      return ResponseWrapper.unauthorized('Email hoặc mật khẩu không chính xác');
     }
   }
 
@@ -190,10 +189,10 @@ async function loginHandler(req: Request): Promise<NextResponse> {
   try {
     const redis = getRedisConnection();
     await redis.del(lockoutKey);
-    await executeQuery(
-      'UPDATE users SET failed_login_attempts = 0, lockout_until = NULL WHERE id = ?',
-      [user.id]
-    );
+    await db
+      .update(usersTable)
+      .set({ failedLoginAttempts: 0, lockoutUntil: null })
+      .where(eq(usersTable.id, user.id));
   } catch (e) {
     /* ignore */
   }
@@ -206,19 +205,20 @@ async function loginHandler(req: Request): Promise<NextResponse> {
     userAny.two_factor_enabled === true;
 
   if (is2FAEnabled) {
-    return NextResponse.json({
-      success: true,
-      requires2FA: true,
-      email: realEmail,
-      message: 'Vui lòng xác thực 2 bước',
-    });
+    return ResponseWrapper.success(
+      {
+        requires2FA: true,
+        email: realEmail,
+      },
+      'Vui lòng xác thực 2 bước'
+    );
   }
 
   // Generate Tokens
   const payload = {
     userId: user.id,
     email: realEmail,
-    tv: user.token_version, // Token Version
+    tv: user.tokenVersion ?? 1, // Token Version
   };
   const accessToken = generateAccessToken(payload);
   const refreshToken = generateRefreshToken(payload);
@@ -296,27 +296,24 @@ async function loginHandler(req: Request): Promise<NextResponse> {
   });
 
   // Map snake_case to camelCase for frontend
-  const response: AuthResponse = {
-    success: true,
-    user: {
-      id: user.id,
-      email: realEmail,
-      firstName: user.first_name,
-      lastName: user.last_name,
-      phone:
-        (user as any).is_encrypted && (user as any).phone_encrypted
-          ? decrypt((user as any).phone_encrypted)
-          : (user as any).phone !== '***'
-            ? (user as any).phone
-            : '',
-      dateOfBirth:
-        (user as any).is_encrypted && (user as any).date_of_birth_encrypted
-          ? decrypt((user as any).date_of_birth_encrypted)
-          : user.date_of_birth,
-      gender: user.gender,
-      isActive: user.is_active,
-      isVerified: user.is_verified,
-    } as any,
+  const authUser = {
+    id: user.id,
+    email: realEmail,
+    firstName: user.firstName,
+    lastName: user.lastName,
+    phone:
+      (user as any).isEncrypted && (user as any).phoneEncrypted
+        ? decrypt((user as any).phoneEncrypted)
+        : (user as any).phone !== '***'
+          ? (user as any).phone
+          : '',
+    dateOfBirth:
+      (user as any).isEncrypted && (user as any).dateOfBirthEncrypted
+        ? decrypt((user as any).dateOfBirthEncrypted)
+        : user.dateOfBirth,
+    gender: user.gender,
+    isActive: user.isActive,
+    isVerified: user.isVerified,
   };
 
   // Success
@@ -333,7 +330,7 @@ async function loginHandler(req: Request): Promise<NextResponse> {
       const time = new Date().toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' });
       await sendNewLoginEmail(
         realEmail,
-        user.first_name || 'bạn',
+        user.firstName || 'bạn',
         time,
         ip,
         'Theo địa chỉ IP (Vietnam)',
@@ -344,7 +341,7 @@ async function loginHandler(req: Request): Promise<NextResponse> {
     }
   })();
 
-  return NextResponse.json(response);
+  return ResponseWrapper.success({ user: authUser }, 'Đăng nhập thành công');
 }
 
 // Apply Rate Limit and Error Handling

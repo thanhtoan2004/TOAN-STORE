@@ -1,6 +1,9 @@
-import { NextResponse } from 'next/server';
-import { executeQuery } from '@/lib/db/mysql';
+import { NextRequest, NextResponse } from 'next/server';
+import { db } from '@/lib/db/drizzle';
+import { categories, products, productImages } from '@/lib/db/schema';
+import { eq, and, isNull, sql, asc, desc } from 'drizzle-orm';
 import { getCache, setCache } from '@/lib/redis/cache';
+import { ResponseWrapper } from '@/lib/api/api-response';
 
 const CATEGORIES_CACHE_KEY = 'global:categories';
 const CACHE_TTL = 3600; // 1 hour
@@ -14,43 +17,38 @@ export async function GET() {
     // 1. Try to get from cache first
     const cachedData = await getCache<any[]>(CATEGORIES_CACHE_KEY);
     if (cachedData) {
-      return NextResponse.json({
-        success: true,
-        data: cachedData,
-        cached: true,
-      });
+      return ResponseWrapper.success(cachedData, undefined, 200, { cached: true });
     }
 
-    // 2. Fallback to Database
-    const result = await executeQuery(
-      `SELECT 
-        c.id, c.name, c.slug, c.description, c.position, 
-        COALESCE(NULLIF(c.image_url, ''), (
-          SELECT pi.url 
-          FROM product_images pi 
-          JOIN products p ON pi.product_id = p.id 
-          WHERE p.category_id = c.id AND p.is_active = 1 
-          ORDER BY p.id DESC 
-          LIMIT 1
-        )) as image_url 
-      FROM categories c 
-      WHERE c.is_active = 1 AND c.deleted_at IS NULL
-      ORDER BY c.position ASC`
-    );
+    // 2. Fallback to Database using Drizzle ORM
+    // Subquery to get the latest product image if category image is missing
+    const latestImageSubquery = db
+      .select({ url: productImages.url })
+      .from(productImages)
+      .innerJoin(products, eq(productImages.productId, products.id))
+      .where(and(eq(products.categoryId, categories.id), eq(products.isActive, 1)))
+      .orderBy(desc(products.id))
+      .limit(1);
+
+    const result = await db
+      .select({
+        id: categories.id,
+        name: categories.name,
+        slug: categories.slug,
+        description: categories.description,
+        position: categories.position,
+        imageUrl: sql<string>`COALESCE(NULLIF(${categories.imageUrl}, ''), (${latestImageSubquery}))`,
+      })
+      .from(categories)
+      .where(and(eq(categories.isActive, 1), isNull(categories.deletedAt)))
+      .orderBy(asc(categories.position));
 
     // 3. Save to cache
     await setCache(CATEGORIES_CACHE_KEY, result, CACHE_TTL);
 
-    return NextResponse.json({
-      success: true,
-      data: result,
-      cached: false,
-    });
+    return ResponseWrapper.success(result, undefined, 200, { cached: false });
   } catch (error) {
     console.error('Error fetching categories:', error);
-    return NextResponse.json(
-      { success: false, message: 'Error fetching categories' },
-      { status: 500 }
-    );
+    return ResponseWrapper.serverError('Error fetching categories', error);
   }
 }

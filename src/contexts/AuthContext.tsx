@@ -93,7 +93,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (response.ok) {
           // Token hợp lệ
           const data = await response.json();
-          setUser(data.user);
+          setUser(data.data.user);
         } else if (response.status === 401) {
           // Lỗi 401 Unauthorized -> Token hết hạn hoặc không tồn tại
           // Cố gắng tự động nối lại phiên qua route /api/auth/refresh
@@ -103,7 +103,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             const retryRes = await fetch('/api/auth/user', { cache: 'no-store' });
             if (retryRes.ok) {
               const data = await retryRes.json();
-              setUser(data.user);
+              setUser(data.data.user);
             } else {
               setUser(null);
             }
@@ -149,14 +149,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       // Xử lý luồng bảo mật 2 lớp (2FA)
-      if (data.requires2FA) {
+      if (data.data?.requires2FA) {
         // Nếu user có cài 2FA, server không trả JWT ngay mà trả cờ require2FA
         // Frontend sẽ redirect tới form điền OTP dựa trên object trả về này
-        return { requires2FA: true, email: data.email };
+        return { requires2FA: true, email: data.data.email };
       }
 
       // Đăng nhập thường lệ thành công
-      setUser(data.user);
+      setUser(data.data.user);
       return true;
     } catch (error) {
       console.error('Lỗi đăng nhập:', error);

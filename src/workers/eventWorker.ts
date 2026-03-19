@@ -90,8 +90,8 @@ async function handleOrderUpdated(payload: any) {
         order.email,
         order.customer_name || 'bạn',
         orderNumber,
-        'Chưa có',
-        'Giao hàng Tiêu chuẩn'
+        order.trackingNumber || 'Đang cập nhật',
+        order.carrier || 'Giao hàng Tiêu chuẩn'
       );
       console.log(
         `✅ [OrderShipped] Shipping Email sent to ${order.email} for order ${orderNumber}`

@@ -1,6 +1,9 @@
-import { executeQuery } from './mysql';
+import { db } from './drizzle';
+import { settings as settingsTable } from './schema';
+import { eq, sql } from 'drizzle-orm';
 import { invalidateCache } from '@/lib/redis/cache';
 
+const SETTINGS_CACHE_KEY = 'settings:all';
 const MAINTENANCE_CACHE_KEY = 'settings:maintenance_mode';
 
 export interface StoreSettings {
@@ -14,6 +17,7 @@ export interface StoreSettings {
   tax_rate: number;
   shipping_cost_domestic: number;
   shipping_cost_international: number;
+  gift_wrap_fee: number;
   maintenance_mode: boolean;
   [key: string]: any;
 }
@@ -29,12 +33,25 @@ const DEFAULT_SETTINGS: StoreSettings = {
   tax_rate: 0.1,
   shipping_cost_domestic: 30000,
   shipping_cost_international: 100000,
+  gift_wrap_fee: 25000,
   maintenance_mode: false,
 };
 
 export async function getSettings(): Promise<StoreSettings> {
   try {
-    const rows = await executeQuery<any[]>(`SELECT \`key\`, value, value_type FROM settings`);
+    // 1. Try Cache First
+    const { getCache, setCache } = await import('@/lib/redis/cache');
+    const cached = await getCache<StoreSettings>(SETTINGS_CACHE_KEY);
+    if (cached) return cached;
+
+    // 2. Fetch from DB
+    const rows = await db
+      .select({
+        key: settingsTable.key,
+        value: settingsTable.value,
+        valueType: settingsTable.valueType,
+      })
+      .from(settingsTable);
 
     const settings: any = { ...DEFAULT_SETTINGS };
 
@@ -42,7 +59,7 @@ export async function getSettings(): Promise<StoreSettings> {
       let val: any = row.value;
 
       // Use value_type for robust parsing
-      switch (row.value_type) {
+      switch (row.valueType) {
         case 'number':
           val = Number(val);
           break;
@@ -51,7 +68,7 @@ export async function getSettings(): Promise<StoreSettings> {
           break;
         case 'json':
           try {
-            val = JSON.parse(val);
+            val = JSON.parse(val || '');
           } catch (e) {
             val = row.value;
           }
@@ -59,7 +76,12 @@ export async function getSettings(): Promise<StoreSettings> {
         default:
           // Legacy fallback for known keys if type is not set
           if (
-            ['tax_rate', 'shipping_cost_domestic', 'shipping_cost_international'].includes(row.key)
+            [
+              'tax_rate',
+              'shipping_cost_domestic',
+              'shipping_cost_international',
+              'gift_wrap_fee',
+            ].includes(row.key)
           ) {
             val = Number(val);
           } else if (row.key === 'maintenance_mode') {
@@ -69,6 +91,9 @@ export async function getSettings(): Promise<StoreSettings> {
 
       settings[row.key] = val;
     });
+
+    // 3. Save to Cache (30 min)
+    await setCache(SETTINGS_CACHE_KEY, settings, 1800);
 
     return settings;
   } catch (error: any) {
@@ -81,12 +106,33 @@ export async function getSettings(): Promise<StoreSettings> {
 }
 
 export async function updateSetting(key: string, value: any): Promise<void> {
-  await executeQuery(
-    'INSERT INTO settings (`key`, value) VALUES (?, ?) ON DUPLICATE KEY UPDATE value = VALUES(value)',
-    [key, String(value)]
-  );
+  const valueType =
+    typeof value === 'number'
+      ? 'number'
+      : typeof value === 'boolean'
+        ? 'boolean'
+        : typeof value === 'object'
+          ? 'json'
+          : 'string';
 
-  // Invalidate cache if maintenance mode is changed
+  await db
+    .insert(settingsTable)
+    .values({
+      key,
+      value: typeof value === 'object' ? JSON.stringify(value) : String(value),
+      valueType,
+    })
+    .onDuplicateKeyUpdate({
+      set: {
+        value: typeof value === 'object' ? JSON.stringify(value) : String(value),
+        valueType,
+      },
+    });
+
+  // 4. Invalidate Cache
+  const { invalidateCache } = await import('@/lib/redis/cache');
+  await invalidateCache(SETTINGS_CACHE_KEY);
+
   if (key === 'maintenance_mode') {
     await invalidateCache(MAINTENANCE_CACHE_KEY);
   }

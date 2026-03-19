@@ -60,7 +60,16 @@ Tài liệu bảo mật cho TOAN Store E-commerce. Dự án đã đạt chứng 
   | Quản lý đơn hàng | `manage:orders` |
   | Xem báo cáo | `view:reports` |
   | Quản lý người dùng | `manage:users` |
+  | Quản lý hệ thống (Settings/Admins/Audit) | `super_admin` role required |
   | Toàn quyền | `all` |
+
+### Super Admin Restricted Actions
+
+Một số hành động đặc biệt nhạy cảm chỉ được thực hiện bởi tài khoản có role `Super Admin`:
+
+- **Quản lý cài đặt hệ thống (Settings):** Chỉnh sửa phí ship, thuế, phí gói quà, v.v.
+- **Quản lý nhân sự (Admins):** Thêm, sửa, xóa hoặc đổi trạng thái các tài khoản Admin khác.
+- **Truy cập Audit Logs:** Xem toàn bộ lịch sử thao tác của các nhân viên khác.
 
 ---
 
@@ -139,6 +148,14 @@ Tài liệu bảo mật cho TOAN Store E-commerce. Dự án đã đạt chứng 
 - Origin/Host matching tuyệt đối 100% (`===`) cho mutating requests (POST, PUT, PATCH, DELETE)
 - Loại bỏ các ngoại lệ lách luật bằng Header `X-Requested-With`. Origin phải trùng khớp hoàn toàn trên Production.
 - Đi kèm bảo mật SameSite Cookie.
+
+### Response Standardization (`ResponseWrapper`)
+
+Toàn bộ hệ thống API sử dụng một lớp bao bọc duy nhất `ResponseWrapper` để đảm bảo:
+
+- **Consistent Structure:** Mọi phản hồi đều cùng một định dạng (JSON).
+- **Safe Error Handling:** Không rò rỉ stack trace khi xảy ra lỗi server (500). Tự động log lỗi vào hệ thống log tập trung (Pino/Sentry).
+- **Standardized Status Codes:** Tuân thủ chuẩn 401 (Unauthorized), 403 (Forbidden), 429 (Rate Limit) cho mọi module.
 
 ### Rate Limiting
 

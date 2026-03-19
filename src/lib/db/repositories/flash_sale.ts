@@ -1,62 +1,78 @@
-
-import { executeQuery } from '../connection';
+import { db } from '../drizzle';
+import { flashSales, flashSaleItems, orders, orderItems } from '../schema';
+import { eq, and, lte, gte, sql, notInArray, between } from 'drizzle-orm';
 
 export interface FlashSaleItem {
-    id: number;
-    flash_sale_id: number;
-    product_id: number;
-    sale_price: number;
-    limit_per_customer: number;
-    total_quantity: number;
-    sold_quantity: number;
-    start_time: string;
-    end_time: string;
-    name: string;
+  id: number;
+  flashSaleId: number;
+  productId: number;
+  flashPrice: string;
+  perUserLimit: number;
+  quantityLimit: number;
+  quantitySold: number;
+  startTime: Date;
+  endTime: Date;
+  name: string;
 }
 
-export async function getActiveFlashSaleItem(productId: number): Promise<FlashSaleItem | null> {
-    const query = `
-        SELECT 
-            fsi.*,
-            fs.start_time,
-            fs.end_time,
-            fs.name
-        FROM flash_sale_items fsi
-        JOIN flash_sales fs ON fsi.flash_sale_id = fs.id
-        WHERE fsi.product_id = ?
-        AND fs.is_active = 1
-        AND fs.start_time <= NOW()
-        AND fs.end_time >= NOW()
-        LIMIT 1
-    `;
+export async function getActiveFlashSale(): Promise<any | null> {
+  const [sale] = await db
+    .select()
+    .from(flashSales)
+    .where(
+      and(
+        eq(flashSales.isActive, 1),
+        lte(flashSales.startTime, new Date()),
+        gte(flashSales.endTime, new Date())
+      )
+    )
+    .limit(1);
 
-    const results = await executeQuery<FlashSaleItem[]>(query, [productId]);
-    return results.length > 0 ? results[0] : null;
+  if (!sale) return null;
+
+  const items = await db
+    .select()
+    .from(flashSaleItems)
+    .where(eq(flashSaleItems.flashSaleId, sale.id));
+
+  return { ...sale, items };
 }
 
 export async function updateFlashSaleSoldQuantity(flashSaleItemId: number, quantity: number) {
-    await executeQuery(
-        `UPDATE flash_sale_items 
-         SET sold_quantity = sold_quantity + ? 
-         WHERE id = ?`,
-        [quantity, flashSaleItemId]
-    );
+  await db
+    .update(flashSaleItems)
+    .set({
+      quantitySold: sql`${flashSaleItems.quantitySold} + ${quantity}`,
+    })
+    .where(eq(flashSaleItems.id, flashSaleItemId));
 }
 
-export async function checkFlashSaleLimit(userId: number, flashSaleItemId: number): Promise<number> {
-    // Count how many items of this flash sale product the user has already bought
-    // We check completed/processing orders that contain the same product_id as the flash sale item
-    const query = `
-        SELECT COALESCE(SUM(oi.quantity), 0) as total_bought
-        FROM order_items oi
-        JOIN orders o ON oi.order_id = o.id
-        JOIN flash_sale_items fsi ON fsi.id = ? AND oi.product_id = fsi.product_id
-        JOIN flash_sales fs ON fsi.flash_sale_id = fs.id
-        WHERE o.user_id = ?
-        AND o.status NOT IN ('cancelled', 'refunded')
-        AND o.created_at BETWEEN fs.start_time AND fs.end_time
-    `;
+export async function checkFlashSaleLimit(
+  userId: number,
+  flashSaleItemId: number
+): Promise<number> {
+  // Count how many items of this flash sale product the user has already bought
+  const [result] = await db
+    .select({
+      totalBought: sql<number>`COALESCE(SUM(${orderItems.quantity}), 0)`,
+    })
+    .from(orderItems)
+    .innerJoin(orders, eq(orderItems.orderId, orders.id))
+    .innerJoin(
+      flashSaleItems,
+      and(
+        eq(flashSaleItems.id, flashSaleItemId),
+        eq(orderItems.productId, flashSaleItems.productId)
+      )
+    )
+    .innerJoin(flashSales, eq(flashSaleItems.flashSaleId, flashSales.id))
+    .where(
+      and(
+        eq(orders.userId, userId),
+        notInArray(orders.status, ['cancelled', 'refunded']),
+        between(orders.createdAt, flashSales.startTime, flashSales.endTime)
+      )
+    );
 
-    const results = await executeQuery<any[]>(query, [flashSaleItemId, userId]);
-    return results[0]?.total_bought || 0;
+  return Number(result?.totalBought || 0);
 }

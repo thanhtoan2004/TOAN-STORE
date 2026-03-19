@@ -1,163 +1,176 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { executeQuery } from '@/lib/db/mysql';
+import { db } from '@/lib/db/drizzle';
+import {
+  searchAnalytics,
+  categories,
+  products as productsTable,
+  brands,
+  orderItems,
+} from '@/lib/db/schema';
+import { eq, and, sql, desc, count, isNull, gte, asc } from 'drizzle-orm';
 import { checkAdminAuth } from '@/lib/auth/auth';
+import { ResponseWrapper } from '@/lib/api/api-response';
 
-// GET - Search analytics & facet usage statistics
 /**
- * API Phân tích xu hướng tìm kiếm (Search Analytics).
- * Thống kê các từ khóa được tìm nhiều nhất, các từ khóa không trả về kết quả (Zero results)
- * và hành vi sử dụng bộ lọc của khách hàng trong 30 ngày qua (mặc định).
+ * GET - Search analytics & facet usage statistics.
+ * API Phân tích Tìm kiếm và Bộ lọc (Search Analytics).
+ * Cung cấp dữ liệu cho Dashboard về:
+ * - Top từ khóa tìm kiếm.
+ * - Từ khóa tìm kiếm không ra kết quả (Zero-result queries) để tối ưu hóa SEO/Catalog.
+ * - Xu hướng tìm kiếm theo thời gian.
+ * - Phân tích hiệu quả của các bộ lọc (Danh mục, Thương hiệu, Khoảng giá).
  */
 export async function GET(request: NextRequest) {
   try {
     const admin = await checkAdminAuth();
     if (!admin) {
-      return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
+      return ResponseWrapper.unauthorized();
     }
 
     const searchParams = new URL(request.url).searchParams;
     const days = parseInt(searchParams.get('days') || '30');
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - days);
 
-    // Top search queries
-    const topQueries = await executeQuery<any[]>(
-      `
-      SELECT 
-        query,
-        COUNT(*) as search_count,
-        ROUND(AVG(results_count)) as avg_results,
-        ROUND(AVG(processing_time_ms)) as avg_time_ms,
-        SUM(CASE WHEN results_count = 0 THEN 1 ELSE 0 END) as zero_result_count
-      FROM search_analytics
-      WHERE created_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
-      GROUP BY query
-      ORDER BY search_count DESC
-      LIMIT 20
-    `,
-      [days]
-    );
+    // 1. Top search queries
+    const topQueries = await db
+      .select({
+        query: searchAnalytics.query,
+        search_count: count(),
+        avg_results: sql<number>`ROUND(AVG(${searchAnalytics.resultsCount}))`,
+        avg_time_ms: sql<number>`ROUND(AVG(${searchAnalytics.processingTimeMs}))`,
+        zero_result_count: sql<number>`SUM(CASE WHEN ${searchAnalytics.resultsCount} = 0 THEN 1 ELSE 0 END)`,
+      })
+      .from(searchAnalytics)
+      .where(gte(searchAnalytics.createdAt, startDate))
+      .groupBy(searchAnalytics.query)
+      .orderBy(desc(sql`search_count`))
+      .limit(20);
 
-    // Zero-result queries (important for synonym/content gap analysis)
-    const zeroResultQueries = await executeQuery<any[]>(
-      `
-      SELECT 
-        query,
-        COUNT(*) as search_count
-      FROM search_analytics
-      WHERE created_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
-        AND results_count = 0
-      GROUP BY query
-      ORDER BY search_count DESC
-      LIMIT 10
-    `,
-      [days]
-    );
+    // 2. Zero-result queries
+    const zeroResultQueries = await db
+      .select({
+        query: searchAnalytics.query,
+        search_count: count(),
+      })
+      .from(searchAnalytics)
+      .where(and(gte(searchAnalytics.createdAt, startDate), eq(searchAnalytics.resultsCount, 0)))
+      .groupBy(searchAnalytics.query)
+      .orderBy(desc(sql`search_count`))
+      .limit(10);
 
-    // Search volume over time
-    const searchTrend = await executeQuery<any[]>(
-      `
-      SELECT 
-        DATE(created_at) as date,
-        COUNT(*) as searches,
-        ROUND(AVG(processing_time_ms)) as avg_time_ms,
-        SUM(CASE WHEN results_count = 0 THEN 1 ELSE 0 END) as zero_results
-      FROM search_analytics
-      WHERE created_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
-      GROUP BY DATE(created_at)
-      ORDER BY date ASC
-    `,
-      [days]
-    );
+    // 3. Search volume over time
+    const searchTrend = await db
+      .select({
+        date: sql<string>`DATE(${searchAnalytics.createdAt})`,
+        searches: count(),
+        avg_time_ms: sql<number>`ROUND(AVG(${searchAnalytics.processingTimeMs}))`,
+        zero_results: sql<number>`SUM(CASE WHEN ${searchAnalytics.resultsCount} = 0 THEN 1 ELSE 0 END)`,
+      })
+      .from(searchAnalytics)
+      .where(gte(searchAnalytics.createdAt, startDate))
+      .groupBy(sql`date`)
+      .orderBy(asc(sql`date`));
 
-    // Category filter usage (facet analytics)
-    const categoryFacets = await executeQuery<any[]>(
-      `
-      SELECT 
-        COALESCE(category_filter, 'No filter') as category,
-        COUNT(*) as usage_count
-      FROM search_analytics
-      WHERE created_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
-      GROUP BY category_filter
-      ORDER BY usage_count DESC
-    `,
-      [days]
-    );
+    // 4. Category filter usage
+    const categoryFacets = await db
+      .select({
+        category: sql<string>`COALESCE(${searchAnalytics.categoryFilter}, 'No filter')`,
+        usage_count: count(),
+      })
+      .from(searchAnalytics)
+      .where(gte(searchAnalytics.createdAt, startDate))
+      .groupBy(searchAnalytics.categoryFilter)
+      .orderBy(desc(sql`usage_count`));
 
-    // Overall stats
-    const overview = await executeQuery<any[]>(
-      `
-      SELECT
-        COUNT(*) as total_searches,
-        COUNT(DISTINCT query) as unique_queries,
-        ROUND(AVG(processing_time_ms)) as avg_response_ms,
-        ROUND(AVG(results_count)) as avg_results,
-        SUM(CASE WHEN results_count = 0 THEN 1 ELSE 0 END) as total_zero_results,
-        COUNT(DISTINCT ip_address) as unique_searchers
-      FROM search_analytics
-      WHERE created_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
-    `,
-      [days]
-    );
+    // 5. Overall stats
+    const [overview] = await db
+      .select({
+        total_searches: count(),
+        unique_queries: sql<number>`COUNT(DISTINCT ${searchAnalytics.query})`,
+        avg_response_ms: sql<number>`ROUND(AVG(${searchAnalytics.processingTimeMs}))`,
+        avg_results: sql<number>`ROUND(AVG(${searchAnalytics.resultsCount}))`,
+        total_zero_results: sql<number>`SUM(CASE WHEN ${searchAnalytics.resultsCount} = 0 THEN 1 ELSE 0 END)`,
+        unique_searchers: sql<number>`COUNT(DISTINCT ${searchAnalytics.ipAddress})`,
+      })
+      .from(searchAnalytics)
+      .where(gte(searchAnalytics.createdAt, startDate));
 
-    // Product category distribution (from actual catalog — facet data)
-    const productFacets = await executeQuery<any[]>(`
-      SELECT 
-        c.name as category,
-        COUNT(DISTINCT p.id) as product_count,
-        COALESCE(SUM(oi.quantity), 0) as items_sold
-      FROM categories c
-      LEFT JOIN products p ON p.category_id = c.id AND p.is_active = 1 AND p.deleted_at IS NULL
-      LEFT JOIN order_items oi ON oi.product_id = p.id
-      GROUP BY c.id, c.name
-      ORDER BY product_count DESC
-    `);
+    // 6. Product category distribution
+    const productFacets = await db
+      .select({
+        category: categories.name,
+        product_count: sql<number>`COUNT(DISTINCT ${productsTable.id})`,
+        items_sold: sql<number>`COALESCE(SUM(${orderItems.quantity}), 0)`,
+      })
+      .from(categories)
+      .leftJoin(
+        productsTable,
+        and(
+          eq(productsTable.categoryId, categories.id),
+          eq(productsTable.isActive, 1),
+          isNull(productsTable.deletedAt)
+        )
+      )
+      .leftJoin(orderItems, eq(orderItems.productId, productsTable.id))
+      .groupBy(categories.id, categories.name)
+      .orderBy(desc(sql`product_count`));
 
-    // Brand distribution
-    const brandFacets = await executeQuery<any[]>(`
-      SELECT 
-        b.name as brand,
-        COUNT(DISTINCT p.id) as product_count,
-        COALESCE(SUM(oi.quantity), 0) as items_sold
-      FROM brands b
-      LEFT JOIN products p ON p.brand_id = b.id AND p.is_active = 1 AND p.deleted_at IS NULL
-      LEFT JOIN order_items oi ON oi.product_id = p.id
-      GROUP BY b.id, b.name
-      ORDER BY product_count DESC
-    `);
+    // 7. Brand distribution
+    const brandFacets = await db
+      .select({
+        brand: brands.name,
+        product_count: sql<number>`COUNT(DISTINCT ${productsTable.id})`,
+        items_sold: sql<number>`COALESCE(SUM(${orderItems.quantity}), 0)`,
+      })
+      .from(brands)
+      .leftJoin(
+        productsTable,
+        and(
+          eq(productsTable.brandId, brands.id),
+          eq(productsTable.isActive, 1),
+          isNull(productsTable.deletedAt)
+        )
+      )
+      .leftJoin(orderItems, eq(orderItems.productId, productsTable.id))
+      .groupBy(brands.id, brands.name)
+      .orderBy(desc(sql`product_count`));
 
-    // Price range distribution
-    const priceRanges = await executeQuery<any[]>(`
-      SELECT 
-        CASE 
-          WHEN CAST(msrp_price AS UNSIGNED) < 1000000 THEN 'Under 1M'
-          WHEN CAST(msrp_price AS UNSIGNED) < 2000000 THEN '1M - 2M'
-          WHEN CAST(msrp_price AS UNSIGNED) < 3000000 THEN '2M - 3M'
-          WHEN CAST(msrp_price AS UNSIGNED) < 5000000 THEN '3M - 5M'
-          ELSE 'Over 5M'
-        END as price_range,
-        COUNT(*) as product_count
-      FROM products
-      WHERE is_active = 1 AND deleted_at IS NULL
-      GROUP BY price_range
-      ORDER BY MIN(CAST(msrp_price AS UNSIGNED))
-    `);
+    // 8. Price range distribution
+    const priceRanges = await db
+      .select({
+        price_range: sql<string>`
+          CASE 
+            WHEN CAST(${productsTable.msrpPrice} AS UNSIGNED) < 1000000 THEN 'Under 1M'
+            WHEN CAST(${productsTable.msrpPrice} AS UNSIGNED) < 2000000 THEN '1M - 2M'
+            WHEN CAST(${productsTable.msrpPrice} AS UNSIGNED) < 3000000 THEN '2M - 3M'
+            WHEN CAST(${productsTable.msrpPrice} AS UNSIGNED) < 5000000 THEN '3M - 5M'
+            ELSE 'Over 5M'
+          END`,
+        product_count: count(),
+        min_price: sql<number>`MIN(CAST(${productsTable.msrpPrice} AS UNSIGNED))`,
+      })
+      .from(productsTable)
+      .where(and(eq(productsTable.isActive, 1), isNull(productsTable.deletedAt)))
+      .groupBy(sql`price_range`)
+      .orderBy(asc(sql`min_price`));
 
-    return NextResponse.json({
-      success: true,
-      data: {
-        overview: overview[0] || {},
-        topQueries,
-        zeroResultQueries,
-        searchTrend,
-        facets: {
-          categoryFilter: categoryFacets,
-          productCategories: productFacets,
-          brands: brandFacets,
-          priceRanges,
-        },
+    const result = {
+      overview: overview || {},
+      topQueries,
+      zeroResultQueries,
+      searchTrend,
+      facets: {
+        categoryFilter: categoryFacets,
+        productCategories: productFacets,
+        brands: brandFacets,
+        priceRanges,
       },
-    });
+    };
+
+    return ResponseWrapper.success(result);
   } catch (error) {
     console.error('Search analytics error:', error);
-    return NextResponse.json({ success: false, message: 'Internal server error' }, { status: 500 });
+    return ResponseWrapper.serverError('Internal server error', error);
   }
 }

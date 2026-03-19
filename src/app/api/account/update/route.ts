@@ -1,20 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { executeQuery } from '@/lib/db/mysql';
+import { db } from '@/lib/db/drizzle';
+import { users as usersTable } from '@/lib/db/schema';
+import { eq } from 'drizzle-orm';
 import { verifyAuth } from '@/lib/auth/auth';
 import { encrypt, decrypt } from '@/lib/security/encryption';
+import { ResponseWrapper } from '@/lib/api/api-response';
 
 /**
  * API Cập nhật thông tin cá nhân (Profile Update).
  * Bảo mật:
  * 1. Xác thực User qua Session.
  * 2. Số điện thoại (Phone) được mã hóa AES-256-GCM để bảo vệ quyền riêng tư (PII).
- * 3. Tự động ghi nhận thời gian update (updated_at).
+ * 3. Tự động ghi nhận thời gian update (updatedAt).
  */
 export async function PUT(request: NextRequest) {
   try {
     const session = await verifyAuth();
     if (!session) {
-      return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
+      return ResponseWrapper.unauthorized();
     }
 
     const body = await request.json();
@@ -35,116 +38,81 @@ export async function PUT(request: NextRequest) {
       public_profile,
     } = body;
 
-    // Build dynamic update query
-    const updates: string[] = [];
-    const values: any[] = [];
+    const updateData: any = {};
 
-    if (firstName !== undefined) {
-      updates.push('first_name = ?');
-      values.push(firstName);
-    }
-    if (lastName !== undefined) {
-      updates.push('last_name = ?');
-      values.push(lastName);
-    }
+    if (firstName !== undefined) updateData.firstName = firstName;
+    if (lastName !== undefined) updateData.lastName = lastName;
 
     if (phone !== undefined) {
-      updates.push(`phone = '***'`, 'phone_encrypted = ?', 'is_encrypted = TRUE');
-      values.push(phone ? encrypt(phone) : null);
+      if (phone && !/^[0-9+()-\s]{10,15}$/.test(phone)) {
+        return ResponseWrapper.error('Số điện thoại không hợp lệ', 400);
+      }
+      updateData.phone = '***';
+      updateData.phoneEncrypted = phone ? encrypt(phone) : null;
+      updateData.isEncrypted = 1;
     }
 
     if (dateOfBirth !== undefined) {
-      updates.push(`date_of_birth = '0001-01-01'`, 'date_of_birth_encrypted = ?');
-      values.push(dateOfBirth ? encrypt(dateOfBirth) : null);
-    }
-    if (gender !== undefined) {
-      updates.push('gender = ?');
-      values.push(gender || null);
-    }
-    if (avatarUrl !== undefined) {
-      updates.push('avatar_url = ?');
-      values.push(avatarUrl || null);
+      updateData.dateOfBirth = null; // Corrected from legacy dummy date
+      updateData.dateOfBirthEncrypted = dateOfBirth ? encrypt(dateOfBirth) : null;
+      updateData.isEncrypted = 1;
     }
 
-    if (email_notifications !== undefined) {
-      updates.push('email_notifications = ?');
-      values.push(email_notifications ? 1 : 0);
-    }
-    if (sms_notifications !== undefined) {
-      updates.push('sms_notifications = ?');
-      values.push(sms_notifications ? 1 : 0);
-    }
-    if (sms_order_notifications !== undefined) {
-      updates.push('sms_order_notifications = ?');
-      values.push(sms_order_notifications ? 1 : 0);
-    }
-    if (push_notifications !== undefined) {
-      updates.push('push_notifications = ?');
-      values.push(push_notifications ? 1 : 0);
-    }
-    if (promo_notifications !== undefined) {
-      updates.push('promo_notifications = ?');
-      values.push(promo_notifications ? 1 : 0);
-    }
-    if (order_notifications !== undefined) {
-      updates.push('order_notifications = ?');
-      values.push(order_notifications ? 1 : 0);
-    }
-    if (data_persistence !== undefined) {
-      updates.push('data_persistence = ?');
-      values.push(data_persistence ? 1 : 0);
-    }
-    if (public_profile !== undefined) {
-      updates.push('public_profile = ?');
-      values.push(public_profile ? 1 : 0);
-    }
+    if (gender !== undefined) updateData.gender = gender || null;
+    if (avatarUrl !== undefined) updateData.avatarUrl = avatarUrl || null;
 
-    if (updates.length > 0) {
-      updates.push('updated_at = CURRENT_TIMESTAMP');
-      values.push(session.userId);
+    if (email_notifications !== undefined)
+      updateData.emailNotifications = email_notifications ? 1 : 0;
+    if (sms_notifications !== undefined) updateData.smsNotifications = sms_notifications ? 1 : 0;
+    if (sms_order_notifications !== undefined)
+      updateData.smsOrderNotifications = sms_order_notifications ? 1 : 0;
+    if (push_notifications !== undefined) updateData.pushNotifications = push_notifications ? 1 : 0;
+    if (promo_notifications !== undefined)
+      updateData.promoNotifications = promo_notifications ? 1 : 0;
+    if (order_notifications !== undefined)
+      updateData.orderNotifications = order_notifications ? 1 : 0;
+    if (data_persistence !== undefined) updateData.dataPersistence = data_persistence ? 1 : 0;
+    if (public_profile !== undefined) updateData.publicProfile = public_profile ? 1 : 0;
 
-      await executeQuery(`UPDATE users SET ${updates.join(', ')} WHERE id = ?`, values);
+    if (Object.keys(updateData).length > 0) {
+      await db.update(usersTable).set(updateData).where(eq(usersTable.id, session.userId));
     }
 
     // Lấy thông tin đã cập nhật để trả về (đảm bảo frontend đồng bộ)
-    const users = (await executeQuery(
-      `SELECT id, email, email_encrypted, first_name, last_name, phone, phone_encrypted, is_encrypted,
-              avatar_url, gender, date_of_birth, available_points, membership_tier
-       FROM users WHERE id = ?`,
-      [session.userId]
-    )) as any[];
+    const [user] = await db
+      .select()
+      .from(usersTable)
+      .where(eq(usersTable.id, session.userId))
+      .limit(1);
 
-    const user = users[0];
+    if (!user) {
+      return ResponseWrapper.error('User not found', 404);
+    }
 
-    return NextResponse.json({
-      success: true,
-      message: 'Cập nhật thông tin thành công',
-      user: user
-        ? {
-            id: user.id,
-            email:
-              user.is_encrypted && user.email_encrypted
-                ? decrypt(user.email_encrypted)
-                : user.email,
-            firstName: user.first_name,
-            lastName: user.last_name,
-            phone:
-              user.is_encrypted && user.phone_encrypted
-                ? decrypt(user.phone_encrypted)
-                : user.phone,
-            gender: user.gender,
-            dateOfBirth: user.date_of_birth,
-            avatarUrl: user.avatar_url,
-            availablePoints: user.available_points || 0,
-            membershipTier: user.membership_tier || 'bronze',
-          }
-        : null,
-    });
+    const responseData = {
+      id: user.id,
+      email: user.isEncrypted && user.emailEncrypted ? decrypt(user.emailEncrypted) : user.email,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      phone:
+        user.isEncrypted && user.phoneEncrypted
+          ? decrypt(user.phoneEncrypted)
+          : user.phone !== '***'
+            ? user.phone
+            : '',
+      gender: user.gender,
+      dateOfBirth:
+        user.isEncrypted && user.dateOfBirthEncrypted
+          ? decrypt(user.dateOfBirthEncrypted)
+          : user.dateOfBirth,
+      avatarUrl: user.avatarUrl,
+      availablePoints: user.availablePoints || 0,
+      membershipTier: user.membershipTier || 'bronze',
+    };
+
+    return ResponseWrapper.success(responseData, 'Cập nhật thông tin thành công');
   } catch (error) {
     console.error('Lỗi cập nhật thông tin:', error);
-    return NextResponse.json(
-      { success: false, message: 'Có lỗi xảy ra khi cập nhật thông tin' },
-      { status: 500 }
-    );
+    return ResponseWrapper.serverError('Có lỗi xảy ra khi cập nhật thông tin', error);
   }
 }

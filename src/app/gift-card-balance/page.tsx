@@ -2,13 +2,16 @@
 
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { formatDateTime, formatCurrency } from '@/lib/utils/date-utils';
+import { formatDate, formatDateTime, formatCurrency } from '@/lib/utils/date-utils';
 
 export default function GiftCardBalancePage() {
   const { user } = useAuth();
   const [cardNumber, setCardNumber] = useState('');
   const [pin, setPin] = useState('');
-  const [balance, setBalance] = useState<number | null>(null);
+  const [balanceData, setBalanceData] = useState<{
+    balance: number;
+    expiresAt: string | null;
+  } | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [history, setHistory] = useState<any[]>([]);
@@ -20,7 +23,7 @@ export default function GiftCardBalancePage() {
     if (!user) {
       setCardNumber('');
       setPin('');
-      setBalance(null);
+      setBalanceData(null);
       setError('');
     }
   }, [user]);
@@ -29,7 +32,7 @@ export default function GiftCardBalancePage() {
     e.preventDefault();
     setLoading(true);
     setError('');
-    setBalance(null);
+    setBalanceData(null);
     setShowHistory(false);
 
     try {
@@ -59,9 +62,10 @@ export default function GiftCardBalancePage() {
       }
 
       if (data.data?.balance !== undefined) {
-        setBalance(data.data.balance);
-        // Load history automatically
-        loadHistory();
+        setBalanceData({
+          balance: data.data.balance,
+          expiresAt: data.data.expiresAt,
+        });
       } else {
         throw new Error('Không tìm thấy thông tin thẻ quà tặng');
       }
@@ -144,12 +148,18 @@ export default function GiftCardBalancePage() {
                 </div>
               )}
 
-              {balance !== null && (
+              {balanceData !== null && (
                 <div className="bg-green-50 border border-green-200 rounded-lg p-6">
                   <h3 className="text-lg font-helvetica-medium mb-2">Số Dư Thẻ Quà Tặng</h3>
-                  <p className="text-3xl font-bold text-green-800 mb-4">
-                    {formatCurrency(balance)}
+                  <p className="text-3xl font-bold text-green-800 mb-2">
+                    {formatCurrency(balanceData.balance)}
                   </p>
+                  {balanceData.expiresAt && (
+                    <p className="text-sm text-gray-600 mb-4">
+                      Hết hạn:{' '}
+                      <span className="font-medium">{formatDate(balanceData.expiresAt)}</span>
+                    </p>
+                  )}
                   <button
                     onClick={loadHistory}
                     disabled={loadingHistory}

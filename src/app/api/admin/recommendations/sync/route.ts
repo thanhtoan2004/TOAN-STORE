@@ -1,38 +1,44 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { checkAdminAuth } from '@/lib/auth/auth';
-import { executeQuery } from '@/lib/db/mysql';
+import { db } from '@/lib/db/drizzle';
+import { products as productsTable, categories, productEmbeddings } from '@/lib/db/schema';
+import { eq, and, isNull } from 'drizzle-orm';
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import { ResponseWrapper } from '@/lib/api/api-response';
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
 
 /**
  * API Đồng bộ dữ liệu Recommendation (Gợi ý sản phẩm).
  * Chức năng:
- * 1. Quét toàn bộ sản phẩm đang hoạt động.
- * 2. Sử dụng Google Gemini (model text-embedding-004) để chuyển đổi nội dung text thành Vector (Embedding).
- * 3. Lưu Vector vào DB để phục vụ tính năng tìm kiếm sản phẩm tương tự bằng AI.
+ * - Duyệt qua tất cả sản phẩm đang hoạt động (Active).
+ * - Tạo chuỗi văn bản mô tả (Rich representation) cho từng sản phẩm.
+ * - Sử dụng Gemini `text-embedding-004` để tạo vector đặc trưng (Embedding).
+ * - Lưu trữ/Cập nhật vector vào bảng `product_embeddings` phục vụ tìm kiếm tương đồng (Similarity search).
  */
-export async function POST() {
-  const admin = await checkAdminAuth();
-  if (!admin) {
-    return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
-  }
-
-  if (!process.env.GEMINI_API_KEY) {
-    return NextResponse.json(
-      { success: false, message: 'Gemini API key not configured' },
-      { status: 500 }
-    );
-  }
-
+export async function POST(request: NextRequest) {
   try {
+    const admin = await checkAdminAuth();
+    if (!admin) {
+      return ResponseWrapper.unauthorized();
+    }
+
+    if (!process.env.GEMINI_API_KEY) {
+      return ResponseWrapper.serverError('Gemini API key not configured');
+    }
+
     // 1. Fetch all active products
-    const products = await executeQuery<any[]>(`
-      SELECT p.id, p.name, p.short_description, p.description, c.name as category
-      FROM products p
-      LEFT JOIN categories c ON p.category_id = c.id
-      WHERE p.is_active = 1 AND p.deleted_at IS NULL
-    `);
+    const products = await db
+      .select({
+        id: productsTable.id,
+        name: productsTable.name,
+        shortDescription: productsTable.shortDescription,
+        description: productsTable.description,
+        category: categories.name,
+      })
+      .from(productsTable)
+      .leftJoin(categories, eq(productsTable.categoryId, categories.id))
+      .where(and(eq(productsTable.isActive, 1), isNull(productsTable.deletedAt)));
 
     const model = genAI.getGenerativeModel({ model: 'text-embedding-004' });
     let syncCount = 0;
@@ -42,31 +48,38 @@ export async function POST() {
       const textToEmbed = `
         Product: ${product.name}
         Category: ${product.category || 'Uncategorized'}
-        Description: ${product.short_description || ''} ${product.description || ''}
+        Description: ${product.shortDescription || ''} ${product.description || ''}
       `.trim();
 
       try {
         const result = await model.embedContent(textToEmbed);
         const embedding = result.embedding.values;
 
-        // Save or update embedding
-        await executeQuery(
-          'INSERT INTO product_embeddings (product_id, embedding) VALUES (?, ?) ON DUPLICATE KEY UPDATE embedding = VALUES(embedding)',
-          [product.id, JSON.stringify(embedding)]
-        );
+        // Save or update embedding using Drizzle MySQL onDuplicateKeyUpdate
+        await db
+          .insert(productEmbeddings)
+          .values({
+            productId: product.id,
+            embedding: embedding,
+          })
+          .onDuplicateKeyUpdate({
+            set: { embedding: embedding },
+          });
+
         syncCount++;
       } catch (embedError) {
         console.error(`Error embedding product ${product.id}:`, embedError);
       }
     }
 
-    return NextResponse.json({
-      success: true,
-      message: `Synchronized ${syncCount} product embeddings.`,
+    const result = {
+      syncCount,
       totalProducts: products.length,
-    });
+    };
+
+    return ResponseWrapper.success(result, `Synchronized ${syncCount} product embeddings.`);
   } catch (error) {
     console.error('Embedding Sync Error:', error);
-    return NextResponse.json({ success: false, message: 'Server error' }, { status: 500 });
+    return ResponseWrapper.serverError('Server error', error);
   }
 }

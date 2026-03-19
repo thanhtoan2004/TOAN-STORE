@@ -1,16 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { executeQuery } from '@/lib/db/mysql';
+import { db } from '@/lib/db/drizzle';
+import {
+  productReviews,
+  users as usersTable,
+  products as productsTable,
+  productImages,
+  reviewMedia,
+  orders as ordersTable,
+  orderItems,
+} from '@/lib/db/schema';
+import { eq, and, sql, desc, count, inArray, isNull, avg, sum } from 'drizzle-orm';
 import { checkAdminAuth, verifyAuth } from '@/lib/auth/auth';
+import { ResponseWrapper } from '@/lib/api/api-response';
 
 export const dynamic = 'force-dynamic';
 
 // GET - Lấy danh sách reviews của sản phẩm
-/**
- * API Lấy danh sách đánh giá của sản phẩm.
- * Hỗ trợ 2 chế độ:
- * 1. Admin: Xem toàn bộ reviews (kể cả review đang chờ duyệt - Pending).
- * 2. Khách: Chỉ xem review đã được Approve, kèm theo số liệu thống kê sao (Statistics) và Media (Ảnh/Video).
- */
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
@@ -21,208 +26,219 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get('limit') || '10');
     const offset = (page - 1) * limit;
 
-    // Nếu là admin call (có status param), lấy all reviews
+    // Admin view
     if (statusParam && !productIdStr) {
       const admin = await checkAdminAuth();
       if (!admin) {
-        return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
+        return ResponseWrapper.unauthorized();
       }
 
-      const status = statusParam || 'pending';
-      const reviews = await executeQuery<any[]>(
-        `SELECT r.*, TRIM(CONCAT(COALESCE(u.first_name, ''), ' ', COALESCE(u.last_name, ''))) as user_name, u.avatar_url as user_avatar, p.name as product_name,
-         (SELECT url FROM product_images WHERE product_id = p.id AND is_main = 1 LIMIT 1) as product_image
-         FROM product_reviews r
-         LEFT JOIN users u ON r.user_id = u.id
-         LEFT JOIN products p ON r.product_id = p.id
-         WHERE r.status = ?
-         ORDER BY r.created_at DESC
-         LIMIT ? OFFSET ?`,
-        [status, limit, offset]
-      );
+      const status = (statusParam || 'pending') as any;
 
-      const countResult = await executeQuery<any[]>(
-        'SELECT COUNT(*) as total FROM product_reviews WHERE status = ?',
-        [status]
-      );
+      const reviews = await db
+        .select({
+          id: productReviews.id,
+          product_id: productReviews.productId,
+          user_id: productReviews.userId,
+          rating: productReviews.rating,
+          title: productReviews.title,
+          comment: productReviews.comment,
+          status: productReviews.status,
+          admin_reply: productReviews.adminReply,
+          is_verified_purchase: productReviews.isVerifiedPurchase,
+          helpful_count: productReviews.helpfulCount,
+          created_at: productReviews.createdAt,
+          user_name: sql<string>`COALESCE(TRIM(CONCAT(COALESCE(${usersTable.firstName}, ''), ' ', COALESCE(${usersTable.lastName}, ''))), ${usersTable.fullName}, 'User')`,
+          user_avatar: usersTable.avatarUrl,
+          product_name: productsTable.name,
+          product_image: productImages.url,
+        })
+        .from(productReviews)
+        .leftJoin(usersTable, eq(productReviews.userId, usersTable.id))
+        .leftJoin(productsTable, eq(productReviews.productId, productsTable.id))
+        .leftJoin(
+          productImages,
+          and(eq(productImages.productId, productsTable.id), eq(productImages.isMain, 1))
+        )
+        .where(eq(productReviews.status, status))
+        .orderBy(desc(productReviews.createdAt))
+        .limit(limit)
+        .offset(offset);
 
-      const total = countResult[0]?.total || 0;
+      const [countResult] = await db
+        .select({ total: count() })
+        .from(productReviews)
+        .where(eq(productReviews.status, status));
 
-      // FIX H2: Batch media query for admin reviews (1 query instead of N)
+      const total = countResult?.total || 0;
+
+      // Batch media query
       if (reviews.length > 0) {
-        const reviewIds = reviews.map((r: any) => r.id);
-        const allMedia = await executeQuery<any[]>(
-          `SELECT id, review_id, media_type, media_url, thumbnail_url, file_size
-           FROM review_media
-           WHERE review_id IN (?)
-           ORDER BY position ASC`,
-          [reviewIds as any]
-        );
+        const reviewIds = reviews.map((r) => r.id);
+        const allMedia = await db
+          .select({
+            id: reviewMedia.id,
+            review_id: reviewMedia.reviewId,
+            media_url: reviewMedia.mediaUrl,
+            media_type: reviewMedia.mediaType,
+            position: reviewMedia.position,
+            file_size: reviewMedia.fileSize,
+          })
+          .from(reviewMedia)
+          .where(inArray(reviewMedia.reviewId, reviewIds))
+          .orderBy(reviewMedia.position);
+
         const mediaMap = new Map<number, any[]>();
-        (allMedia || []).forEach((m: any) => {
-          if (!mediaMap.has(m.review_id)) mediaMap.set(m.review_id, []);
-          mediaMap.get(m.review_id)!.push(m);
+        allMedia.forEach((m) => {
+          if (!mediaMap.has(m.review_id!)) mediaMap.set(m.review_id!, []);
+          mediaMap.get(m.review_id!)!.push(m);
         });
         reviews.forEach((r: any) => {
           r.media = mediaMap.get(r.id) || [];
         });
       }
 
-      return NextResponse.json({
-        success: true,
-        data: reviews,
-        pagination: {
-          page,
-          limit,
-          total,
-          totalPages: Math.ceil(total / limit),
-        },
+      return ResponseWrapper.success(reviews, undefined, 200, {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
       });
     }
 
-    // Nếu là product reviews (productId)
+    // Product reviews
     if (!productIdStr) {
-      return NextResponse.json({ success: false, message: 'Thiếu productId' }, { status: 400 });
+      return ResponseWrapper.error('Thiếu productId', 400);
     }
 
     const productId = parseInt(productIdStr);
     if (isNaN(productId)) {
-      return NextResponse.json({ success: false, message: 'Invalid productId' }, { status: 400 });
+      return ResponseWrapper.error('Invalid productId', 400);
     }
 
-    // Get reviews from database
-    // Secure dynamic ordering using whitelist mapping
-    const ordersMap: { [key: string]: string } = {
-      highest: 'r.rating DESC, r.created_at DESC',
-      lowest: 'r.rating ASC, r.created_at DESC',
-      newest: 'r.created_at DESC',
+    const ordersMap: { [key: string]: any } = {
+      highest: desc(productReviews.rating),
+      lowest: productReviews.rating,
+      newest: desc(productReviews.createdAt),
     };
-    const finalOrderBy = ordersMap[sortParam] || 'r.created_at DESC';
+    const finalOrder = ordersMap[sortParam] || desc(productReviews.createdAt);
 
-    // FIX C1: Parameterize rating filter instead of string interpolation
     const ratingFilter = searchParams.get('rating');
     const ratingValue = ratingFilter ? parseInt(ratingFilter) : null;
-    const reviewParams: any[] = [productId];
-    let ratingClause = '';
+
+    const conditions = [
+      eq(productReviews.productId, productId),
+      eq(productReviews.status, 'approved'),
+    ];
+
     if (ratingValue && ratingValue >= 1 && ratingValue <= 5) {
-      ratingClause = 'AND r.rating = ?';
-      reviewParams.push(ratingValue);
+      conditions.push(eq(productReviews.rating, ratingValue));
     }
-    reviewParams.push(limit, offset);
 
-    const reviews = await executeQuery<any[]>(
-      `SELECT 
-         r.id, r.product_id, r.user_id, r.rating, r.title, r.comment, 
-         r.admin_reply, r.created_at, r.is_verified_purchase, r.helpful_count,
-         TRIM(CONCAT(COALESCE(u.first_name, ''), ' ', COALESCE(u.last_name, ''))) as user_name, u.email as user_email, u.avatar_url as user_avatar
-       FROM product_reviews r
-       LEFT JOIN users u ON r.user_id = u.id
-       WHERE r.product_id = ? AND r.status = 'approved'
-       ${ratingClause}
-       ORDER BY ${finalOrderBy}
-       LIMIT ? OFFSET ?`,
-      reviewParams
-    );
+    const reviews = await db
+      .select({
+        id: productReviews.id,
+        product_id: productReviews.productId,
+        user_id: productReviews.userId,
+        rating: productReviews.rating,
+        title: productReviews.title,
+        comment: productReviews.comment,
+        admin_reply: productReviews.adminReply,
+        created_at: productReviews.createdAt,
+        is_verified_purchase: productReviews.isVerifiedPurchase,
+        helpful_count: productReviews.helpfulCount,
+        user_name: sql<string>`COALESCE(TRIM(CONCAT(COALESCE(${usersTable.firstName}, ''), ' ', COALESCE(${usersTable.lastName}, ''))), ${usersTable.fullName}, 'User')`,
+        user_email: usersTable.email,
+        user_avatar: usersTable.avatarUrl,
+      })
+      .from(productReviews)
+      .leftJoin(usersTable, eq(productReviews.userId, usersTable.id))
+      .where(and(...conditions))
+      .orderBy(finalOrder)
+      .limit(limit)
+      .offset(offset);
 
-    // FIX H2: Batch media query instead of N+1 (1 query for all reviews)
+    // Batch media query
     if (reviews.length > 0) {
       const reviewIds = reviews.map((r) => r.id);
-      const allMedia = await executeQuery<any[]>(
-        `SELECT id, review_id, media_type, media_url, thumbnail_url, file_size
-         FROM review_media
-         WHERE review_id IN (?)
-         ORDER BY position ASC`,
-        [reviewIds as any]
-      );
-      // Group media by review_id
+      const allMedia = await db
+        .select({
+          id: reviewMedia.id,
+          review_id: reviewMedia.reviewId,
+          media_url: reviewMedia.mediaUrl,
+          media_type: reviewMedia.mediaType,
+          position: reviewMedia.position,
+          file_size: reviewMedia.fileSize,
+        })
+        .from(reviewMedia)
+        .where(inArray(reviewMedia.reviewId, reviewIds))
+        .orderBy(reviewMedia.position);
+
       const mediaMap = new Map<number, any[]>();
-      (allMedia || []).forEach((m) => {
-        if (!mediaMap.has(m.review_id)) mediaMap.set(m.review_id, []);
-        mediaMap.get(m.review_id)!.push(m);
+      allMedia.forEach((m) => {
+        if (!mediaMap.has(m.review_id!)) mediaMap.set(m.review_id!, []);
+        mediaMap.get(m.review_id!)!.push(m);
       });
-      reviews.forEach((r) => {
+      reviews.forEach((r: any) => {
         r.media = mediaMap.get(r.id) || [];
       });
-    } else {
-      reviews.forEach((r) => {
-        r.media = [];
-      });
     }
 
-    // Get total count (with same rating filter)
-    const countParams: any[] = [productId];
-    let countRatingClause = '';
-    if (ratingValue && ratingValue >= 1 && ratingValue <= 5) {
-      countRatingClause = 'AND rating = ?';
-      countParams.push(ratingValue);
-    }
-    const countResult = await executeQuery<any[]>(
-      `SELECT COUNT(*) as total FROM product_reviews WHERE product_id = ? AND status = 'approved' ${countRatingClause}`,
-      countParams
-    );
+    const [countResult] = await db
+      .select({ total: count() })
+      .from(productReviews)
+      .where(and(...conditions));
 
-    const total = countResult[0]?.total || 0;
+    const total = countResult?.total || 0;
 
-    // Get rating statistics
-    const stats = await executeQuery<any[]>(
-      `SELECT 
-         AVG(rating) as average_rating,
-         COUNT(*) as total_reviews,
-         SUM(CASE WHEN rating = 5 THEN 1 ELSE 0 END) as five_star,
-         SUM(CASE WHEN rating = 4 THEN 1 ELSE 0 END) as four_star,
-         SUM(CASE WHEN rating = 3 THEN 1 ELSE 0 END) as three_star,
-         SUM(CASE WHEN rating = 2 THEN 1 ELSE 0 END) as two_star,
-         SUM(CASE WHEN rating = 1 THEN 1 ELSE 0 END) as one_star
-       FROM product_reviews 
-       WHERE product_id = ? AND status = 'approved'`,
-      [productId]
-    );
+    // Statistics
+    const statsResult = await db
+      .select({
+        averageRating: avg(productReviews.rating),
+        totalReviews: count(),
+        fiveStar: sql<number>`SUM(CASE WHEN ${productReviews.rating} = 5 THEN 1 ELSE 0 END)`,
+        fourStar: sql<number>`SUM(CASE WHEN ${productReviews.rating} = 4 THEN 1 ELSE 0 END)`,
+        threeStar: sql<number>`SUM(CASE WHEN ${productReviews.rating} = 3 THEN 1 ELSE 0 END)`,
+        twoStar: sql<number>`SUM(CASE WHEN ${productReviews.rating} = 2 THEN 1 ELSE 0 END)`,
+        oneStar: sql<number>`SUM(CASE WHEN ${productReviews.rating} = 1 THEN 1 ELSE 0 END)`,
+      })
+      .from(productReviews)
+      .where(and(eq(productReviews.productId, productId), eq(productReviews.status, 'approved')));
 
-    // Handle null values and convert to numbers
-    const rawStats = stats[0] || {};
+    const rawStats = statsResult[0] || {};
     const statistics = {
-      average_rating: parseFloat(rawStats.average_rating) || 0,
-      total_reviews: parseInt(rawStats.total_reviews) || 0,
-      five_star: parseInt(rawStats.five_star) || 0,
-      four_star: parseInt(rawStats.four_star) || 0,
-      three_star: parseInt(rawStats.three_star) || 0,
-      two_star: parseInt(rawStats.two_star) || 0,
-      one_star: parseInt(rawStats.one_star) || 0,
+      averageRating: parseFloat(rawStats.averageRating || '0'),
+      totalReviews: Number(rawStats.totalReviews || 0),
+      fiveStar: Number(rawStats.fiveStar || 0),
+      fourStar: Number(rawStats.fourStar || 0),
+      threeStar: Number(rawStats.threeStar || 0),
+      twoStar: Number(rawStats.twoStar || 0),
+      oneStar: Number(rawStats.oneStar || 0),
     };
 
-    return NextResponse.json({
-      success: true,
-      data: {
-        reviews,
-        statistics,
-        pagination: {
-          page,
-          limit,
-          total,
-          totalPages: Math.ceil(total / limit),
-        },
-      },
+    const responseData = {
+      reviews,
+      statistics,
+    };
+
+    return ResponseWrapper.success(responseData, undefined, 200, {
+      page,
+      limit,
+      total,
+      totalPages: Math.ceil(total / limit),
     });
   } catch (error) {
     console.error('Lỗi khi lấy reviews:', error);
-    return NextResponse.json({ success: false, message: 'Lỗi server nội bộ' }, { status: 500 });
+    return ResponseWrapper.serverError('Lỗi server nội bộ', error);
   }
 }
 
 // POST - Tạo review mới
-/**
- * API Gửi đánh giá mới cho sản phẩm.
- * Bảo mật & Logic:
- * 1. Yêu cầu đăng nhập.
- * 2. BẮT BUỘC người dùng phải mua sản phẩm này rồi (is_verified_purchase) mới được đánh giá.
- * 3. Mỗi người dùng chỉ được đánh giá 1 lần cho 1 sản phẩm.
- * 4. Hỗ trợ upload nhiều ảnh/video minh họa đi kèm.
- */
 export async function POST(request: NextRequest) {
   try {
     const session = await verifyAuth();
     if (!session) {
-      return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
+      return ResponseWrapper.unauthorized();
     }
     const userId = Number(session.userId);
 
@@ -231,81 +247,77 @@ export async function POST(request: NextRequest) {
 
     // Validate
     if (!productId || !rating) {
-      return NextResponse.json(
-        { success: false, message: 'Thiếu thông tin bắt buộc' },
-        { status: 400 }
-      );
-    }
-
-    if (rating < 1 || rating > 5) {
-      return NextResponse.json({ success: false, message: 'Rating phải từ 1-5' }, { status: 400 });
+      return ResponseWrapper.error('Thiếu thông tin bắt buộc', 400);
     }
 
     // Check if user has purchased this product
-    const purchaseCheck = await executeQuery<any[]>(
-      `SELECT DISTINCT o.id 
-       FROM orders o
-       INNER JOIN order_items oi ON o.id = oi.order_id
-       WHERE o.user_id = ? 
-         AND oi.product_id = ? 
-         AND o.status NOT IN ('cancelled', 'failed')`,
-      [userId, parseInt(productId)]
-    );
+    const purchaseResult = await db
+      .select({ id: ordersTable.id })
+      .from(ordersTable)
+      .innerJoin(orderItems, eq(ordersTable.id, orderItems.orderId))
+      .where(
+        and(
+          eq(ordersTable.userId, userId),
+          eq(orderItems.productId, parseInt(productId)),
+          sql`${ordersTable.status} NOT IN ('cancelled', 'failed')`
+        )
+      )
+      .limit(1);
 
-    const hasPurchased = purchaseCheck && purchaseCheck.length > 0;
+    const hasPurchased = purchaseResult.length > 0;
 
-    // Require purchase to review
     if (!hasPurchased) {
-      return NextResponse.json(
-        { success: false, message: 'Bạn cần mua sản phẩm này trước khi có thể đánh giá' },
-        { status: 403 }
-      );
+      return ResponseWrapper.error('Bạn cần mua sản phẩm này trước khi có thể đánh giá', 403);
     }
 
-    // Check if user already reviewed this product
-    const existing = await executeQuery<any[]>(
-      'SELECT id FROM product_reviews WHERE user_id = ? AND product_id = ?',
-      [userId, parseInt(productId)]
-    );
+    const existingReview = await db
+      .select({ id: productReviews.id })
+      .from(productReviews)
+      .where(
+        and(eq(productReviews.userId, userId), eq(productReviews.productId, parseInt(productId)))
+      )
+      .limit(1);
 
-    if (existing && existing.length > 0) {
-      return NextResponse.json(
-        { success: false, message: 'Bạn đã đánh giá sản phẩm này rồi' },
-        { status: 400 }
-      );
+    if (existingReview.length > 0) {
+      return ResponseWrapper.error('Bạn đã đánh giá sản phẩm này rồi', 400);
     }
 
-    // Insert review with verified purchase flag
-    const result = await executeQuery<any>(
-      `INSERT INTO product_reviews (user_id, product_id, rating, title, comment, status, is_verified_purchase)
-       VALUES (?, ?, ?, ?, ?, 'pending', ?)`,
-      [userId, parseInt(productId), rating, title || '', comment || '', hasPurchased ? 1 : 0]
-    );
+    // Use transaction for Review + Media
+    const reviewId = await db.transaction(async (tx) => {
+      const [insertResult] = await tx.insert(productReviews).values({
+        userId,
+        productId: parseInt(productId),
+        rating,
+        title: title || '',
+        comment: comment || '',
+        status: 'pending',
+        isVerifiedPurchase: 1,
+      });
 
-    const reviewId = result.insertId;
+      const rId = (insertResult as any).insertId;
 
-    // Insert media if present
-    if (media && Array.isArray(media) && media.length > 0) {
-      for (let i = 0; i < media.length; i++) {
-        const item = media[i];
-        if (item.url && item.type) {
-          await executeQuery(
-            `INSERT INTO review_media (review_id, media_url, media_type, position, file_size)
-                     VALUES (?, ?, ?, ?, ?)`,
-            [reviewId, item.url, item.type, i, item.size || 0]
-          );
+      if (media && Array.isArray(media)) {
+        const mediaValues = media
+          .filter((m) => m.url && m.type)
+          .map((m, i) => ({
+            reviewId: rId,
+            mediaUrl: m.url,
+            mediaType: m.type,
+            position: i,
+            fileSize: m.size || 0,
+          }));
+
+        if (mediaValues.length > 0) {
+          await tx.insert(reviewMedia).values(mediaValues);
         }
       }
-    }
-
-    return NextResponse.json({
-      success: true,
-      message: 'Đánh giá của bạn đang chờ duyệt',
-      data: { reviewId },
+      return rId;
     });
+
+    return ResponseWrapper.success({ reviewId }, 'Đánh giá của bạn đang chờ duyệt');
   } catch (error) {
     console.error('Lỗi khi tạo review:', error);
-    return NextResponse.json({ success: false, message: 'Lỗi server nội bộ' }, { status: 500 });
+    return ResponseWrapper.serverError('Lỗi server nội bộ', error);
   }
 }
 
@@ -315,84 +327,57 @@ export async function PUT(request: NextRequest) {
     const body = await request.json();
     const { reviewId, rating, title, comment, id, status } = body;
 
-    // Admin duyệt review từ dashboard
+    // Admin side
     if (id && status) {
       const isAdmin = await checkAdminAuth();
       if (!isAdmin) {
-        return NextResponse.json({ success: false, message: 'Không có quyền' }, { status: 401 });
+        return ResponseWrapper.unauthorized();
       }
 
-      // FIX H3: Validate status whitelist
-      const validStatuses = ['approved', 'rejected', 'pending'];
-      if (!validStatuses.includes(status)) {
-        return NextResponse.json(
-          { success: false, message: 'Trạng thái không hợp lệ' },
-          { status: 400 }
-        );
-      }
+      await db
+        .update(productReviews)
+        .set({ status: status as any, updatedAt: new Date() })
+        .where(eq(productReviews.id, parseInt(id)));
 
-      await executeQuery(`UPDATE product_reviews SET status = ?, updated_at = NOW() WHERE id = ?`, [
-        status,
-        parseInt(id),
-      ]);
-
-      return NextResponse.json({
-        success: true,
-        message: 'Cập nhật trạng thái thành công',
-      });
+      return ResponseWrapper.success(null, 'Cập nhật trạng thái thành công');
     }
 
-    // User side: Securing with verifyAuth
+    // User side
     const session = await verifyAuth();
     if (!session) {
-      return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
+      return ResponseWrapper.unauthorized();
     }
     const userId = Number(session.userId);
 
-    // Validate
-    if (!reviewId) {
-      return NextResponse.json({ success: false, message: 'Thiếu reviewId' }, { status: 400 });
+    const [existing] = await db
+      .select()
+      .from(productReviews)
+      .where(eq(productReviews.id, parseInt(reviewId)))
+      .limit(1);
+
+    if (!existing) {
+      return ResponseWrapper.error('Không tìm thấy đánh giá', 404);
     }
 
-    if (rating && (rating < 1 || rating > 5)) {
-      return NextResponse.json({ success: false, message: 'Rating phải từ 1-5' }, { status: 400 });
+    if (existing.userId !== userId) {
+      return ResponseWrapper.error('Bạn không có quyền sửa đánh giá này', 403);
     }
 
-    // Check if review exists and belongs to user
-    const existing = await executeQuery<any[]>(
-      'SELECT id, user_id FROM product_reviews WHERE id = ?',
-      [parseInt(reviewId)]
-    );
+    await db
+      .update(productReviews)
+      .set({
+        rating,
+        title: title || '',
+        comment: comment || '',
+        status: 'pending',
+        updatedAt: new Date(),
+      })
+      .where(eq(productReviews.id, parseInt(reviewId)));
 
-    if (!existing || existing.length === 0) {
-      return NextResponse.json(
-        { success: false, message: 'Không tìm thấy đánh giá' },
-        { status: 404 }
-      );
-    }
-
-    if (existing[0].user_id !== userId) {
-      return NextResponse.json(
-        { success: false, message: 'Bạn không có quyền sửa đánh giá này' },
-        { status: 403 }
-      );
-    }
-
-    // Update review - set status back to pending for re-approval
-    await executeQuery(
-      `UPDATE product_reviews 
-       SET rating = ?, title = ?, comment = ?, status = 'pending', updated_at = NOW()
-       WHERE id = ?`,
-      [rating, title || '', comment || '', parseInt(reviewId)]
-    );
-
-    return NextResponse.json({
-      success: true,
-      message: 'Đánh giá đã được cập nhật và đang chờ duyệt lại',
-    });
+    return ResponseWrapper.success(null, 'Đánh giá đã được cập nhật và đang chờ duyệt lại');
   } catch (error) {
     console.error('Lỗi khi cập nhật review:', error);
-    return NextResponse.json({ success: false, message: 'Lỗi server nội bộ' }, { status: 500 });
+    return ResponseWrapper.serverError('Lỗi server nội bộ', error);
   }
 }
 
@@ -402,45 +387,37 @@ export async function DELETE(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const reviewId = searchParams.get('reviewId') || searchParams.get('id');
 
-    // Validate
     if (!reviewId) {
-      return NextResponse.json({ success: false, message: 'Thiếu reviewId' }, { status: 400 });
+      return ResponseWrapper.error('Thiếu reviewId', 400);
     }
 
     const isAdmin = await checkAdminAuth();
     const session = await verifyAuth();
     const userId = session ? Number(session.userId) : null;
 
-    // Check if review exists and belongs to user
-    const existing = await executeQuery<any[]>(
-      'SELECT id, user_id FROM product_reviews WHERE id = ?',
-      [parseInt(reviewId)]
-    );
+    const [existing] = await db
+      .select()
+      .from(productReviews)
+      .where(eq(productReviews.id, parseInt(reviewId)))
+      .limit(1);
 
-    if (!existing || existing.length === 0) {
-      return NextResponse.json(
-        { success: false, message: 'Không tìm thấy đánh giá' },
-        { status: 404 }
-      );
+    if (!existing) {
+      return ResponseWrapper.error('Không tìm thấy đánh giá', 404);
     }
 
-    if (!isAdmin && (!userId || existing[0].user_id !== userId)) {
-      return NextResponse.json(
-        { success: false, message: 'Bạn không có quyền xóa đánh giá này' },
-        { status: 403 }
-      );
+    if (!isAdmin && (!userId || existing.userId !== userId)) {
+      return ResponseWrapper.error('Bạn không có quyền xóa đánh giá này', 403);
     }
 
-    // FIX H4: Cascade delete — remove media first, then review
-    await executeQuery('DELETE FROM review_media WHERE review_id = ?', [parseInt(reviewId)]);
-    await executeQuery('DELETE FROM product_reviews WHERE id = ?', [parseInt(reviewId)]);
-
-    return NextResponse.json({
-      success: true,
-      message: 'Đánh giá đã được xóa',
+    // Atomic delete Review + Media
+    await db.transaction(async (tx) => {
+      await tx.delete(reviewMedia).where(eq(reviewMedia.reviewId, parseInt(reviewId)));
+      await tx.delete(productReviews).where(eq(productReviews.id, parseInt(reviewId)));
     });
+
+    return ResponseWrapper.success(null, 'Đánh giá đã được xóa');
   } catch (error) {
     console.error('Lỗi khi xóa review:', error);
-    return NextResponse.json({ success: false, message: 'Lỗi server nội bộ' }, { status: 500 });
+    return ResponseWrapper.serverError('Lỗi server nội bộ', error);
   }
 }

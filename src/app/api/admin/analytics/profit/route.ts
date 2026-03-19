@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
+import { db } from '@/lib/db/drizzle';
+import { orders as ordersTable, orderItems } from '@/lib/db/schema';
+import { eq, ne, sql, and, gte, asc } from 'drizzle-orm';
 import { checkAdminAuth } from '@/lib/auth/auth';
-import { executeQuery } from '@/lib/db/mysql';
 
 /**
  * API Phân tích Lợi nhuận (Profit Analytics).
@@ -19,40 +21,52 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const period = searchParams.get('period') || '30d'; // 30d, 7d, 24h
 
-  let timeframe = 'INTERVAL 30 DAY';
+  let timeframe = sql`INTERVAL 30 DAY`;
   let grouping = '%Y-%m-%d';
 
-  if (period === '7d') timeframe = 'INTERVAL 7 DAY';
+  if (period === '7d') timeframe = sql`INTERVAL 7 DAY`;
   if (period === '24h') {
-    timeframe = 'INTERVAL 24 HOUR';
+    timeframe = sql`INTERVAL 24 HOUR`;
     grouping = '%Y-%m-%d %H:00';
   }
 
   try {
-    const profitStats = await executeQuery<any[]>(`
-      SELECT 
-        DATE_FORMAT(o.placed_at, '${grouping}') as date,
-        SUM(o.total) as revenue,
-        SUM(oi.total_cost) as total_cost,
-        SUM(o.total - oi.total_cost) as net_profit
-      FROM orders o
-      JOIN (
-        SELECT order_id, SUM(quantity * cost_price) as total_cost
-        FROM order_items
-        GROUP BY order_id
-      ) oi ON o.id = oi.order_id
-      WHERE o.placed_at >= DATE_SUB(NOW(), ${timeframe})
-        AND o.status != 'cancelled'
-      GROUP BY date
-      ORDER BY date ASC
-    `);
+    // Subquery for order items cost
+    const oiSub = db
+      .select({
+        orderId: orderItems.orderId,
+        totalCost: sql<number>`SUM(${orderItems.quantity} * ${orderItems.costPrice})`.as(
+          'total_cost'
+        ),
+      })
+      .from(orderItems)
+      .groupBy(orderItems.orderId)
+      .as('oi');
+
+    const profitStats = await db
+      .select({
+        date: sql<string>`DATE_FORMAT(${ordersTable.placedAt}, ${grouping})`.as('date'),
+        revenue: sql<number>`SUM(${ordersTable.total})`.as('revenue'),
+        totalCost: sql<number>`SUM(${oiSub.totalCost})`.as('total_cost'),
+        netProfit: sql<number>`SUM(${ordersTable.total} - ${oiSub.totalCost})`.as('net_profit'),
+      })
+      .from(ordersTable)
+      .innerJoin(oiSub, eq(ordersTable.id, oiSub.orderId))
+      .where(
+        and(
+          gte(ordersTable.placedAt, sql`DATE_SUB(NOW(), ${timeframe})`),
+          ne(ordersTable.status, 'cancelled')
+        )
+      )
+      .groupBy(sql`date`)
+      .orderBy(asc(sql`date`));
 
     // Calculate overall totals
     const totals = profitStats.reduce(
       (acc, curr) => ({
-        revenue: acc.revenue + parseFloat(curr.revenue),
-        cost: acc.cost + parseFloat(curr.total_cost),
-        profit: acc.profit + parseFloat(curr.net_profit),
+        revenue: acc.revenue + Number(curr.revenue),
+        cost: acc.cost + Number(curr.totalCost),
+        profit: acc.profit + Number(curr.netProfit),
       }),
       { revenue: 0, cost: 0, profit: 0 }
     );

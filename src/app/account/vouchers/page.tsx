@@ -10,9 +10,9 @@ import Link from 'next/link';
 interface UserVoucher {
   code: string;
   value: number;
-  discount_type: 'fixed' | 'percent';
+  discountType: 'fixed' | 'percent';
   description: string | null;
-  valid_until: string | null;
+  validUntil: string | null;
   status: 'active' | 'inactive' | 'redeemed' | 'expired';
 }
 
@@ -145,7 +145,7 @@ export default function UserVouchersPage() {
                       GIẢM
                     </div>
                     <div className="text-4xl font-helvetica-bold">
-                      {voucher.discount_type === 'percent'
+                      {voucher.discountType === 'percent'
                         ? `${voucher.value}%`
                         : formatCurrency(voucher.value)}
                     </div>
@@ -180,9 +180,7 @@ export default function UserVouchersPage() {
                           <Clock className="w-4 h-4" />
                           <span>
                             Hạn dùng:{' '}
-                            {voucher.valid_until
-                              ? formatDate(voucher.valid_until)
-                              : 'Không giới hạn'}
+                            {voucher.validUntil ? formatDate(voucher.validUntil) : 'Không giới hạn'}
                           </span>
                         </div>
                         <div className="flex items-center gap-2 text-sm text-gray-400">

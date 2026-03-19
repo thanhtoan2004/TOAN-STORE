@@ -1,70 +1,81 @@
-import { executeQuery } from '@/lib/db/mysql';
+import { db } from '@/lib/db/drizzle';
+import {
+  inventory as inventoryTable,
+  productVariants,
+  products,
+  stores as warehouses,
+} from '@/lib/db/schema';
+import { eq, and, lte, gt, isNull, desc, asc } from 'drizzle-orm';
 
 export interface LowStockAlert {
-    inventoryId: number;
-    productVariantId: number;
-    productName: string;
-    sku: string;
-    size: string;
-    color: string;
-    quantity: number;
-    threshold: number;
-    warehouseName: string;
+  inventoryId: number;
+  productVariantId: number;
+  productName: string;
+  sku: string;
+  size: string;
+  color: string | null;
+  quantity: number;
+  threshold: number;
+  warehouseName: string | null;
 }
 
 /**
  * Get all inventory items that are below their low stock threshold
  */
 export async function getLowStockAlerts(): Promise<LowStockAlert[]> {
-    const sql = `
-        SELECT 
-            i.id as inventoryId,
-            pv.id as productVariantId,
-            p.name as productName,
-            pv.sku,
-            pv.size,
-            pv.color,
-            i.quantity,
-            i.low_stock_threshold as threshold,
-            w.name as warehouseName
-        FROM inventory i
-        JOIN product_variants pv ON i.product_variant_id = pv.id
-        JOIN products p ON pv.product_id = p.id
-        LEFT JOIN warehouses w ON i.warehouse_id = w.id
-        WHERE i.quantity <= i.low_stock_threshold
-          AND i.quantity > 0
-          AND p.is_active = 1
-          AND p.deleted_at IS NULL
-        ORDER BY i.quantity ASC
-    `;
+  const data = await db
+    .select({
+      inventoryId: inventoryTable.id,
+      productVariantId: productVariants.id,
+      productName: products.name,
+      sku: productVariants.sku,
+      size: productVariants.size,
+      color: productVariants.colorId, // Assuming colorId for now as per schema
+      quantity: inventoryTable.quantity,
+      threshold: inventoryTable.lowStockThreshold,
+      warehouseName: warehouses.name,
+    })
+    .from(inventoryTable)
+    .innerJoin(productVariants, eq(inventoryTable.productVariantId, productVariants.id))
+    .innerJoin(products, eq(productVariants.productId, products.id))
+    .leftJoin(warehouses, eq(inventoryTable.warehouseId, warehouses.id))
+    .where(
+      and(
+        lte(inventoryTable.quantity, inventoryTable.lowStockThreshold),
+        gt(inventoryTable.quantity, 0),
+        eq(products.isActive, 1),
+        isNull(products.deletedAt)
+      )
+    )
+    .orderBy(asc(inventoryTable.quantity));
 
-    return await executeQuery<LowStockAlert[]>(sql);
+  return data as any as LowStockAlert[];
 }
 
 /**
  * Get all items that are completely out of stock
  */
 export async function getOutOfStockItems(): Promise<LowStockAlert[]> {
-    const sql = `
-        SELECT 
-            i.id as inventoryId,
-            pv.id as productVariantId,
-            p.name as productName,
-            pv.sku,
-            pv.size,
-            pv.color,
-            i.quantity,
-            i.low_stock_threshold as threshold,
-            w.name as warehouseName
-        FROM inventory i
-        JOIN product_variants pv ON i.product_variant_id = pv.id
-        JOIN products p ON pv.product_id = p.id
-        LEFT JOIN warehouses w ON i.warehouse_id = w.id
-        WHERE i.quantity <= 0
-          AND p.is_active = 1
-          AND p.deleted_at IS NULL
-        ORDER BY i.updated_at DESC
-    `;
+  const data = await db
+    .select({
+      inventoryId: inventoryTable.id,
+      productVariantId: productVariants.id,
+      productName: products.name,
+      sku: productVariants.sku,
+      size: productVariants.size,
+      color: productVariants.colorId,
+      quantity: inventoryTable.quantity,
+      threshold: inventoryTable.lowStockThreshold,
+      warehouseName: warehouses.name,
+    })
+    .from(inventoryTable)
+    .innerJoin(productVariants, eq(inventoryTable.productVariantId, productVariants.id))
+    .innerJoin(products, eq(productVariants.productId, products.id))
+    .leftJoin(warehouses, eq(inventoryTable.warehouseId, warehouses.id))
+    .where(
+      and(lte(inventoryTable.quantity, 0), eq(products.isActive, 1), isNull(products.deletedAt))
+    )
+    .orderBy(desc(inventoryTable.updatedAt));
 
-    return await executeQuery<LowStockAlert[]>(sql);
+  return data as any as LowStockAlert[];
 }

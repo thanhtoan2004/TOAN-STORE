@@ -12,9 +12,10 @@ interface OrderTimelineProps {
     delivered_at?: string;
     cancelled_at?: string;
   };
+  confirmedLabel?: string;
 }
 
-export function OrderTimeline({ status, dates }: OrderTimelineProps) {
+export function OrderTimeline({ status, dates, confirmedLabel }: OrderTimelineProps) {
   if (status === 'cancelled') {
     return (
       <div className="bg-red-50 border border-red-200 rounded-lg p-6 mb-8 text-center">
@@ -42,7 +43,7 @@ export function OrderTimeline({ status, dates }: OrderTimelineProps) {
     },
     {
       id: 'confirmed',
-      label: 'Đã xác nhận',
+      label: confirmedLabel || 'Đã xác nhận',
       icon: Check,
       date: dates.confirmed_at,
       isActive: ['confirmed', 'processing', 'shipping', 'delivered'].includes(status),

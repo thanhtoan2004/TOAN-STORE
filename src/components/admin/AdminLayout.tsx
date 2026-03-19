@@ -19,7 +19,9 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
     { name: 'Danh mục', href: '/admin/categories' },
     { name: 'Kho hàng', href: '/admin/inventory' },
     { name: 'Đơn hàng', href: '/admin/orders' },
+    { name: 'Hoàn tiền', href: '/admin/refunds' },
     { name: 'Người dùng', href: '/admin/users' },
+    { name: 'Nhân viên', href: '/admin/admins' },
     { name: 'Đánh giá', href: '/admin/reviews' },
     { name: 'Lịch sử hoạt động', href: '/admin/audit-logs' },
     { name: 'Thẻ quà tặng', href: '/admin/gift-cards' },
@@ -29,10 +31,14 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
     { name: 'Voucher', href: '/admin/vouchers' },
     { name: 'Flash Sales', href: '/admin/flash-sales' },
     { name: 'Banner', href: '/admin/banners' },
+    { name: 'Thư viện Media', href: '/admin/media' },
+    { name: 'Chiến dịch giảm giá', href: '/admin/marketing/discounts' },
+    { name: 'Bản tin Marketing', href: '/admin/marketing/newsletter' },
     { name: 'Tin tức', href: '/admin/news' },
     { name: 'Hỗ trợ', href: '/admin/support' },
+    { name: 'Cấu hình SEO', href: '/admin/seo' },
+    { name: 'Bảo mật', href: '/admin/security' },
     { name: 'Cài đặt', href: '/admin/settings' },
-    { name: 'Hoàn tiền', href: '/admin/refunds' },
   ];
 
   useEffect(() => {
@@ -46,8 +52,10 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
           return;
         }
         const data = await response.json();
-        const isAdmin = !!(data?.user?.role === 'admin' || data?.user?.roleId);
+        // Cập nhật logic kiểm tra: ResponseWrapper trả về { success: true, data: { user: { ...adminInfo } } }
+        const isAdmin = data.success && !!data.data?.user;
         if (!isAdmin) {
+          console.warn('Admin access denied: Session data missing or invalid');
           document.cookie = 'toan_admin_session=; Max-Age=0; path=/;';
           router.replace('/admin/login');
           return;

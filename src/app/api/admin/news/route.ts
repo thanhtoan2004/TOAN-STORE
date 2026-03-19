@@ -1,29 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { executeQuery } from '@/lib/db/mysql';
+import { db } from '@/lib/db/drizzle';
+import { news as newsTable, adminUsers } from '@/lib/db/schema';
+import { eq, and, like, desc, count, or, sql } from 'drizzle-orm';
 import { checkAdminAuth } from '@/lib/auth/auth';
 import { sanitizeRichContent } from '@/lib/security/sanitize';
-
-// Ensure news table exists
-async function ensureNewsTable() {
-  await executeQuery(`
-    CREATE TABLE IF NOT EXISTS news (
-      id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-      title VARCHAR(255) NOT NULL,
-      slug VARCHAR(255) UNIQUE NOT NULL,
-      excerpt TEXT,
-      content LONGTEXT NOT NULL,
-      image_url VARCHAR(500),
-      category VARCHAR(100),
-      author_id BIGINT UNSIGNED,
-      published_at TIMESTAMP NULL,
-      is_published BOOLEAN DEFAULT 0,
-      views INT DEFAULT 0,
-      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-      FOREIGN KEY (author_id) REFERENCES users(id) ON DELETE SET NULL
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-  `);
-}
+import { ResponseWrapper } from '@/lib/api/api-response';
 
 // GET - List all news (admin)
 /**
@@ -31,82 +12,79 @@ async function ensureNewsTable() {
  * Hỗ trợ tìm kiếm theo tiêu đề/trích dẫn và lọc theo chuyên mục/trạng thái xuất bản.
  */
 export async function GET(request: NextRequest) {
-  const admin = await checkAdminAuth();
-  if (!admin) {
-    return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
-  }
-
   try {
-    await ensureNewsTable();
+    const admin = await checkAdminAuth();
+    if (!admin) {
+      return ResponseWrapper.unauthorized();
+    }
 
     const { searchParams } = new URL(request.url);
     const page = parseInt(searchParams.get('page') || '1');
-    const limit = Math.min(parseInt(searchParams.get('limit') || '20'), 100); // M2: Cap limit
+    const limit = Math.min(parseInt(searchParams.get('limit') || '20'), 100);
     const search = searchParams.get('search') || '';
     const category = searchParams.get('category') || '';
     const publishedFilter = searchParams.get('published') || '';
 
     const offset = (page - 1) * limit;
 
-    const whereConditions = [];
-    const queryParams: any[] = [];
+    const filters = [];
 
     if (search) {
-      whereConditions.push('(title LIKE ? OR excerpt LIKE ?)');
-      queryParams.push(`%${search}%`, `%${search}%`);
+      filters.push(
+        or(like(newsTable.title, `%${search}%`), like(newsTable.excerpt, `%${search}%`))
+      );
     }
 
     if (category) {
-      whereConditions.push('category = ?');
-      queryParams.push(category);
+      filters.push(eq(newsTable.category, category));
     }
 
     if (publishedFilter === 'published') {
-      whereConditions.push('is_published = 1');
+      filters.push(eq(newsTable.isPublished, 1));
     } else if (publishedFilter === 'draft') {
-      whereConditions.push('is_published = 0');
+      filters.push(eq(newsTable.isPublished, 0));
     }
 
-    const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : '';
+    // 1. Get Count
+    const [countResult] = await db
+      .select({ total: count() })
+      .from(newsTable)
+      .where(and(...filters));
 
-    const news = await executeQuery(
-      `
-      SELECT 
-        n.*,
-        au.full_name as author_name
-      FROM news n
-      LEFT JOIN admin_users au ON n.author_id = au.id
-      ${whereClause}
-      ORDER BY n.created_at DESC
-      LIMIT ? OFFSET ?
-    `,
-      [...queryParams, limit, offset]
-    );
+    const total = countResult?.total || 0;
 
-    const [countRow] = (await executeQuery(
-      `
-      SELECT COUNT(*) as total FROM news n ${whereClause}
-    `,
-      queryParams
-    )) as any[];
+    // 2. Get News
+    const news = await db
+      .select({
+        id: newsTable.id,
+        title: newsTable.title,
+        slug: newsTable.slug,
+        excerpt: newsTable.excerpt,
+        image_url: newsTable.imageUrl,
+        category: newsTable.category,
+        author_id: newsTable.authorId,
+        author_name: adminUsers.fullName,
+        is_published: newsTable.isPublished,
+        published_at: newsTable.publishedAt,
+        views: newsTable.views,
+        created_at: newsTable.createdAt,
+      })
+      .from(newsTable)
+      .leftJoin(adminUsers, eq(newsTable.authorId, adminUsers.id))
+      .where(and(...filters))
+      .orderBy(desc(newsTable.createdAt))
+      .limit(limit)
+      .offset(offset);
 
-    const total = countRow?.total || 0;
-
-    return NextResponse.json({
-      success: true,
-      data: {
-        news,
-        pagination: {
-          page,
-          limit,
-          total,
-          totalPages: Math.ceil(total / limit),
-        },
-      },
+    return ResponseWrapper.success(news, undefined, 200, {
+      page,
+      limit,
+      total,
+      totalPages: Math.ceil(total / limit),
     });
   } catch (error) {
     console.error('Error fetching news:', error);
-    return NextResponse.json({ success: false, message: 'Error fetching news' }, { status: 500 });
+    return ResponseWrapper.serverError('Error fetching news', error);
   }
 }
 
@@ -119,23 +97,18 @@ export async function GET(request: NextRequest) {
  * 3. Ghi nhận thời gian xuất bản nếu đặt trạng thái là Published.
  */
 export async function POST(request: NextRequest) {
-  const admin = await checkAdminAuth();
-  if (!admin) {
-    return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
-  }
-
   try {
-    await ensureNewsTable();
+    const admin = await checkAdminAuth();
+    if (!admin) {
+      return ResponseWrapper.unauthorized();
+    }
 
     const body = await request.json();
     const { title, excerpt, image_url, category, is_published } = body;
     const content = sanitizeRichContent(body.content || '');
 
     if (!title || !content) {
-      return NextResponse.json(
-        { success: false, message: 'Title and content are required' },
-        { status: 400 }
-      );
+      return ResponseWrapper.error('Title and content are required', 400);
     }
 
     // Generate slug from title
@@ -147,39 +120,26 @@ export async function POST(request: NextRequest) {
       .replace(/[^a-z0-9]+/g, '-')
       .replace(/^-+|-+$/g, '');
 
-    const published_at = is_published ? new Date() : null;
+    const publishedAt = is_published ? new Date() : null;
 
-    const result = (await executeQuery(
-      `
-      INSERT INTO news (title, slug, excerpt, content, image_url, category, author_id, is_published, published_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `,
-      [
-        title,
-        slug,
-        excerpt,
-        content,
-        image_url,
-        category,
-        admin.userId,
-        is_published ? 1 : 0,
-        published_at,
-      ]
-    )) as any;
-
-    return NextResponse.json({
-      success: true,
-      message: 'News created successfully',
-      data: { id: result.insertId },
+    const [result] = await db.insert(newsTable).values({
+      title,
+      slug,
+      excerpt,
+      content,
+      imageUrl: image_url,
+      category,
+      authorId: admin.userId,
+      isPublished: is_published ? 1 : 0,
+      publishedAt,
     });
+
+    return ResponseWrapper.success({ id: result.insertId }, 'News created successfully', 201);
   } catch (error: any) {
     console.error('Error creating news:', error);
     if (error.code === 'ER_DUP_ENTRY') {
-      return NextResponse.json(
-        { success: false, message: 'A news article with this title already exists' },
-        { status: 400 }
-      );
+      return ResponseWrapper.error('A news article with this title already exists', 400);
     }
-    return NextResponse.json({ success: false, message: 'Error creating news' }, { status: 500 });
+    return ResponseWrapper.serverError('Error creating news', error);
   }
 }

@@ -3,7 +3,7 @@ import { checkAdminAuth } from '@/lib/auth/auth';
 import { decrypt } from '@/lib/security/encryption';
 import { db } from '@/lib/db/drizzle';
 import { orders as ordersSchema, users, orderItems } from '@/lib/db/schema';
-import { eq, and, sql, desc, countDistinct } from 'drizzle-orm';
+import { eq, and, or, like, sql, desc, countDistinct } from 'drizzle-orm';
 import { ResponseWrapper } from '@/lib/api/api-response';
 import { logger } from '@/lib/utils/logger';
 
@@ -33,24 +33,30 @@ export async function GET(request: NextRequest) {
     }
 
     if (search) {
-      // FIX P5 (TODO): Search trên email/phone đã được mã hóa AES-256 sẽ KHÔNG bao giờ khớp.
-      // Giải pháp tương lai: Tạo blind index (hash email/phone) để search.
-      // Hiện tại chỉ search theo orderNumber hoạt động chính xác.
-      filters.push(
-        sql`(${ordersSchema.orderNumber} LIKE ${`%%${search}%%`} OR ${users.email} LIKE ${`%%${search}%%`} OR ${users.phone} LIKE ${`%%${search}%%`})`
-      );
+      const searchConditions = [
+        like(ordersSchema.orderNumber, `%${search}%`),
+        like(users.fullName, `%${search}%`),
+      ];
+
+      // If search looks like email, try matching hash
+      if (search.includes('@')) {
+        const { hashEmail } = await import('@/lib/security/encryption');
+        searchConditions.push(eq(ordersSchema.emailHash, hashEmail(search)));
+      }
+
+      filters.push(or(...searchConditions)!);
     }
 
     const data = await db
       .select({
         id: ordersSchema.id,
-        orderNumber: ordersSchema.orderNumber,
+        order_number: ordersSchema.orderNumber,
         status: ordersSchema.status,
         total: ordersSchema.total,
-        placedAt: ordersSchema.placedAt,
-        customerName: users.firstName, // Mapping to full_name logic or firstName for now
-        customerEmail: users.email,
-        itemCount: sql<number>`count(${orderItems.id})`,
+        placed_at: ordersSchema.placedAt,
+        customer_name: users.firstName,
+        customer_email: users.email,
+        item_count: sql<number>`count(${orderItems.id})`,
         phone: ordersSchema.phone,
         email: ordersSchema.email,
       })
@@ -68,7 +74,7 @@ export async function GET(request: NextRequest) {
       ...order,
       phone: order.phone ? decrypt(order.phone) : null,
       email: order.email ? decrypt(order.email) : null,
-      customerName: order.customerName, // users table might also have encrypted fields in some implementations, but here we follow ordersSchema
+      customer_name: order.customer_name,
     }));
 
     // Get total count

@@ -35,9 +35,9 @@ export default function RedeemPage() {
       const response = await fetch('/api/user/redeem');
       const data = await response.json();
 
-      if (data.success) {
-        setCurrentPoints(data.data.currentPoints);
-        setVouchers(data.data.vouchers);
+      if (data.success && data.data) {
+        setCurrentPoints(data.data.currentPoints || 0);
+        setVouchers(data.data.vouchers || []);
       }
     } catch (error) {
       console.error('Error fetching vouchers:', error);
@@ -90,7 +90,7 @@ export default function RedeemPage() {
     if (voucher.discount_type === 'percent') {
       return `Giảm ${voucher.value}%`;
     }
-    return `Giảm ${Number(voucher.value).toLocaleString('vi-VN')}₫`;
+    return `Giảm ${Number(voucher.value || 0).toLocaleString('vi-VN')}₫`;
   };
 
   if (loading) {
@@ -121,7 +121,9 @@ export default function RedeemPage() {
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div>
               <p className="text-sm text-gray-300 uppercase tracking-wider">Điểm hiện có</p>
-              <p className="text-4xl font-bold mt-1">{currentPoints.toLocaleString('vi-VN')}</p>
+              <p className="text-4xl font-bold mt-1">
+                {(currentPoints || 0).toLocaleString('vi-VN')}
+              </p>
               <p className="text-sm text-gray-400 mt-1">điểm thưởng</p>
             </div>
             <div className="flex flex-col items-end gap-3">
@@ -211,18 +213,19 @@ export default function RedeemPage() {
                     )}
 
                     {/* Expiry */}
-                    {voucher.valid_until && (
-                      <p className="text-xs text-gray-400 mb-4">
-                        HSD: {new Date(voucher.valid_until).toLocaleDateString('vi-VN')}
-                      </p>
-                    )}
+                    <p className="text-xs text-gray-400 mb-4">
+                      HSD:{' '}
+                      {voucher.valid_until
+                        ? new Date(voucher.valid_until).toLocaleDateString('vi-VN')
+                        : 'N/A'}
+                    </p>
 
                     {/* Points & Action */}
                     <div className="flex items-center justify-between pt-4 border-t border-gray-100">
                       <div>
                         <p className="text-xs text-gray-400 uppercase">Cần</p>
                         <p className="text-lg font-bold text-gray-900">
-                          {voucher.points_required.toLocaleString('vi-VN')}{' '}
+                          {(voucher.points_required || 0).toLocaleString('vi-VN')}{' '}
                           <span className="text-sm font-normal">điểm</span>
                         </p>
                       </div>

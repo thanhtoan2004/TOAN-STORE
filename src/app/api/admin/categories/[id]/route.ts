@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { executeQuery } from '@/lib/db/mysql';
+import { db } from '@/lib/db/drizzle';
+import { categories as categoriesTable } from '@/lib/db/schema';
+import { eq, and, isNull } from 'drizzle-orm';
 import { checkAdminAuth } from '@/lib/auth/auth';
-import { logAdminAction } from '@/lib/security/audit';
+import { logAdminAction } from '@/lib/db/repositories/audit';
 import { invalidateCache } from '@/lib/redis/cache';
 
 const CATEGORIES_CACHE_KEY = 'global:categories';
@@ -17,41 +19,60 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
   }
 
   const { id } = await params;
+  const categoryId = Number(id);
+
   try {
     // Get current state
-    const currentCategories = await executeQuery<any[]>(
-      'SELECT name, slug, description, image_url, position FROM categories WHERE id = ?',
-      [id]
-    );
-    const currentCategory = currentCategories[0];
+    const [currentCategory] = await db
+      .select({
+        name: categoriesTable.name,
+        slug: categoriesTable.slug,
+        description: categoriesTable.description,
+        imageUrl: categoriesTable.imageUrl,
+        position: categoriesTable.position,
+      })
+      .from(categoriesTable)
+      .where(eq(categoriesTable.id, categoryId))
+      .limit(1);
 
-    const { name, slug, description, image_url, position } = await request.json();
+    if (!currentCategory) {
+      return NextResponse.json({ success: false, message: 'Category not found' }, { status: 404 });
+    }
 
-    await executeQuery(
-      'UPDATE categories SET name = ?, slug = ?, description = ?, image_url = ?, position = ? WHERE id = ?',
-      [name, slug, description, image_url || null, position, id]
-    );
+    const body = await request.json();
+    const { name, slug, description, image_url, imageUrl, position } = body;
+    const finalImageUrl = image_url || imageUrl || null;
+
+    await db
+      .update(categoriesTable)
+      .set({
+        name,
+        slug,
+        description,
+        imageUrl: finalImageUrl,
+        position: position !== undefined ? Number(position) : undefined,
+        updatedAt: new Date(),
+      })
+      .where(eq(categoriesTable.id, categoryId));
 
     // Invalidate public categories cache
     await invalidateCache(CATEGORIES_CACHE_KEY);
 
     // Filter changes for audit log
-    const updates = { name, slug, description, image_url, position };
+    const updates: any = { name, slug, description, imageUrl: finalImageUrl, position };
     const oldValues: any = {};
     const newValues: any = {};
 
-    if (currentCategory) {
-      Object.keys(updates).forEach((key) => {
-        if (
-          updates[key as keyof typeof updates] !== undefined &&
-          JSON.stringify(currentCategory[key]) !==
-            JSON.stringify(updates[key as keyof typeof updates])
-        ) {
-          oldValues[key] = currentCategory[key];
-          newValues[key] = updates[key as keyof typeof updates];
-        }
-      });
-    }
+    Object.keys(updates).forEach((key) => {
+      if (
+        updates[key] !== undefined &&
+        JSON.stringify(currentCategory[key as keyof typeof currentCategory]) !==
+          JSON.stringify(updates[key])
+      ) {
+        oldValues[key] = currentCategory[key as keyof typeof currentCategory];
+        newValues[key] = updates[key];
+      }
+    });
 
     // Log audit
     if (Object.keys(newValues).length > 0) {
@@ -89,9 +110,13 @@ export async function DELETE(
   }
 
   const { id } = await params;
+  const categoryId = Number(id);
 
   try {
-    await executeQuery('UPDATE categories SET deleted_at = NOW() WHERE id = ?', [id]);
+    await db
+      .update(categoriesTable)
+      .set({ deletedAt: new Date() })
+      .where(eq(categoriesTable.id, categoryId));
 
     // Invalidate public categories cache
     await invalidateCache(CATEGORIES_CACHE_KEY);

@@ -1,22 +1,15 @@
-import { executeQuery } from '../connection';
+import { db } from '../drizzle';
+import { stores, storeHours } from '../schema';
+import { eq, and, sql, desc, asc, like } from 'drizzle-orm';
 
-// Store functions
+/**
+ * Store functions
+ */
 export async function getStores(city?: string) {
-    let query = `
-    SELECT 
-      s.id,
-      s.name,
-      s.address,
-      s.city,
-      s.state,
-      s.phone,
-      s.email,
-      s.latitude,
-      s.longitude,
-      s.description,
+  const hoursSql = sql<string>`
       GROUP_CONCAT(
         CONCAT(
-          CASE sh.day_of_week
+          CASE ${storeHours.dayOfWeek}
             WHEN 0 THEN 'CN'
             WHEN 1 THEN 'T2'
             WHEN 2 THEN 'T3'
@@ -28,25 +21,37 @@ export async function getStores(city?: string) {
           END,
           ': ',
           CASE 
-            WHEN sh.is_closed = 1 THEN 'Đóng cửa'
-            ELSE CONCAT(TIME_FORMAT(sh.open_time, '%H:%i'), ' - ', TIME_FORMAT(sh.close_time, '%H:%i'))
+            WHEN ${storeHours.isClosed} = 1 THEN 'Đóng cửa'
+            ELSE CONCAT(TIME_FORMAT(${storeHours.openTime}, '%H:%i'), ' - ', TIME_FORMAT(${storeHours.closeTime}, '%H:%i'))
           END
         )
-        ORDER BY sh.day_of_week
+        ORDER BY ${storeHours.dayOfWeek}
         SEPARATOR ' | '
-      ) as hours
-    FROM stores s
-    LEFT JOIN store_hours sh ON s.id = sh.store_id
-    WHERE s.is_active = 1
-  `;
+      )
+    `.as('hours');
 
-    const params: any[] = [];
-    if (city) {
-        query += ' AND s.city LIKE ?';
-        params.push(`%${city}%`);
-    }
+  const conditions = [eq(stores.isActive, 1)];
+  if (city) {
+    conditions.push(like(stores.city, `%${city}%`));
+  }
 
-    query += ' GROUP BY s.id ORDER BY s.city, s.name';
-
-    return executeQuery(query, params);
+  return await db
+    .select({
+      id: stores.id,
+      name: stores.name,
+      address: stores.address,
+      city: stores.city,
+      state: stores.state,
+      phone: stores.phone,
+      email: stores.email,
+      latitude: stores.latitude,
+      longitude: stores.longitude,
+      description: stores.description,
+      hours: hoursSql,
+    })
+    .from(stores)
+    .leftJoin(storeHours, eq(stores.id, storeHours.storeId))
+    .where(and(...conditions))
+    .groupBy(stores.id)
+    .orderBy(asc(stores.city), asc(stores.name));
 }

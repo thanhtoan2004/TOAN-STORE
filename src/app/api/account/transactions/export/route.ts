@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { db } from '@/lib/db/drizzle';
+import { orders as ordersTable } from '@/lib/db/schema';
+import { eq, desc } from 'drizzle-orm';
 import { verifyAuth } from '@/lib/auth/auth';
-import { executeQuery } from '@/lib/db/mysql';
-import { decrypt } from '@/lib/security/encryption';
+import { ResponseWrapper } from '@/lib/api/api-response';
 
 /**
  * GET /api/account/transactions/export
@@ -9,22 +11,27 @@ import { decrypt } from '@/lib/security/encryption';
  * Bao gồm: Mã đơn hàng, Ngày, Tổng tiền, Phương thức thanh toán, Trạng thái.
  */
 export async function GET(req: NextRequest) {
-  const session = await verifyAuth();
-  if (!session) {
-    return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
-  }
-
   try {
-    const transactions = (await executeQuery(
-      `SELECT 
-                o.id, o.order_number, o.created_at, o.total_amount, 
-                o.payment_method, o.payment_status, o.status,
-                o.shipping_fee, o.discount_amount
-             FROM orders o
-             WHERE o.user_id = ?
-             ORDER BY o.created_at DESC`,
-      [session.userId]
-    )) as any[];
+    const session = await verifyAuth();
+    if (!session) {
+      return ResponseWrapper.unauthorized();
+    }
+
+    const transactions = await db
+      .select({
+        id: ordersTable.id,
+        orderNumber: ordersTable.orderNumber,
+        placedAt: ordersTable.placedAt,
+        total: ordersTable.total,
+        paymentMethod: ordersTable.paymentMethod,
+        paymentStatus: ordersTable.paymentStatus,
+        status: ordersTable.status,
+        shippingFee: ordersTable.shippingFee,
+        discount: ordersTable.discount,
+      })
+      .from(ordersTable)
+      .where(eq(ordersTable.userId, Number(session.userId)))
+      .orderBy(desc(ordersTable.placedAt));
 
     // Build CSV
     const headers = [
@@ -37,15 +44,15 @@ export async function GET(req: NextRequest) {
       'TT Thanh toán',
       'Trạng thái',
     ];
-    const rows = transactions.map((t: any) =>
+    const rows = transactions.map((t) =>
       [
-        t.order_number || `ORD-${t.id}`,
-        new Date(t.created_at).toLocaleString('vi-VN'),
-        t.total_amount,
-        t.shipping_fee || 0,
-        t.discount_amount || 0,
-        t.payment_method || 'N/A',
-        t.payment_status || 'N/A',
+        t.orderNumber || `ORD-${t.id}`,
+        t.placedAt ? new Date(t.placedAt).toLocaleString('vi-VN') : 'N/A',
+        t.total,
+        t.shippingFee || 0,
+        t.discount || 0,
+        t.paymentMethod || 'N/A',
+        t.paymentStatus || 'N/A',
         t.status || 'N/A',
       ].join(',')
     );
@@ -62,6 +69,6 @@ export async function GET(req: NextRequest) {
     });
   } catch (error) {
     console.error('Transaction export error:', error);
-    return NextResponse.json({ success: false, message: 'Lỗi server' }, { status: 500 });
+    return ResponseWrapper.serverError('Lỗi server', error);
   }
 }

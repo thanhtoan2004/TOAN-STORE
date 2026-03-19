@@ -35,16 +35,21 @@ interface Product {
   name: string;
   slug: string;
   category: string;
-  price: number;
+  price?: number;
   sale_price?: number;
   price_cache?: number;
   msrp_price?: number;
-  image_url: string;
+  priceCache?: number;
+  msrpPrice?: number;
+  image_url?: string;
+  imageUrl?: string;
   description?: string;
-  is_new_arrival: boolean;
-  created_at: string;
+  is_new_arrival?: boolean | number;
+  isNewArrival?: boolean | number;
+  created_at?: string;
+  createdAt?: string;
   images?: Array<{ url: string; alt_text?: string; media_type?: 'image' | 'video' }>;
-  sizes?: Array<{ size: string; stock: number; reserved?: number }>;
+  sizes?: Array<{ size: string; stock: number; reserved?: number; sku?: string }>;
   attributes?: Array<{
     name: string;
     slug: string;
@@ -166,29 +171,55 @@ export default function ProductDetailClient({
 
   useEffect(() => {
     if (productData) {
-      setProduct(productData);
+      setProduct(productData as any);
       // Set product images (main image + additional images if available)
       let images: { url: string; type: 'image' | 'video' }[] = [];
       if (productData.images && productData.images.length > 0) {
-        images = productData.images.map((img: any) => ({
-          url: img.url,
-          type: img.media_type || 'image',
-        }));
-      } else {
-        images = [{ url: productData.image_url, type: 'image' }];
+        images = productData.images
+          .filter((img: any) => img.url && img.url.trim() !== '')
+          .map((img: any) => ({
+            url: img.url,
+            type: img.media_type || 'image',
+          }));
       }
+
+      // If no valid images found, use the main imageUrl
+      if (images.length === 0 && productData.imageUrl) {
+        images = [{ url: productData.imageUrl, type: 'image' }];
+      } else if (images.length === 0 && (productData as any).image_url) {
+        images = [{ url: (productData as any).image_url, type: 'image' }];
+      }
+
+      // Final fallback if still no images
+      if (images.length === 0) {
+        images = [{ url: '/placeholder.png', type: 'image' }];
+      }
+
       setProductImages(images);
 
       // Set sizes directly from product data (no need for separate fetch)
-      if (productData.sizes) {
-        const productSizes = (productData as any).sizes.map((v: any) => ({
-          size: v.size,
-          stock: (v.stock || 0) - (v.reserved || 0),
-          allow_backorder: v.allow_backorder,
-          expected_restock_date: v.expected_restock_date,
-          sku: v.sku,
-        }));
-        setSizes(productSizes);
+      if (productData.sizes && Array.isArray(productData.sizes)) {
+        // Merge duplicates if any (defensive)
+        const uniqueSizesMap = (productData.sizes as any[]).reduce((acc: any, curr: any) => {
+          const sizeKey = String(curr.size).trim();
+          if (!acc[sizeKey]) {
+            acc[sizeKey] = {
+              size: sizeKey,
+              stock: Number(curr.stock || 0) - Number(curr.reserved || 0),
+              allow_backorder: curr.allow_backorder,
+              expected_restock_date: curr.expected_restock_date,
+              sku: curr.sku,
+            };
+          } else {
+            acc[sizeKey].stock += Number(curr.stock || 0) - Number(curr.reserved || 0);
+          }
+          return acc;
+        }, {});
+
+        const productSizes = Object.values(uniqueSizesMap).sort(
+          (a: any, b: any) => parseFloat(a.size) - parseFloat(b.size)
+        );
+        setSizes(productSizes as any);
       }
     }
   }, [productData]);
@@ -218,16 +249,20 @@ export default function ProductDetailClient({
       try {
         const viewedItem = {
           id: product.id,
-          slug: (product as any).slug || String(product.id),
+          slug: product.slug || String(product.id),
           name: product.name,
           category: product.category,
-          price: product.msrp_price || product.price,
+          price:
+            product.msrpPrice || product.msrp_price || product.priceCache || product.price || 0,
           sale_price:
-            product.price_cache && product.msrp_price && product.price_cache < product.msrp_price
-              ? product.price_cache
+            (product.priceCache || product.price_cache) &&
+            (product.msrpPrice || product.msrp_price) &&
+            (product.priceCache || product.price_cache)! <
+              (product.msrpPrice || product.msrp_price)!
+              ? product.priceCache || product.price_cache
               : undefined,
-          image_url: product.image_url,
-          is_new_arrival: product.is_new_arrival,
+          image_url: product.imageUrl || product.image_url || '/placeholder.png',
+          is_new_arrival: product.isNewArrival || product.is_new_arrival,
         };
 
         const stored = localStorage.getItem('recently_viewed');
@@ -287,12 +322,18 @@ export default function ProductDetailClient({
   const activeProduct = product || productData;
 
   // Xác định giá hiển thị
-  const displayPrice = activeProduct.msrp_price || activeProduct.price || 0;
+  const displayPrice =
+    (activeProduct as any).msrpPrice ||
+    (activeProduct as any).msrp_price ||
+    (activeProduct as any).priceCache ||
+    (activeProduct as any).price ||
+    0;
   const salePrice =
-    activeProduct.price_cache &&
-    activeProduct.msrp_price &&
-    activeProduct.price_cache < activeProduct.msrp_price
-      ? activeProduct.price_cache
+    ((activeProduct as any).priceCache || (activeProduct as any).price_cache) &&
+    ((activeProduct as any).msrpPrice || (activeProduct as any).msrp_price) &&
+    ((activeProduct as any).priceCache || (activeProduct as any).price_cache)! <
+      ((activeProduct as any).msrpPrice || (activeProduct as any).msrp_price)!
+      ? (activeProduct as any).priceCache || (activeProduct as any).price_cache
       : activeProduct.sale_price;
 
   const discountPercent =
@@ -325,10 +366,20 @@ export default function ProductDetailClient({
           slug: activeProduct.slug,
           name: activeProduct.name,
           category: activeProduct.category,
-          price: activeProduct.msrp_price || activeProduct.price,
+          price: Number(
+            (activeProduct as any).msrp_price ||
+              (activeProduct as any).msrpPrice ||
+              (activeProduct as any).price ||
+              0
+          ),
           sale_price: salePrice,
-          image_url: activeProduct.image_url,
-          is_new_arrival: activeProduct.is_new_arrival,
+          image_url:
+            (activeProduct as any).imageUrl ||
+            (activeProduct as any).image_url ||
+            '/placeholder.png',
+          is_new_arrival: !!(
+            (activeProduct as any).isNewArrival || (activeProduct as any).is_new_arrival
+          ),
         });
       }
     } catch (error) {
@@ -351,11 +402,19 @@ export default function ProductDetailClient({
         slug: activeProduct.slug,
         name: activeProduct.name,
         category: activeProduct.category,
-        price: activeProduct.msrp_price || activeProduct.price,
-        msrp_price: activeProduct.msrp_price,
+        price: Number(
+          (activeProduct as any).msrp_price ||
+            (activeProduct as any).msrpPrice ||
+            (activeProduct as any).price ||
+            0
+        ),
+        msrp_price: (activeProduct as any).msrpPrice || (activeProduct as any).msrp_price,
         sale_price: salePrice,
-        image_url: activeProduct.image_url,
-        is_new_arrival: activeProduct.is_new_arrival,
+        image_url:
+          (activeProduct as any).imageUrl || (activeProduct as any).image_url || '/placeholder.png',
+        is_new_arrival: !!(
+          (activeProduct as any).isNewArrival || (activeProduct as any).is_new_arrival
+        ),
       });
     }
   };
@@ -600,7 +659,7 @@ export default function ProductDetailClient({
               <div className="flex flex-col gap-2 w-20">
                 {productImages.map((media, index) => (
                   <button
-                    key={index}
+                    key={`${index}-${media.url}`}
                     onClick={() => setCurrentImageIndex(index)}
                     className={`relative aspect-square overflow-hidden rounded-lg bg-gray-100 border-2 transition-all ${
                       currentImageIndex === index
@@ -613,12 +672,14 @@ export default function ProductDetailClient({
                         <Video className="text-white w-6 h-6" />
                       </div>
                     ) : (
-                      <Image
-                        src={media.url}
-                        alt={`${activeProduct.name} ${index + 1}`}
-                        fill
-                        className="object-cover"
-                      />
+                      media.url && (
+                        <Image
+                          src={media.url || '/placeholder.png'}
+                          alt={`${activeProduct.name} ${index + 1}`}
+                          fill
+                          className="object-cover"
+                        />
+                      )
                     )}
                   </button>
                 ))}
@@ -640,7 +701,12 @@ export default function ProductDetailClient({
                   </div>
                 ) : (
                   <Image
-                    src={productImages[currentImageIndex]?.url || activeProduct.image_url}
+                    src={
+                      productImages[currentImageIndex]?.url ||
+                      (activeProduct as any).imageUrl ||
+                      (activeProduct as any).image_url ||
+                      '/placeholder.png'
+                    }
                     alt={activeProduct.name}
                     fill
                     className="object-cover"
@@ -649,7 +715,9 @@ export default function ProductDetailClient({
                 )}
 
                 {/* Badges */}
-                {!!activeProduct.is_new_arrival && (
+                {!!(
+                  (activeProduct as any).isNewArrival || (activeProduct as any).is_new_arrival
+                ) && (
                   <div className="absolute top-4 left-4 bg-black text-white px-3 py-1 text-sm font-medium rounded z-10">
                     {t.product.new || 'Mới'}
                   </div>
@@ -727,7 +795,7 @@ export default function ProductDetailClient({
               <div className="text-2xl font-bold">
                 {salePrice ? (
                   <div className="flex items-center space-x-3">
-                    <span className="text-red-600">{formatCurrency(salePrice)}</span>
+                    <span className="text-[#e01f3d] font-bold">{formatCurrency(salePrice)}</span>
                     <span className="text-gray-500 line-through text-lg">
                       {formatCurrency(displayPrice)}
                     </span>
@@ -751,9 +819,9 @@ export default function ProductDetailClient({
                   </button>
                 </div>
                 <div className="grid grid-cols-5 gap-2">
-                  {sizes.map((sizeObj) => (
+                  {sizes.map((sizeObj, idx) => (
                     <button
-                      key={sizeObj.size}
+                      key={`size-${sizeObj.size}-${idx}`}
                       className={`border-2 px-4 py-3 rounded-lg text-center font-medium transition-all ${
                         sizeObj.stock <= 0 && !sizeObj.allow_backorder
                           ? 'opacity-30 cursor-not-allowed border-gray-200 text-gray-400'

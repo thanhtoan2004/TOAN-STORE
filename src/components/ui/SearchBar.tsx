@@ -211,13 +211,13 @@ export default function SearchBar() {
                   <div className="flex items-center gap-2 mt-1">
                     {product.msrp_price &&
                     product.price_cache &&
-                    product.msrp_price < product.price_cache ? (
+                    product.price_cache < product.msrp_price ? (
                       <>
-                        <span className="text-sm font-semibold text-red-600">
-                          {formatPrice(product.msrp_price)}
+                        <span className="text-sm font-semibold text-[#e01f3d]">
+                          {formatPrice(product.price_cache)}
                         </span>
                         <span className="text-xs text-gray-400 line-through">
-                          {formatPrice(product.price_cache)}
+                          {formatPrice(product.msrp_price)}
                         </span>
                       </>
                     ) : (

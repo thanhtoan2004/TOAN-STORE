@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { ResponseWrapper } from './api-response';
 
 /**
  * Cấu trúc chuẩn cho phản hồi lỗi từ API.
@@ -29,27 +30,15 @@ export function createErrorResponse(
   message: string,
   status: number = 500,
   code?: string
-): NextResponse<ApiError> {
-  const error: ApiError = {
-    success: false,
-    message,
-    ...(code && { code }),
-  };
-
-  return NextResponse.json(error, { status });
+): NextResponse<any> {
+  return ResponseWrapper.error(message, status, { code });
 }
 
 /**
  * Tạo nhanh một NextResponse thành công chuẩn định dạng (Mặc định status 200).
  */
-export function createSuccessResponse<T>(data?: T, message?: string): NextResponse<ApiSuccess<T>> {
-  const response: ApiSuccess<T> = {
-    success: true,
-    ...(data !== undefined && { data }),
-    ...(message && { message }),
-  };
-
-  return NextResponse.json(response);
+export function createSuccessResponse<T>(data?: T, message?: string): NextResponse<any> {
+  return ResponseWrapper.success(data, message);
 }
 
 /**

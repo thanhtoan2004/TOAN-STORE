@@ -5,6 +5,7 @@ import { getRedisConnection } from '@/lib/redis/redis';
 import { sendEmail } from '@/lib/mail/mail';
 import crypto from 'crypto';
 import { hashEmail } from '@/lib/security/encryption';
+import { ResponseWrapper } from '@/lib/api/api-response';
 
 /**
  * API Tạo và gửi mã OTP (One-Time Password) qua Email.
@@ -19,7 +20,7 @@ export async function POST(request: NextRequest) {
     const { email, purpose } = await request.json();
 
     if (!email) {
-      return NextResponse.json({ success: false, message: 'Email is required' }, { status: 400 });
+      return ResponseWrapper.error('Email is required', 400);
     }
 
     // Verify user exists (Sử dụng Blind Index)
@@ -31,7 +32,7 @@ export async function POST(request: NextRequest) {
 
     if (users.length === 0) {
       // Don't reveal user doesn't exist
-      return NextResponse.json({ success: true, message: 'OTP sent if email exists' });
+      return ResponseWrapper.success(null, 'OTP sent if email exists');
     }
 
     const user = users[0];
@@ -89,9 +90,9 @@ export async function POST(request: NextRequest) {
       html,
     });
 
-    return NextResponse.json({ success: true, message: 'OTP sent' });
+    return ResponseWrapper.success(null, 'OTP sent');
   } catch (error) {
     console.error('2FA send error:', error);
-    return NextResponse.json({ success: false, message: 'Failed to send OTP' }, { status: 500 });
+    return ResponseWrapper.serverError('Failed to send OTP', error);
   }
 }

@@ -1,68 +1,68 @@
-import { executeQuery } from '../mysql';
+import { db } from '../drizzle';
+import { seoMetadata } from '../schema';
+import { eq, and } from 'drizzle-orm';
 
 export interface SeoMetadata {
-    id?: number;
-    entity_type: 'product' | 'category' | 'collection' | 'page';
-    entity_id: number;
-    title: string;
-    description: string;
-    keywords?: string;
-    og_image_url?: string;
-    canonical_url?: string;
-    structured_data?: any;
+  id?: number;
+  entityType: 'product' | 'category' | 'collection' | 'page';
+  entityId: number;
+  title: string;
+  description: string;
+  keywords?: string;
+  ogImageUrl?: string;
+  canonicalUrl?: string;
+  structuredData?: any;
 }
 
-export async function getSeoMetadata(entityType: string, entityId: number): Promise<SeoMetadata | null> {
-    const rows = await executeQuery<SeoMetadata[]>(
-        'SELECT * FROM seo_metadata WHERE entity_type = ? AND entity_id = ?',
-        [entityType, entityId]
-    );
-    return rows.length > 0 ? rows[0] : null;
+export async function getSeoMetadata(entityType: string, entityId: number): Promise<any | null> {
+  const [row] = await db
+    .select()
+    .from(seoMetadata)
+    .where(and(eq(seoMetadata.entityType, entityType as any), eq(seoMetadata.entityId, entityId)))
+    .limit(1);
+  return row || null;
 }
 
 export async function upsertSeoMetadata(data: SeoMetadata): Promise<boolean> {
-    const existing = await getSeoMetadata(data.entity_type, data.entity_id);
+  const existing = await getSeoMetadata(data.entityType, data.entityId);
 
-    if (existing) {
-        const result = await executeQuery<any>(
-            `UPDATE seo_metadata 
-       SET title = ?, description = ?, keywords = ?, og_image_url = ?, canonical_url = ?, structured_data = ?
-       WHERE entity_type = ? AND entity_id = ?`,
-            [
-                data.title,
-                data.description,
-                data.keywords || null,
-                data.og_image_url || null,
-                data.canonical_url || null,
-                JSON.stringify(data.structured_data || {}),
-                data.entity_type,
-                data.entity_id
-            ]
-        );
-        return result.affectedRows > 0;
-    } else {
-        const result = await executeQuery<any>(
-            `INSERT INTO seo_metadata (entity_type, entity_id, title, description, keywords, og_image_url, canonical_url, structured_data)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-            [
-                data.entity_type,
-                data.entity_id,
-                data.title,
-                data.description,
-                data.keywords || null,
-                data.og_image_url || null,
-                data.canonical_url || null,
-                JSON.stringify(data.structured_data || {})
-            ]
-        );
-        return result.insertId > 0;
-    }
+  if (existing) {
+    const [result] = await db
+      .update(seoMetadata)
+      .set({
+        title: data.title,
+        description: data.description,
+        keywords: data.keywords || null,
+        ogImageUrl: data.ogImageUrl || null,
+        canonicalUrl: data.canonicalUrl || null,
+        structuredData: data.structuredData || {},
+        updatedAt: new Date(),
+      })
+      .where(
+        and(
+          eq(seoMetadata.entityType, data.entityType as any),
+          eq(seoMetadata.entityId, data.entityId)
+        )
+      );
+    return result.affectedRows > 0;
+  } else {
+    const [result] = await db.insert(seoMetadata).values({
+      entityType: data.entityType as any,
+      entityId: data.entityId,
+      title: data.title,
+      description: data.description,
+      keywords: data.keywords || null,
+      ogImageUrl: data.ogImageUrl || null,
+      canonicalUrl: data.canonicalUrl || null,
+      structuredData: data.structuredData || {},
+    });
+    return result.insertId > 0;
+  }
 }
 
 export async function deleteSeoMetadata(entityType: string, entityId: number): Promise<boolean> {
-    const result = await executeQuery<any>(
-        'DELETE FROM seo_metadata WHERE entity_type = ? AND entity_id = ?',
-        [entityType, entityId]
-    );
-    return result.affectedRows > 0;
+  const [result] = await db
+    .delete(seoMetadata)
+    .where(and(eq(seoMetadata.entityType, entityType as any), eq(seoMetadata.entityId, entityId)));
+  return result.affectedRows > 0;
 }

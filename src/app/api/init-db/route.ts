@@ -1,6 +1,7 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { testConnection, initDb } from '@/lib/db/mysql';
 import { checkAdminAuth } from '@/lib/auth/auth';
+import { ResponseWrapper } from '@/lib/api/api-response';
 
 /**
  * API Khởi tạo cấu trúc Cơ sở dữ liệu (Database Initialization).
@@ -11,37 +12,25 @@ export async function GET() {
   try {
     // Block in production — this route should only be used during setup
     if (process.env.NODE_ENV === 'production') {
-      return NextResponse.json(
-        { success: false, message: 'Not available in production' },
-        { status: 403 }
-      );
+      return ResponseWrapper.forbidden('Not available in production');
     }
 
     const admin = await checkAdminAuth();
     if (!admin) {
-      return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
+      return ResponseWrapper.unauthorized();
     }
     // Kiểm tra kết nối database
     const connected = await testConnection();
     if (!connected) {
-      return NextResponse.json({ error: 'Không thể kết nối đến MySQL' }, { status: 500 });
+      return ResponseWrapper.error('Không thể kết nối đến MySQL', 500);
     }
 
-    // Khởi tạo bảng users
-    const initialized = await initDb();
-    if (!initialized) {
-      return NextResponse.json({ error: 'Không thể khởi tạo cơ sở dữ liệu' }, { status: 500 });
-    }
+    // Khởi tạo bảng users và các thành phần cốt lõi
+    await initDb();
 
-    return NextResponse.json({
-      success: true,
-      message: 'Cơ sở dữ liệu đã được khởi tạo thành công',
-    });
+    return ResponseWrapper.success(null, 'Cơ sở dữ liệu đã được khởi tạo thành công');
   } catch (error) {
     console.error('Lỗi khởi tạo cơ sở dữ liệu:', error);
-    return NextResponse.json(
-      { error: 'Đã xảy ra lỗi khi khởi tạo cơ sở dữ liệu' },
-      { status: 500 }
-    );
+    return ResponseWrapper.serverError('Đã xảy ra lỗi khi khởi tạo cơ sở dữ liệu', error);
   }
 }

@@ -1,44 +1,50 @@
-import { NextResponse } from 'next/server';
 import { verifyAuth } from '@/lib/auth/auth';
-import { executeQuery } from '@/lib/db/mysql';
+import { db } from '@/lib/db/drizzle';
+import { orders as ordersTable, transactions as transactionsTable } from '@/lib/db/schema';
+import { eq, and } from 'drizzle-orm';
+import { ResponseWrapper } from '@/lib/api/api-response';
 import { buildPaymentUrl } from '@/lib/payment/vnpay';
 import { withRateLimit } from '@/lib/api/with-rate-limit';
 
 /**
  * API Khởi tạo liên kết thanh toán VNPAY.
- * Bảo mật:
- * 1. Xác thực người sở hữu đơn hàng (Ownership check).
- * 2. Rate Limiting: Giới hạn tối đa 10 lần tạo link/giờ để tránh tấn công từ chối dịch vụ (DDoS) vào cổng thanh toán.
- * 3. Transactions Trace: Lưu lại vết giao dịch ở trạng thái `pending`.
  */
 async function createVNPayUrlHandler(request: Request) {
   try {
     const auth = await verifyAuth();
-    if (!auth) {
-      return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
-    }
+    if (!auth) return ResponseWrapper.unauthorized();
 
     const body = await request.json();
     const { orderId, amount } = body;
 
     if (!orderId || !amount) {
-      return NextResponse.json({ message: 'Missing required parameters' }, { status: 400 });
+      return ResponseWrapper.error('Missing required parameters', 400);
     }
 
-    const [orders]: any = await executeQuery(
-      'SELECT id, total FROM orders WHERE id = ? AND user_id = ?',
-      [orderId, auth.userId]
-    );
+    // 1. Verify Order Ownership and AMOUNT Match
+    const [order] = await db
+      .select({ id: ordersTable.id, total: ordersTable.total })
+      .from(ordersTable)
+      .where(and(eq(ordersTable.id, Number(orderId)), eq(ordersTable.userId, auth.userId)))
+      .limit(1);
 
-    if (orders.length === 0) {
-      return NextResponse.json({ message: 'Order not found' }, { status: 404 });
+    if (!order) {
+      return ResponseWrapper.error('Order not found', 404);
     }
 
-    // Create transaction record
-    await executeQuery(
-      'INSERT INTO transactions (order_id, user_id, payment_provider, amount, status) VALUES (?, ?, ?, ?, ?)',
-      [orderId, auth.userId, 'vnpay', amount, 'pending']
-    );
+    // SECURITY CHECK: Ensure client amount matches server order total
+    if (Math.round(parseFloat(amount)) !== Math.round(parseFloat(order.total))) {
+      return ResponseWrapper.error('Payment amount mismatch', 400);
+    }
+
+    // 2. Create transaction record
+    await db.insert(transactionsTable).values({
+      orderId: Number(orderId),
+      userId: auth.userId,
+      paymentProvider: 'vnpay',
+      amount: String(amount),
+      status: 'pending',
+    });
 
     const ipAddr = request.headers.get('x-forwarded-for') || '127.0.0.1';
     const paymentUrl = buildPaymentUrl(
@@ -48,10 +54,10 @@ async function createVNPayUrlHandler(request: Request) {
       ipAddr
     );
 
-    return NextResponse.json({ paymentUrl });
+    return ResponseWrapper.success({ paymentUrl });
   } catch (error: any) {
     console.error('VNPay Create URL Error:', error);
-    return NextResponse.json({ message: error.message }, { status: 500 });
+    return ResponseWrapper.serverError('Lỗi khởi tạo thanh toán', error);
   }
 }
 

@@ -1,81 +1,75 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { executeQuery } from '@/lib/db/mysql';
+import { db } from '@/lib/db/drizzle';
+import { coupons as couponsTable } from '@/lib/db/schema';
+import { eq, sql } from 'drizzle-orm';
 import { invalidateCache } from '@/lib/redis/cache';
 import { checkAdminAuth } from '@/lib/auth/auth';
+import { logAdminAction } from '@/lib/db/repositories/audit';
+import { ResponseWrapper } from '@/lib/api/api-response';
 
-// PUT - Cập nhật coupon theo ID
 /**
- * API Cập nhật mã giảm giá (Partial Update).
- * Tự động xóa cache danh sách ưu đãi công khai sau khi thay đổi.
+ * PUT - Cập nhật mã giảm giá (Partial Update).
+ * Quy trình:
+ * 1. Xác thực quyền Admin.
+ * 2. Map dữ liệu từ Request (Snake case) sang Database (Camel case).
+ * 3. Cập nhật bản ghi trong Database.
+ * 4. Xóa Cache Redis liên quan để đảm bảo tính nhất quán.
+ * 5. Ghi log Audit cho hành động quản trị.
  */
 export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const admin = await checkAdminAuth();
     if (!admin) {
-      return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
+      return ResponseWrapper.unauthorized();
     }
 
-    const { id } = await params;
-    if (!id) {
-      return NextResponse.json(
-        { success: false, message: 'Thiếu ID mã giảm giá' },
-        { status: 400 }
-      );
-    }
+    const { id: paramId } = await params;
+    const id = Number(paramId);
 
     const body = await request.json();
-    const updates = body;
+    const updateData: any = {};
 
-    // Build update query dynamically
-    const allowedFields = [
-      'description',
-      'discount_type',
-      'discount_value',
-      'min_order_amount',
-      'max_discount_amount',
-      'starts_at',
-      'ends_at',
-      'usage_limit',
-      'usage_limit_per_user',
-    ];
+    const fieldMap: Record<string, string> = {
+      description: 'description',
+      discount_type: 'discountType',
+      discount_value: 'discountValue',
+      min_order_amount: 'minOrderAmount',
+      max_discount_amount: 'maxDiscountAmount',
+      starts_at: 'startsAt',
+      ends_at: 'endsAt',
+      usage_limit: 'usageLimit',
+      usage_limit_per_user: 'usageLimitPerUser',
+    };
 
-    const updateFields: string[] = [];
-    const updateValues: any[] = [];
-
-    Object.keys(updates).forEach((key) => {
-      if (allowedFields.includes(key)) {
-        updateFields.push(`${key} = ?`);
-        updateValues.push(updates[key]);
+    Object.keys(body).forEach((key) => {
+      if (fieldMap[key]) {
+        updateData[fieldMap[key]] = body[key];
       }
     });
 
-    if (updateFields.length === 0) {
-      return NextResponse.json(
-        { success: false, message: 'Không có trường nào để cập nhật' },
-        { status: 400 }
-      );
+    if (Object.keys(updateData).length === 0) {
+      return ResponseWrapper.error('Không có trường nào để cập nhật', 400);
     }
 
-    updateValues.push(id);
+    await db.update(couponsTable).set(updateData).where(eq(couponsTable.id, id));
 
-    await executeQuery(`UPDATE coupons SET ${updateFields.join(', ')} WHERE id = ?`, updateValues);
-
-    // Invalidate cache
     await invalidateCache('promo-codes:available');
 
-    return NextResponse.json({
-      success: true,
-      message: 'Cập nhật mã giảm giá thành công',
-    });
+    await logAdminAction(admin.userId, 'UPDATE_COUPON', 'coupons', id, null, updateData, request);
+
+    return ResponseWrapper.success(null, 'Cập nhật mã giảm giá thành công');
   } catch (error) {
     console.error('Error updating coupon:', error);
-    return NextResponse.json({ success: false, message: 'Lỗi server nội bộ' }, { status: 500 });
+    return ResponseWrapper.serverError('Lỗi server nội bộ', error);
   }
 }
 
-// DELETE - Xóa coupon theo ID
 /**
- * API Xóa mã giảm giá (Soft Delete).
+ * DELETE - Xóa mã giảm giá (Soft Delete).
+ * Bảo mật: Yêu cầu quyền Admin.
+ * Tác dụng:
+ * - Đánh dấu `deletedAt` cho coupon thay vì xóa vật lý.
+ * - Invalidate cache để loại bỏ mã khỏi UI người dùng ngay lập tức.
  */
 export async function DELETE(
   request: NextRequest,
@@ -84,29 +78,29 @@ export async function DELETE(
   try {
     const admin = await checkAdminAuth();
     if (!admin) {
-      return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
+      return ResponseWrapper.unauthorized();
     }
 
-    const { id } = await params;
-    if (!id) {
-      return NextResponse.json(
-        { success: false, message: 'Thiếu ID mã giảm giá' },
-        { status: 400 }
-      );
-    }
+    const { id: paramId } = await params;
+    const id = Number(paramId);
 
-    // Soft delete
-    await executeQuery('UPDATE coupons SET deleted_at = CURRENT_TIMESTAMP WHERE id = ?', [id]);
+    await db.update(couponsTable).set({ deletedAt: new Date() }).where(eq(couponsTable.id, id));
 
-    // Invalidate cache
     await invalidateCache('promo-codes:available');
 
-    return NextResponse.json({
-      success: true,
-      message: 'Xóa mã giảm giá thành công',
-    });
+    await logAdminAction(
+      admin.userId,
+      'DELETE_COUPON',
+      'coupons',
+      id,
+      null,
+      { deleted: true },
+      request
+    );
+
+    return ResponseWrapper.success(null, 'Xóa mã giảm giá thành công');
   } catch (error) {
     console.error('Error deleting coupon:', error);
-    return NextResponse.json({ success: false, message: 'Lỗi server nội bộ' }, { status: 500 });
+    return ResponseWrapper.serverError('Lỗi server nội bộ', error);
   }
 }

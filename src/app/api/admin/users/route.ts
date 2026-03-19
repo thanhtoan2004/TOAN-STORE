@@ -3,10 +3,10 @@ import { checkAdminAuth } from '@/lib/auth/auth';
 import { encrypt, decrypt } from '@/lib/security/encryption';
 import { db } from '@/lib/db/drizzle';
 import { users as usersSchema } from '@/lib/db/schema';
-import { eq, and, sql, desc, count } from 'drizzle-orm';
+import { eq, and, or, like, sql, desc, count } from 'drizzle-orm';
 import { ResponseWrapper } from '@/lib/api/api-response';
 import { logger } from '@/lib/utils/logger';
-import { logAdminAction } from '@/lib/security/audit';
+import { logAdminAction } from '@/lib/db/repositories/audit';
 
 // GET - Lấy danh sách users (Admin)
 /**
@@ -29,9 +29,17 @@ export async function GET(request: NextRequest) {
     const filters = [sql`${usersSchema.deletedAt} IS NULL`];
 
     if (search) {
-      filters.push(
-        sql`(${usersSchema.email} LIKE ${`%%${search}%%`} OR CONCAT(${usersSchema.firstName}, ' ', ${usersSchema.lastName}) LIKE ${`%%${search}%%`} OR ${usersSchema.phone} LIKE ${`%%${search}%%`})`
-      );
+      const searchConditions = [
+        like(usersSchema.firstName, `%${search}%`),
+        like(usersSchema.lastName, `%${search}%`),
+      ];
+
+      if (search.includes('@')) {
+        const { hashEmail } = await import('@/lib/security/encryption');
+        searchConditions.push(eq(usersSchema.emailHash, hashEmail(search)));
+      }
+
+      filters.push(or(...searchConditions)!);
     }
 
     const data = await db
@@ -40,12 +48,23 @@ export async function GET(request: NextRequest) {
         email: usersSchema.email,
         firstName: usersSchema.firstName,
         lastName: usersSchema.lastName,
+        first_name: usersSchema.firstName,
+        last_name: usersSchema.lastName,
         phone: usersSchema.phone,
         isActive: usersSchema.isActive,
+        is_active: usersSchema.isActive,
         isVerified: usersSchema.isVerified,
+        is_verified: usersSchema.isVerified,
         isBanned: usersSchema.isBanned,
+        is_banned: usersSchema.isBanned,
+        membershipTier: usersSchema.membershipTier,
+        membership_tier: usersSchema.membershipTier,
+        avatarUrl: usersSchema.avatarUrl,
+        avatar_url: usersSchema.avatarUrl,
         createdAt: usersSchema.createdAt,
+        created_at: usersSchema.createdAt,
         updatedAt: usersSchema.updatedAt,
+        updated_at: usersSchema.updatedAt,
       })
       .from(usersSchema)
       .where(and(...filters))
@@ -97,28 +116,45 @@ export async function PUT(request: NextRequest) {
     // Filter updates
     const allowedFields = [
       'firstName',
+      'first_name',
       'lastName',
+      'last_name',
       'phone',
       'isActive',
+      'is_active',
       'isVerified',
+      'is_verified',
       'isBanned',
+      'is_banned',
       'membershipTier',
+      'membership_tier',
     ];
 
     const filteredUpdates: any = {};
     let shouldRevokeTokens = false;
 
+    const mapping: any = {
+      first_name: 'firstName',
+      last_name: 'lastName',
+      is_active: 'isActive',
+      is_verified: 'isVerified',
+      is_banned: 'isBanned',
+      membership_tier: 'membershipTier',
+    };
+
     Object.keys(updates).forEach((key) => {
       if (allowedFields.includes(key)) {
-        if (key === 'phone') {
+        const targetKey = mapping[key] || key;
+
+        if (targetKey === 'phone') {
           filteredUpdates.phone = '***';
           filteredUpdates.phoneEncrypted = encrypt(updates[key]);
           filteredUpdates.isEncrypted = 1;
         } else {
-          filteredUpdates[key] = updates[key];
+          filteredUpdates[targetKey] = updates[key];
         }
 
-        if (key === 'isActive' || key === 'isBanned') {
+        if (targetKey === 'isActive' || targetKey === 'isBanned') {
           shouldRevokeTokens = true;
         }
       }

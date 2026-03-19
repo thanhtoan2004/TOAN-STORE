@@ -1,60 +1,70 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { executeQuery } from '@/lib/db/mysql';
+import { db } from '@/lib/db/drizzle';
+import { warehouses as warehousesTable } from '@/lib/db/schema';
+import { asc } from 'drizzle-orm';
 import { checkAdminAuth } from '@/lib/auth/auth';
+import { logAdminAction } from '@/lib/db/repositories/audit';
+import { ResponseWrapper } from '@/lib/api/api-response';
 
-// GET /api/admin/warehouses - List all warehouses
 /**
- * API Lấy danh sách toàn bộ các kho hàng (Warehouses).
+ * GET /api/admin/warehouses - List all warehouses
  */
 export async function GET(request: NextRequest) {
   try {
     const admin = await checkAdminAuth();
     if (!admin) {
-      return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
+      return ResponseWrapper.unauthorized();
     }
 
-    const warehouses = await executeQuery<any[]>('SELECT * FROM warehouses ORDER BY id ASC');
+    const warehouses = await db.select().from(warehousesTable).orderBy(asc(warehousesTable.id));
 
-    return NextResponse.json({
-      success: true,
-      data: warehouses,
-    });
+    return ResponseWrapper.success(warehouses);
   } catch (error) {
     console.error('Error fetching warehouses:', error);
-    return NextResponse.json({ success: false, message: 'Lỗi server nội bộ' }, { status: 500 });
+    return ResponseWrapper.serverError('Lỗi server nội bộ', error);
   }
 }
 
-// POST /api/admin/warehouses - Create new warehouse
 /**
- * API Thêm mới kho hàng vào hệ thống.
+ * POST /api/admin/warehouses - Create new warehouse
  */
 export async function POST(request: NextRequest) {
   try {
     const admin = await checkAdminAuth();
     if (!admin) {
-      return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
+      return ResponseWrapper.unauthorized();
     }
 
     const body = await request.json();
     const { name, location } = body;
 
     if (!name) {
-      return NextResponse.json({ success: false, message: 'Tên kho là bắt buộc' }, { status: 400 });
+      return ResponseWrapper.error('Tên kho là bắt buộc', 400);
     }
 
-    const result = (await executeQuery('INSERT INTO warehouses (name, location) VALUES (?, ?)', [
+    const [result] = await db.insert(warehousesTable).values({
       name,
-      location || '',
-    ])) as any;
-
-    return NextResponse.json({
-      success: true,
-      data: { id: result.insertId, name, location },
-      message: 'Thêm kho thành công',
+      address: location || null,
     });
+    const insertId = Number(result.insertId);
+
+    await logAdminAction(
+      admin.userId,
+      'CREATE_WAREHOUSE',
+      'warehouses',
+      insertId,
+      null,
+      { name, location },
+      request
+    );
+
+    return ResponseWrapper.success(
+      { id: insertId, name, address: location },
+      'Thêm kho thành công',
+      201
+    );
   } catch (error) {
     console.error('Error creating warehouse:', error);
-    return NextResponse.json({ success: false, message: 'Lỗi server nội bộ' }, { status: 500 });
+    return ResponseWrapper.serverError('Lỗi server nội bộ', error);
   }
 }

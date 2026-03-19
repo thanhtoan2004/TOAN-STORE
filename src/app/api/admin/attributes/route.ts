@@ -1,23 +1,36 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
+import { db } from '@/lib/db/drizzle';
+import { attributes as attributesTable } from '@/lib/db/schema';
 import { checkAdminAuth } from '@/lib/auth/auth';
-import { getAllAttributes } from '@/lib/db/repositories/attribute';
-import { executeQuery } from '@/lib/db/mysql';
+import { eq, and, asc } from 'drizzle-orm';
+import { ResponseWrapper } from '@/lib/api/api-response';
 
 /**
  * API Lấy danh sách toàn bộ thuộc tính sản phẩm (Size, Color, Material, v.v.).
  */
 export async function GET() {
-  const admin = await checkAdminAuth();
-  if (!admin) {
-    return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
-  }
-
   try {
-    const attributes = await getAllAttributes();
-    return NextResponse.json({ success: true, attributes });
+    const admin = await checkAdminAuth();
+    if (!admin) {
+      return ResponseWrapper.unauthorized();
+    }
+
+    const attributes = await db
+      .select({
+        id: attributesTable.id,
+        name: attributesTable.name,
+        slug: attributesTable.slug,
+        type: attributesTable.type,
+        is_filterable: attributesTable.isFilterable,
+        created_at: attributesTable.createdAt,
+      })
+      .from(attributesTable)
+      .orderBy(asc(attributesTable.name));
+
+    return ResponseWrapper.success(attributes);
   } catch (error) {
     console.error('Attributes Get Error:', error);
-    return NextResponse.json({ success: false, message: 'Server error' }, { status: 500 });
+    return ResponseWrapper.serverError('Server error', error);
   }
 }
 
@@ -25,20 +38,24 @@ export async function GET() {
  * API Tạo mới một loại thuộc tính.
  */
 export async function POST(request: Request) {
-  const admin = await checkAdminAuth();
-  if (!admin) {
-    return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
-  }
-
   try {
+    const admin = await checkAdminAuth();
+    if (!admin) {
+      return ResponseWrapper.unauthorized();
+    }
+
     const { name, slug, type, is_filterable } = await request.json();
-    const result = await executeQuery<any>(
-      'INSERT INTO attributes (name, slug, type, is_filterable) VALUES (?, ?, ?, ?)',
-      [name, slug, type, is_filterable ? 1 : 0]
-    );
-    return NextResponse.json({ success: true, id: result.insertId });
+
+    const [result] = await db.insert(attributesTable).values({
+      name,
+      slug,
+      type,
+      isFilterable: is_filterable ? 1 : 0,
+    });
+
+    return ResponseWrapper.success({ id: result.insertId }, 'Attribute created successfully', 201);
   } catch (error) {
     console.error('Attribute Create Error:', error);
-    return NextResponse.json({ success: false, message: 'Server error' }, { status: 500 });
+    return ResponseWrapper.serverError('Server error', error);
   }
 }

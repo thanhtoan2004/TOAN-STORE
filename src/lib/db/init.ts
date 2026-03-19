@@ -315,11 +315,14 @@ export async function initDb() {
       CREATE TABLE IF NOT EXISTS inventory_logs (
         id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
         inventory_id BIGINT UNSIGNED NOT NULL,
+        admin_id BIGINT UNSIGNED NULL,
         quantity_change INT NOT NULL,
         reason VARCHAR(255),
         reference_id VARCHAR(100),
+        notes TEXT NULL,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (inventory_id) REFERENCES inventory(id) ON DELETE CASCADE
+        FOREIGN KEY (inventory_id) REFERENCES inventory(id) ON DELETE CASCADE,
+        FOREIGN KEY (admin_id) REFERENCES admin_users(id) ON DELETE SET NULL
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
     `);
 
@@ -764,15 +767,30 @@ export async function initDb() {
         id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
         username VARCHAR(100) NOT NULL UNIQUE,
         email VARCHAR(255) NOT NULL UNIQUE,
+        email_hash VARCHAR(64) UNIQUE,
+        email_encrypted TEXT,
+        is_encrypted TINYINT(1) DEFAULT 0,
         password VARCHAR(255) NOT NULL,
         full_name VARCHAR(255),
-        role_id BIGINT UNSIGNED,
+        bio TEXT,
+        avatar_url VARCHAR(1000),
+        social_links JSON,
         is_active TINYINT(1) DEFAULT 1,
         last_login TIMESTAMP NULL,
+        role_id BIGINT UNSIGNED,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        deleted_at TIMESTAMP NULL DEFAULT NULL,
+        failed_login_attempts INT DEFAULT 0,
+        lockout_until TIMESTAMP NULL,
+        two_factor_secret TEXT,
+        two_factor_enabled TINYINT(1) DEFAULT 0,
+        two_factor_type VARCHAR(20) DEFAULT 'email',
+        two_factor_backup_codes JSON,
         INDEX idx_username (username),
-        INDEX idx_email (email)
+        INDEX idx_email (email),
+        INDEX idx_admin_email_hash (email_hash),
+        INDEX idx_admin_role (role_id)
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
     `);
 
@@ -1135,11 +1153,26 @@ export async function initDb() {
       ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4
         `);
 
-    // Migration: Thêm bio, avatar_url cho admin_users (Author Profile)
+    // Migration: Thêm bio, security, 2FA cho admin_users
     try {
       const [columns]: any = await connection.query('SHOW COLUMNS FROM admin_users');
       const columnNames = columns.map((col: any) => col.Field);
 
+      if (!columnNames.includes('email_hash')) {
+        await connection.query(
+          'ALTER TABLE admin_users ADD COLUMN email_hash VARCHAR(64) UNIQUE AFTER email'
+        );
+      }
+      if (!columnNames.includes('email_encrypted')) {
+        await connection.query(
+          'ALTER TABLE admin_users ADD COLUMN email_encrypted TEXT AFTER email_hash'
+        );
+      }
+      if (!columnNames.includes('is_encrypted')) {
+        await connection.query(
+          'ALTER TABLE admin_users ADD COLUMN is_encrypted TINYINT(1) DEFAULT 0 AFTER email_encrypted'
+        );
+      }
       if (!columnNames.includes('bio')) {
         await connection.query('ALTER TABLE admin_users ADD COLUMN bio TEXT AFTER full_name');
       }
@@ -1153,8 +1186,40 @@ export async function initDb() {
           'ALTER TABLE admin_users ADD COLUMN social_links JSON AFTER avatar_url'
         );
       }
+      if (!columnNames.includes('deleted_at')) {
+        await connection.query(
+          'ALTER TABLE admin_users ADD COLUMN deleted_at TIMESTAMP NULL DEFAULT NULL AFTER updated_at'
+        );
+        await connection.query(
+          'ALTER TABLE admin_users ADD INDEX idx_admin_deleted_at (deleted_at)'
+        );
+      }
+      if (!columnNames.includes('failed_login_attempts')) {
+        await connection.query(
+          'ALTER TABLE admin_users ADD COLUMN failed_login_attempts INT DEFAULT 0'
+        );
+      }
+      if (!columnNames.includes('lockout_until')) {
+        await connection.query('ALTER TABLE admin_users ADD COLUMN lockout_until TIMESTAMP NULL');
+      }
+      if (!columnNames.includes('two_factor_secret')) {
+        await connection.query('ALTER TABLE admin_users ADD COLUMN two_factor_secret TEXT');
+      }
+      if (!columnNames.includes('two_factor_enabled')) {
+        await connection.query(
+          'ALTER TABLE admin_users ADD COLUMN two_factor_enabled TINYINT(1) DEFAULT 0'
+        );
+      }
+      if (!columnNames.includes('two_factor_type')) {
+        await connection.query(
+          "ALTER TABLE admin_users ADD COLUMN two_factor_type VARCHAR(20) DEFAULT 'email'"
+        );
+      }
+      if (!columnNames.includes('two_factor_backup_codes')) {
+        await connection.query('ALTER TABLE admin_users ADD COLUMN two_factor_backup_codes JSON');
+      }
     } catch (e) {
-      console.log('Error migrating admin_users for author profile:', e);
+      console.log('Error migrating admin_users table:', e);
     }
 
     // Tạo bảng gift_card_transactions
@@ -1826,6 +1891,36 @@ export async function initDb() {
     } catch (e) {
       /* already exists */
     }
+
+    // 8. Create shipments and shipment_items tables
+    await connection.query(`
+      CREATE TABLE IF NOT EXISTS shipments (
+        id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+        order_id BIGINT UNSIGNED NOT NULL,
+        warehouse_id BIGINT UNSIGNED NULL,
+        tracking_number VARCHAR(100),
+        carrier VARCHAR(100),
+        status VARCHAR(50) DEFAULT 'preparing',
+        estimated_delivery TIMESTAMP NULL,
+        shipped_at TIMESTAMP NULL,
+        delivered_at TIMESTAMP NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE,
+        INDEX idx_order_id (order_id)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    `);
+
+    await connection.query(`
+      CREATE TABLE IF NOT EXISTS shipment_items (
+        id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+        shipment_id BIGINT UNSIGNED NOT NULL,
+        order_item_id BIGINT UNSIGNED NOT NULL,
+        quantity INT NOT NULL,
+        FOREIGN KEY (shipment_id) REFERENCES shipments(id) ON DELETE CASCADE,
+        FOREIGN KEY (order_item_id) REFERENCES order_items(id) ON DELETE CASCADE
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    `);
 
     await connection.commit();
     console.log('Database initialized successfully with security hardening.');

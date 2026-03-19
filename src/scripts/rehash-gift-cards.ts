@@ -1,4 +1,6 @@
-import { pool } from '../lib/db/connection';
+import { db } from '../lib/db/drizzle';
+import { giftCards } from '../lib/db/schema';
+import { eq, sql, and, like } from 'drizzle-orm';
 import { createHash } from 'crypto';
 import dotenv from 'dotenv';
 import path from 'path';
@@ -8,7 +10,6 @@ dotenv.config({ path: path.resolve(process.cwd(), '.env') });
 const PEPPER = process.env.GIFT_CARD_PEPPER || 'toan-store-gift-card-secure-pepper-2026-v1-!@#$';
 
 async function rehashGiftCards() {
-  const connection = await pool.getConnection();
   try {
     console.log('--- Starting Gift Card Rehash (SEC-02) ---');
 
@@ -21,29 +22,29 @@ async function rehashGiftCards() {
       '7654': '8877665544332211', // Sample
     };
 
-    const [cards]: any = await connection.execute(
-      'SELECT id, card_number_last4, card_number_hash FROM gift_cards'
-    );
+    const cards = await db
+      .select({
+        id: giftCards.id,
+        cardNumberLast4: giftCards.cardNumberLast4,
+        cardNumberHash: giftCards.cardNumberHash,
+      })
+      .from(giftCards)
+      .where(like(giftCards.cardNumberHash, 'REPLACE_WITH_SHA2_HASH%'));
 
     for (const card of cards) {
-      if (card.card_number_hash.startsWith('REPLACE_WITH_SHA2_HASH')) {
-        const rawNumber = cardMappings[card.card_number_last4];
-        if (rawNumber) {
-          const hash = createHash('sha256')
-            .update(rawNumber + PEPPER)
-            .digest('hex');
-          await connection.execute('UPDATE gift_cards SET card_number_hash = ? WHERE id = ?', [
-            hash,
-            card.id,
-          ]);
-          console.log(`[OK] Rehashed card ID ${card.id} (ending in ${card.card_number_last4})`);
-        } else {
-          console.warn(
-            `[WARN] No raw number mapping found for card ID ${card.id} (last4: ${card.card_number_last4})`
-          );
-        }
+      const rawNumber = cardMappings[card.cardNumberLast4];
+      if (rawNumber) {
+        const hash = createHash('sha256')
+          .update(rawNumber + PEPPER)
+          .digest('hex');
+
+        await db.update(giftCards).set({ cardNumberHash: hash }).where(eq(giftCards.id, card.id));
+
+        console.log(`[OK] Rehashed card ID ${card.id} (ending in ${card.cardNumberLast4})`);
       } else {
-        console.log(`[SKIP] Card ID ${card.id} already hashed or not a placeholder.`);
+        console.warn(
+          `[WARN] No raw number mapping found for card ID ${card.id} (last4: ${card.cardNumberLast4})`
+        );
       }
     }
 
@@ -51,7 +52,6 @@ async function rehashGiftCards() {
   } catch (error) {
     console.error('Error during rehashing:', error);
   } finally {
-    connection.release();
     process.exit(0);
   }
 }

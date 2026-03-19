@@ -2,8 +2,15 @@ import { NextRequest, NextResponse } from 'next/server';
 import { executeQuery, transaction } from '@/lib/db/mysql';
 import { verifyAuth } from '@/lib/auth/auth';
 import { createNotification } from '@/lib/notifications/notifications';
+import { ResponseWrapper } from '@/lib/api/api-response';
 
-// POST - Toggle like/unlike a comment
+/**
+ * API Bật/Tắt Lượt thích (Like/Unlike) cho bình luận tin tức.
+ * Quy trình:
+ * 1. Xác thực người dùng.
+ * 2. Sử dụng Database Transaction để đảm bảo tính nhất quán giữa bảng `news_comment_likes` và `news_comments`.
+ * 3. Nếu Like, tạo thông báo (Notification) cho chủ sở hữu bình luận.
+ */
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ slug: string }> }
@@ -11,14 +18,14 @@ export async function POST(
   try {
     const session = await verifyAuth();
     if (!session) {
-      return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
+      return ResponseWrapper.unauthorized();
     }
 
     const { commentId } = await request.json();
     const userId = Number(session.userId);
 
     if (!commentId) {
-      return NextResponse.json({ success: false, message: 'Missing commentId' }, { status: 400 });
+      return ResponseWrapper.error('Missing commentId', 400);
     }
 
     const result = await transaction(async (connection) => {
@@ -95,13 +102,12 @@ export async function POST(
       }
     }
 
-    return NextResponse.json({
-      success: true,
+    return ResponseWrapper.success({
       liked: result.liked,
       likesCount: result.likesCount,
     });
   } catch (error) {
     console.error('Error toggling comment like:', error);
-    return NextResponse.json({ success: false, message: 'Internal Server Error' }, { status: 500 });
+    return ResponseWrapper.serverError('Internal Server Error', error);
   }
 }

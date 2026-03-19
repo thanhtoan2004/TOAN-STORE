@@ -1,182 +1,200 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { executeQuery, cancelOrder, getOrderById } from '@/lib/db/mysql';
+import { db } from '@/lib/db/drizzle';
+import { orders as ordersTable, users, userAddresses } from '@/lib/db/schema';
+import { eq, and } from 'drizzle-orm';
 import { checkAdminAuth } from '@/lib/auth/auth';
-import {
-  sendDeliveryConfirmationEmail,
-  sendOrderCancelledEmail,
-  sendShippingNotificationEmail,
-} from '@/lib/mail/email-templates';
+import { sendOrderCancelledEmail } from '@/lib/mail/email-templates';
 import { getShipmentsByOrderId } from '@/lib/db/repositories/shipment';
 import { decrypt } from '@/lib/security/encryption';
-import { createAuditLog } from '@/lib/db/repositories/audit';
+import { logAdminAction } from '@/lib/db/repositories/audit';
 import { createNotification } from '@/lib/notifications/notifications';
+import { getOrderById, cancelOrder, updateOrderStatus } from '@/lib/db/repositories/order';
+import { ResponseWrapper } from '@/lib/api/api-response';
 
-// GET - Lấy chi tiết đơn hàng (Admin)
 /**
- * API Lấy chi tiết một đơn hàng kèm theo lịch sử lô hàng (Shipments).
+ * GET - Lấy chi tiết đơn hàng (Admin).
+ * Chức năng:
+ * - Truy vấn thông tin đơn hàng bao gồm: Sản phẩm, Khách hàng, Thanh toán.
+ * - Tích hợp danh sách các lô hàng (Shipments) liên quan.
+ * Bảo mật: Yêu cầu quyền Admin.
  */
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const admin = await checkAdminAuth();
     if (!admin) {
-      return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
+      return ResponseWrapper.unauthorized();
     }
 
-    const { id } = await params;
-    const orderId = parseInt(id);
+    const { id: idStr } = await params;
+    const id = parseInt(idStr);
 
-    if (isNaN(orderId)) {
-      return NextResponse.json({ success: false, message: 'Invalid Order ID' }, { status: 400 });
+    if (isNaN(id)) {
+      return ResponseWrapper.error('ID đơn hàng không hợp lệ', 400);
     }
 
-    const order = await getOrderById(orderId);
+    const order = await getOrderById(id);
 
     if (!order) {
-      return NextResponse.json({ success: false, message: 'Order not found' }, { status: 404 });
+      return ResponseWrapper.notFound('Không tìm thấy đơn hàng');
     }
 
     // Lấy danh sách lô hàng (shipments)
-    const shipments = await getShipmentsByOrderId(orderId);
+    const shipments = await getShipmentsByOrderId(id);
 
-    return NextResponse.json({
-      success: true,
-      data: {
-        ...order,
-        shipments,
-      },
-    });
+    const result = {
+      ...order,
+      shipments,
+    };
+
+    return ResponseWrapper.success(result);
   } catch (error) {
     console.error('Error fetching order detail:', error);
-    return NextResponse.json({ success: false, message: 'Internal server error' }, { status: 500 });
+    return ResponseWrapper.serverError('Lỗi server nội bộ', error);
   }
 }
 
-// PATCH - Cập nhật trạng thái đơn hàng (Admin)
 /**
- * API Cập nhật trạng thái đơn hàng (Order State Machine).
- * Luồng xử lý:
- * 1. Kiểm tra tính hợp lệ của bước chuyển trạng thái (Ví dụ: Không thể quay lại từ Delivered về Processing).
- * 2. Cập nhật DB & Ghi log Audit.
- * 3. Tự động gửi Email thông báo (Giao hàng, Hoàn tất, Hủy đơn) cho khách hàng.
- * 4. Nếu Hủy đơn: Tự động hoàn trả (Restock) số lượng sản phẩm về kho.
+ * PATCH - Cập nhật trạng thái đơn hàng (Admin).
+ * Quy trình:
+ * 1. Kiểm tra quyền Admin.
+ * 2. Xác thực trạng thái chuyển đổi (State Transition Validation) - Không cho phép quay lại trạng thái cũ hoặc sửa đơn đã hủy/giao.
+ * 3. Cập nhật Database.
+ * 4. Tự động gửi Email thông báo (nếu là Hủy đơn).
+ * 5. Tự động đẩy thông báo Push (Bell Notification) cho User.
+ * 6. Lưu Audit Log cho hành động của Admin.
  */
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const admin = await checkAdminAuth();
     if (!admin) {
-      return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
+      return ResponseWrapper.unauthorized();
     }
 
-    const { id } = await params;
-    const body = await request.json();
-    const { status } = body;
+    const { id: idStr } = await params;
+    const id = parseInt(idStr);
 
-    if (!id) {
-      return NextResponse.json(
-        { success: false, message: 'Order ID is required' },
-        { status: 400 }
+    if (isNaN(id)) {
+      return ResponseWrapper.error('ID đơn hàng không hợp lệ', 400);
+    }
+
+    let body;
+    try {
+      body = await request.json();
+    } catch {
+      return ResponseWrapper.error(
+        'Yêu cầu không hợp lệ: Thiếu dữ liệu hoặc JSON sai định dạng',
+        400
       );
     }
+    const { status } = body;
 
     // Validate status
-    const validStatuses = ['pending', 'processing', 'shipped', 'delivered', 'cancelled'];
+    const validStatuses = [
+      'pending',
+      'pending_payment_confirmation',
+      'payment_received',
+      'confirmed',
+      'processing',
+      'shipped',
+      'delivered',
+      'cancelled',
+    ];
     if (!status || !validStatuses.includes(status)) {
-      return NextResponse.json({ success: false, message: 'Invalid status' }, { status: 400 });
+      return ResponseWrapper.error('Trạng thái không hợp lệ', 400);
     }
 
     // Get current order status and User info for Email
-    const orders = (await executeQuery(
-      `SELECT o.status, o.order_number, o.user_id, o.email as order_email, o.phone as order_phone, 
-                    u.email as user_email, u.full_name as user_name, ua.recipient_name, o.tracking_number, o.carrier 
-             FROM orders o
-             LEFT JOIN users u ON o.user_id = u.id
-             LEFT JOIN user_addresses ua ON o.shipping_address_id = ua.id
-             WHERE o.id = ?`,
-      [parseInt(id)]
-    )) as any[];
+    const [order] = await db
+      .select({
+        id: ordersTable.id,
+        status: ordersTable.status,
+        orderNumber: ordersTable.orderNumber,
+        userId: ordersTable.userId,
+        orderEmail: ordersTable.email,
+        orderPhone: ordersTable.phone,
+        userEmail: users.email,
+        userName: users.fullName,
+        trackingNumber: ordersTable.trackingNumber,
+        carrier: ordersTable.carrier,
+        shippingAddressSnapshot: ordersTable.shippingAddressSnapshot,
+      })
+      .from(ordersTable)
+      .leftJoin(users, eq(ordersTable.userId, users.id))
+      .where(eq(ordersTable.id, id))
+      .limit(1);
 
-    if (orders.length === 0) {
-      return NextResponse.json({ success: false, message: 'Order not found' }, { status: 404 });
+    if (!order) {
+      return ResponseWrapper.notFound('Không tìm thấy đơn hàng');
     }
 
-    const order = orders[0];
-
-    // Decrypt email for notifications. Prefer encrypted order_email, fallback to user_email
-    const rawEmail = order.order_email || order.user_email;
+    // Decrypt email for notifications. Prefer encrypted orderEmail, fallback to userEmail
+    const rawEmail = order.orderEmail || order.userEmail;
     const targetEmail = rawEmail ? decrypt(rawEmail) : null;
-    const targetName = order.user_name || order.recipient_name || 'Khách hàng';
+
+    // Extract recipient name from snapshot if available
+    let recipientName = 'Khách hàng';
+    if (order.shippingAddressSnapshot) {
+      try {
+        const snapshot =
+          typeof order.shippingAddressSnapshot === 'string'
+            ? JSON.parse(order.shippingAddressSnapshot)
+            : order.shippingAddressSnapshot;
+        recipientName = snapshot.recipientName || snapshot.fullName || 'Khách hàng';
+      } catch (e) {}
+    }
+
+    const targetName = order.userName || recipientName;
 
     const currentStatus = order.status;
 
     // Validate state transitions
     if (currentStatus === 'cancelled') {
-      return NextResponse.json(
-        { success: false, message: 'Đơn hàng đã hủy không thể thay đổi trạng thái' },
-        { status: 400 }
-      );
+      return ResponseWrapper.error('Đơn hàng đã hủy không thể thay đổi trạng thái', 400);
     }
 
     if (currentStatus === 'delivered') {
-      return NextResponse.json(
-        { success: false, message: 'Đơn hàng đã giao không thể thay đổi trạng thái' },
-        { status: 400 }
-      );
+      return ResponseWrapper.error('Đơn hàng đã giao không thể thay đổi trạng thái', 400);
     }
 
     const statusOrder: { [key: string]: number } = {
       pending: 1,
-      processing: 2,
-      shipped: 3,
-      delivered: 4,
+      pending_payment_confirmation: 2,
+      payment_received: 3,
+      confirmed: 4,
+      processing: 5,
+      shipped: 6,
+      delivered: 7,
       cancelled: 0,
     };
-    if (status !== 'cancelled' && statusOrder[status] < statusOrder[currentStatus]) {
-      return NextResponse.json(
-        { success: false, message: 'Không thể quay về trạng thái trước đó' },
-        { status: 400 }
-      );
+
+    if (status !== 'cancelled' && statusOrder[status] < statusOrder[currentStatus as string]) {
+      return ResponseWrapper.error('Không thể quay về trạng thái trước đó', 400);
     }
 
     // Update order status
     if (status === 'cancelled') {
-      await cancelOrder(order.order_number, true); // true = force (admin)
+      await cancelOrder(order.orderNumber, true); // true = force (admin)
 
       if (targetEmail) {
-        sendOrderCancelledEmail(targetEmail, targetName, order.order_number).catch(console.error);
+        sendOrderCancelledEmail(targetEmail, targetName, order.orderNumber).catch(console.error);
       }
 
       // Notification Bell
-      if (order.user_id) {
+      if (order.userId) {
         await createNotification(
-          order.user_id,
+          order.userId,
           'order',
           'Đơn hàng đã hủy',
-          `Đơn hàng #${order.order_number} của bạn đã bị hủy.`,
-          `/orders/${order.order_number}`
+          `Đơn hàng #${order.orderNumber} của bạn đã bị hủy.`,
+          `/orders/${order.orderNumber}`
         );
       }
     } else {
-      // FIX C2: Use updateOrderStatus to go through State Machine, stock, loyalty, gift card logic
-      const { updateOrderStatus } = await import('@/lib/db/repositories/order');
-      await updateOrderStatus(order.order_number, status);
-
-      // Update timestamps separately (updateOrderStatus doesn't handle these)
-      let timestampUpdate = '';
-      if (status === 'processing' || status === 'confirmed') {
-        timestampUpdate = 'payment_confirmed_at = COALESCE(payment_confirmed_at, NOW())';
-      } else if (status === 'shipped') {
-        timestampUpdate = 'shipped_at = COALESCE(shipped_at, NOW())';
-      } else if (status === 'delivered') {
-        timestampUpdate = 'delivered_at = COALESCE(delivered_at, NOW())';
-      }
-
-      if (timestampUpdate) {
-        await executeQuery(`UPDATE orders SET ${timestampUpdate} WHERE id = ?`, [parseInt(id)]);
-      }
+      await updateOrderStatus(order.orderNumber, status);
     }
 
     // Notification Bell for other status changes
-    if (order.user_id && status !== 'cancelled') {
+    if (order.userId && status !== 'cancelled') {
       let title = '';
       let message = '';
 
@@ -184,51 +202,48 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
         case 'processing':
         case 'confirmed':
           title = 'Đơn hàng đã xác nhận';
-          message = `Đơn hàng #${order.order_number} của bạn đã được xác nhận và đang xử lý.`;
+          message = `Đơn hàng #${order.orderNumber} của bạn đã được xác nhận và đang xử lý.`;
           break;
         case 'shipped':
           title = 'Đơn hàng đang giao';
-          message = `Đơn hàng #${order.order_number} đang trên đường đến với bạn.`;
+          message = `Đơn hàng #${order.orderNumber} đang trên đường đến với bạn.`;
           break;
         case 'delivered':
           title = 'Giao hàng thành công';
-          message = `Đơn hàng #${order.order_number} đã được giao thành công. Cảm ơn bạn!`;
+          message = `Đơn hàng #${order.orderNumber} đã được giao thành công. Cảm ơn bạn!`;
           break;
       }
 
       if (title) {
         await createNotification(
-          order.user_id,
+          order.userId,
           'order',
           title,
           message,
-          `/orders/${order.order_number}`
+          `/orders/${order.orderNumber}`
         );
       }
     }
 
     // Log Admin Action
-    await createAuditLog({
-      adminId: admin.userId,
-      action: 'UPDATE_ORDER_STATUS',
-      targetType: 'order',
-      targetId: id,
-      details: { oldStatus: currentStatus, newStatus: status, orderNumber: order.order_number },
-      ipAddress: request.headers.get('x-forwarded-for') || 'unknown',
-    });
+    await logAdminAction(
+      admin.userId,
+      'UPDATE_ORDER_STATUS',
+      'order',
+      id,
+      { oldStatus: currentStatus },
+      { status: status, orderNumber: order.orderNumber },
+      request
+    );
 
-    // FIX C3: Gift Card deduction is now handled by updateOrderStatus (when status = 'delivered')
-    // Removed duplicate gift card logic that was here previously
-
-    return NextResponse.json({
-      success: true,
-      message:
-        status === 'cancelled'
-          ? 'Order cancelled and stock restored'
-          : 'Order status updated successfully',
-    });
+    return ResponseWrapper.success(
+      null,
+      status === 'cancelled'
+        ? 'Order cancelled and stock restored'
+        : 'Order status updated successfully'
+    );
   } catch (error) {
     console.error('Error updating order status:', error);
-    return NextResponse.json({ success: false, message: 'Internal server error' }, { status: 500 });
+    return ResponseWrapper.serverError('Lỗi server nội bộ', error);
   }
 }

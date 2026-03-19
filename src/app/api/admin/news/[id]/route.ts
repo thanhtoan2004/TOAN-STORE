@@ -1,30 +1,34 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { executeQuery } from '@/lib/db/mysql';
+import { db } from '@/lib/db/drizzle';
+import { news as newsTable } from '@/lib/db/schema';
+import { eq } from 'drizzle-orm';
 import { checkAdminAuth } from '@/lib/auth/auth';
 import { sanitizeRichContent } from '@/lib/security/sanitize';
+import { ResponseWrapper } from '@/lib/api/api-response';
 
-// PUT - Update news
 /**
- * API Cập nhật nội dung bài viết tin tức.
- * Tự động đồng bộ Slug nếu tiêu đề thay đổi.
+ * API Cập nhật nội dung bài viết tin tức (Admin).
+ * Chức năng:
+ * - Cập nhật thông tin bài viết (Tiêu đề, Trích dẫn, Nội dung, Ảnh đại diện, Danh mục).
+ * - Tự động tạo slug từ tiêu đề.
+ * - Xử lý trạng thái Xuất bản (Published) và ngày xuất bản tương ứng.
+ * - Tự động làm sạch mã HTML (Sanitize) để phòng chống XSS.
+ * Bảo mật: Yêu cầu quyền Admin.
  */
 export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const admin = await checkAdminAuth();
-  if (!admin) {
-    return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
-  }
-
   try {
+    const admin = await checkAdminAuth();
+    if (!admin) {
+      return ResponseWrapper.unauthorized();
+    }
+
     const { id } = await params;
     const body = await request.json();
     const { title, excerpt, image_url, category, is_published } = body;
     const content = sanitizeRichContent(body.content || '');
 
     if (!title || !content) {
-      return NextResponse.json(
-        { success: false, message: 'Title and content are required' },
-        { status: 400 }
-      );
+      return ResponseWrapper.error('Title and content are required', 400);
     }
 
     // Generate slug from title
@@ -36,69 +40,74 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
       .replace(/[^a-z0-9]+/g, '-')
       .replace(/^-+|-+$/g, '');
 
-    // If changing to published and not published before, set published_at
-    const existing = (await executeQuery(
-      'SELECT is_published, published_at FROM news WHERE id = ?',
-      [id]
-    )) as any[];
+    // 1. Get existing to check publish status
+    const [existing] = await db
+      .select({ isPublished: newsTable.isPublished, publishedAt: newsTable.publishedAt })
+      .from(newsTable)
+      .where(eq(newsTable.id, Number(id)))
+      .limit(1);
 
-    let published_at = existing[0]?.published_at;
-    if (is_published && !existing[0]?.is_published) {
-      published_at = new Date();
-    } else if (!is_published) {
-      published_at = null;
+    if (!existing) {
+      return ResponseWrapper.notFound('Không tìm thấy bài viết tin tức');
     }
 
-    await executeQuery(
-      `
-      UPDATE news 
-      SET title = ?, slug = ?, excerpt = ?, content = ?, image_url = ?, category = ?, 
-          is_published = ?, published_at = ?
-      WHERE id = ?
-    `,
-      [title, slug, excerpt, content, image_url, category, is_published ? 1 : 0, published_at, id]
-    );
+    let publishedAt = existing.publishedAt;
+    if (is_published && !existing.isPublished) {
+      publishedAt = new Date();
+    } else if (!is_published) {
+      publishedAt = null;
+    }
 
-    return NextResponse.json({
-      success: true,
-      message: 'News updated successfully',
-    });
+    // 2. Update news using Drizzle
+    await db
+      .update(newsTable)
+      .set({
+        title,
+        slug,
+        excerpt,
+        content,
+        imageUrl: image_url,
+        category,
+        isPublished: is_published ? 1 : 0,
+        publishedAt,
+        updatedAt: new Date(),
+      })
+      .where(eq(newsTable.id, Number(id)));
+
+    return ResponseWrapper.success(null, 'News updated successfully');
   } catch (error: any) {
     console.error('Error updating news:', error);
     if (error.code === 'ER_DUP_ENTRY') {
-      return NextResponse.json(
-        { success: false, message: 'A news article with this title already exists' },
-        { status: 400 }
-      );
+      return ResponseWrapper.error('A news article with this title already exists', 400);
     }
-    return NextResponse.json({ success: false, message: 'Error updating news' }, { status: 500 });
+    return ResponseWrapper.serverError('Lỗi server khi cập nhật bài viết', error);
   }
 }
 
-// DELETE - Delete news
 /**
- * API Xóa vĩnh viễn bài viết tin tức.
+ * API Xóa vĩnh viễn bài viết tin tức (Admin).
  */
 export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const admin = await checkAdminAuth();
-  if (!admin) {
-    return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
-  }
-
   try {
+    const admin = await checkAdminAuth();
+    if (!admin) {
+      return ResponseWrapper.unauthorized();
+    }
+
     const { id } = await params;
 
-    await executeQuery('DELETE FROM news WHERE id = ?', [id]);
+    const [result] = await db.delete(newsTable).where(eq(newsTable.id, Number(id)));
 
-    return NextResponse.json({
-      success: true,
-      message: 'News deleted successfully',
-    });
+    if (result.affectedRows === 0) {
+      return ResponseWrapper.notFound('Không tìm thấy bài viết để thực hiện xóa');
+    }
+
+    return ResponseWrapper.success(null, 'News deleted successfully');
   } catch (error) {
     console.error('Error deleting news:', error);
-    return NextResponse.json({ success: false, message: 'Error deleting news' }, { status: 500 });
+    return ResponseWrapper.serverError('Lỗi server khi xóa bài viết', error);
   }
 }

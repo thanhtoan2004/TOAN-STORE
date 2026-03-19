@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { executeQuery } from '@/lib/db/mysql';
-
+import { db } from '@/lib/db/drizzle';
+import { giftCards } from '@/lib/db/schema';
+import { eq } from 'drizzle-orm';
 import { checkAdminAuth } from '@/lib/auth/auth';
 
 /**
@@ -18,7 +19,7 @@ export async function DELETE(
     const { id: paramId } = await params;
     const id = parseInt(paramId);
 
-    await executeQuery('DELETE FROM gift_cards WHERE id = ?', [id]);
+    await db.delete(giftCards).where(eq(giftCards.id, id));
 
     return NextResponse.json({ success: true });
   } catch (error) {

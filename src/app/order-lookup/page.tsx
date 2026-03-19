@@ -91,14 +91,18 @@ export default function OrderLookupPage() {
     }
   };
 
-  const getStatusText = (status: string) => {
+  const getStatusText = (status: string, paymentMethod: string = 'cod') => {
+    const isCod =
+      paymentMethod.toLowerCase().includes('cod') ||
+      paymentMethod.toLowerCase().includes('nhận hàng');
+
     switch (status) {
       case 'pending':
         return 'Chờ xử lý';
       case 'confirmed':
-        return 'Đã xác nhận';
+        return !isCod ? 'Đã thanh toán' : 'Đã xác nhận';
       case 'shipped':
-        return 'Đang giao hàng';
+        return !isCod ? 'Đã thanh toán (Đang giao)' : 'Đang giao hàng';
       case 'delivered':
         return 'Đã giao hàng';
       case 'cancelled':
@@ -178,7 +182,7 @@ export default function OrderLookupPage() {
                 <span
                   className={`px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(order.status)}`}
                 >
-                  {getStatusText(order.status)}
+                  {getStatusText(order.status, order.payment_method)}
                 </span>
               </div>
 

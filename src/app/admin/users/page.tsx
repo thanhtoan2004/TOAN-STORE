@@ -12,6 +12,8 @@ interface User {
   phone: string;
   isActive: number;
   isBanned: number;
+  membershipTier: string;
+  avatarUrl: string;
   createdAt: string;
 }
 
@@ -93,6 +95,47 @@ export default function AdminUsersPage() {
     }
   };
 
+  const handleDeleteUser = async (userId: number) => {
+    if (
+      !confirm('Bạn có chắc muốn xóa người dùng này? Thao tác này sẽ ẩn người dùng khỏi hệ thống.')
+    )
+      return;
+
+    try {
+      const response = await fetch(`/api/admin/users/${userId}`, {
+        method: 'DELETE',
+      });
+
+      if (response.ok) {
+        alert('Xóa người dùng thành công!');
+        fetchUsers();
+      } else {
+        alert('Có lỗi xảy ra khi xóa!');
+      }
+    } catch (error) {
+      console.error('Error deleting user:', error);
+      alert('Có lỗi xảy ra!');
+    }
+  };
+
+  const updateUserTier = async (userId: number, newTier: string) => {
+    try {
+      const response = await fetch(`/api/admin/users/${userId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ membership_tier: newTier }),
+      });
+
+      if (response.ok) {
+        fetchUsers();
+      } else {
+        alert('Lỗi khi cập nhật hạng thành viên');
+      }
+    } catch (error) {
+      console.error('Error updating user tier:', error);
+    }
+  };
+
   return (
     <AdminLayout>
       <div className="space-y-6">
@@ -171,14 +214,14 @@ export default function AdminUsersPage() {
               <table className="min-w-full divide-y divide-gray-200 table-fixed">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-[300px]">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-[250px]">
                       User
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-[320px]">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-[280px]">
                       Email
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-[160px]">
-                      Phone
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-[120px]">
+                      Membership
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-[120px]">
                       Status
@@ -186,7 +229,7 @@ export default function AdminUsersPage() {
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-[140px]">
                       Joined
                     </th>
-                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider w-[280px]">
+                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider w-[200px]">
                       Actions
                     </th>
                   </tr>
@@ -196,8 +239,24 @@ export default function AdminUsersPage() {
                     <tr key={user.id} className="hover:bg-gray-50">
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3 max-w-full overflow-hidden">
-                          <div className="flex-shrink-0 w-10 h-10 rounded-full bg-gray-300 flex items-center justify-center">
-                            <span className="text-lg font-medium text-gray-700">
+                          <div className="flex-shrink-0 w-10 h-10 rounded-full bg-gray-300 flex items-center justify-center overflow-hidden border border-gray-100 shadow-sm">
+                            {user.avatarUrl ? (
+                              <img
+                                src={user.avatarUrl}
+                                alt={user.firstName}
+                                className="w-full h-full object-cover"
+                                onError={(e) => {
+                                  // Fallback to text if image fails to load
+                                  (e.target as HTMLImageElement).style.display = 'none';
+                                  (
+                                    e.target as HTMLImageElement
+                                  ).nextElementSibling?.classList.remove('hidden');
+                                }}
+                              />
+                            ) : null}
+                            <span
+                              className={`text-lg font-medium text-gray-700 ${user.avatarUrl ? 'hidden' : ''}`}
+                            >
                               {user.firstName?.[0]?.toUpperCase() || 'U'}
                             </span>
                           </div>
@@ -219,7 +278,16 @@ export default function AdminUsersPage() {
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900">{user.phone || '-'}</div>
+                        <select
+                          value={user.membershipTier || 'bronze'}
+                          onChange={(e) => updateUserTier(user.id, e.target.value)}
+                          className="text-xs font-semibold bg-gray-50 border border-gray-300 rounded-full px-2 py-1 focus:ring-2 focus:ring-black outline-none uppercase"
+                        >
+                          <option value="bronze">Bronze (Đồng)</option>
+                          <option value="silver">Silver (Bạc)</option>
+                          <option value="gold">Gold (Vàng)</option>
+                          <option value="platinum">Platinum (Bạch Kim)</option>
+                        </select>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span
@@ -236,13 +304,20 @@ export default function AdminUsersPage() {
                         <div className="text-sm text-gray-900">{formatDate(user.createdAt)}</div>
                       </td>
                       <td className="px-6 py-4 text-right">
-                        <div className="flex flex-col gap-2 items-end">
+                        <div className="flex gap-2 justify-end">
                           <button
                             onClick={() => toggleBanStatus(user.id, user.isBanned)}
-                            className={`text-sm whitespace-nowrap font-medium ${user.isBanned === 1 ? 'text-green-600 hover:text-green-900' : 'text-red-600 hover:text-red-900'}`}
+                            className={`text-sm font-medium ${user.isBanned === 1 ? 'text-green-600 hover:text-green-900' : 'text-red-600 hover:text-red-900'}`}
                             title={user.isBanned === 1 ? 'Unban this user' : 'Ban this user'}
                           >
-                            {user.isBanned === 1 ? '✓ Unban' : '🚫 Ban'}
+                            {user.isBanned === 1 ? 'Unban' : 'Ban'}
+                          </button>
+                          <button
+                            onClick={() => handleDeleteUser(user.id)}
+                            className="text-sm font-medium text-gray-400 hover:text-red-600 transition-colors"
+                            title="Xóa người dùng (Soft Delete)"
+                          >
+                            Delete
                           </button>
                         </div>
                       </td>

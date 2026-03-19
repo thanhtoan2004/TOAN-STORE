@@ -1,6 +1,8 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
+import { ResponseWrapper } from '@/lib/api/api-response';
 import { getProducts } from '@/lib/db/mysql';
 import { getCache, setCache } from '@/lib/redis/cache';
+import { getActiveBulkDiscounts, applyBulkDiscount } from '@/lib/marketing/discounts';
 
 /**
  * API Lấy danh sách sản phẩm (Product Catalog).
@@ -33,7 +35,7 @@ export async function GET(request: Request) {
     const cacheKey = `products:list:${searchParams.toString() || 'default'}`;
     const cachedData = await getCache<any>(cacheKey);
     if (cachedData) {
-      return NextResponse.json(cachedData);
+      return ResponseWrapper.success(cachedData.products, undefined, 200, cachedData.pagination);
     }
 
     // Build filters for database query
@@ -89,13 +91,19 @@ export async function GET(request: Request) {
 
     // Get products and total count from database (Optimized)
     const { items: productsData, total: totalCount } = await getProducts(filters);
+    const activeDiscounts = await getActiveBulkDiscounts();
 
-    // Convert string prices to numbers
-    const products = productsData.map((p) => ({
-      ...p,
-      price_cache: p.price_cache ? parseFloat(p.price_cache) : 0,
-      msrp_price: p.msrp_price ? parseFloat(p.msrp_price) : 0,
-    }));
+    // Convert camelCase and apply discounts
+    const products = productsData.map((p: any) => {
+      const discounted = applyBulkDiscount(p, activeDiscounts);
+      return {
+        ...discounted,
+        price_cache: discounted.priceCache ? parseFloat(discounted.priceCache.toString()) : 0,
+        msrp_price: discounted.msrpPrice ? parseFloat(discounted.msrpPrice.toString()) : 0,
+        image_url: discounted.imageUrl || '/placeholder.png',
+        is_new_arrival: discounted.isNewArrival || false,
+      };
+    });
 
     // FIX H3: Sorting now done at SQL level via getProducts() — no JS sort needed
     // This fixes incorrect pagination (JS sort only sorted within 1 page)
@@ -117,12 +125,9 @@ export async function GET(request: Request) {
     // Save to cache for 30 minutes
     await setCache(cacheKey, responseData, 1800);
 
-    return NextResponse.json(responseData);
+    return ResponseWrapper.success(responseData.products, undefined, 200, responseData.pagination);
   } catch (error) {
     console.error('Error fetching products:', error);
-    return NextResponse.json(
-      { success: false, error: 'Failed to fetch products' },
-      { status: 500 }
-    );
+    return ResponseWrapper.serverError('Failed to fetch products', error);
   }
 }

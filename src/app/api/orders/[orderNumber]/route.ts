@@ -1,81 +1,126 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getOrderByNumber, updateOrderStatus } from '@/lib/db/mysql';
+import { db } from '@/lib/db/drizzle';
+import {
+  orders as ordersTable,
+  orderItems,
+  productImages,
+  productVariants,
+  productColors,
+} from '@/lib/db/schema';
+import { eq, and, sql } from 'drizzle-orm';
 import { verifyAuth } from '@/lib/auth/auth';
 import { sendOrderCancelledEmail } from '@/lib/mail/email-templates';
 import { createNotification } from '@/lib/notifications/notifications';
+import { getOrderByNumber } from '@/lib/db/repositories/order';
+import { decrypt } from '@/lib/security/encryption';
+import { ResponseWrapper } from '@/lib/api/api-response';
 
-// ... (GET method unchanged)
+/**
+ * API Lấy chi tiết đơn hàng cho trang Order Detail (User).
+ */
+
 // GET - Lấy chi tiết đơn hàng theo orderNumber
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ orderNumber: string }> }
 ) {
   try {
-    const session = await verifyAuth();
-    if (!session) {
-      return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
-    }
     const { orderNumber } = await params;
 
-    if (!orderNumber) {
-      return NextResponse.json(
-        { success: false, message: 'Mã đơn hàng không hợp lệ' },
-        { status: 400 }
-      );
+    // 1. Get order from database
+    const orders = await getOrderByNumber(orderNumber);
+    const order = orders[0];
+
+    if (!order) {
+      console.warn(`[API Orders] Order not found: ${orderNumber}`);
+      return ResponseWrapper.notFound('Không tìm thấy đơn hàng');
     }
 
-    // Get order from database
-    const order = (await getOrderByNumber(orderNumber)) as any;
-
-    if (!order || order.length === 0) {
-      return NextResponse.json(
-        { success: false, message: 'Không tìm thấy đơn hàng' },
-        { status: 404 }
-      );
+    // 2. Check ownership
+    if (order.userId) {
+      const session = await verifyAuth();
+      if (!session) {
+        console.warn(
+          `[API Orders] No session found for order: ${orderNumber}, userId: ${order.userId}`
+        );
+        return ResponseWrapper.forbidden('Bạn không có quyền xem đơn hàng này hoặc cần đăng nhập');
+      }
+      if (Number(order.userId) !== Number(session.userId)) {
+        console.warn(
+          `[API Orders] User mismatch: Order owned by ${order.userId}, but session is user ${session.userId}`
+        );
+        return ResponseWrapper.forbidden('Bạn không có quyền xem đơn hàng này hoặc cần đăng nhập');
+      }
     }
+    // If guest order (order.userId is null), allow access by orderNumber alone
+    // (Standard practice for order success pages)
 
-    // Check ownership
-    if (String(order[0].user_id) !== String(session.userId)) {
-      return NextResponse.json(
-        { success: false, message: 'Bạn không có quyền xem đơn hàng này' },
-        { status: 403 }
-      );
-    }
+    // 3. Get order items with product details using Drizzle
+    const items = await db
+      .select({
+        id: orderItems.id,
+        productId: orderItems.productId,
+        name: orderItems.productName,
+        unit_price: orderItems.unitPrice,
+        quantity: orderItems.quantity,
+        total_price: orderItems.totalPrice,
+        size: orderItems.size,
+        color: sql<string>`(SELECT ${productColors.colorName} FROM ${productColors} AS pc JOIN ${productVariants} AS pv ON pc.${productColors.id} = pv.${productVariants.colorId} WHERE pv.${productVariants.id} = ${orderItems.productVariantId} LIMIT 1)`,
+        imageUrl: sql<string>`(SELECT url FROM ${productImages} WHERE product_id = ${orderItems.productId} AND is_main = 1 LIMIT 1)`,
+      })
+      .from(orderItems)
+      .where(eq(orderItems.orderId, order.id));
 
-    // Get order items with product details
-    const { pool } = await import('@/lib/db/mysql');
-    const [items] = (await pool.execute(
-      `SELECT 
-        oi.id,
-        oi.product_id,
-        oi.product_name as name,
-        oi.unit_price,
-        oi.quantity,
-        oi.total_price,
-        oi.size,
-        (SELECT url FROM product_images WHERE product_id = oi.product_id AND is_main = 1 LIMIT 1) as image_url
-      FROM order_items oi
-      WHERE oi.order_id = ?`,
-      [order[0].id]
-    )) as any[];
-
-    // Enrich items with proper fields
+    // 4. Enrich items with UI fields
     const enrichedItems = items.map((item: any) => ({
       ...item,
-      color: item.color || 'N/A',
-      image: item.image_url || '/placeholder-product.png',
+      image: item.imageUrl || '/placeholder.png',
     }));
 
-    return NextResponse.json({
-      success: true,
-      order: {
-        ...order[0],
-        items: enrichedItems,
-      },
-    });
+    // 5. Flatten shipping address for UI
+    const shipping =
+      typeof order.shippingAddressSnapshot === 'string'
+        ? JSON.parse(order.shippingAddressSnapshot)
+        : order.shippingAddressSnapshot;
+
+    const orderData = {
+      id: order.id,
+      order_number: order.orderNumber,
+      status: order.status,
+      subtotal: order.subtotal,
+      shipping_fee: order.shippingFee,
+      discount: order.discount,
+      tax: order.tax,
+      total: order.total,
+      placed_at: order.placedAt,
+      updated_at: order.updatedAt,
+      payment_method: order.paymentMethod,
+      payment_status: order.paymentStatus,
+      tracking_number: order.trackingNumber,
+      carrier: order.carrier,
+      shipped_at: order.shippedAt,
+      delivered_at: order.deliveredAt,
+      payment_confirmed_at: order.paymentConfirmedAt,
+      cancelled_at: order.cancelledAt,
+      voucher_discount: order.voucherDiscount,
+      giftcard_discount: order.giftcardDiscount,
+      membership_discount: order.membershipDiscount,
+      has_gift_wrapping: order.hasGiftWrapping,
+      gift_wrap_cost: order.giftWrapCost,
+      delivery_name: shipping?.name || '',
+      delivery_phone: decrypt(shipping?.phone || ''),
+      delivery_address: decrypt(shipping?.address || ''),
+      delivery_city: shipping?.city || '',
+      delivery_district: shipping?.district || '',
+      delivery_ward: shipping?.ward || '',
+      items: enrichedItems,
+      user_id: order.userId,
+    };
+
+    return ResponseWrapper.success(orderData);
   } catch (error) {
     console.error('Lỗi khi lấy chi tiết đơn hàng:', error);
-    return NextResponse.json({ success: false, message: 'Lỗi server nội bộ' }, { status: 500 });
+    return ResponseWrapper.serverError('Lỗi server nội bộ', error);
   }
 }
 
@@ -87,34 +132,32 @@ export async function PUT(
   try {
     const session = await verifyAuth();
     if (!session) {
-      return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
+      return ResponseWrapper.unauthorized();
     }
     const { orderNumber } = await params;
     const body = await request.json();
     const { status } = body;
 
     // Security: Only allow user to cancel their own pending order
-    const order = (await getOrderByNumber(orderNumber)) as any;
-    if (!order || order.length === 0) {
-      return NextResponse.json({ success: false, message: 'Order not found' }, { status: 404 });
+    const orders = await getOrderByNumber(orderNumber);
+    const order = orders[0];
+
+    if (!order) {
+      return ResponseWrapper.notFound('Order not found');
     }
 
-    if (order[0].user_id !== session.userId) {
-      return NextResponse.json({ success: false, message: 'Forbidden' }, { status: 403 });
+    if (order.userId !== session.userId) {
+      return ResponseWrapper.forbidden();
     }
 
-    if (status !== 'cancelled' || order[0].status !== 'pending') {
-      return NextResponse.json({ success: false, message: 'Invalid action' }, { status: 400 });
+    if (status !== 'cancelled' || order.status !== 'pending') {
+      return ResponseWrapper.error('Invalid action', 400);
     }
 
     // Update order status in database
     // Use cancelOrder to ensure stock is restored
-    if (status === 'cancelled') {
-      const { cancelOrder } = await import('@/lib/db/repositories/order');
-      await cancelOrder(orderNumber);
-    } else {
-      await updateOrderStatus(orderNumber, status);
-    }
+    const { cancelOrder } = await import('@/lib/db/repositories/order');
+    await cancelOrder(orderNumber);
 
     // Send Cancelled Email
     const userSession = session as any;
@@ -133,13 +176,10 @@ export async function PUT(
       `/orders/${orderNumber}`
     );
 
-    return NextResponse.json({
-      success: true,
-      message: 'Đã cập nhật trạng thái đơn hàng',
-    });
+    return ResponseWrapper.success(null, 'Đã cập nhật trạng thái đơn hàng');
   } catch (error) {
     console.error('Lỗi khi cập nhật đơn hàng:', error);
-    return NextResponse.json({ success: false, message: 'Lỗi server nội bộ' }, { status: 500 });
+    return ResponseWrapper.serverError('Lỗi server nội bộ', error);
   }
 }
 
@@ -151,37 +191,29 @@ export async function DELETE(
   try {
     const session = await verifyAuth();
     if (!session) {
-      return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
+      return ResponseWrapper.unauthorized();
     }
     const { orderNumber } = await params;
 
     if (!orderNumber) {
-      return NextResponse.json(
-        { success: false, message: 'Mã đơn hàng không hợp lệ' },
-        { status: 400 }
-      );
+      return ResponseWrapper.error('Mã đơn hàng không hợp lệ', 400);
     }
 
     // Get order to check status and ownership
-    const order = (await getOrderByNumber(orderNumber)) as any;
+    const orders = await getOrderByNumber(orderNumber);
+    const order = orders[0];
 
-    if (!order || order.length === 0) {
-      return NextResponse.json(
-        { success: false, message: 'Không tìm thấy đơn hàng' },
-        { status: 404 }
-      );
+    if (!order) {
+      return ResponseWrapper.notFound('Không tìm thấy đơn hàng');
     }
 
-    if (order[0].user_id !== session.userId) {
-      return NextResponse.json({ success: false, message: 'Forbidden' }, { status: 403 });
+    if (order.userId !== session.userId) {
+      return ResponseWrapper.forbidden();
     }
 
     // Only allow cancelling pending orders
-    if (order[0].status !== 'pending') {
-      return NextResponse.json(
-        { success: false, message: 'Không thể hủy đơn hàng đã được xác nhận' },
-        { status: 400 }
-      );
+    if (order.status !== 'pending') {
+      return ResponseWrapper.error('Không thể hủy đơn hàng đã được xác nhận', 400);
     }
 
     // Cancel order in database (use cancelOrder to properly release stock)
@@ -196,12 +228,9 @@ export async function DELETE(
       );
     }
 
-    return NextResponse.json({
-      success: true,
-      message: 'Đã hủy đơn hàng thành công',
-    });
+    return ResponseWrapper.success(null, 'Đã hủy đơn hàng thành công');
   } catch (error) {
     console.error('Lỗi khi hủy đơn hàng:', error);
-    return NextResponse.json({ success: false, message: 'Lỗi server nội bộ' }, { status: 500 });
+    return ResponseWrapper.serverError('Lỗi server nội bộ', error);
   }
 }

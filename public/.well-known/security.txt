@@ -1,0 +1,6 @@
+Contact: mailto:security@toanstore.com
+Expires: 2027-12-31T23:59:59.000Z
+Acknowledgments: https://toanstore.com/security/hall-of-fame
+Preferred-Languages: vi, en
+Canonical: https://toanstore.com/.well-known/security.txt
+Policy: https://toanstore.com/security-policy

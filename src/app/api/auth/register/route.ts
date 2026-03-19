@@ -1,10 +1,13 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import bcrypt from 'bcrypt';
-import { executeQuery } from '@/lib/db/mysql';
+import { db } from '@/lib/db/drizzle';
+import { users as usersTable } from '@/lib/db/schema';
+import { eq, and, isNull } from 'drizzle-orm';
 import { RegisterRequest, User } from '@/types/auth';
 import { sendWelcomeEmail } from '@/lib/mail/mail';
 import { withRateLimit } from '@/lib/api/with-rate-limit';
 import { encrypt, hashEmail } from '@/lib/security/encryption';
+import { ResponseWrapper } from '@/lib/api/api-response';
 
 /**
  * API Đăng ký tài khoản người mới.
@@ -21,16 +24,16 @@ async function registerHandler(req: Request) {
 
     // FIX H1: Validate input
     if (!email || !password) {
-      return NextResponse.json({ error: 'Email và mật khẩu là bắt buộc' }, { status: 400 });
+      return ResponseWrapper.error('Email và mật khẩu là bắt buộc', 400);
     }
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
-      return NextResponse.json({ error: 'Email không hợp lệ' }, { status: 400 });
+      return ResponseWrapper.error('Email không hợp lệ', 400);
     }
 
     if (password.length < 6) {
-      return NextResponse.json({ error: 'Mật khẩu phải có ít nhất 6 ký tự' }, { status: 400 });
+      return ResponseWrapper.error('Mật khẩu phải có ít nhất 6 ký tự', 400);
     }
 
     // Sanitize text inputs (strip HTML tags)
@@ -38,42 +41,42 @@ async function registerHandler(req: Request) {
 
     // Check if email hash already exists
     const emailHash = hashEmail(email);
-    const existingUser = (await executeQuery(
-      'SELECT * FROM users WHERE email_hash = ? AND deleted_at IS NULL',
-      [emailHash]
-    )) as User[];
+    const existingUsers = await db
+      .select()
+      .from(usersTable)
+      .where(and(eq(usersTable.emailHash, emailHash), isNull(usersTable.deletedAt)));
 
-    if (existingUser.length > 0) {
-      return NextResponse.json({ error: 'Email đã được sử dụng' }, { status: 400 });
+    if (existingUsers.length > 0) {
+      return ResponseWrapper.error('Email đã được sử dụng', 400);
     }
 
     // Mã hóa mật khẩu
     const hashedPassword = await bcrypt.hash(password, 10);
 
     // Save user with email_hash and email_encrypted
-    await executeQuery(
-      'INSERT INTO users (email, email_hash, email_encrypted, password, first_name, last_name, phone, date_of_birth, gender, is_active, is_encrypted) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, TRUE)',
-      [
-        '***',
-        emailHash,
-        encrypt(email.toLowerCase().trim()),
-        hashedPassword,
-        sanitize(firstName),
-        sanitize(lastName),
-        encrypt(phone || null),
-        dateOfBirth || null,
-        gender || null,
-      ]
-    );
+    await db.insert(usersTable).values({
+      email: '***',
+      emailHash,
+      emailEncrypted: encrypt(email.toLowerCase().trim()),
+      password: hashedPassword,
+      firstName: sanitize(firstName),
+      lastName: sanitize(lastName),
+      phone: '***',
+      phoneEncrypted: encrypt(phone || null),
+      dateOfBirth: dateOfBirth || null,
+      gender: gender || null,
+      isActive: 1,
+      isEncrypted: 1,
+    });
 
     // Gửi email chào mừng
     const fullName = [firstName, lastName].filter(Boolean).join(' ') || 'Member';
     sendWelcomeEmail(email, fullName).catch(console.error);
 
-    return NextResponse.json({ success: true, message: 'Đăng ký thành công' }, { status: 201 });
+    return ResponseWrapper.success(null, 'Đăng ký thành công', 201);
   } catch (error) {
     console.error('Lỗi đăng ký:', error);
-    return NextResponse.json({ error: 'Đã xảy ra lỗi khi đăng ký' }, { status: 500 });
+    return ResponseWrapper.serverError('Đã xảy ra lỗi khi đăng ký', error);
   }
 }
 

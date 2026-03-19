@@ -5,19 +5,25 @@ interface Product {
   name: string;
   slug: string;
   category: string;
-  price: number;
+  price?: number;
   sale_price?: number;
   price_cache?: number;
   msrp_price?: number;
-  image_url: string;
+  priceCache?: number;
+  msrpPrice?: number;
+  image_url?: string;
+  imageUrl: string;
   description?: string;
   is_new_arrival: boolean;
+  isNewArrival?: boolean;
   created_at: string;
+  createdAt?: string;
   images?: Array<{ url: string; alt_text?: string; media_type?: 'image' | 'video' }>;
   sizes?: Array<{
     size: string;
     stock: number;
     reserved?: number;
+    sku?: string;
     allow_backorder?: number;
     expected_restock_date?: string | null;
   }>;

@@ -1,6 +1,7 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
 import { verifyAuth } from '@/lib/auth/auth';
 import { getRedisConnection } from '@/lib/redis/redis';
+import { ResponseWrapper } from '@/lib/api/api-response';
 
 /**
  * GET /api/account/sessions
@@ -10,7 +11,7 @@ import { getRedisConnection } from '@/lib/redis/redis';
 export async function GET(req: NextRequest) {
   const session = await verifyAuth();
   if (!session) {
-    return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
+    return ResponseWrapper.unauthorized();
   }
 
   try {
@@ -19,7 +20,7 @@ export async function GET(req: NextRequest) {
     const raw = await redis.hgetall(sessionsKey);
 
     if (!raw) {
-      return NextResponse.json({ success: true, sessions: [] });
+      return ResponseWrapper.success([]);
     }
 
     const sessions = Object.entries(raw)
@@ -35,10 +36,10 @@ export async function GET(req: NextRequest) {
     // Sắp xếp mới nhất lên đầu
     sessions.sort((a: any, b: any) => (b.loginAt || 0) - (a.loginAt || 0));
 
-    return NextResponse.json({ success: true, sessions });
+    return ResponseWrapper.success(sessions);
   } catch (error) {
     console.error('Get sessions error:', error);
-    return NextResponse.json({ success: false, message: 'Server error' }, { status: 500 });
+    return ResponseWrapper.serverError('Lỗi server', error);
   }
 }
 
@@ -50,7 +51,7 @@ export async function GET(req: NextRequest) {
 export async function DELETE(req: NextRequest) {
   const session = await verifyAuth();
   if (!session) {
-    return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
+    return ResponseWrapper.unauthorized();
   }
 
   try {
@@ -62,17 +63,17 @@ export async function DELETE(req: NextRequest) {
       await redis.del(sessionsKey);
       // Cũng đá token refresh để buộc đăng nhập lại
       await redis.del(`refresh_token:${session.userId}`);
-      return NextResponse.json({ success: true, message: 'Đã đăng xuất khỏi tất cả thiết bị' });
+      return ResponseWrapper.success(null, 'Đã đăng xuất khỏi tất cả thiết bị');
     }
 
     if (!sessionId) {
-      return NextResponse.json({ success: false, message: 'Thiếu sessionId' }, { status: 400 });
+      return ResponseWrapper.error('Thiếu sessionId', 400);
     }
 
     await redis.hdel(sessionsKey, sessionId);
-    return NextResponse.json({ success: true, message: 'Đã thu hồi phiên đăng nhập' });
+    return ResponseWrapper.success(null, 'Đã thu hồi phiên đăng nhập');
   } catch (error) {
     console.error('Delete session error:', error);
-    return NextResponse.json({ success: false, message: 'Server error' }, { status: 500 });
+    return ResponseWrapper.serverError('Lỗi server', error);
   }
 }

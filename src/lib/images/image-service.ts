@@ -50,7 +50,7 @@ class ImageService {
    * Get optimized image URL
    */
   getUrl(path: string, options: ImageOptions = {}): string {
-    if (!path) return '/images/placeholder.png';
+    if (!path) return '/placeholder.png';
     if (path.startsWith('http')) {
       // If already a Cloudinary URL but without transformations, we might want to inject them
       if (path.includes('res.cloudinary.com') && !path.includes('/upload/')) {

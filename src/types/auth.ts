@@ -74,6 +74,8 @@ export interface OrderItem {
   name: string;
   image: string;
   price: number;
+  unit_price?: number;
+  total_price?: number;
   size?: string;
   color?: string;
   quantity: number;
@@ -85,7 +87,14 @@ export interface Order {
   userId: number;
   items: OrderItem[];
   totalAmount: number;
-  status: 'pending' | 'confirmed' | 'shipped' | 'delivered' | 'cancelled';
+  subtotal?: number;
+  shippingFee?: number;
+  tax?: number;
+  totalDiscount?: number;
+  voucherDiscount?: number;
+  giftcardDiscount?: number;
+  giftWrapCost?: number;
+  status: string;
   shippingAddress: {
     fullName: string;
     address: string;

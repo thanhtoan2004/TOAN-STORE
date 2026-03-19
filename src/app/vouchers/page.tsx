@@ -10,12 +10,12 @@ interface Coupon {
   id: number;
   code: string;
   description: string;
-  discount_type: string;
-  discount_value: number;
-  starts_at: string;
-  ends_at: string;
-  usage_limit: number | null;
-  times_used: number;
+  discountType: string;
+  discountValue: number;
+  startsAt: string;
+  endsAt: string;
+  usageLimit: number | null;
+  timesUsed: number;
 }
 
 interface VoucherHistory {
@@ -65,18 +65,18 @@ export default function VouchersPage() {
   // local formatDate removed, using import from @/lib/date-utils
 
   const getDiscountText = (coupon: Coupon) => {
-    if (coupon.discount_type === 'percent') {
-      return `Giảm ${coupon.discount_value}%`;
+    if (coupon.discountType === 'percent') {
+      return `Giảm ${coupon.discountValue}%`;
     }
-    return `Giảm ${formatCurrency(coupon.discount_value)}`;
+    return `Giảm ${formatCurrency(coupon.discountValue)}`;
   };
 
   const getUsageText = (coupon: Coupon) => {
-    if (coupon.usage_limit === null) {
+    if (coupon.usageLimit === null) {
       return 'Không giới hạn';
     }
-    const remaining = coupon.usage_limit - coupon.times_used;
-    return `Còn ${remaining}/${coupon.usage_limit} lượt`;
+    const remaining = (coupon.usageLimit || 0) - (coupon.timesUsed || 0);
+    return `Còn ${remaining}/${coupon.usageLimit} lượt`;
   };
 
   const fetchHistory = async () => {
@@ -184,8 +184,14 @@ export default function VouchersPage() {
                       <div className="space-y-2 text-sm">
                         <div className="flex justify-between">
                           <span className="text-gray-600">Hiệu lực:</span>
-                          <span className="font-medium">
-                            {formatDate(coupon.starts_at)} - {formatDate(coupon.ends_at)}
+                          <span className="font-medium text-right">
+                            {!coupon.startsAt && !coupon.endsAt
+                              ? 'Vô thời hạn'
+                              : coupon.startsAt && !coupon.endsAt
+                                ? `Từ ${formatDate(coupon.startsAt)}`
+                                : !coupon.startsAt && coupon.endsAt
+                                  ? `Đến ${formatDate(coupon.endsAt)}`
+                                  : `${formatDate(coupon.startsAt)} - ${formatDate(coupon.endsAt)}`}
                           </span>
                         </div>
                         <div className="flex justify-between">

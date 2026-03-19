@@ -1,39 +1,60 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { executeQuery } from '@/lib/db/mysql';
+import { db } from '@/lib/db/drizzle';
+import { productReviews } from '@/lib/db/schema';
+import { eq } from 'drizzle-orm';
 import { checkAdminAuth } from '@/lib/auth/auth';
+import { logAdminAction } from '@/lib/db/repositories/audit';
+import { ResponseWrapper } from '@/lib/api/api-response';
 
 /**
  * API Phản hồi (Admin Reply) cho các đánh giá sản phẩm từ khách hàng.
+ * Bảo mật: Yêu cầu quyền Admin.
+ * Chức năng:
+ * - Cập nhật nội dung phản hồi của quản trị viên (adminReply) cho một review cụ thể.
+ * - Tự động ghi log Audit để theo dõi hoạt động của nhân viên hỗ trợ.
  */
 export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const admin = await checkAdminAuth();
     if (!admin) {
-      return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
+      return ResponseWrapper.unauthorized();
     }
-    const { id } = await params;
-    const reviewId = id;
+
+    const { id: idStr } = await params;
+    const reviewId = Number(idStr);
     const body = await request.json();
     const { admin_reply } = body;
 
     if (!admin_reply) {
-      return NextResponse.json(
-        { success: false, message: 'Thiếu nội dung trả lời' },
-        { status: 400 }
-      );
+      return ResponseWrapper.error('Thiếu nội dung trả lời (admin_reply)', 400);
     }
 
-    await executeQuery('UPDATE product_reviews SET admin_reply = ? WHERE id = ?', [
-      admin_reply,
-      reviewId,
-    ]);
+    const [result] = await db
+      .update(productReviews)
+      .set({
+        adminReply: admin_reply,
+        updatedAt: new Date(),
+      })
+      .where(eq(productReviews.id, reviewId));
 
-    return NextResponse.json({
-      success: true,
-      message: 'Trả lời review thành công',
-    });
+    if (result.affectedRows === 0) {
+      return ResponseWrapper.notFound('Không tìm thấy bản ghi đánh giá sản phẩm');
+    }
+
+    // Log Admin Action
+    await logAdminAction(
+      admin.userId,
+      'REPLY_REVIEW',
+      'product_reviews',
+      reviewId,
+      null,
+      { admin_reply },
+      request
+    );
+
+    return ResponseWrapper.success(null, 'Trả lời review thành công');
   } catch (error) {
     console.error('Error adding reply:', error);
-    return NextResponse.json({ success: false, message: 'Lỗi server nội bộ' }, { status: 500 });
+    return ResponseWrapper.serverError('Lỗi server nội bộ', error);
   }
 }

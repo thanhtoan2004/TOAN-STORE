@@ -6,6 +6,7 @@ import {
   markMessagesAsRead,
 } from '@/lib/db/supportChat';
 import { verifyAuth } from '@/lib/auth/auth';
+import { ResponseWrapper } from '@/lib/api/api-response';
 
 /**
  * API Lấy danh sách tin nhắn trong phiên chat.
@@ -25,32 +26,20 @@ export async function GET(
     // Get chat to verify it exists
     const chat = await getSupportChat(chatId);
     if (!chat) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: 'Chat not found',
-        },
-        { status: 404 }
-      );
+      return ResponseWrapper.notFound('Chat not found');
     }
 
     // Ownership check for registered users
     if (chat.user_id) {
       const session = await verifyAuth();
       if (!session || Number(session.userId) !== chat.user_id) {
-        return NextResponse.json(
-          { success: false, error: 'Unauthorized access to chat' },
-          { status: 403 }
-        );
+        return ResponseWrapper.forbidden('Unauthorized access to chat');
       }
     } else {
       // Guest check via Token
       const token = request.headers.get('x-chat-token');
       if (!token || token !== chat.access_token) {
-        return NextResponse.json(
-          { success: false, error: 'Unauthorized access (missing or invalid token)' },
-          { status: 403 }
-        );
+        return ResponseWrapper.forbidden('Unauthorized access (missing or invalid token)');
       }
     }
 
@@ -63,20 +52,13 @@ export async function GET(
     // Mark admin messages as read
     await markMessagesAsRead(chatId, 'admin');
 
-    return NextResponse.json({
-      success: true,
+    return ResponseWrapper.success({
       messages,
       chatStatus: chat.status,
     });
   } catch (error) {
     console.error('Get messages error:', error);
-    return NextResponse.json(
-      {
-        success: false,
-        error: 'Failed to get messages',
-      },
-      { status: 500 }
-    );
+    return ResponseWrapper.serverError('Failed to get messages', error);
   }
 }
 
@@ -97,40 +79,25 @@ export async function POST(
     const userId = session?.userId ? Number(session.userId) : null;
 
     if ((!message || !message.trim()) && !imageUrl) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: 'Message or image is required',
-        },
-        { status: 400 }
-      );
+      return ResponseWrapper.error('Message or image is required', 400);
     }
 
     // Verify chat exists
     const chat = await getSupportChat(chatId);
     if (!chat) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: 'Chat not found',
-        },
-        { status: 404 }
-      );
+      return ResponseWrapper.notFound('Chat not found');
     }
 
     // Ownership check
     if (chat.user_id) {
       if (!userId || userId !== chat.user_id) {
-        return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 403 });
+        return ResponseWrapper.forbidden('Unauthorized');
       }
     } else {
       // Guest check via Token
       const token = request.headers.get('x-chat-token');
       if (!token || token !== chat.access_token) {
-        return NextResponse.json(
-          { success: false, error: 'Unauthorized access (missing or invalid token)' },
-          { status: 403 }
-        );
+        return ResponseWrapper.forbidden('Unauthorized access (missing or invalid token)');
       }
     }
 
@@ -143,18 +110,9 @@ export async function POST(
       imageUrl,
     });
 
-    return NextResponse.json({
-      success: true,
-      messageId,
-    });
+    return ResponseWrapper.success({ messageId });
   } catch (error) {
     console.error('Send message error:', error);
-    return NextResponse.json(
-      {
-        success: false,
-        error: 'Failed to send message',
-      },
-      { status: 500 }
-    );
+    return ResponseWrapper.serverError('Failed to send message', error);
   }
 }

@@ -1,9 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { removeFromCart, updateCartItemQuantity, executeQuery } from '@/lib/db/mysql';
+import { db } from '@/lib/db/drizzle';
+import { cartItems as cartItemsTable, carts as cartsTable } from '@/lib/db/schema';
+import { eq, and } from 'drizzle-orm';
+import { removeFromCart, updateCartItemQuantity } from '@/lib/db/repositories/cart';
 import { verifyAuth } from '@/lib/auth/auth';
 import { invalidateCache } from '@/lib/redis/cache';
+import { ResponseWrapper } from '@/lib/api/api-response';
 
-// Interface cho Cart Item
+/**
+ * Interface cho Cart Item
+ */
 interface CartItem {
   id: number;
   productId: number;
@@ -17,65 +23,71 @@ interface CartItem {
   stock: number;
 }
 
-// PUT - Cập nhật số lượng sản phẩm trong giỏ hàng
+/**
+ * PUT - Cập nhật số lượng sản phẩm trong giỏ hàng.
+ * Bảo mật:
+ * - Kiểm tra quyền sở hữu (Ownership check) để đảm bảo User chỉ sửa được giỏ hàng của mình.
+ * - Invalidate cache sau khi cập nhật để đảm bảo tính nhất quán dữ liệu.
+ */
 export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const session = await verifyAuth();
     if (!session) {
-      return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
+      return ResponseWrapper.unauthorized();
     }
 
     const { id } = await params;
     const cartItemId = parseInt(id);
 
     if (isNaN(cartItemId)) {
-      return NextResponse.json({ success: false, message: 'ID không hợp lệ' }, { status: 400 });
+      return ResponseWrapper.error('ID không hợp lệ', 400);
     }
 
-    // Ownership check - join with carts table to get user_id
-    const items = (await executeQuery(
-      'SELECT c.user_id FROM cart_items ci JOIN carts c ON ci.cart_id = c.id WHERE ci.id = ?',
-      [cartItemId]
-    )) as any[];
+    // Ownership check
+    const [item] = await db
+      .select({ userId: cartsTable.userId })
+      .from(cartItemsTable)
+      .innerJoin(cartsTable, eq(cartItemsTable.cartId, cartsTable.id))
+      .where(eq(cartItemsTable.id, cartItemId))
+      .limit(1);
 
-    if (items.length === 0) {
-      return NextResponse.json(
-        { success: false, message: 'Sản phẩm không tồn tại' },
-        { status: 404 }
-      );
+    if (!item) {
+      return ResponseWrapper.notFound('Sản phẩm không tồn tại trong giỏ hàng');
     }
 
-    if (items[0].user_id !== session.userId) {
-      return NextResponse.json({ success: false, message: 'Forbidden' }, { status: 403 });
+    if (item.userId !== Number(session.userId)) {
+      return ResponseWrapper.forbidden();
     }
 
     const body = await request.json();
     const { quantity } = body;
 
     if (quantity === undefined || quantity < 0) {
-      return NextResponse.json(
-        { success: false, message: 'Số lượng không hợp lệ' },
-        { status: 400 }
-      );
+      return ResponseWrapper.error('Số lượng không hợp lệ', 400);
     }
 
-    // Cập nhật số lượng trong database - PASS userId for security check
+    // Cập nhật số lượng
     await updateCartItemQuantity(cartItemId, quantity, Number(session.userId));
 
     // Invalidate cache
     await invalidateCache(`user:cart:${session.userId}`);
 
-    return NextResponse.json({
-      success: true,
-      message: quantity === 0 ? 'Đã xóa sản phẩm khỏi giỏ hàng' : 'Đã cập nhật số lượng',
-    });
+    return ResponseWrapper.success(
+      null,
+      quantity === 0 ? 'Đã xóa sản phẩm khỏi giỏ hàng' : 'Đã cập nhật số lượng'
+    );
   } catch (error) {
     console.error('Lỗi khi cập nhật giỏ hàng:', error);
-    return NextResponse.json({ success: false, message: 'Lỗi server nội bộ' }, { status: 500 });
+    return ResponseWrapper.serverError('Lỗi server nội bộ', error);
   }
 }
 
-// DELETE - Xóa sản phẩm khỏi giỏ hàng
+/**
+ * DELETE - Xóa vĩnh viễn sản phẩm khỏi giỏ hàng.
+ * Bảo mật:
+ * - Kiểm tra quyền sở hữu.
+ * - Invalidate cache cục bộ cho người dùng.
+ */
 export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -83,45 +95,41 @@ export async function DELETE(
   try {
     const session = await verifyAuth();
     if (!session) {
-      return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
+      return ResponseWrapper.unauthorized();
     }
 
     const { id } = await params;
     const cartItemId = parseInt(id);
 
     if (isNaN(cartItemId)) {
-      return NextResponse.json({ success: false, message: 'ID không hợp lệ' }, { status: 400 });
+      return ResponseWrapper.error('ID không hợp lệ', 400);
     }
 
-    // Ownership check - join with carts table to get user_id
-    const items = (await executeQuery(
-      'SELECT c.user_id FROM cart_items ci JOIN carts c ON ci.cart_id = c.id WHERE ci.id = ?',
-      [cartItemId]
-    )) as any[];
+    // Ownership check
+    const [item] = await db
+      .select({ userId: cartsTable.userId })
+      .from(cartItemsTable)
+      .innerJoin(cartsTable, eq(cartItemsTable.cartId, cartsTable.id))
+      .where(eq(cartItemsTable.id, cartItemId))
+      .limit(1);
 
-    if (items.length === 0) {
-      return NextResponse.json(
-        { success: false, message: 'Sản phẩm không tồn tại' },
-        { status: 404 }
-      );
+    if (!item) {
+      return ResponseWrapper.notFound('Sản phẩm không tồn tại trong giỏ hàng');
     }
 
-    if (items[0].user_id !== session.userId) {
-      return NextResponse.json({ success: false, message: 'Forbidden' }, { status: 403 });
+    if (item.userId !== Number(session.userId)) {
+      return ResponseWrapper.forbidden();
     }
 
-    // Xóa item từ database - PASS userId for security check
+    // Xóa item
     await removeFromCart(cartItemId, Number(session.userId));
 
     // Invalidate cache
     await invalidateCache(`user:cart:${session.userId}`);
 
-    return NextResponse.json({
-      success: true,
-      message: 'Đã xóa sản phẩm khỏi giỏ hàng',
-    });
+    return ResponseWrapper.success(null, 'Đã xóa sản phẩm khỏi giỏ hàng');
   } catch (error) {
     console.error('Lỗi khi xóa sản phẩm:', error);
-    return NextResponse.json({ success: false, message: 'Lỗi server nội bộ' }, { status: 500 });
+    return ResponseWrapper.serverError('Lỗi server nội bộ', error);
   }
 }

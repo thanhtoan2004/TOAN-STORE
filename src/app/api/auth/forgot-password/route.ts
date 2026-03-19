@@ -1,9 +1,10 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { executeQuery } from '@/lib/db/mysql';
 import { sendPasswordResetEmail } from '@/lib/mail/mail';
 import crypto from 'crypto';
 import { withRateLimit } from '@/lib/api/with-rate-limit';
 import { hashEmail } from '@/lib/security/encryption';
+import { ResponseWrapper } from '@/lib/api/api-response';
 
 /**
  * API Yêu cầu khôi phục mật khẩu.
@@ -16,7 +17,7 @@ async function forgotPasswordHandler(req: Request) {
     const { email } = await req.json();
 
     if (!email) {
-      return NextResponse.json({ message: 'Vui lòng nhập email' }, { status: 400 });
+      return ResponseWrapper.error('Vui lòng nhập email', 400);
     }
 
     // Check if user exists (Sử dụng Blind Index)
@@ -28,10 +29,10 @@ async function forgotPasswordHandler(req: Request) {
 
     if (users.length === 0) {
       // Don't reveal that user does not exist
-      return NextResponse.json({
-        success: true,
-        message: 'Nếu email tồn tại, chúng tôi sẽ gửi hướng dẫn đến bạn.',
-      });
+      return ResponseWrapper.success(
+        null,
+        'Nếu email tồn tại, chúng tôi sẽ gửi hướng dẫn đến bạn.'
+      );
     }
 
     // Generate token
@@ -47,13 +48,10 @@ async function forgotPasswordHandler(req: Request) {
     const fullName = [users[0].first_name, users[0].last_name].filter(Boolean).join(' ') || 'bạn';
     sendPasswordResetEmail(email, fullName, token).catch(console.error);
 
-    return NextResponse.json({
-      success: true,
-      message: 'Đã gửi hướng dẫn đến email của bạn.',
-    });
+    return ResponseWrapper.success(null, 'Đã gửi hướng dẫn đến email của bạn.');
   } catch (error) {
     console.error('Forgot password error:', error);
-    return NextResponse.json({ message: 'Có lỗi xảy ra. Vui lòng thử lại sau.' }, { status: 500 });
+    return ResponseWrapper.serverError('Có lỗi xảy ra. Vui lòng thử lại sau.', error);
   }
 }
 

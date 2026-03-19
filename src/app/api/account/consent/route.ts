@@ -1,15 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { db } from '@/lib/db/drizzle';
+import { userConsents } from '@/lib/db/schema';
+import { eq, and, sql, inArray } from 'drizzle-orm';
 import { verifyAuth } from '@/lib/auth/auth';
-import { executeQuery } from '@/lib/db/mysql';
 
 /**
  * API Quản lý Consent người dùng (GDPR Compliance).
  *
  * GET: Lấy trạng thái consent hiện tại của user cho tất cả mục đích (marketing, analytics, v.v.)
  * POST: Cập nhật consent — ghi log immutable mỗi lần thay đổi để đảm bảo Audit Trail.
- *
- * @security Yêu cầu Auth (JWT Cookie)
- * @ratelimit 100 req/min (general)
  */
 
 // Lấy trạng thái consent hiện tại
@@ -22,26 +21,34 @@ export async function GET() {
 
     const userId = Number(session.userId);
 
-    // Lấy consent mới nhất cho mỗi purpose
-    const consents = await executeQuery<any[]>(
-      `SELECT purpose, is_granted, granted_at, revoked_at, version
-             FROM user_consents 
-             WHERE user_id = ? 
-             AND id IN (
-               SELECT MAX(id) FROM user_consents WHERE user_id = ? GROUP BY purpose
-             )`,
-      [userId, userId]
-    );
+    // Lấy ID lớn nhất cho mỗi purpose của user này
+    const latestIds = db
+      .select({ maxId: sql<number>`MAX(${userConsents.id})` })
+      .from(userConsents)
+      .where(eq(userConsents.userId, userId))
+      .groupBy(userConsents.purpose);
+
+    // Lấy consent chi tiết dựa trên các ID đó
+    const consents = await db
+      .select({
+        purpose: userConsents.purpose,
+        isGranted: userConsents.isGranted,
+        grantedAt: userConsents.grantedAt,
+        revokedAt: userConsents.revokedAt,
+        version: userConsents.version,
+      })
+      .from(userConsents)
+      .where(and(eq(userConsents.userId, userId), inArray(userConsents.id, latestIds)));
 
     // Build consent map
     const purposes = ['marketing', 'analytics', 'personalization', 'third_party'];
-    const consentMap: Record<string, { granted: boolean; updatedAt: string | null }> = {};
+    const consentMap: Record<string, { granted: boolean; updatedAt: Date | null }> = {};
 
     for (const p of purposes) {
-      const record = consents.find((c: any) => c.purpose === p);
+      const record = consents.find((c) => c.purpose === p);
       consentMap[p] = {
-        granted: record ? !!record.is_granted : false,
-        updatedAt: record ? (record.is_granted ? record.granted_at : record.revoked_at) : null,
+        granted: record ? !!record.isGranted : false,
+        updatedAt: record ? (record.isGranted ? record.grantedAt : record.revokedAt) : null,
       };
     }
 
@@ -94,20 +101,15 @@ export async function POST(request: NextRequest) {
     const userAgent = request.headers.get('user-agent') || '';
 
     // Ghi consent mới (immutable record)
-    const now = new Date().toISOString().slice(0, 19).replace('T', ' ');
-    await executeQuery(
-      `INSERT INTO user_consents (user_id, purpose, is_granted, ip_address, user_agent, granted_at, revoked_at)
-             VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [
-        userId,
-        purpose,
-        granted ? 1 : 0,
-        ip,
-        userAgent.substring(0, 500),
-        granted ? now : null,
-        granted ? null : now,
-      ]
-    );
+    await db.insert(userConsents).values({
+      userId,
+      purpose: purpose as any,
+      isGranted: granted ? 1 : 0,
+      ipAddress: ip,
+      userAgent: userAgent.substring(0, 500),
+      grantedAt: granted ? new Date() : null,
+      revokedAt: granted ? null : new Date(),
+    });
 
     return NextResponse.json({
       success: true,

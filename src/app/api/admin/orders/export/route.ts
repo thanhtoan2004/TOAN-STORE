@@ -1,40 +1,42 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { executeQuery } from '@/lib/db/mysql';
+import { db } from '@/lib/db/drizzle';
+import { orders as ordersTable, users } from '@/lib/db/schema';
+import { eq, sql, desc } from 'drizzle-orm';
 import { checkAdminAuth } from '@/lib/auth/auth';
+import { ResponseWrapper } from '@/lib/api/api-response';
 
 /**
  * API Xuất danh sách đơn hàng ra file CSV.
  * Chức năng:
- * 1. Truy vấn toàn bộ đơn hàng kèm thông tin khách hàng.
- * 2. Chuyển đổi dữ liệu sang định dạng CSV.
- * 3. Thêm BOM (\ufeff) để Excel hiển thị đúng font tiếng Việt (UTF-8).
+ * - Truy vấn toàn bộ đơn hàng kèm thông tin khách hàng.
+ * - Format dữ liệu sang định dạng CSV (Comma Separated Values).
+ * - Sử dụng BOM UTF-8 (\ufeff) để Excel hiển thị đúng tiếng Việt.
+ * - Trả về dưới dạng file download (attachment).
+ * Bảo mật: Chỉ dành cho Admin.
  */
 export async function GET(request: NextRequest) {
   try {
-    // Check authentication
     const admin = await checkAdminAuth();
     if (!admin) {
-      return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
+      return ResponseWrapper.unauthorized();
     }
 
-    // Fetch orders with user details
-    const orders = await executeQuery<any[]>(`
-      SELECT 
-        o.id, 
-        o.order_number, 
-        CONCAT(IFNULL(u.first_name, ''), ' ', IFNULL(u.last_name, '')) as customer_name,
-        u.email as customer_email,
-        o.total, 
-        o.status, 
-        o.payment_method, 
-        o.placed_at
-      FROM orders o
-      LEFT JOIN users u ON o.user_id = u.id
-      ORDER BY o.placed_at DESC
-    `);
+    const ordersData = await db
+      .select({
+        id: ordersTable.id,
+        orderNumber: ordersTable.orderNumber,
+        customerName: sql<string>`CONCAT(COALESCE(${users.firstName}, ''), ' ', COALESCE(${users.lastName}, ''))`,
+        customerEmail: users.email,
+        total: ordersTable.total,
+        status: ordersTable.status,
+        paymentMethod: ordersTable.paymentMethod,
+        placedAt: ordersTable.placedAt,
+      })
+      .from(ordersTable)
+      .leftJoin(users, eq(ordersTable.userId, users.id))
+      .orderBy(desc(ordersTable.placedAt));
 
-    // Generate CSV content
-    const headers = [
+    const csvHeaders = [
       'Order ID',
       'Order Number',
       'Customer Name',
@@ -44,25 +46,26 @@ export async function GET(request: NextRequest) {
       'Payment Method',
       'Placed At',
     ];
+
     const csvRows = [
-      headers.join(','),
-      ...orders.map((order) =>
+      csvHeaders.join(','),
+      ...ordersData.map((order) =>
         [
           order.id,
-          `"${order.order_number || ''}"`,
-          `"${(order.customer_name || 'Guest').trim()}"`,
-          `"${order.customer_email || ''}"`,
+          `"${order.orderNumber || ''}"`,
+          `"${(order.customerName || 'Guest').trim()}"`,
+          `"${order.customerEmail || ''}"`,
           order.total,
           `"${order.status}"`,
-          `"${order.payment_method || ''}"`,
-          `"${new Date(order.placed_at).toLocaleString()}"`,
+          `"${order.paymentMethod || ''}"`,
+          `"${order.placedAt ? new Date(order.placedAt).toLocaleString() : ''}"`,
         ].join(',')
       ),
     ];
 
-    const csvContent = '\ufeff' + csvRows.join('\n'); // Add BOM for UTF-8 support in Excel
+    const csvContent = '\ufeff' + csvRows.join('\n');
 
-    // Return as downloadable file
+    // Return raw CSV for successful file download
     return new NextResponse(csvContent, {
       headers: {
         'Content-Type': 'text/csv; charset=utf-8',
@@ -71,6 +74,6 @@ export async function GET(request: NextRequest) {
     });
   } catch (error) {
     console.error('Order Export Error:', error);
-    return NextResponse.json({ success: false, message: 'Internal Server Error' }, { status: 500 });
+    return ResponseWrapper.serverError('Lỗi server khi xuất file đơn hàng', error);
   }
 }

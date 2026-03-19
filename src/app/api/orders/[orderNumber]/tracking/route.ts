@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { query } from '@/lib/db/mysql';
 import { sendShippingNotificationEmail } from '@/lib/mail/email-templates';
+import { ResponseWrapper } from '@/lib/api/api-response';
 
 /**
  * Update order tracking information
@@ -16,13 +17,7 @@ export async function PATCH(
     const { trackingNumber, carrier, status } = body;
 
     if (!trackingNumber || !carrier) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: 'Tracking number and carrier are required',
-        },
-        { status: 400 }
-      );
+      return ResponseWrapper.error('Tracking number and carrier are required', 400);
     }
 
     // Update order with tracking info
@@ -49,13 +44,7 @@ export async function PATCH(
     );
 
     if (!order) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: 'Order not found',
-        },
-        { status: 404 }
-      );
+      return ResponseWrapper.notFound('Order not found');
     }
 
     // Send shipping notification email if status is shipped
@@ -71,28 +60,21 @@ export async function PATCH(
         orderNumber,
         trackingNumber,
         carrier
-      );
+      ).catch((err) => console.error('Error sending shipping email:', err));
     }
 
-    return NextResponse.json({
-      success: true,
-      message: 'Tracking information updated successfully',
-      data: {
+    return ResponseWrapper.success(
+      {
         orderNumber,
         trackingNumber,
         carrier,
         shippedAt,
       },
-    });
+      'Tracking information updated successfully'
+    );
   } catch (error) {
     console.error('Update tracking error:', error);
-    return NextResponse.json(
-      {
-        success: false,
-        message: 'Failed to update tracking information',
-      },
-      { status: 500 }
-    );
+    return ResponseWrapper.serverError('Failed to update tracking information', error);
   }
 }
 
@@ -116,27 +98,12 @@ export async function GET(
     );
 
     if (!order) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: 'Order not found',
-        },
-        { status: 404 }
-      );
+      return ResponseWrapper.notFound('Order not found');
     }
 
-    return NextResponse.json({
-      success: true,
-      data: order,
-    });
+    return ResponseWrapper.success(order);
   } catch (error) {
     console.error('Get tracking error:', error);
-    return NextResponse.json(
-      {
-        success: false,
-        message: 'Failed to get tracking information',
-      },
-      { status: 500 }
-    );
+    return ResponseWrapper.serverError('Failed to get tracking information', error);
   }
 }

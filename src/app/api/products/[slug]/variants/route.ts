@@ -1,16 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { db } from '@/lib/db/drizzle';
+import { products as productsTable } from '@/lib/db/schema';
+import { eq, and, isNull } from 'drizzle-orm';
 import { getProductVariants } from '@/lib/db/variants';
-import { executeQuery } from '@/lib/db/mysql';
+import { ResponseWrapper } from '@/lib/api/api-response';
 
 // GET /api/products/[id]/variants - Get all variants for a product
 /**
  * API Lấy danh sách các biến thể (SKU) của một sản phẩm.
  * Dữ liệu bao gồm: Size, Màu sắc, Giá và trạng thái tồn kho chi tiết (Số lượng thực, Đã giữ chỗ, Khả dụng).
  */
-export async function GET(
-  request: NextRequest,
-  { params }: { params: Promise<{ slug: string }> }
-) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ slug: string }> }) {
   try {
     const { slug } = await params;
 
@@ -21,24 +21,22 @@ export async function GET(
     if (isNumericId) {
       productId = parseInt(slug);
     } else {
-      const products = await executeQuery(
-        'SELECT id FROM products WHERE slug = ?',
-        [slug]
-      ) as any[];
+      const [product] = await db
+        .select({ id: productsTable.id })
+        .from(productsTable)
+        .where(and(eq(productsTable.slug, slug), isNull(productsTable.deletedAt)))
+        .limit(1);
 
-      if (products.length === 0) {
-        return NextResponse.json(
-          { success: false, message: 'Sản phẩm không tồn tại' },
-          { status: 404 }
-        );
+      if (!product) {
+        return ResponseWrapper.notFound('Sản phẩm không tồn tại');
       }
-      productId = products[0].id;
+      productId = product.id;
     }
 
     const variants = await getProductVariants(productId);
 
     // Format response with cleaner structure
-    const formattedVariants = variants.map(v => ({
+    const formattedVariants = variants.map((v) => ({
       id: v.id,
       sku: v.sku,
       size: v.size || null,
@@ -47,20 +45,14 @@ export async function GET(
       stock: {
         quantity: v.quantity,
         reserved: v.reserved,
-        available: v.available
+        available: v.available,
       },
-      inStock: v.available > 0
+      inStock: v.available > 0,
     }));
 
-    return NextResponse.json({
-      success: true,
-      data: formattedVariants
-    });
+    return ResponseWrapper.success(formattedVariants);
   } catch (error) {
     console.error('Error fetching product variants:', error);
-    return NextResponse.json(
-      { success: false, message: 'Lỗi server nội bộ' },
-      { status: 500 }
-    );
+    return ResponseWrapper.serverError('Lỗi server nội bộ', error);
   }
 }

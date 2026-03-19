@@ -1,37 +1,43 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { executeQuery } from '@/lib/db/mysql';
+import { db } from '@/lib/db/drizzle';
+import { productReviews } from '@/lib/db/schema';
+import { eq, sql } from 'drizzle-orm';
+import { ResponseWrapper } from '@/lib/api/api-response';
 
+/**
+ * API Cập nhật lượt "Hữu ích" (Helpful) cho một bài đánh giá.
+ * Hỗ trợ các hành động tăng/giảm lượt thích mà không gây giá trị âm.
+ */
 export async function POST(request: NextRequest) {
-    try {
-        const body = await request.json();
-        const { reviewId, action } = body; // action: 'like' | 'unlike'
+  try {
+    const body = await request.json();
+    const { reviewId, action } = body; // action: 'like' | 'unlike'
 
-        if (!reviewId) {
-            return NextResponse.json(
-                { success: false, message: 'Missing reviewId' },
-                { status: 400 }
-            );
-        }
-
-        const isUnlike = action === 'unlike';
-        const operator = isUnlike ? '-' : '+';
-
-        // Ensure count doesn't go below 0 when unliking
-        const query = isUnlike
-            ? 'UPDATE product_reviews SET helpful_count = GREATEST(0, helpful_count - 1) WHERE id = ?'
-            : 'UPDATE product_reviews SET helpful_count = helpful_count + 1 WHERE id = ?';
-
-        await executeQuery(query, [reviewId]);
-
-        return NextResponse.json({
-            success: true,
-            message: `Successfully ${isUnlike ? 'unliked' : 'liked'} review`
-        });
-    } catch (error) {
-        console.error('Error updating helpful count:', error);
-        return NextResponse.json(
-            { success: false, message: 'Internal server error' },
-            { status: 500 }
-        );
+    if (!reviewId) {
+      return ResponseWrapper.error('Missing reviewId', 400);
     }
+
+    const isUnlike = action === 'unlike';
+
+    if (isUnlike) {
+      await db
+        .update(productReviews)
+        .set({
+          helpfulCount: sql`GREATEST(0, ${productReviews.helpfulCount} - 1)`,
+        })
+        .where(eq(productReviews.id, reviewId));
+    } else {
+      await db
+        .update(productReviews)
+        .set({
+          helpfulCount: sql`${productReviews.helpfulCount} + 1`,
+        })
+        .where(eq(productReviews.id, reviewId));
+    }
+
+    return ResponseWrapper.success(null, `Successfully ${isUnlike ? 'unliked' : 'liked'} review`);
+  } catch (error) {
+    console.error('Error updating helpful count:', error);
+    return ResponseWrapper.serverError('Internal server error', error);
+  }
 }

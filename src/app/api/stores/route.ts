@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getStores } from '@/lib/db/mysql';
+import { ResponseWrapper } from '@/lib/api/api-response';
 
 /**
  * API Lấy danh sách hệ thống cửa hàng TOAN Store.
@@ -12,18 +13,9 @@ export async function GET(request: NextRequest) {
 
     const stores = await getStores(city);
 
-    return NextResponse.json({
-      success: true,
-      data: stores
-    });
+    return ResponseWrapper.success(stores);
   } catch (error) {
     console.error('Error fetching stores:', error);
-    return NextResponse.json(
-      {
-        success: false,
-        message: 'Không thể lấy danh sách cửa hàng'
-      },
-      { status: 500 }
-    );
+    return ResponseWrapper.serverError('Không thể lấy danh sách cửa hàng', error);
   }
 }

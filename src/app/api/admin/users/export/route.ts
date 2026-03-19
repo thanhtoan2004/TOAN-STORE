@@ -1,35 +1,34 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { executeQuery } from '@/lib/db/mysql';
+import { db } from '@/lib/db/drizzle';
+import { users as usersTable } from '@/lib/db/schema';
+import { eq, isNull, desc } from 'drizzle-orm';
 import { checkAdminAuth } from '@/lib/auth/auth';
+import { ResponseWrapper } from '@/lib/api/api-response';
 
 /**
  * API Xuất danh sách người dùng (Khách hàng) ra file CSV.
- * Hỗ trợ các thông tin cơ bản: Tên, Email, SĐT, Trạng thái và Ngày tham gia.
  */
 export async function GET(request: NextRequest) {
   try {
-    // Check authentication
     const admin = await checkAdminAuth();
     if (!admin) {
-      return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
+      return ResponseWrapper.unauthorized();
     }
 
-    // Fetch users (customers)
-    const users = await executeQuery<any[]>(`
-      SELECT 
-        id, 
-        email, 
-        first_name, 
-        last_name, 
-        phone, 
-        is_active, 
-        created_at
-      FROM users
-      WHERE deleted_at IS NULL
-      ORDER BY created_at DESC
-    `);
+    const users = await db
+      .select({
+        id: usersTable.id,
+        email: usersTable.email,
+        firstName: usersTable.firstName,
+        lastName: usersTable.lastName,
+        phone: usersTable.phone,
+        isActive: usersTable.isActive,
+        createdAt: usersTable.createdAt,
+      })
+      .from(usersTable)
+      .where(isNull(usersTable.deletedAt))
+      .orderBy(desc(usersTable.createdAt));
 
-    // Generate CSV content
     const headers = [
       'User ID',
       'First Name',
@@ -44,19 +43,18 @@ export async function GET(request: NextRequest) {
       ...users.map((user) =>
         [
           user.id,
-          `"${user.first_name || ''}"`,
-          `"${user.last_name || ''}"`,
+          `"${user.firstName || ''}"`,
+          `"${user.lastName || ''}"`,
           `"${user.email}"`,
           `"${user.phone || ''}"`,
-          user.is_active ? '"Active"' : '"Inactive"',
-          `"${new Date(user.created_at).toLocaleString()}"`,
+          user.isActive ? '"Active"' : '"Inactive"',
+          `"${user.createdAt ? new Date(user.createdAt).toLocaleString() : ''}"`,
         ].join(',')
       ),
     ];
 
-    const csvContent = '\ufeff' + csvRows.join('\n'); // Add BOM for UTF-8 support in Excel
+    const csvContent = '\ufeff' + csvRows.join('\n');
 
-    // Return as downloadable file
     return new NextResponse(csvContent, {
       headers: {
         'Content-Type': 'text/csv; charset=utf-8',
@@ -65,6 +63,6 @@ export async function GET(request: NextRequest) {
     });
   } catch (error) {
     console.error('User Export Error:', error);
-    return NextResponse.json({ success: false, message: 'Internal Server Error' }, { status: 500 });
+    return ResponseWrapper.serverError('Internal Server Error', error);
   }
 }

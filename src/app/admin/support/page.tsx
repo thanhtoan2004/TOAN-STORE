@@ -1,7 +1,16 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { MessageSquare, Clock, CheckCircle2, User, Loader2, ArrowRight } from 'lucide-react';
+import {
+  MessageSquare,
+  Clock,
+  CheckCircle2,
+  User,
+  Loader2,
+  ArrowRight,
+  Search,
+  RefreshCw,
+} from 'lucide-react';
 import { formatDateTime } from '@/lib/utils/date-utils';
 import Link from 'next/link';
 
@@ -24,22 +33,34 @@ export default function AdminSupportPage() {
   const [chats, setChats] = useState<SupportChat[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<string>('all');
+  const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+
+  // Debounce search
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearch(search);
+    }, 500);
+    return () => clearTimeout(handler);
+  }, [search]);
 
   useEffect(() => {
     loadChats();
-    const interval = setInterval(loadChats, 5000); // Poll every 5 seconds
+    const interval = setInterval(loadChats, 10000); // Poll every 10 seconds
     return () => clearInterval(interval);
-  }, [filter]);
+  }, [filter, debouncedSearch]);
 
   const loadChats = async () => {
     try {
-      const url =
-        filter === 'all' ? '/api/admin/support/chats' : `/api/admin/support/chats?status=${filter}`;
+      let url = `/api/admin/support/chats?status=${filter === 'all' ? '' : filter}`;
+      if (debouncedSearch) {
+        url += `&search=${encodeURIComponent(debouncedSearch)}`;
+      }
 
       const response = await fetch(url);
       const data = await response.json();
-      if (data.success && Array.isArray(data.chats)) {
-        setChats(data.chats);
+      if (data.success && data.data?.chats) {
+        setChats(data.data.chats);
       } else {
         setChats([]);
       }
@@ -81,27 +102,55 @@ export default function AdminSupportPage() {
         <p className="text-gray-600">Quản lý các cuộc trò chuyện hỗ trợ khách hàng</p>
       </div>
 
-      {/* Filters */}
-      <div className="flex gap-2 mb-6">
-        {['all', 'waiting', 'active', 'resolved'].map((status) => (
+      {/* Filters & Search */}
+      <div className="flex flex-col md:flex-row gap-4 mb-6 items-center justify-between">
+        <div className="flex gap-2 flex-wrap">
+          {['all', 'waiting', 'active', 'resolved'].map((status) => (
+            <button
+              key={status}
+              onClick={() => setFilter(status)}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                filter === status
+                  ? 'bg-black text-white'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              {status === 'all'
+                ? 'Tất cả'
+                : status === 'waiting'
+                  ? 'Chờ'
+                  : status === 'active'
+                    ? 'Đang chat'
+                    : 'Đã giải quyết'}
+            </button>
+          ))}
+        </div>
+
+        <div className="flex items-center gap-2 w-full md:w-auto">
+          <div className="relative flex-1 md:w-80">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Tìm khách hàng (tên, email...)"
+              className="w-full pl-10 pr-4 py-2 bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-black focus:border-black"
+            />
+          </div>
           <button
-            key={status}
-            onClick={() => setFilter(status)}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-              filter === status
-                ? 'bg-black text-white'
-                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-            }`}
+            onClick={() => loadChats()}
+            className="p-2 bg-gray-100 hover:bg-gray-200 rounded-lg text-gray-600 transition-colors"
+            title="Làm mới"
           >
-            {status === 'all'
-              ? 'Tất cả'
-              : status === 'waiting'
-                ? 'Chờ'
-                : status === 'active'
-                  ? 'Đang chat'
-                  : 'Đã giải quyết'}
+            <RefreshCw size={18} className={loading ? 'animate-spin' : ''} />
           </button>
-        ))}
+        </div>
+      </div>
+
+      <div className="mb-4 flex items-center justify-between">
+        <p className="text-sm text-gray-500">
+          Hiển thị <strong>{chats.length}</strong> cuộc trò chuyện
+        </p>
       </div>
 
       {/* Chat List */}

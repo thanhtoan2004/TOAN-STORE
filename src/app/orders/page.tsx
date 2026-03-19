@@ -12,12 +12,15 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 
 interface Order {
+  id: number | string;
   orderNumber: string;
   orderDate: string;
   status: string;
   totalAmount: number;
   itemCount: number;
   previewImage: string;
+  paymentMethod: string;
+  paymentStatus: string;
 }
 
 export default function OrdersPage() {
@@ -56,15 +59,18 @@ export default function OrdersPage() {
           throw new Error('Failed to fetch orders');
         }
 
-        const data = await ordersRes.json();
+        const result = await ordersRes.json();
+        const ordersData = result.data;
 
         // Transform API data to match Order interface
+        // Support both snake_case (legacy/direct) and camelCase (Drizzle)
         const transformedOrders =
-          data.orders?.map((order: any) => ({
-            orderNumber: order.order_number,
-            orderDate: formatDateTime(order.placed_at),
+          ordersData?.map((order: any) => ({
+            id: order.id,
+            orderNumber: order.order_number || order.orderNumber || 'N/A',
+            orderDate: formatDateTime(order.placed_at || order.placedAt),
             status:
-              order.status === 'pending'
+              (order.status === 'pending'
                 ? 'pending'
                 : order.status === 'processing'
                   ? 'confirmed'
@@ -74,14 +80,16 @@ export default function OrdersPage() {
                       ? 'delivered'
                       : order.status === 'cancelled'
                         ? 'cancelled'
-                        : order.status,
-            totalAmount: parseFloat(order.total),
-            itemCount: order.item_count || 0,
-            previewImage: order.preview_image || '/placeholder-product.png',
+                        : order.status) || 'pending',
+            totalAmount: parseFloat(order.total || order.totalAmount || '0'),
+            itemCount: order.item_count || order.itemCount || 0,
+            previewImage: order.preview_image || order.previewImage || '/placeholder.png',
+            paymentMethod: order.payment_method || order.paymentMethod || 'cod',
+            paymentStatus: order.payment_status || order.paymentStatus || 'pending',
           })) || [];
 
         setOrders(transformedOrders);
-        setTotalPages(data.pagination?.totalPages || 1);
+        setTotalPages(result.pagination?.totalPages || 1);
         setLoading(false);
       } catch (error) {
         console.error('Lỗi khi tải danh sách đơn hàng:', error);
@@ -92,7 +100,7 @@ export default function OrdersPage() {
     };
 
     fetchOrders();
-  }, [page, limit, authUser, isAuthLoading, t.common.error]); // Re-fetch when dependencies change
+  }, [page, limit, authUser, isAuthLoading, t.common.error]);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -113,6 +121,26 @@ export default function OrdersPage() {
       default:
         return 'bg-gray-100 text-gray-800';
     }
+  };
+
+  const getStatusLabel = (order: Order) => {
+    const methodLower = (order.paymentMethod || '').toLowerCase();
+    const isCod =
+      methodLower.includes('cod') ||
+      methodLower.includes('nhận hàng') ||
+      methodLower.includes('mặt');
+
+    // Nếu đơn hàng đã confirmed/processing và KHÔNG PHẢI COD, thì hiển thị là "Đã thanh toán" cho chuyên nghiệp
+    if ((order.status === 'confirmed' || order.status === 'processing') && !isCod) {
+      return t.orders.paid;
+    }
+
+    // Trường hợp đã nhận tiền nhưng chưa ship (SePay thường auto sang trạng thái này nếu có repo xử lý)
+    if (order.status === 'payment_received') {
+      return t.orders.paid;
+    }
+
+    return t.orders[order.status as keyof typeof t.orders] || order.status;
   };
 
   const handlePageChange = (newPage: number) => {
@@ -242,7 +270,7 @@ export default function OrdersPage() {
             <div className="space-y-4">
               {orders.map((order) => (
                 <div
-                  key={order.orderNumber}
+                  key={order.id}
                   className="bg-white rounded-lg shadow-sm border p-6 hover:shadow-md transition-shadow"
                 >
                   <div className="grid grid-cols-1 md:grid-cols-4 gap-6 items-center">
@@ -269,7 +297,7 @@ export default function OrdersPage() {
                       <span
                         className={`inline-block px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(order.status)}`}
                       >
-                        {t.orders[order.status as keyof typeof t.orders] || order.status}
+                        {getStatusLabel(order)}
                       </span>
                     </div>
 

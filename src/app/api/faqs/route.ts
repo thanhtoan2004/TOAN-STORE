@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { executeQuery } from '@/lib/db/mysql';
+import { db } from '@/lib/db/drizzle';
+import { faqs as faqsTable, faqCategories } from '@/lib/db/schema';
+import { eq, and, asc } from 'drizzle-orm';
+import { ResponseWrapper } from '@/lib/api/api-response';
 
 /**
  * API Lấy danh sách câu hỏi thường gặp (FAQs) và danh mục FAQ.
@@ -10,54 +13,45 @@ export async function GET(request: NextRequest) {
     const searchParams = request.nextUrl.searchParams;
     const categoryId = searchParams.get('categoryId');
 
-    let query = `
-      SELECT 
-        f.id,
-        f.question,
-        f.answer,
-        f.helpful_count,
-        fc.id as category_id,
-        fc.name as category_name,
-        fc.slug as category_slug
-      FROM faqs f
-      JOIN faq_categories fc ON f.category_id = fc.id
-      WHERE f.is_active = 1 AND fc.is_active = 1
-    `;
-
-    const params: any[] = [];
-
+    const filters = [eq(faqsTable.isActive, 1), eq(faqCategories.isActive, 1)];
     if (categoryId) {
-      query += ' AND f.category_id = ?';
-      params.push(categoryId);
+      filters.push(eq(faqsTable.categoryId, Number(categoryId)));
     }
 
-    query += ' ORDER BY fc.position, f.position';
-
-    const faqs = await executeQuery(query, params);
+    const faqs = await db
+      .select({
+        id: faqsTable.id,
+        question: faqsTable.question,
+        answer: faqsTable.answer,
+        helpfulCount: faqsTable.helpfulCount,
+        categoryId: faqCategories.id,
+        categoryName: faqCategories.name,
+        categorySlug: faqCategories.slug,
+      })
+      .from(faqsTable)
+      .innerJoin(faqCategories, eq(faqsTable.categoryId, faqCategories.id))
+      .where(and(...filters))
+      .orderBy(asc(faqCategories.position), asc(faqsTable.position));
 
     // Lấy danh sách categories
-    const categories = await executeQuery(`
-      SELECT id, name, slug, description, icon
-      FROM faq_categories
-      WHERE is_active = 1
-      ORDER BY position
-    `);
+    const categoriesList = await db
+      .select({
+        id: faqCategories.id,
+        name: faqCategories.name,
+        slug: faqCategories.slug,
+        description: faqCategories.description,
+        icon: faqCategories.icon,
+      })
+      .from(faqCategories)
+      .where(eq(faqCategories.isActive, 1))
+      .orderBy(asc(faqCategories.position));
 
-    return NextResponse.json({
-      success: true,
-      data: {
-        faqs,
-        categories
-      }
+    return ResponseWrapper.success({
+      faqs,
+      categories: categoriesList,
     });
   } catch (error) {
     console.error('Error fetching FAQs:', error);
-    return NextResponse.json(
-      {
-        success: false,
-        message: 'Không thể tải danh sách câu hỏi'
-      },
-      { status: 500 }
-    );
+    return ResponseWrapper.serverError('Không thể tải danh sách câu hỏi', error);
   }
 }

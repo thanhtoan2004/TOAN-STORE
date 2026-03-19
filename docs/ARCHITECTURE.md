@@ -37,12 +37,12 @@ TOAN Store — System Architecture
 │                           ▼                               │
 │  ┌────────────────────────────────────────────────────┐  │
 │  │               Business Logic Layer                 │  │
-│  │  order-logic.ts │ encryption.ts │ point-logic.ts   │  │
+│  │  order-logic.ts │ encryption.ts │ ResponseWrapper  │  │
 │  └────────────────────────────────────────────────────┘  │
 │                           │                               │
 │  ┌────────────────────────▼───────────────────────────┐  │
 │  │              Repository / DB Layer                  │  │
-│  │         mysql2 (connection pool, parameterized)     │  │
+│  │         Drizzle ORM (Type-safe) + mysql2           │  │
 │  └────────────────────────────────────────────────────┘  │
 └──────────────┬────────────────────────┬──────────────────┘
                │                        │
@@ -73,22 +73,23 @@ External Services
 
 ## 🛠️ Tech Stack
 
-| Layer       | Technology          | Version | Purpose                         |
-| ----------- | ------------------- | ------- | ------------------------------- |
-| Framework   | Next.js             | 15      | App Router, SSR/SSG, API Routes |
-| Language    | TypeScript          | 5+      | Type safety                     |
-| Database    | MySQL               | 8.0     | Primary data store              |
-| Cache/Queue | Redis               | 7+      | Caching, Rate limiting, BullMQ  |
-| Search      | Meilisearch         | Latest  | Full-text product search        |
-| ORM         | mysql2              | —       | Raw SQL với parameterization    |
-| Auth        | JWT + Cookie        | —       | HTTP-Only cookies, rotation     |
-| Encryption  | AES-256-GCM         | —       | PII data at rest                |
-| Email       | Nodemailer + BullMQ | —       | Async email queue               |
-| AI          | Google Gemini       | 1.5/2.0 | Chatbot với Function Calling    |
-| Image       | Cloudinary          | —       | CDN + transformation            |
-| Testing     | Vitest + Playwright | —       | Unit + E2E                      |
-| Monitoring  | Sentry              | —       | Error tracking                  |
-| Container   | Docker Compose      | —       | Dev infrastructure              |
+| Layer       | Technology          | Version | Purpose                              |
+| ----------- | ------------------- | ------- | ------------------------------------ |
+| Framework   | Next.js             | 15      | App Router, SSR/SSG, API Routes      |
+| Language    | TypeScript          | 5+      | Type safety                          |
+| Database    | MySQL               | 8.0     | Primary data store                   |
+| Cache/Queue | Redis               | 7+      | Caching, Rate limiting, BullMQ       |
+| Search      | Meilisearch         | Latest  | Full-text product search             |
+| ORM         | Drizzle ORM         | Latest  | Type-safe queries, schema management |
+| Driver      | mysql2              | —       | Database connection pool             |
+| Auth        | JWT + Cookie        | —       | HTTP-Only cookies, rotation          |
+| Encryption  | AES-256-GCM         | —       | PII data at rest                     |
+| Email       | Nodemailer + BullMQ | —       | Async email queue                    |
+| AI          | Google Gemini       | 1.5/2.0 | Chatbot với Function Calling         |
+| Image       | Cloudinary          | —       | CDN + transformation                 |
+| Testing     | Vitest + Playwright | —       | Unit + E2E                           |
+| Monitoring  | Sentry              | —       | Error tracking                       |
+| Container   | Docker Compose      | —       | Dev infrastructure                   |
 
 ## 🔄 Luồng dữ liệu — Order Lifecycle
 

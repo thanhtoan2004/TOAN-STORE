@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { checkAdminAuth } from '@/lib/auth/auth';
 import { createShipment } from '@/lib/db/repositories/shipment';
-import { logAdminAction } from '@/lib/security/audit';
+import { logAdminAction } from '@/lib/db/repositories/audit';
+import { ResponseWrapper } from '@/lib/api/api-response';
 
 /**
  * POST - Create a new shipment (Fulfillment)
@@ -15,20 +16,33 @@ export async function POST(request: NextRequest) {
   try {
     const admin = await checkAdminAuth();
     if (!admin) {
-      return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
+      return ResponseWrapper.unauthorized();
     }
 
     const body = await request.json();
-    const { orderId, warehouseId, trackingCode, carrier, items } = body;
+    const {
+      order_id,
+      orderId,
+      warehouse_id,
+      warehouseId,
+      tracking_code,
+      trackingCode,
+      carrier,
+      items,
+    } = body;
 
-    if (!orderId || !items || !Array.isArray(items) || items.length === 0) {
-      return NextResponse.json({ success: false, message: 'Invalid data' }, { status: 400 });
+    const finalOrderId = order_id || orderId;
+    const finalWarehouseId = warehouse_id || warehouseId;
+    const finalTrackingCode = tracking_code || trackingCode;
+
+    if (!finalOrderId || !items || !Array.isArray(items) || items.length === 0) {
+      return ResponseWrapper.error('Invalid data', 400);
     }
 
     const shipmentId = await createShipment({
-      orderId,
-      warehouseId,
-      trackingCode,
+      orderId: finalOrderId,
+      warehouseId: finalWarehouseId,
+      trackingCode: finalTrackingCode,
       carrier,
       items,
     });
@@ -39,20 +53,13 @@ export async function POST(request: NextRequest) {
       'create_shipment',
       'shipments',
       shipmentId,
-      { orderId, items },
+      { orderId: finalOrderId, items },
       request as any
     );
 
-    return NextResponse.json({
-      success: true,
-      message: 'Shipment created successfully',
-      data: { shipmentId },
-    });
+    return ResponseWrapper.success({ shipmentId }, 'Shipment created successfully', 201);
   } catch (error: any) {
     console.error('Create shipment error:', error);
-    return NextResponse.json(
-      { success: false, message: error.message || 'Internal server error' },
-      { status: 500 }
-    );
+    return ResponseWrapper.serverError(error.message || 'Internal server error', error);
   }
 }

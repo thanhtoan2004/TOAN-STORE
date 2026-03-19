@@ -1,43 +1,40 @@
-import { NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
+import { db } from '@/lib/db/drizzle';
+import { products as productsTable } from '@/lib/db/schema';
+import { eq, and, isNull } from 'drizzle-orm';
 import { getSimilarProducts } from '@/lib/db/repositories/recommendation';
-import { executeQuery } from '@/lib/db/mysql';
+import { ResponseWrapper } from '@/lib/api/api-response';
 
 /**
  * API Gợi ý sản phẩm tương tự (Alternative Suggestions).
- * Logic: Tìm kiếm các sản phẩm cùng danh mục, phong cách hoặc mức giá để tối ưu tỷ lệ chuyển đổi.
  */
-export async function GET(
-    request: Request,
-    { params }: { params: Promise<{ slug: string }> }
-) {
-    try {
-        const { slug } = await params;
+export async function GET(request: NextRequest, { params }: { params: Promise<{ slug: string }> }) {
+  try {
+    const { slug } = await params;
 
-        // Resolve product ID from slug or ID
-        const isNumericId = /^\d+$/.test(slug);
-        let productId: number;
+    // Resolve product ID from slug or ID
+    const isNumericId = /^\d+$/.test(slug);
+    let productId: number;
 
-        if (isNumericId) {
-            productId = parseInt(slug);
-        } else {
-            const products = await executeQuery(
-                'SELECT id FROM products WHERE slug = ?',
-                [slug]
-            ) as any[];
+    if (isNumericId) {
+      productId = parseInt(slug);
+    } else {
+      const [product] = await db
+        .select({ id: productsTable.id })
+        .from(productsTable)
+        .where(and(eq(productsTable.slug, slug), isNull(productsTable.deletedAt)))
+        .limit(1);
 
-            if (products.length === 0) {
-                return NextResponse.json(
-                    { success: false, message: 'Sản phẩm không tồn tại' },
-                    { status: 404 }
-                );
-            }
-            productId = products[0].id;
-        }
-
-        const similarProducts = await getSimilarProducts(productId, 4); // Fetch 4 similar products
-        return NextResponse.json({ success: true, data: similarProducts });
-    } catch (error) {
-        console.error('API Similar Products Error:', error);
-        return NextResponse.json({ success: false, message: 'Server error' }, { status: 500 });
+      if (!product) {
+        return ResponseWrapper.notFound('Sản phẩm không tồn tại');
+      }
+      productId = product.id;
     }
+
+    const similarProducts = await getSimilarProducts(productId, 4); // Fetch 4 similar products
+    return ResponseWrapper.success(similarProducts);
+  } catch (error) {
+    console.error('API Similar Products Error:', error);
+    return ResponseWrapper.serverError('Server error', error);
+  }
 }

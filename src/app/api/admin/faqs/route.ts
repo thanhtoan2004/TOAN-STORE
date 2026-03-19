@@ -1,58 +1,61 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { executeQuery } from '@/lib/db/mysql';
+import { db } from '@/lib/db/drizzle';
+import { faqs as faqsTable } from '@/lib/db/schema';
+import { eq, desc, asc, count } from 'drizzle-orm';
 import { checkAdminAuth } from '@/lib/auth/auth';
 import { sanitizeRichContent } from '@/lib/security/sanitize';
+import { ResponseWrapper } from '@/lib/api/api-response';
 
 /**
- * API Lấy danh sách câu hỏi thường gặp (FAQs).
- * Phân trang và sắp xếp theo vị trí ưu tiên (position).
+ * API Quản lý danh sách Câu hỏi thường gặp (FAQs) - Admin.
+ * Chức năng:
+ * - GET: Liệt kê danh sách FAQ (Paginated, sắp xếp theo vị trí).
+ * - POST: Tạo mới FAQ (Sanitize nội dung HTML).
+ * - PUT: Cập nhật thông tin FAQ theo ID.
+ * - DELETE: Xóa vĩnh viễn FAQ theo ID.
+ * Bảo mật: Yêu cầu quyền Admin.
  */
+
 export async function GET(request: NextRequest) {
   try {
-    const adminAuth = await checkAdminAuth();
-    if (!adminAuth) {
-      return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
+    const admin = await checkAdminAuth();
+    if (!admin) {
+      return ResponseWrapper.unauthorized();
     }
 
     const { searchParams } = new URL(request.url);
     const page = parseInt(searchParams.get('page') || '1');
-    const limit = Math.min(parseInt(searchParams.get('limit') || '20'), 100); // M2: Cap limit
+    const limit = Math.min(parseInt(searchParams.get('limit') || '20'), 100);
     const offset = (page - 1) * limit;
 
-    const faqs = (await executeQuery(
-      `SELECT * FROM faqs ORDER BY position ASC, created_at DESC LIMIT ? OFFSET ?`,
-      [limit, offset]
-    )) as any[];
+    const faqsData = await db
+      .select()
+      .from(faqsTable)
+      .orderBy(asc(faqsTable.position), desc(faqsTable.createdAt))
+      .limit(limit)
+      .offset(offset);
 
-    const [countRow] = (await executeQuery(`SELECT COUNT(*) as total FROM faqs`)) as any[];
-    const total = countRow?.total || 0;
-    const totalPages = Math.ceil(total / limit);
+    const [{ total }] = await db.select({ total: count() }).from(faqsTable);
 
-    return NextResponse.json({
-      success: true,
-      data: faqs,
-      pagination: {
-        page,
-        limit,
-        total,
-        totalPages,
-      },
-    });
+    const pagination = {
+      page,
+      limit,
+      total,
+      totalPages: Math.ceil(total / limit),
+    };
+
+    return ResponseWrapper.success(faqsData, undefined, 200, pagination);
   } catch (error) {
     console.error('Error fetching FAQs:', error);
-    return NextResponse.json({ success: false, message: 'Error fetching FAQs' }, { status: 500 });
+    return ResponseWrapper.serverError('Lỗi server khi tải danh sách FAQ', error);
   }
 }
 
-/**
- * API Tạo mới câu hỏi thường gặp.
- * Bảo mật: Làm sạch nội dung HTML (Sanitize) để phòng chống XSS trước khi lưu vào DB.
- */
 export async function POST(request: NextRequest) {
   try {
-    const adminAuth = await checkAdminAuth();
-    if (!adminAuth) {
-      return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
+    const admin = await checkAdminAuth();
+    if (!admin) {
+      return ResponseWrapper.unauthorized();
     }
 
     const body = await request.json();
@@ -60,37 +63,39 @@ export async function POST(request: NextRequest) {
     const answer = sanitizeRichContent(body.answer || '');
 
     if (!question || !answer) {
-      return NextResponse.json(
-        { success: false, message: 'Question and answer are required' },
-        { status: 400 }
-      );
+      return ResponseWrapper.error('Câu hỏi và câu trả lời là bắt buộc', 400);
     }
 
-    const result = (await executeQuery(
-      `INSERT INTO faqs (question, answer, category_id, position, is_active, created_at, updated_at) 
-       VALUES (?, ?, ?, ?, 1, NOW(), NOW())`,
-      [question, answer, category_id || 1, position || 0]
-    )) as any;
-
-    return NextResponse.json({
-      success: true,
-      message: 'FAQ created successfully',
-      data: { id: result.insertId, question, answer, category_id, position },
+    const [result] = await db.insert(faqsTable).values({
+      question,
+      answer,
+      categoryId: category_id || 1,
+      position: position || 0,
+      isActive: 1,
     });
+
+    const insertId = (result as any).insertId;
+
+    const responseData = {
+      id: insertId,
+      question,
+      answer,
+      category_id,
+      position,
+    };
+
+    return ResponseWrapper.success(responseData, 'Đã tạo FAQ thành công');
   } catch (error) {
     console.error('Error creating FAQ:', error);
-    return NextResponse.json({ success: false, message: 'Error creating FAQ' }, { status: 500 });
+    return ResponseWrapper.serverError('Lỗi server khi tạo FAQ', error);
   }
 }
 
-/**
- * API Cập nhật câu hỏi thường gặp.
- */
 export async function PUT(request: NextRequest) {
   try {
-    const adminAuth = await checkAdminAuth();
-    if (!adminAuth) {
-      return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
+    const admin = await checkAdminAuth();
+    if (!admin) {
+      return ResponseWrapper.unauthorized();
     }
 
     const body = await request.json();
@@ -98,57 +103,55 @@ export async function PUT(request: NextRequest) {
     const answer = sanitizeRichContent(body.answer || '');
 
     if (!id) {
-      return NextResponse.json({ success: false, message: 'ID is required' }, { status: 400 });
+      return ResponseWrapper.error('ID là bắt buộc để cập nhật', 400);
     }
 
-    await executeQuery(
-      `UPDATE faqs SET question = ?, answer = ?, category_id = ?, position = ?, is_active = ?, updated_at = NOW() 
-       WHERE id = ?`,
-      [
+    const [updateResult] = await db
+      .update(faqsTable)
+      .set({
         question,
         answer,
-        category_id || 1,
-        position || 0,
-        is_active !== undefined ? (is_active ? 1 : 0) : 1,
-        id,
-      ]
-    );
+        categoryId: category_id || 1,
+        position: position || 0,
+        isActive: is_active !== undefined ? (is_active ? 1 : 0) : 1,
+        updatedAt: new Date(),
+      })
+      .where(eq(faqsTable.id, id));
 
-    return NextResponse.json({
-      success: true,
-      message: 'FAQ updated successfully',
-    });
+    if (updateResult.affectedRows === 0) {
+      return ResponseWrapper.notFound('Không tìm thấy FAQ để cập nhật');
+    }
+
+    return ResponseWrapper.success(null, 'Đã cập nhật FAQ thành công');
   } catch (error) {
     console.error('Error updating FAQ:', error);
-    return NextResponse.json({ success: false, message: 'Error updating FAQ' }, { status: 500 });
+    return ResponseWrapper.serverError('Lỗi server khi cập nhật FAQ', error);
   }
 }
 
-/**
- * API Xóa vĩnh viễn câu hỏi thường gặp.
- */
 export async function DELETE(request: NextRequest) {
   try {
-    const adminAuth = await checkAdminAuth();
-    if (!adminAuth) {
-      return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
+    const admin = await checkAdminAuth();
+    if (!admin) {
+      return ResponseWrapper.unauthorized();
     }
 
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
 
     if (!id) {
-      return NextResponse.json({ success: false, message: 'ID is required' }, { status: 400 });
+      return ResponseWrapper.error('ID là bắt buộc để xóa', 400);
     }
 
-    await executeQuery(`DELETE FROM faqs WHERE id = ?`, [id]);
+    const [deleteResult] = await db.delete(faqsTable).where(eq(faqsTable.id, parseInt(id)));
 
-    return NextResponse.json({
-      success: true,
-      message: 'FAQ deleted successfully',
-    });
+    if (deleteResult.affectedRows === 0) {
+      return ResponseWrapper.notFound('Không tìm thấy FAQ để xóa');
+    }
+
+    return ResponseWrapper.success(null, 'Đã xóa FAQ thành công');
   } catch (error) {
     console.error('Error deleting FAQ:', error);
-    return NextResponse.json({ success: false, message: 'Error deleting FAQ' }, { status: 500 });
+    return ResponseWrapper.serverError('Lỗi server khi xóa FAQ', error);
   }
 }

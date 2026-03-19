@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { executeQuery } from '@/lib/db/mysql';
+import { db } from '@/lib/db/drizzle';
+import { giftCards } from '@/lib/db/schema';
+import { eq, and } from 'drizzle-orm';
 import { checkAdminAuth } from '@/lib/auth/auth';
 import { withErrorHandling, createSuccessResponse, createErrorResponse } from '@/lib/api/api-utils';
+import { logAdminAction } from '@/lib/db/repositories/audit';
 
 /**
  * API Mở khóa thẻ quà tặng đã bị khóa do nhập sai PIN quá số lần.
@@ -23,16 +26,20 @@ async function unlockGiftCardHandler(
   }
 
   // Kiểm tra xem thẻ có trong DB không và đang ở trạng thái nào
-  const cards = await executeQuery<any[]>(
-    `SELECT id, status, current_balance, expires_at FROM gift_cards WHERE id = ?`,
-    [id]
-  );
+  const [card] = await db
+    .select({
+      id: giftCards.id,
+      status: giftCards.status,
+      currentBalance: giftCards.currentBalance,
+      expiresAt: giftCards.expiresAt,
+    })
+    .from(giftCards)
+    .where(eq(giftCards.id, id))
+    .limit(1);
 
-  if (!cards || cards.length === 0) {
+  if (!card) {
     return createErrorResponse('Gift card not found', 404);
   }
-
-  const card = cards[0];
 
   // Nếu thẻ đã hết hạn hoặc đã tiêu hết
   if (card.status === 'used' || card.status === 'expired') {
@@ -40,17 +47,24 @@ async function unlockGiftCardHandler(
   }
 
   // Bật lại trạng thái and Reset failed attempts
-  await executeQuery(`UPDATE gift_cards SET status = 'active', failed_attempts = 0 WHERE id = ?`, [
+  await db
+    .update(giftCards)
+    .set({
+      status: 'active' as any,
+      failedAttempts: 0,
+      updatedAt: new Date(),
+    })
+    .where(eq(giftCards.id, id));
+
+  // Thêm log admin
+  await logAdminAction(
+    admin.userId,
+    'unlock_gift_card',
+    'gift_cards',
     id,
-  ]);
-
-  // Xóa toàn bộ lịch sử khóa IP nếu có (Anti Brute Force Lockout)
-  // Tùy chọn: Hoặc chỉ để thẻ hoạt động lại, vẫn phạt IP. Ở đây ta khoan dung, không reset IP lockout.
-
-  // Thêm log admin (Tùy chọn)
-  await executeQuery(
-    `INSERT INTO admin_activity_logs (admin_user_id, action, entity_type, entity_id) VALUES (?, ?, ?, ?)`,
-    [admin.userId, 'unlock_gift_card', 'gift_cards', id]
+    null,
+    { status: 'active' },
+    req
   );
 
   return createSuccessResponse(null, 'Gift card unlocked successfully');

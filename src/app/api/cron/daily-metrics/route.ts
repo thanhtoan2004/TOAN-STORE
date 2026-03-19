@@ -1,19 +1,20 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { aggregateDailyMetrics } from '@/lib/cron/revenue-aggregation';
+import { ResponseWrapper } from '@/lib/api/api-response';
 
 /**
  * Cron Job: Tự động tổng hợp dữ liệu tài chính (Metrics) hàng ngày.
  * Mặc định: Chạy cho ngày hôm trước (yesterday).
  * Bảo mật: Yêu cầu CRON_SECRET để thực thi.
  */
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
   try {
     const authHeader = request.headers.get('authorization');
     const cronSecret = process.env.CRON_SECRET;
 
     // Security: ALWAYS require CRON_SECRET — reject if not configured
     if (!cronSecret || authHeader !== `Bearer ${cronSecret}`) {
-      return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
+      return ResponseWrapper.unauthorized('Unauthorized cron target access');
     }
 
     // Calculate yesterday
@@ -24,20 +25,18 @@ export async function GET(request: Request) {
     // Run aggregation
     const result = await aggregateDailyMetrics(yesterday);
 
-    return NextResponse.json({
-      success: true,
-      message: `Metrics aggregation completed for ${yesterday.toISOString().split('T')[0]}.`,
+    const resultData = {
       processedDays: result.processedDays,
+      targetDate: yesterday.toISOString().split('T')[0],
       timestamp: new Date().toISOString(),
-    });
+    };
+
+    return ResponseWrapper.success(
+      resultData,
+      `Metrics aggregation completed for ${resultData.targetDate}.`
+    );
   } catch (error) {
     console.error('Daily metrics cron error:', error);
-    return NextResponse.json(
-      {
-        success: false,
-        message: 'Metrics aggregation failed',
-      },
-      { status: 500 }
-    );
+    return ResponseWrapper.serverError('Metrics aggregation failed', error);
   }
 }

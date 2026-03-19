@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAdminChats } from '@/lib/db/supportChat';
 import { checkAdminAuth } from '@/lib/auth/auth';
+import { ResponseWrapper } from '@/lib/api/api-response';
 
 /**
  * API Lấy danh sách các phiên Chat hỗ trợ (Support Sessions).
@@ -10,21 +11,22 @@ export async function GET(request: NextRequest) {
   try {
     const admin = await checkAdminAuth();
     if (!admin) {
-      return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
+      return ResponseWrapper.unauthorized();
     }
     const { searchParams } = new URL(request.url);
     const status = searchParams.get('status') || undefined;
+    const search = searchParams.get('search') || undefined;
     const page = parseInt(searchParams.get('page') || '1');
     const limit = Math.min(parseInt(searchParams.get('limit') || '20'), 100); // M2: Cap limit
 
     const { chats, total } = await getAdminChats({
       status,
+      search,
       page,
       limit,
     });
 
-    return NextResponse.json({
-      success: true,
+    const result = {
       chats,
       pagination: {
         page,
@@ -32,15 +34,11 @@ export async function GET(request: NextRequest) {
         total,
         totalPages: Math.ceil(total / limit),
       },
-    });
+    };
+
+    return ResponseWrapper.success(result);
   } catch (error) {
     console.error('Get admin chats error:', error);
-    return NextResponse.json(
-      {
-        success: false,
-        error: 'Failed to get chats',
-      },
-      { status: 500 }
-    );
+    return ResponseWrapper.serverError('Failed to get chats', error);
   }
 }

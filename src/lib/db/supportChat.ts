@@ -1,4 +1,6 @@
-import { pool } from './mysql';
+import { db } from './drizzle';
+import { supportChats, supportMessages, users, adminUsers } from './schema';
+import { eq, and, or, inArray, sql, desc, asc, count } from 'drizzle-orm';
 import { randomUUID } from 'crypto';
 import { hashEmail } from '../security/encryption';
 
@@ -6,14 +8,10 @@ import { hashEmail } from '../security/encryption';
 
 /**
  * Module cấu hình Hệ thống Live Chat CSKH.
- * Ghi chú Kiến trúc: Dự án hiện đang dùng Database-Polling (gọi API liên tục mỗi 3s để tải tin nhắn mới)
- * thay vì WebSockets (Socket.io) để tiết kiệm chi phí duy trì Server Node.js chìm.
  */
 
 /**
  * Tạo một phiên Chat mới (Session).
- * Có hỗ trợ cho cả Guest (vãng lai không đăng nhập) lẫn User có ID.
- * @returns Object chứa `chatId` và `accessToken` (dùng để xác thực Session ở Client).
  */
 export async function createSupportChat(data: {
   userId?: number;
@@ -21,77 +19,80 @@ export async function createSupportChat(data: {
   guestName?: string;
   initialMessage?: string;
 }): Promise<{ chatId: number; accessToken: string }> {
-  const connection = await pool.getConnection();
-
-  try {
-    await connection.beginTransaction();
-
+  return await db.transaction(async (tx) => {
     const accessToken = randomUUID();
-
-    // Create chat session
     const guestEmailHash = data.guestEmail ? hashEmail(data.guestEmail) : null;
-    const [result]: any = await connection.execute(
-      `INSERT INTO support_chats (user_id, guest_email, guest_email_hash, guest_name, status, access_token, last_message_at)
-       VALUES (?, ?, ?, ?, 'waiting', ?, NOW())`,
-      [data.userId || null, '***', guestEmailHash, data.guestName || null, accessToken]
-    );
+
+    const [result] = await tx.insert(supportChats).values({
+      userId: data.userId || null,
+      guestEmail: '***',
+      guestEmailHash,
+      guestName: data.guestName || null,
+      status: 'waiting',
+      accessToken,
+      lastMessageAt: new Date(),
+    });
 
     const chatId = result.insertId;
 
-    // Add initial message if provided
     if (data.initialMessage) {
-      await connection.execute(
-        `INSERT INTO support_messages (chat_id, sender_type, sender_id, message)
-         VALUES (?, 'customer', ?, ?)`,
-        [chatId, data.userId || null, data.initialMessage]
-      );
+      await tx.insert(supportMessages).values({
+        chatId,
+        senderType: 'customer',
+        senderId: data.userId || null,
+        message: data.initialMessage,
+      });
     }
 
-    await connection.commit();
     return { chatId, accessToken };
-  } catch (error) {
-    await connection.rollback();
-    throw error;
-  } finally {
-    connection.release();
-  }
+  });
 }
 
 /**
  * Get support chat by ID
  */
 export async function getSupportChat(chatId: number): Promise<any> {
-  const [rows]: any = await pool.execute(
-    `SELECT 
-      sc.*,
-      u.email as user_email,
-      u.first_name as user_first_name,
-      u.last_name as user_last_name,
-      admin.email as admin_email,
-      admin.full_name as admin_full_name
-     FROM support_chats sc
-     LEFT JOIN users u ON sc.user_id = u.id
-     LEFT JOIN admin_users admin ON sc.assigned_admin_id = admin.id
-     WHERE sc.id = ?`,
-    [chatId]
-  );
+  const [row] = await db
+    .select({
+      id: supportChats.id,
+      userId: supportChats.userId,
+      guestEmail: supportChats.guestEmail,
+      guestName: supportChats.guestName,
+      status: supportChats.status,
+      accessToken: supportChats.accessToken,
+      assignedAdminId: supportChats.assignedAdminId,
+      lastMessageAt: supportChats.lastMessageAt,
+      createdAt: supportChats.createdAt,
+      user_email: users.email,
+      user_first_name: users.firstName,
+      user_last_name: users.lastName,
+      user_created_at: users.createdAt,
+      admin_email: adminUsers.email,
+      admin_full_name: adminUsers.fullName,
+    })
+    .from(supportChats)
+    .leftJoin(users, eq(supportChats.userId, users.id))
+    .leftJoin(adminUsers, eq(supportChats.assignedAdminId, adminUsers.id))
+    .where(eq(supportChats.id, chatId))
+    .limit(1);
 
-  return rows[0] || null;
+  return row || null;
 }
 
 /**
  * Get user's active chat session
  */
 export async function getUserActiveChat(userId: number): Promise<any> {
-  const [rows]: any = await pool.execute(
-    `SELECT * FROM support_chats
-     WHERE user_id = ? AND status IN ('waiting', 'active')
-     ORDER BY created_at DESC
-     LIMIT 1`,
-    [userId]
-  );
+  const [row] = await db
+    .select()
+    .from(supportChats)
+    .where(
+      and(eq(supportChats.userId, userId), inArray(supportChats.status, ['waiting', 'active']))
+    )
+    .orderBy(desc(supportChats.createdAt))
+    .limit(1);
 
-  return rows[0] || null;
+  return row || null;
 }
 
 /**
@@ -99,15 +100,19 @@ export async function getUserActiveChat(userId: number): Promise<any> {
  */
 export async function getGuestActiveChat(email: string): Promise<any> {
   const emailHash = hashEmail(email);
-  const [rows]: any = await pool.execute(
-    `SELECT * FROM support_chats
-     WHERE guest_email_hash = ? AND status IN ('waiting', 'active')
-     ORDER BY created_at DESC
-     LIMIT 1`,
-    [emailHash]
-  );
+  const [row] = await db
+    .select()
+    .from(supportChats)
+    .where(
+      and(
+        eq(supportChats.guestEmailHash, emailHash),
+        inArray(supportChats.status, ['waiting', 'active'])
+      )
+    )
+    .orderBy(desc(supportChats.createdAt))
+    .limit(1);
 
-  return rows[0] || null;
+  return row || null;
 }
 
 /**
@@ -120,42 +125,37 @@ export async function createSupportMessage(data: {
   message: string;
   imageUrl?: string;
 }): Promise<number> {
-  const connection = await pool.getConnection();
-
-  try {
-    await connection.beginTransaction();
-
+  return await db.transaction(async (tx) => {
     // Insert message
-    const [result]: any = await connection.execute(
-      `INSERT INTO support_messages (chat_id, sender_type, sender_id, message, image_url)
-       VALUES (?, ?, ?, ?, ?)`,
-      [data.chatId, data.senderType, data.senderId || null, data.message, data.imageUrl || null]
-    );
+    const [result] = await tx.insert(supportMessages).values({
+      chatId: data.chatId,
+      senderType: data.senderType,
+      senderId: data.senderId || null,
+      message: data.message,
+      imageUrl: data.imageUrl || null,
+    });
+
+    const messageId = result.insertId;
 
     // Update chat's last_message_at
-    await connection.execute(`UPDATE support_chats SET last_message_at = NOW() WHERE id = ?`, [
-      data.chatId,
-    ]);
+    await tx
+      .update(supportChats)
+      .set({ lastMessageAt: new Date() })
+      .where(eq(supportChats.id, data.chatId));
 
     // If admin sends message, set status to active and update first_response_at
     if (data.senderType === 'admin') {
-      await connection.execute(
-        `UPDATE support_chats 
-                 SET status = 'active', 
-                     first_response_at = COALESCE(first_response_at, NOW()) 
-                 WHERE id = ? AND status = 'waiting'`,
-        [data.chatId]
-      );
+      await tx
+        .update(supportChats)
+        .set({
+          status: 'active',
+          firstResponseAt: sql`COALESCE(${supportChats.firstResponseAt}, NOW())`,
+        })
+        .where(and(eq(supportChats.id, data.chatId), eq(supportChats.status, 'waiting')));
     }
 
-    await connection.commit();
-    return result.insertId;
-  } catch (error) {
-    await connection.rollback();
-    throw error;
-  } finally {
-    connection.release();
-  }
+    return messageId;
+  });
 }
 
 /**
@@ -165,40 +165,52 @@ export async function getSupportMessages(
   chatId: number,
   options?: { since?: Date; limit?: number }
 ): Promise<any[]> {
-  let sql = `
-    SELECT 
-      sm.*,
-      CASE 
-        WHEN sm.sender_type = 'admin' THEN au.full_name
-        ELSE u.first_name 
-      END as sender_first_name,
-      CASE 
-        WHEN sm.sender_type = 'admin' THEN ''
-        ELSE u.last_name 
-      END as sender_last_name
-    FROM support_messages sm
-    LEFT JOIN users u ON sm.sender_id = u.id AND sm.sender_type = 'customer'
-    LEFT JOIN admin_users au ON sm.sender_id = au.id AND sm.sender_type = 'admin'
-    WHERE sm.chat_id = ?
-  `;
-
-  const params: any[] = [chatId];
+  const filters = [eq(supportMessages.chatId, chatId)];
 
   if (options?.since) {
-    sql += ` AND sm.created_at > ?`;
-    params.push(options.since);
+    filters.push(sql`${supportMessages.createdAt} > ${options.since}`);
   }
 
-  sql += ` ORDER BY sm.created_at ASC`;
+  const query = db
+    .select({
+      id: supportMessages.id,
+      chatId: supportMessages.chatId,
+      senderType: supportMessages.senderType,
+      senderId: supportMessages.senderId,
+      message: supportMessages.message,
+      imageUrl: supportMessages.imageUrl,
+      isRead: supportMessages.isRead,
+      createdAt: supportMessages.createdAt,
+      sender_first_name: sql<string>`
+        CASE 
+          WHEN ${supportMessages.senderType} = 'admin' THEN ${adminUsers.fullName}
+          ELSE ${users.firstName} 
+        END
+      `,
+      sender_last_name: sql<string>`
+        CASE 
+          WHEN ${supportMessages.senderType} = 'admin' THEN ''
+          ELSE ${users.lastName} 
+        END
+      `,
+    })
+    .from(supportMessages)
+    .leftJoin(
+      users,
+      and(eq(supportMessages.senderId, users.id), eq(supportMessages.senderType, 'customer'))
+    )
+    .leftJoin(
+      adminUsers,
+      and(eq(supportMessages.senderId, adminUsers.id), eq(supportMessages.senderType, 'admin'))
+    )
+    .where(and(...filters))
+    .orderBy(asc(supportMessages.createdAt));
 
   if (options?.limit) {
-    sql += ` LIMIT ?`;
-    params.push(options.limit);
+    query.limit(options.limit);
   }
 
-  // Use pool.query for dynamic SQL compatibility in some mysql2 versions or pool.execute
-  const [rows]: any = await pool.query(sql, params);
-  return rows;
+  return await query;
 }
 
 /**
@@ -208,22 +220,20 @@ export async function updateChatStatus(
   chatId: number,
   status: 'active' | 'waiting' | 'resolved' | 'closed'
 ): Promise<void> {
-  await pool.execute(`UPDATE support_chats SET status = ?, updated_at = NOW() WHERE id = ?`, [
-    status,
-    chatId,
-  ]);
+  await db
+    .update(supportChats)
+    .set({ status, lastMessageAt: new Date() }) // Using lastMessageAt for updated timestamp
+    .where(eq(supportChats.id, chatId));
 }
 
 /**
  * Assign chat to admin
  */
 export async function assignChatToAdmin(chatId: number, adminId: number): Promise<void> {
-  await pool.execute(
-    `UPDATE support_chats 
-     SET assigned_admin_id = ?, status = 'active', updated_at = NOW() 
-     WHERE id = ?`,
-    [adminId, chatId]
-  );
+  await db
+    .update(supportChats)
+    .set({ assignedAdminId: adminId, status: 'active', lastMessageAt: new Date() })
+    .where(eq(supportChats.id, chatId));
 }
 
 /**
@@ -232,6 +242,7 @@ export async function assignChatToAdmin(chatId: number, adminId: number): Promis
 export async function getAdminChats(filters: {
   status?: string;
   assignedAdminId?: number;
+  search?: string;
   page?: number;
   limit?: number;
 }): Promise<{ chats: any[]; total: number }> {
@@ -239,54 +250,67 @@ export async function getAdminChats(filters: {
   const limit = filters.limit || 20;
   const offset = (page - 1) * limit;
 
-  const whereClauses: string[] = [];
-  const params: any[] = [];
+  const whereClauses = [];
 
   if (filters.status) {
-    whereClauses.push('sc.status = ?');
-    params.push(filters.status);
+    whereClauses.push(eq(supportChats.status, filters.status as any));
   }
 
   if (filters.assignedAdminId) {
-    whereClauses.push('sc.assigned_admin_id = ?');
-    params.push(filters.assignedAdminId);
+    whereClauses.push(eq(supportChats.assignedAdminId, filters.assignedAdminId));
   }
 
-  // Always exclude chats with no messages to avoid "empty" waiting sessions
-  whereClauses.push('(SELECT COUNT(*) FROM support_messages WHERE chat_id = sc.id) > 0');
+  if (filters.search) {
+    const searchTerm = `%${filters.search}%`;
+    whereClauses.push(
+      or(
+        sql`${users.firstName} LIKE ${searchTerm}`,
+        sql`${users.lastName} LIKE ${searchTerm}`,
+        sql`${users.email} LIKE ${searchTerm}`,
+        sql`${supportChats.guestName} LIKE ${searchTerm}`,
+        sql`${supportChats.guestEmail} LIKE ${searchTerm}`
+      )
+    );
+  }
 
-  const whereSQL = whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : '';
+  // Only shows chats with messages
+  whereClauses.push(
+    sql`(SELECT COUNT(*) FROM support_messages WHERE chat_id = ${supportChats.id}) > 0`
+  );
 
-  // Get chats
-  const chatSQL = `
-    SELECT 
-      sc.*,
-      u.email as user_email,
-      u.first_name as user_first_name,
-      u.last_name as user_last_name,
-      admin.email as admin_email,
-      admin.full_name as admin_full_name,
-      (SELECT COUNT(*) FROM support_messages 
-       WHERE chat_id = sc.id AND sender_type = 'customer' AND is_read = FALSE) as unread_count,
-      (SELECT message FROM support_messages 
-       WHERE chat_id = sc.id ORDER BY created_at DESC LIMIT 1) as last_message
-    FROM support_chats sc
-    LEFT JOIN users u ON sc.user_id = u.id
-    LEFT JOIN admin_users admin ON sc.assigned_admin_id = admin.id
-    ${whereSQL}
-    ORDER BY sc.last_message_at DESC
-    LIMIT ? OFFSET ?
-  `;
+  const chats = await db
+    .select({
+      id: supportChats.id,
+      userId: supportChats.userId,
+      guestEmail: supportChats.guestEmail,
+      guestName: supportChats.guestName,
+      status: supportChats.status,
+      accessToken: supportChats.accessToken,
+      assignedAdminId: supportChats.assignedAdminId,
+      lastMessageAt: supportChats.lastMessageAt,
+      createdAt: supportChats.createdAt,
+      user_email: users.email,
+      user_first_name: users.firstName,
+      user_last_name: users.lastName,
+      admin_email: adminUsers.email,
+      admin_full_name: adminUsers.fullName,
+      unread_count: sql<number>`(SELECT COUNT(*) FROM support_messages WHERE chat_id = ${supportChats.id} AND sender_type = 'customer' AND is_read = 0)`,
+      last_message: sql<string>`(SELECT message FROM support_messages WHERE chat_id = ${supportChats.id} ORDER BY created_at DESC LIMIT 1)`,
+    })
+    .from(supportChats)
+    .leftJoin(users, eq(supportChats.userId, users.id))
+    .leftJoin(adminUsers, eq(supportChats.assignedAdminId, adminUsers.id))
+    .where(and(...whereClauses))
+    .orderBy(desc(supportChats.lastMessageAt))
+    .limit(limit)
+    .offset(offset);
 
-  // Use pool.query instead of execute for LIMIT/OFFSET sometimes better
-  const [rows]: any = await pool.query(chatSQL, [...params, limit, offset]);
+  const [totalResult] = await db
+    .select({ total: count() })
+    .from(supportChats)
+    .where(and(...whereClauses));
 
-  // Get total count
-  const countSQL = `SELECT COUNT(*) as total FROM support_chats sc ${whereSQL}`;
-  const [countResult]: any = await pool.query(countSQL, params);
-  const total = countResult[0]?.total || 0;
-
-  return { chats: rows, total };
+  return { chats, total: totalResult?.total || 0 };
 }
 
 /**
@@ -296,32 +320,33 @@ export async function markMessagesAsRead(
   chatId: number,
   senderType: 'customer' | 'admin'
 ): Promise<void> {
-  await pool.execute(
-    `UPDATE support_messages 
-     SET is_read = TRUE 
-     WHERE chat_id = ? AND sender_type = ? AND is_read = FALSE`,
-    [chatId, senderType]
-  );
+  await db
+    .update(supportMessages)
+    .set({ isRead: 1 })
+    .where(
+      and(
+        eq(supportMessages.chatId, chatId),
+        eq(supportMessages.senderType, senderType),
+        eq(supportMessages.isRead, 0)
+      )
+    );
 }
 
 /**
  * Get unread message count for admin
  */
 export async function getUnreadMessageCount(adminId?: number): Promise<number> {
-  let sql = `
-    SELECT COUNT(*) as count
-    FROM support_messages sm
-    JOIN support_chats sc ON sm.chat_id = sc.id
-    WHERE sm.sender_type = 'customer' AND sm.is_read = FALSE
-  `;
-
-  const params: any[] = [];
+  const whereClauses = [eq(supportMessages.senderType, 'customer'), eq(supportMessages.isRead, 0)];
 
   if (adminId) {
-    sql += ` AND sc.assigned_admin_id = ?`;
-    params.push(adminId);
+    whereClauses.push(eq(supportChats.assignedAdminId, adminId));
   }
 
-  const [rows]: any = await pool.query(sql, params);
-  return rows[0]?.count || 0;
+  const [result] = await db
+    .select({ count: count() })
+    .from(supportMessages)
+    .innerJoin(supportChats, eq(supportMessages.chatId, supportChats.id))
+    .where(and(...whereClauses));
+
+  return result?.count || 0;
 }

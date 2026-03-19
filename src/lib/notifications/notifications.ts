@@ -1,4 +1,5 @@
-import { executeQuery } from '../db/mysql';
+import { db } from '../db/drizzle';
+import { notifications } from '../db/schema';
 
 /**
  * Loại thông báo trong hệ thống.
@@ -21,10 +22,13 @@ export async function createNotification(
   link?: string
 ) {
   try {
-    await executeQuery(
-      'INSERT INTO notifications (user_id, type, title, message, link) VALUES (?, ?, ?, ?, ?)',
-      [userId, type, title, message, link || null]
-    );
+    await db.insert(notifications).values({
+      userId,
+      type,
+      title,
+      message,
+      linkUrl: link || null,
+    });
     return true;
   } catch (error) {
     console.error('Error creating notification:', error);

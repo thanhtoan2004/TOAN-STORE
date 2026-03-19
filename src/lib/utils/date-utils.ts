@@ -37,6 +37,7 @@ export function formatDateTime(date: string | Date | null | undefined): string {
     if (isNaN(d.getTime())) return 'N/A';
 
     return d.toLocaleString('vi-VN', {
+      timeZone: VIETNAM_TIMEZONE,
       hour: '2-digit',
       minute: '2-digit',
       day: '2-digit',
@@ -80,7 +81,25 @@ export function formatDateForMySQL(date: string | Date | null | undefined): stri
   const d = typeof date === 'string' ? new Date(date) : date;
   if (isNaN(d.getTime())) return null;
 
-  return d.toISOString().slice(0, 19).replace('T', ' ');
+  // Manual formatting to avoid UTC shift from toISOString()
+  const pad = (n: number) => n.toString().padStart(2, '0');
+
+  // Use Intl to get parts in VN timezone
+  const formatter = new Intl.DateTimeFormat('en-US', {
+    timeZone: VIETNAM_TIMEZONE,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false,
+  });
+
+  const parts = formatter.formatToParts(d);
+  const getPart = (type: string) => parts.find((p) => p.type === type)?.value;
+
+  return `${getPart('year')}-${getPart('month')}-${getPart('day')} ${getPart('hour')}:${getPart('minute')}:${getPart('second')}`;
 }
 
 /**

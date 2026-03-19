@@ -12,10 +12,14 @@ interface ProductType {
   price: number;
   sale_price?: number;
   image_url: string;
+  imageUrl?: string;
   is_new_arrival?: boolean;
+  isNewArrival?: boolean;
   created_at: string;
   price_cache?: number;
+  priceCache?: number;
   msrp_price?: number;
+  msrpPrice?: number;
 }
 
 interface PaginationData {
@@ -296,15 +300,18 @@ const ProductsGrid = ({
         <>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             {products.map((product, index) => {
-              // Ensure msrp_price/price_cache parsing and correct display mapping
-              const originalPrice = product.msrp_price
-                ? Number(product.msrp_price)
-                : Number(product.price_cache || product.price || 0);
+              // Ensure msrpPrice/priceCache parsing and correct display mapping
+              const originalPrice =
+                product.msrpPrice || product.msrp_price
+                  ? Number(product.msrpPrice || product.msrp_price)
+                  : Number(product.priceCache || product.price_cache || product.price || 0);
+
               const salePriceValue =
-                product.price_cache &&
-                product.msrp_price &&
-                product.price_cache < product.msrp_price
-                  ? Number(product.price_cache)
+                (product.priceCache || product.price_cache) &&
+                (product.msrpPrice || product.msrp_price) &&
+                Number(product.priceCache || product.price_cache) <
+                  Number(product.msrpPrice || product.msrp_price)
+                  ? Number(product.priceCache || product.price_cache)
                   : product.sale_price
                     ? Number(product.sale_price)
                     : undefined;
@@ -318,8 +325,8 @@ const ProductsGrid = ({
                   category={product.category}
                   price={originalPrice}
                   sale_price={salePriceValue}
-                  image_url={product.image_url}
-                  is_new_arrival={Boolean(product.is_new_arrival)}
+                  image_url={product.imageUrl || product.image_url || '/placeholder.png'}
+                  is_new_arrival={Boolean(product.isNewArrival || product.is_new_arrival)}
                 />
               );
             })}

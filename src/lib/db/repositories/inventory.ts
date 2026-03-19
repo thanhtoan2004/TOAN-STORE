@@ -1,10 +1,17 @@
-import { executeQuery, transaction } from '@/lib/db/mysql';
-import { RowDataPacket, ResultSetHeader } from 'mysql2';
+import { db } from '../drizzle';
+import {
+  inventory,
+  inventoryTransfers,
+  inventoryLogs,
+  warehouses,
+  productVariants,
+  products,
+  adminUsers,
+} from '../schema';
+import { eq, and, sql, desc, asc } from 'drizzle-orm';
 
 /**
  * Repository Quản lý Kho hàng và Luân chuyển nội bộ (Inventory & Transfers).
- * Xử lý các nghiệp vụ: Kiểm kho, Tạo yêu cầu luân chuyển giữa các kho,
- * và Cập nhật số lượng thực tế trong giao dịch (Atomicity).
  */
 
 export interface InventoryItem {
@@ -39,160 +46,270 @@ export interface InventoryTransfer {
   sku?: string;
 }
 
-export class InventoryRepository {
-  /**
-   * Lấy danh sách yêu cầu luân chuyển kho.
-   * Join với bảng Warehouses và Products để lấy đầy đủ tên kho và SKU.
-   */
-  static async getTransfers(): Promise<InventoryTransfer[]> {
-    const sql = `
-            SELECT 
-                it.*,
-                fw.name as fromWarehouseName,
-                tw.name as toWarehouseName,
-                pv.sku,
-                p.name as variantName
-            FROM inventory_transfers it
-            JOIN warehouses fw ON it.from_warehouse_id = fw.id
-            JOIN warehouses tw ON it.to_warehouse_id = tw.id
-            JOIN product_variants pv ON it.product_variant_id = pv.id
-            JOIN products p ON pv.product_id = p.id
-            ORDER BY it.created_at DESC
-        `;
-    return await executeQuery<InventoryTransfer[]>(sql);
-  }
+/**
+ * Lấy danh sách yêu cầu luân chuyển kho.
+ */
+export async function getTransfers(): Promise<any[]> {
+  const fw = sql`fw`;
+  const tw = sql`tw`;
 
-  /**
-   * Tạo yêu cầu luân chuyển hàng mới.
-   */
-  static async createTransferRequest(data: Partial<InventoryTransfer>): Promise<number> {
-    const sql = `
-            INSERT INTO inventory_transfers (
-                from_warehouse_id, to_warehouse_id, product_variant_id, 
-                quantity, notes, requested_by
-            ) VALUES (?, ?, ?, ?, ?, ?)
-        `;
-    const result = await executeQuery<ResultSetHeader>(sql, [
-      data.fromWarehouseId ?? null,
-      data.toWarehouseId ?? null,
-      data.productVariantId ?? null,
-      data.quantity ?? 0,
-      data.notes ?? null,
-      data.requestedBy ?? null,
-    ]);
-    return result.insertId;
-  }
+  return await db
+    .select({
+      id: inventoryTransfers.id,
+      fromWarehouseId: inventoryTransfers.fromWarehouseId,
+      toWarehouseId: inventoryTransfers.toWarehouseId,
+      productVariantId: inventoryTransfers.productVariantId,
+      quantity: inventoryTransfers.quantity,
+      status: inventoryTransfers.status,
+      requestedBy: inventoryTransfers.requestedBy,
+      approvedBy: inventoryTransfers.approvedBy,
+      notes: inventoryTransfers.notes,
+      createdAt: inventoryTransfers.createdAt,
+      completedAt: inventoryTransfers.completedAt,
+      fromWarehouseName: sql<string>`(SELECT name FROM ${warehouses} WHERE id = ${inventoryTransfers.fromWarehouseId})`,
+      toWarehouseName: sql<string>`(SELECT name FROM ${warehouses} WHERE id = ${inventoryTransfers.toWarehouseId})`,
+      sku: productVariants.sku,
+      variantName: products.name,
+    })
+    .from(inventoryTransfers)
+    .innerJoin(productVariants, eq(inventoryTransfers.productVariantId, productVariants.id))
+    .innerJoin(products, eq(productVariants.productId, products.id))
+    .orderBy(desc(inventoryTransfers.createdAt));
+}
 
-  /**
-   * Xử lý Phê duyệt / Hoàn tất việc Luân chuyển hàng.
-   * QUAN TRỌNG: Sử dụng Transaction để đảm bảo tính nhất quán.
-   * - Trừ số lượng ở Kho Nguồn.
-   * - Cộng số lượng ở Kho Đích.
-   * - Ghi Log lịch sử cho cả 2 kho.
-   * Nếu bất kỳ bước nào thất bại (ví dụ: kho nguồn không đủ hàng), toàn bộ sẽ Rollback.
-   */
-  static async processTransfer(transferId: number, status: string, adminId: number): Promise<void> {
-    await transaction(async (connection: any) => {
-      // 1. Lấy thông tin chi tiết yêu cầu
-      const [transfers]: any = await connection.query(
-        'SELECT * FROM inventory_transfers WHERE id = ?',
-        [transferId]
-      );
+/**
+ * Tạo yêu cầu luân chuyển hàng mới.
+ */
+export async function createTransferRequest(data: Partial<InventoryTransfer>): Promise<number> {
+  const [result] = await db.insert(inventoryTransfers).values({
+    fromWarehouseId: data.fromWarehouseId!,
+    toWarehouseId: data.toWarehouseId!,
+    productVariantId: data.productVariantId!,
+    quantity: data.quantity!,
+    notes: data.notes || null,
+    requestedBy: data.requestedBy || null,
+  });
+  return result.insertId;
+}
 
-      if (transfers.length === 0) throw new Error('Transfer not found');
-      const transfer = transfers[0];
+/**
+ * Xử lý Phê duyệt / Hoàn tất việc Luân chuyển hàng.
+ */
+export async function processTransfer(
+  transferId: number,
+  status: string,
+  adminId: number
+): Promise<void> {
+  await db.transaction(async (tx) => {
+    // 1. Lấy thông tin chi tiết yêu cầu
+    const [transfer] = await tx
+      .select()
+      .from(inventoryTransfers)
+      .where(eq(inventoryTransfers.id, transferId))
+      .forUpdate();
 
-      if (transfer.status === 'completed' || transfer.status === 'cancelled') {
-        throw new Error('Transfer already finalized');
+    if (!transfer) throw new Error('Transfer not found');
+
+    if (transfer.status === 'completed' || transfer.status === 'cancelled') {
+      throw new Error('Transfer already finalized');
+    }
+
+    // 2. Nếu trạng thái là Hoàn tất, thực hiện trừ/cộng kho thực tế
+    if (status === 'completed') {
+      // Trừ hàng ở kho nguồn
+      const [deduct] = await tx
+        .update(inventory)
+        .set({ quantity: sql`${inventory.quantity} - ${transfer.quantity}` })
+        .where(
+          and(
+            eq(inventory.productVariantId, transfer.productVariantId),
+            eq(inventory.warehouseId, transfer.fromWarehouseId),
+            sql`${inventory.quantity} - ${inventory.reserved} >= ${transfer.quantity}`
+          )
+        );
+
+      if (deduct.affectedRows === 0)
+        throw new Error('Số lượng hàng trong kho nguồn không đủ để luân chuyển');
+
+      // Cộng hàng vào kho đích
+      await tx
+        .insert(inventory)
+        .values({
+          productVariantId: transfer.productVariantId,
+          warehouseId: transfer.toWarehouseId,
+          quantity: transfer.quantity,
+        })
+        .onDuplicateKeyUpdate({
+          set: { quantity: sql`${inventory.quantity} + ${transfer.quantity}` },
+        });
+
+      // Ghi log biến động kho (Audit Log)
+      const [sourceInv] = await tx
+        .select({ id: inventory.id })
+        .from(inventory)
+        .where(
+          and(
+            eq(inventory.productVariantId, transfer.productVariantId),
+            eq(inventory.warehouseId, transfer.fromWarehouseId)
+          )
+        );
+
+      if (sourceInv) {
+        await tx.insert(inventoryLogs).values({
+          inventoryId: sourceInv.id,
+          adminId: adminId,
+          quantityChange: -transfer.quantity,
+          reason: 'transfer_out',
+          referenceId: String(transferId),
+          notes: `Transfer to warehouse ID: ${transfer.toWarehouseId}`,
+        });
       }
 
-      // 2. Nếu trạng thái là Hoàn tất, thực hiện trừ/cộng kho thực tế
-      if (status === 'completed') {
-        // Trừ hàng ở kho nguồn
-        const [deduct]: any = await connection.query(
-          `UPDATE inventory 
-                     SET quantity = quantity - ? 
-                     WHERE product_variant_id = ? AND warehouse_id = ? AND (quantity - reserved) >= ?`,
-          [
-            transfer.quantity,
-            transfer.product_variant_id,
-            transfer.from_warehouse_id,
-            transfer.quantity,
-          ]
+      const [destInv] = await tx
+        .select({ id: inventory.id })
+        .from(inventory)
+        .where(
+          and(
+            eq(inventory.productVariantId, transfer.productVariantId),
+            eq(inventory.warehouseId, transfer.toWarehouseId)
+          )
         );
 
-        if (deduct.affectedRows === 0)
-          throw new Error('Số lượng hàng trong kho nguồn không đủ để luân chuyển');
-
-        // Cộng hàng vào kho đích
-        await connection.query(
-          `INSERT INTO inventory (product_variant_id, warehouse_id, quantity)
-                     VALUES (?, ?, ?)
-                     ON DUPLICATE KEY UPDATE quantity = quantity + ?`,
-          [
-            transfer.product_variant_id,
-            transfer.to_warehouse_id,
-            transfer.quantity,
-            transfer.quantity,
-          ]
-        );
-
-        // Ghi log biến động kho (Audit Log)
-        await connection.query(
-          `INSERT INTO inventory_logs (inventory_id, quantity_change, reason, reference_id)
-                     SELECT id, ?, 'transfer_out', ? FROM inventory 
-                     WHERE product_variant_id = ? AND warehouse_id = ?`,
-          [
-            -transfer.quantity,
-            transferId.toString(),
-            transfer.product_variant_id,
-            transfer.from_warehouse_id,
-          ]
-        );
-
-        await connection.query(
-          `INSERT INTO inventory_logs (inventory_id, quantity_change, reason, reference_id)
-                     SELECT id, ?, 'transfer_in', ? FROM inventory 
-                     WHERE product_variant_id = ? AND warehouse_id = ?`,
-          [
-            transfer.quantity,
-            transferId.toString(),
-            transfer.product_variant_id,
-            transfer.to_warehouse_id,
-          ]
-        );
-
-        await connection.query(
-          'UPDATE inventory_transfers SET status = ?, completed_at = NOW(), approved_by = ? WHERE id = ?',
-          [status, adminId, transferId]
-        );
-      } else {
-        // Chỉ cập nhật trạng thái (Duyệt, Đang vận chuyển hoặc Hủy)
-        await connection.query(
-          'UPDATE inventory_transfers SET status = ?, approved_by = ? WHERE id = ?',
-          [status, adminId, transferId]
-        );
+      if (destInv) {
+        await tx.insert(inventoryLogs).values({
+          inventoryId: destInv.id,
+          adminId: adminId,
+          quantityChange: transfer.quantity,
+          reason: 'transfer_in',
+          referenceId: String(transferId),
+          notes: `Transfer from warehouse ID: ${transfer.fromWarehouseId}`,
+        });
       }
+
+      await tx
+        .update(inventoryTransfers)
+        .set({
+          status: status as any,
+          completedAt: new Date(),
+          approvedBy: adminId,
+        })
+        .where(eq(inventoryTransfers.id, transferId));
+    } else {
+      // Chỉ cập nhật trạng thái (Duyệt, Đang vận chuyển hoặc Hủy)
+      await tx
+        .update(inventoryTransfers)
+        .set({ status: status as any, approvedBy: adminId })
+        .where(eq(inventoryTransfers.id, transferId));
+    }
+  });
+}
+
+/**
+ * Báo cáo kho hàng tổng hợp.
+ */
+export async function getAllInventory(): Promise<any[]> {
+  return await db
+    .select({
+      id: inventory.id,
+      productVariantId: inventory.productVariantId,
+      warehouseId: inventory.warehouseId,
+      quantity: inventory.quantity,
+      reserved: inventory.reserved,
+      lowStockThreshold: inventory.lowStockThreshold,
+      allowBackorder: inventory.allowBackorder,
+      expectedRestockDate: inventory.expectedRestockDate,
+      variantName: products.name,
+      sku: productVariants.sku,
+      warehouseName: warehouses.name,
+    })
+    .from(inventory)
+    .innerJoin(productVariants, eq(inventory.productVariantId, productVariants.id))
+    .innerJoin(products, eq(productVariants.productId, products.id))
+    .leftJoin(warehouses, eq(inventory.warehouseId, warehouses.id))
+    .orderBy(asc(products.name), asc(productVariants.size));
+}
+
+/**
+ * Lấy nhật ký biến động kho (Audit Logs).
+ */
+export async function getInventoryLogs(
+  options: {
+    inventoryId?: number;
+    limit?: number;
+    page?: number;
+  } = {}
+): Promise<any[]> {
+  const limit = options.limit || 50;
+  const page = options.page || 1;
+  const offset = (page - 1) * limit;
+
+  const filters = [];
+  if (options.inventoryId) {
+    filters.push(eq(inventoryLogs.inventoryId, options.inventoryId));
+  }
+
+  return await db
+    .select({
+      id: inventoryLogs.id,
+      inventoryId: inventoryLogs.inventoryId,
+      adminId: inventoryLogs.adminId,
+      adminName: adminUsers.fullName,
+      quantityChange: inventoryLogs.quantityChange,
+      reason: inventoryLogs.reason,
+      referenceId: inventoryLogs.referenceId,
+      notes: inventoryLogs.notes,
+      createdAt: inventoryLogs.createdAt,
+      sku: productVariants.sku,
+      variantName: products.name,
+      size: productVariants.size,
+      warehouseName: warehouses.name,
+    })
+    .from(inventoryLogs)
+    .leftJoin(adminUsers, eq(inventoryLogs.adminId, adminUsers.id))
+    .innerJoin(inventory, eq(inventoryLogs.inventoryId, inventory.id))
+    .innerJoin(productVariants, eq(inventory.productVariantId, productVariants.id))
+    .innerJoin(products, eq(productVariants.productId, products.id))
+    .leftJoin(warehouses, eq(inventory.warehouseId, warehouses.id))
+    .where(and(...filters))
+    .orderBy(desc(inventoryLogs.createdAt))
+    .limit(limit)
+    .offset(offset);
+}
+
+/**
+ * Điều chỉnh tồn kho thủ công (Manual Adjustment).
+ */
+export async function adjustInventory(data: {
+  inventoryId: number;
+  quantityChange: number;
+  reason: string;
+  adminId: number;
+  notes?: string;
+}): Promise<void> {
+  await db.transaction(async (tx) => {
+    // 1. Cập nhật số lượng
+    const [result] = await tx
+      .update(inventory)
+      .set({ quantity: sql`${inventory.quantity} + ${data.quantityChange}` })
+      .where(eq(inventory.id, data.inventoryId));
+
+    if (result.affectedRows === 0) throw new Error('Inventory record not found');
+
+    // 2. Ghi nhật ký
+    await tx.insert(inventoryLogs).values({
+      inventoryId: data.inventoryId,
+      adminId: data.adminId,
+      quantityChange: data.quantityChange,
+      reason: data.reason,
+      notes: data.notes || null,
     });
-  }
+  });
+}
 
-  /**
-   * Báo cáo kho hàng tổng hợp.
-   * Thường dùng trong Dashboard Admin để theo dõi hàng tồn kho của toàn bộ hệ thống.
-   */
-  static async getAllInventory(): Promise<InventoryItem[]> {
-    const sql = `
-            SELECT 
-                i.*,
-                p.name as variantName,
-                pv.sku,
-                w.name as warehouseName
-            FROM inventory i
-            JOIN product_variants pv ON i.product_variant_id = pv.id
-            JOIN products p ON pv.product_id = p.id
-            LEFT JOIN warehouses w ON i.warehouse_id = w.id
-            ORDER BY p.name ASC, pv.size ASC
-        `;
-    return await executeQuery<InventoryItem[]>(sql);
-  }
+// Legacy class export for compatibility
+export class InventoryRepository {
+  static getTransfers = getTransfers;
+  static createTransferRequest = createTransferRequest;
+  static processTransfer = processTransfer;
+  static getAllInventory = getAllInventory;
 }

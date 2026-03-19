@@ -1,67 +1,56 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { executeQuery } from '@/lib/db/mysql';
+import { db } from '@/lib/db/drizzle';
+import { warehouses as warehousesTable, inventory } from '@/lib/db/schema';
+import { eq, count } from 'drizzle-orm';
 import { checkAdminAuth } from '@/lib/auth/auth';
+import { logAdminAction } from '@/lib/db/repositories/audit';
+import { ResponseWrapper } from '@/lib/api/api-response';
 
-// PUT /api/admin/warehouses/[id] - Update warehouse
 /**
- * API Cập nhật thông tin kho hàng.
- * Hỗ trợ cập nhật Tên, Vị trí và Trạng thái hoạt động.
+ * PUT /api/admin/warehouses/[id] - Update warehouse
  */
 export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const admin = await checkAdminAuth();
     if (!admin) {
-      return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
+      return ResponseWrapper.unauthorized();
     }
 
     const { id: paramId } = await params;
-    const id = paramId;
+    const id = Number(paramId);
     const body = await request.json();
     const { name, location, is_active } = body;
 
-    const updates: string[] = [];
-    const values: any[] = [];
+    const updateData: any = {};
+    if (name) updateData.name = name;
+    if (location !== undefined) updateData.address = location; // Fixed: warehouses table uses 'address', not 'location'
+    if (is_active !== undefined) updateData.isActive = is_active ? 1 : 0;
 
-    if (name) {
-      updates.push('name = ?');
-      values.push(name);
-    }
-    if (location !== undefined) {
-      updates.push('location = ?');
-      values.push(location);
-    }
-    if (is_active !== undefined) {
-      updates.push('is_active = ?');
-      values.push(is_active ? 1 : 0);
+    if (Object.keys(updateData).length === 0) {
+      return ResponseWrapper.error('Không có dữ liệu cập nhật', 400);
     }
 
-    if (updates.length === 0) {
-      return NextResponse.json(
-        { success: false, message: 'Không có dữ liệu cập nhật' },
-        { status: 400 }
-      );
-    }
+    await db.update(warehousesTable).set(updateData).where(eq(warehousesTable.id, id));
 
-    values.push(id);
+    await logAdminAction(
+      admin.userId,
+      'UPDATE_WAREHOUSE',
+      'warehouses',
+      id,
+      null,
+      updateData,
+      request
+    );
 
-    await executeQuery(`UPDATE warehouses SET ${updates.join(', ')} WHERE id = ?`, values);
-
-    return NextResponse.json({
-      success: true,
-      message: 'Cập nhật kho thành công',
-    });
+    return ResponseWrapper.success(null, 'Cập nhật kho thành công');
   } catch (error) {
     console.error('Error updating warehouse:', error);
-    return NextResponse.json({ success: false, message: 'Lỗi server nội bộ' }, { status: 500 });
+    return ResponseWrapper.serverError('Lỗi server nội bộ', error);
   }
 }
 
-// DELETE /api/admin/warehouses/[id] - Delete (or soft delete) warehouse
-// Note: We generally shouldn't delete warehouses if they have inventory/orders.
-// For now, we'll allow deletion but DB FK constraints might block it if used.
 /**
- * API Xóa kho hàng.
- * Chốt chặn bảo mật: Không cho phép xóa kho nếu vẫn còn hàng tồn để tránh mất mát dữ liệu sản phẩm.
+ * DELETE /api/admin/warehouses/[id] - Delete warehouse
  */
 export async function DELETE(
   request: NextRequest,
@@ -70,36 +59,40 @@ export async function DELETE(
   try {
     const admin = await checkAdminAuth();
     if (!admin) {
-      return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
+      return ResponseWrapper.unauthorized();
     }
 
     const { id: paramId } = await params;
-    const id = paramId;
+    const id = Number(paramId);
 
     // Check if warehouse has inventory
-    const [inv] = await executeQuery<any[]>(
-      'SELECT count(*) as count FROM inventory WHERE warehouse_id = ?',
-      [id]
-    );
+    const [inv] = await db
+      .select({ total: count() })
+      .from(inventory)
+      .where(eq(inventory.warehouseId, id));
 
-    if (inv && inv.count > 0) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: 'Không thể xóa kho đang có hàng tồn. Hãy chuyển hàng hoặc ẩn kho.',
-        },
-        { status: 400 }
+    if (inv && inv.total > 0) {
+      return ResponseWrapper.error(
+        'Không thể xóa kho đang có hàng tồn. Hãy chuyển hàng hoặc ẩn kho.',
+        400
       );
     }
 
-    await executeQuery('DELETE FROM warehouses WHERE id = ?', [id]);
+    await db.delete(warehousesTable).where(eq(warehousesTable.id, id));
 
-    return NextResponse.json({
-      success: true,
-      message: 'Xóa kho thành công',
-    });
+    await logAdminAction(
+      admin.userId,
+      'DELETE_WAREHOUSE',
+      'warehouses',
+      id,
+      null,
+      { deleted: true },
+      request
+    );
+
+    return ResponseWrapper.success(null, 'Xóa kho thành công');
   } catch (error) {
     console.error('Error deleting warehouse:', error);
-    return NextResponse.json({ success: false, message: 'Lỗi server nội bộ' }, { status: 500 });
+    return ResponseWrapper.serverError('Lỗi server nội bộ', error);
   }
 }

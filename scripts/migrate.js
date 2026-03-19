@@ -12,6 +12,7 @@ const dbConfig = {
   user: process.env.DB_USER || 'root',
   password: process.env.DB_PASSWORD || '',
   database: process.env.DB_NAME || 'toan_store',
+  port: parseInt(process.env.DB_PORT || '3306'),
   multipleStatements: true, // Allow multiple SQL statements in one file
 };
 
@@ -134,7 +135,6 @@ async function migrate() {
           } else {
             await connection.rollback();
             console.error(`❌ Failed: ${file}`);
-            // TRY to show the failing statement IF available in the error object or my own tracking
             console.error('SQL Message:', err.sqlMessage || err.message);
             if (err.sql) console.error('SQL Query:', err.sql);
             process.exit(1);

@@ -75,8 +75,10 @@ export const WishlistProvider = ({ children }: { children: ReactNode }) => {
           setLoading(true);
           const response = await fetch(`/api/wishlist?userId=${user.id}`);
           if (response.ok) {
-            const data = await response.json();
-            setWishlist(mapWishlistData(data));
+            const result = await response.json();
+            if (result.success && Array.isArray(result.data)) {
+              setWishlist(mapWishlistData(result.data));
+            }
           }
         } catch (error) {
           console.error('Lỗi khi tải wishlist:', error);
@@ -144,8 +146,10 @@ export const WishlistProvider = ({ children }: { children: ReactNode }) => {
         // Fetch lại từ database để đảm bảo đồng bộ
         const fetchResponse = await fetch(`/api/wishlist?userId=${user.id}`);
         if (fetchResponse.ok) {
-          const data = await fetchResponse.json();
-          setWishlist(mapWishlistData(data));
+          const result = await fetchResponse.json();
+          if (result.success && Array.isArray(result.data)) {
+            setWishlist(mapWishlistData(result.data));
+          }
         }
       } else {
         throw new Error('Không thể xóa khỏi wishlist');
