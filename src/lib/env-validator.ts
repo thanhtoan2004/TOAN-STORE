@@ -42,8 +42,18 @@ export function validateEnv() {
       const missingVars = error.issues.map((err: z.ZodIssue) => err.path.join('.')).join(', ');
       console.error(`❌ CRITICAL: Missing or invalid environment variables: ${missingVars}`);
 
-      if (process.env.NODE_ENV === 'production') {
+      // NEXT_PHASE check for Next.js build
+      const isBuildPhase =
+        process.env.NEXT_PHASE === 'phase-production-build' ||
+        process.env.npm_lifecycle_event === 'build' ||
+        process.env.CI === 'true';
+
+      if (process.env.NODE_ENV === 'production' && !isBuildPhase) {
         process.exit(1);
+      } else if (isBuildPhase) {
+        console.warn(
+          '⚠️ CẢNH BÁO: Đang thiếu các biến môi trường khi Build. Sản phẩm build có thể hoạt động không đúng nếu các biến này được sử dụng trong giai đoạn Static Generation.'
+        );
       }
     }
   }

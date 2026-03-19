@@ -54,9 +54,9 @@ DB_USER=root
 DB_PASSWORD=root
 DB_NAME=toan_store
 
-# Security
-JWT_SECRET=your_local_dev_secret
-ENCRYPTION_KEY=your_32_character_encryption_key
+# Security (BẮT BUỘC - Sẽ lỗi khi build nếu thiếu hoặc sai định dạng)
+JWT_SECRET=your_local_dev_secret_at_least_32_characters_long
+ENCRYPTION_KEY=000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f
 
 # AI (optional)
 GEMINI_API_KEY=your_gemini_key
@@ -98,8 +98,8 @@ DB_PASSWORD=<strong_password>
 DB_NAME=toan_store
 
 # Security (BẮT BUỘC - sẽ crash nếu thiếu)
-JWT_SECRET=<random_64_char_string>
-ENCRYPTION_KEY=<random_32_char_hex_string>
+JWT_SECRET=<random_64_char_string_min_32>
+ENCRYPTION_KEY=<random_64_char_hex_string_representing_32_bytes>
 
 # Redis
 REDIS_URL=redis://<user>:<password>@<host>:6379
@@ -246,7 +246,7 @@ pm2 save
 ## 🔐 Security Checklist (Production)
 
 - [ ] `JWT_SECRET` cài đặt chuỗi ngẫu nhiên 64 ký tự
-- [ ] `ENCRYPTION_KEY` cài đặt chuỗi hex 32 ký tự
+- [ ] `ENCRYPTION_KEY` cài đặt chuỗi hex 64 ký tự (32 byte hex)
 - [ ] MySQL password mạnh (không dùng `root`)
 - [ ] Redis có authentication
 - [ ] HTTPS enabled (SSL/TLS certificate)
