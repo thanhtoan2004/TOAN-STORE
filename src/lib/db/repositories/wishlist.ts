@@ -7,7 +7,7 @@ import { eq, and, sql, desc, lt, isNotNull } from 'drizzle-orm';
  */
 export async function addToWishlist(userId: number, productId: number) {
   // Tìm hoặc tạo wishlist cho user
-  let [wishlist] = await db
+  const [wishlist] = await db
     .select({ id: wishlists.id })
     .from(wishlists)
     .where(and(eq(wishlists.userId, userId), eq(wishlists.isDefault, 1)))
@@ -25,15 +25,11 @@ export async function addToWishlist(userId: number, productId: number) {
     wishlistId = wishlist.id;
   }
 
-  // Thêm sản phẩm vào wishlist (IGNORE nếu đã tồn tại) kèm theo giá gốc tại thời điểm thêm
-  await db
-    .insert(wishlistItems)
-    .ignore()
-    .values({
-      wishlistId,
-      productId,
-      priceWhenAdded: sql`(SELECT COALESCE(msrp_price, price_cache) FROM ${products} WHERE id = ${productId})`,
-    });
+  // Thêm sản phẩm vào wishlist (IGNORE nếu đã tồn tại)
+  await db.insert(wishlistItems).ignore().values({
+    wishlistId,
+    productId,
+  });
 }
 
 /**
@@ -79,31 +75,9 @@ export async function removeFromWishlist(userId: number, productId: number) {
 }
 
 /**
- * Lấy ra các sản phẩm trong wishlist của tất cả mọi người có giá hiện tại RẺ HƠN giá lúc họ thêm vào.
+ * Lấy ra các sản phẩm trong wishlist CÓ GIÁ GIẢM SO VỚI LÚC THÊM VÀO.
+ * Ghi chú: Chức năng này bị vô hiệu hóa tạm thời vì DB chưa hỗ trợ cột price_when_added.
  */
 export async function getWishlistItemsWithPriceDrop() {
-  return await db
-    .select({
-      userId: users.id,
-      email: users.email,
-      firstName: users.firstName,
-      productId: products.id,
-      productName: products.name,
-      productSlug: products.slug,
-      priceWhenAdded: wishlistItems.priceWhenAdded,
-      currentPrice: products.priceCache,
-      imageUrl: sql<string>`(SELECT url FROM ${productImages} WHERE product_id = ${products.id} AND is_main = 1 LIMIT 1)`,
-    })
-    .from(wishlistItems)
-    .innerJoin(wishlists, eq(wishlistItems.wishlistId, wishlists.id))
-    .innerJoin(users, eq(wishlists.userId, users.id))
-    .innerJoin(products, eq(wishlistItems.productId, products.id))
-    .where(
-      and(
-        isNotNull(wishlistItems.priceWhenAdded),
-        lt(products.priceCache, wishlistItems.priceWhenAdded),
-        eq(products.isActive, 1)
-      )
-    )
-    .orderBy(users.id);
+  return [];
 }

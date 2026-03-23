@@ -21,6 +21,7 @@ import { useProduct } from '@/hooks/queries/useProduct';
 import { useReviews } from '@/hooks/queries/useReviews';
 import { useCheckPurchase } from '@/hooks/queries/useCheckPurchase';
 import { useQueryClient } from '@tanstack/react-query';
+import { useSocket } from '@/hooks/useSocket';
 
 interface ProductSize {
   size: string;
@@ -100,11 +101,32 @@ export default function ProductDetailClient({
   initialProductId: number;
 }) {
   const queryClient = useQueryClient();
+  const socket = useSocket();
   const { user } = useAuth();
   const { t } = useLanguage();
   const { showAlert } = useModal();
   const router = useRouter();
   const [product, setProduct] = useState<Product | null>(null);
+
+  // Handle Real-time Stock Updates
+  useEffect(() => {
+    if (socket) {
+      const handleStockUpdate = (data: any) => {
+        // data looks like: { productVariantId: number, productId: number, newStock: number, size: string }
+        if (Number(data.productId) === Number(initialProductId)) {
+          console.log('📦 Real-time Stock Update:', data);
+          setSizes((prev) =>
+            prev.map((s) => (s.size === data.size ? { ...s, stock: data.newStock } : s))
+          );
+        }
+      };
+
+      socket.on('stock-update', handleStockUpdate);
+      return () => {
+        socket.off('stock-update', handleStockUpdate);
+      };
+    }
+  }, [socket, initialProductId]);
 
   // ... (keep existing state)
 

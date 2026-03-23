@@ -17,6 +17,11 @@ interface Settings {
   gift_wrap_fee: number;
   maintenance_mode: boolean;
   admin_ip_whitelist: string;
+  // Dynamic fields
+  facebook?: string;
+  instagram?: string;
+  youtube?: string;
+  twitter?: string;
 }
 
 export default function SettingsPage() {
@@ -34,6 +39,10 @@ export default function SettingsPage() {
     gift_wrap_fee: 25000,
     maintenance_mode: false,
     admin_ip_whitelist: '',
+    facebook: '',
+    instagram: '',
+    youtube: '',
+    twitter: '',
   });
 
   const [loading, setLoading] = useState(true);
@@ -49,20 +58,45 @@ export default function SettingsPage() {
       const response = await fetch('/api/admin/settings');
       const data = await response.json();
 
-      if (data.success && data.data) {
-        // Ensure types are correct from database strings
-        const formattedSettings = {
-          ...data.data,
+      if (data.success && Array.isArray(data.data)) {
+        // Convert array [{key, value}, ...] to object {key: value, ...}
+        const settingsObj: any = {};
+        data.data.forEach((item: any) => {
+          if (item.key === 'social_links' && typeof item.value === 'object') {
+            // Handle legacy nested object
+            Object.assign(settingsObj, item.value);
+          } else {
+            settingsObj[item.key] = item.value;
+          }
+        });
+
+        // Map database values into the state format
+        const formattedSettings: Partial<Settings> = {
+          ...settingsObj,
           maintenance_mode:
-            data.data.maintenance_mode === 'true' ||
-            data.data.maintenance_mode === '1' ||
-            data.data.maintenance_mode === true,
-          tax_rate: parseFloat(data.data.tax_rate) || 0,
-          shipping_cost_domestic: parseFloat(data.data.shipping_cost_domestic) || 0,
-          shipping_cost_international: parseFloat(data.data.shipping_cost_international) || 0,
-          gift_wrap_fee: parseFloat(data.data.gift_wrap_fee) || 25000,
+            settingsObj.maintenance_mode === 'true' ||
+            settingsObj.maintenance_mode === '1' ||
+            settingsObj.maintenance_mode === true,
+          // Numeric conversions
+          tax_rate:
+            settingsObj.tax_rate !== undefined
+              ? parseFloat(settingsObj.tax_rate)
+              : settings.tax_rate,
+          shipping_cost_domestic:
+            settingsObj.shipping_cost_domestic !== undefined
+              ? parseFloat(settingsObj.shipping_cost_domestic)
+              : settings.shipping_cost_domestic,
+          shipping_cost_international:
+            settingsObj.shipping_cost_international !== undefined
+              ? parseFloat(settingsObj.shipping_cost_international)
+              : settings.shipping_cost_international,
+          gift_wrap_fee:
+            settingsObj.gift_wrap_fee !== undefined
+              ? parseFloat(settingsObj.gift_wrap_fee)
+              : settings.gift_wrap_fee,
         };
-        setSettings(formattedSettings);
+
+        setSettings((prev) => ({ ...prev, ...formattedSettings }));
       }
     } catch (error) {
       console.error('Error fetching settings:', error);
@@ -230,6 +264,59 @@ export default function SettingsPage() {
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent"
                     />
                   </div>
+                </div>
+              </div>
+            </section>
+
+            {/* Mạng xã hội */}
+            <section className="border-t pt-6">
+              <h2 className="text-xl font-semibold mb-4">Mạng xã hội & Liên kết</h2>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Facebook</label>
+                  <input
+                    type="text"
+                    name="facebook"
+                    value={(settings as any).facebook || ''}
+                    onChange={handleChange}
+                    placeholder="https://facebook.com/your-store"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Instagram</label>
+                  <input
+                    type="text"
+                    name="instagram"
+                    value={(settings as any).instagram || ''}
+                    onChange={handleChange}
+                    placeholder="https://instagram.com/your-store"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">YouTube</label>
+                  <input
+                    type="text"
+                    name="youtube"
+                    value={(settings as any).youtube || ''}
+                    onChange={handleChange}
+                    placeholder="https://youtube.com/your-store"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Twitter (X)
+                  </label>
+                  <input
+                    type="text"
+                    name="twitter"
+                    value={(settings as any).twitter || ''}
+                    onChange={handleChange}
+                    placeholder="https://twitter.com/your-store"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent"
+                  />
                 </div>
               </div>
             </section>

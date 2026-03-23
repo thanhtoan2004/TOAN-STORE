@@ -25,6 +25,14 @@ export default function AdminsPage() {
   const [admins, setAdmins] = useState<AdminUser[]>([]);
   const [roles, setRoles] = useState<Role[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [newAdmin, setNewAdmin] = useState({
+    username: '',
+    email: '',
+    fullName: '',
+    password: '',
+    roleId: '',
+  });
 
   useEffect(() => {
     fetchData();
@@ -33,7 +41,7 @@ export default function AdminsPage() {
   const fetchData = async () => {
     try {
       const [adminsRes, rolesRes] = await Promise.all([
-        fetch('/api/admin/admins'),
+        fetch('/api/admin/staff'),
         fetch('/api/admin/roles'),
       ]);
 
@@ -49,9 +57,31 @@ export default function AdminsPage() {
     }
   };
 
+  const createAdmin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const response = await fetch('/api/admin/staff', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newAdmin),
+      });
+
+      const data = await response.json();
+      if (response.ok) {
+        setShowAddModal(false);
+        setNewAdmin({ username: '', email: '', fullName: '', password: '', roleId: '' });
+        fetchData();
+      } else {
+        alert(data.message || 'Lỗi khi tạo nhân viên');
+      }
+    } catch (error) {
+      console.error('Error creating admin:', error);
+    }
+  };
+
   const updateAdmin = async (id: number, updates: any) => {
     try {
-      const response = await fetch('/api/admin/admins', {
+      const response = await fetch('/api/admin/staff', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id, ...updates }),
@@ -70,9 +100,17 @@ export default function AdminsPage() {
   return (
     <AdminLayout>
       <div className="space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Quản lý Nhân viên</h1>
-          <p className="mt-1 text-sm text-gray-500">Phân quyền và quản lý tài khoản quản trị</p>
+        <div className="flex justify-between items-center">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">Quản lý Nhân viên</h1>
+            <p className="mt-1 text-sm text-gray-500">Phân quyền và quản lý tài khoản quản trị</p>
+          </div>
+          <button
+            onClick={() => setShowAddModal(true)}
+            className="px-4 py-2 bg-black text-white rounded-lg hover:bg-gray-800 transition shadow-sm font-medium"
+          >
+            + Thêm nhân viên
+          </button>
         </div>
 
         <div className="bg-white rounded-lg shadow overflow-hidden">
@@ -162,6 +200,94 @@ export default function AdminsPage() {
           )}
         </div>
       </div>
+
+      {/* Add Admin Modal */}
+      {showAddModal && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6">
+            <h2 className="text-xl font-bold mb-4">Tạo tài khoản Nhân viên</h2>
+            <form onSubmit={createAdmin} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Họ tên</label>
+                <input
+                  type="text"
+                  required
+                  value={newAdmin.fullName}
+                  onChange={(e) => setNewAdmin({ ...newAdmin, fullName: e.target.value })}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-black outline-none"
+                  placeholder="Nguyễn Văn A"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Username</label>
+                  <input
+                    type="text"
+                    required
+                    value={newAdmin.username}
+                    onChange={(e) => setNewAdmin({ ...newAdmin, username: e.target.value })}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-black outline-none"
+                    placeholder="admin_pro"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Vai trò</label>
+                  <select
+                    required
+                    value={newAdmin.roleId}
+                    onChange={(e) => setNewAdmin({ ...newAdmin, roleId: e.target.value })}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-black outline-none"
+                  >
+                    <option value="">Chọn vai trò</option>
+                    {roles.map((role) => (
+                      <option key={role.id} value={role.id}>
+                        {role.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                <input
+                  type="email"
+                  required
+                  value={newAdmin.email}
+                  onChange={(e) => setNewAdmin({ ...newAdmin, email: e.target.value })}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-black outline-none"
+                  placeholder="admin@toanstore.com"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Mật khẩu</label>
+                <input
+                  type="password"
+                  required
+                  value={newAdmin.password}
+                  onChange={(e) => setNewAdmin({ ...newAdmin, password: e.target.value })}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-black outline-none"
+                  placeholder="••••••••"
+                />
+              </div>
+              <div className="flex gap-3 pt-4">
+                <button
+                  type="button"
+                  onClick={() => setShowAddModal(false)}
+                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition"
+                >
+                  Hủy
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 px-4 py-2 bg-black text-white rounded-lg hover:bg-gray-800 transition shadow-sm font-medium"
+                >
+                  Tạo tài khoản
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </AdminLayout>
   );
 }

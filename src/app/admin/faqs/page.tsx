@@ -7,15 +7,16 @@ interface FAQ {
   id: number;
   question: string;
   answer: string;
-  category_id: number;
+  categoryId: number;
   position: number;
-  is_active: number;
+  isActive: number;
   created_at: string;
   updated_at: string;
 }
 
 export default function AdminFAQsPage() {
   const [faqs, setFaqs] = useState<FAQ[]>([]);
+  const [categories, setCategories] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -24,14 +25,27 @@ export default function AdminFAQsPage() {
   const [formData, setFormData] = useState({
     question: '',
     answer: '',
-    category_id: 1,
+    categoryId: 1,
     position: 0,
-    is_active: true
+    isActive: true,
   });
 
   useEffect(() => {
     fetchFAQs();
+    fetchCategories();
   }, [page]);
+
+  const fetchCategories = async () => {
+    try {
+      const resp = await fetch('/api/admin/faqs/categories');
+      const data = await resp.json();
+      if (data.success) {
+        setCategories(data.data);
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
 
   const fetchFAQs = async () => {
     try {
@@ -65,15 +79,15 @@ export default function AdminFAQsPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...formData,
-          ...(editingId && { id: editingId })
-        })
+          ...(editingId && { id: editingId }),
+        }),
       });
 
       const data = await response.json();
 
       if (data.success) {
         alert(editingId ? 'Cập nhật thành công' : 'Tạo thành công');
-        setFormData({ question: '', answer: '', category_id: 1, position: 0, is_active: true });
+        setFormData({ question: '', answer: '', categoryId: 1, position: 0, isActive: true });
         setEditingId(null);
         setShowForm(false);
         fetchFAQs();
@@ -88,9 +102,9 @@ export default function AdminFAQsPage() {
     setFormData({
       question: faq.question,
       answer: faq.answer,
-      category_id: faq.category_id || 1,
+      categoryId: faq.categoryId || 1,
       position: faq.position,
-      is_active: faq.is_active === 1
+      isActive: faq.isActive === 1,
     });
     setEditingId(faq.id);
     setShowForm(true);
@@ -101,7 +115,7 @@ export default function AdminFAQsPage() {
 
     try {
       const response = await fetch(`/api/admin/faqs?id=${id}`, {
-        method: 'DELETE'
+        method: 'DELETE',
       });
 
       const data = await response.json();
@@ -119,7 +133,7 @@ export default function AdminFAQsPage() {
   const handleCancel = () => {
     setShowForm(false);
     setEditingId(null);
-    setFormData({ question: '', answer: '', category_id: 1, position: 0, is_active: true });
+    setFormData({ question: '', answer: '', categoryId: 1, position: 0, isActive: true });
   };
 
   return (
@@ -130,12 +144,20 @@ export default function AdminFAQsPage() {
             <h1 className="text-3xl font-bold text-gray-900">Quản lý FAQs</h1>
             <p className="mt-1 text-sm text-gray-500">Quản lý các câu hỏi thường gặp</p>
           </div>
-          <button
-            onClick={() => setShowForm(true)}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-          >
-            + Thêm FAQ
-          </button>
+          <div className="flex gap-2">
+            <a
+              href="/admin/faqs/categories"
+              className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-100 flex items-center"
+            >
+              ⚙️ Quản lý danh mục
+            </a>
+            <button
+              onClick={() => setShowForm(true)}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+            >
+              + Thêm FAQ
+            </button>
+          </div>
         </div>
 
         {showForm && (
@@ -145,29 +167,21 @@ export default function AdminFAQsPage() {
             </h2>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700">
-                  Câu hỏi *
-                </label>
+                <label className="block text-sm font-medium text-gray-700">Câu hỏi *</label>
                 <input
                   type="text"
                   value={formData.question}
-                  onChange={(e) =>
-                    setFormData({ ...formData, question: e.target.value })
-                  }
+                  onChange={(e) => setFormData({ ...formData, question: e.target.value })}
                   className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"
                   placeholder="Nhập câu hỏi"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700">
-                  Câu trả lời *
-                </label>
+                <label className="block text-sm font-medium text-gray-700">Câu trả lời *</label>
                 <textarea
                   value={formData.answer}
-                  onChange={(e) =>
-                    setFormData({ ...formData, answer: e.target.value })
-                  }
+                  onChange={(e) => setFormData({ ...formData, answer: e.target.value })}
                   rows={5}
                   className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"
                   placeholder="Nhập câu trả lời"
@@ -176,28 +190,24 @@ export default function AdminFAQsPage() {
 
               <div className="grid grid-cols-3 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">
-                    Danh mục
-                  </label>
+                  <label className="block text-sm font-medium text-gray-700">Danh mục</label>
                   <select
-                    value={formData.category_id}
+                    value={formData.categoryId}
                     onChange={(e) =>
-                      setFormData({ ...formData, category_id: parseInt(e.target.value) })
+                      setFormData({ ...formData, categoryId: parseInt(e.target.value) })
                     }
                     className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"
                   >
-                    <option value="1">Đặt hàng</option>
-                    <option value="2">Vận chuyển</option>
-                    <option value="3">Thanh toán</option>
-                    <option value="4">Đổi trả</option>
-                    <option value="5">Sản phẩm</option>
+                    {categories.map((cat) => (
+                      <option key={cat.id} value={cat.id}>
+                        {cat.name}
+                      </option>
+                    ))}
                   </select>
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">
-                    Vị trí
-                  </label>
+                  <label className="block text-sm font-medium text-gray-700">Vị trí</label>
                   <input
                     type="number"
                     value={formData.position}
@@ -209,14 +219,10 @@ export default function AdminFAQsPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">
-                    Trạng thái
-                  </label>
+                  <label className="block text-sm font-medium text-gray-700">Trạng thái</label>
                   <select
-                    value={formData.is_active ? '1' : '0'}
-                    onChange={(e) =>
-                      setFormData({ ...formData, is_active: e.target.value === '1' })
-                    }
+                    value={formData.isActive ? '1' : '0'}
+                    onChange={(e) => setFormData({ ...formData, isActive: e.target.value === '1' })}
                     className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"
                   >
                     <option value="1">Hoạt động</option>
@@ -262,8 +268,10 @@ export default function AdminFAQsPage() {
                           <span className="inline-block px-2 py-1 bg-gray-100 text-gray-700 text-xs rounded">
                             Vị trí: {faq.position}
                           </span>
-                          <span className={`inline-block px-2 py-1 text-xs rounded ${faq.is_active === 1 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                            {faq.is_active === 1 ? 'Hoạt động' : 'Vô hiệu'}
+                          <span
+                            className={`inline-block px-2 py-1 text-xs rounded ${faq.isActive === 1 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}
+                          >
+                            {faq.isActive === 1 ? 'Hoạt động' : 'Vô hiệu'}
                           </span>
                         </div>
                       </div>
@@ -289,15 +297,17 @@ export default function AdminFAQsPage() {
               {totalPages > 1 && (
                 <div className="px-6 py-4 bg-gray-50 border-t flex items-center justify-between">
                   <button
-                    onClick={() => setPage(p => Math.max(1, p - 1))}
+                    onClick={() => setPage((p) => Math.max(1, p - 1))}
                     disabled={page === 1}
                     className="px-4 py-2 border border-gray-300 rounded-md disabled:opacity-50"
                   >
                     Trước
                   </button>
-                  <span className="text-sm text-gray-600">Trang {page} / {totalPages}</span>
+                  <span className="text-sm text-gray-600">
+                    Trang {page} / {totalPages}
+                  </span>
                   <button
-                    onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                    onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                     disabled={page === totalPages}
                     className="px-4 py-2 border border-gray-300 rounded-md disabled:opacity-50"
                   >

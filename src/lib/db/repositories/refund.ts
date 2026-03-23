@@ -111,7 +111,7 @@ export async function getAllRefunds(
     conditions.push(eq(refundRequests.status, status as any));
   }
 
-  let baseQuery = db
+  const baseQuery = db
     .select({
       id: refundRequests.id,
       user_id: refundRequests.userId,
@@ -129,7 +129,7 @@ export async function getAllRefunds(
     .innerJoin(users, eq(refundRequests.userId, users.id))
     .innerJoin(orders, eq(refundRequests.orderId, orders.id));
 
-  let countQuery = db
+  const countQuery = db
     .select({ total: count() })
     .from(refundRequests)
     .innerJoin(users, eq(refundRequests.userId, users.id))

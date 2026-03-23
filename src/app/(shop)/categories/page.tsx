@@ -1,4 +1,4 @@
-"use client";
+'use client';
 import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { ProductsGrid } from '@/components/ui/products';
@@ -12,7 +12,9 @@ import { useLanguage } from '@/contexts/LanguageContext';
 
 export default function CategoriesPage() {
   return (
-    <Suspense fallback={<div className="min-h-screen flex items-center justify-center">Đang tải...</div>}>
+    <Suspense
+      fallback={<div className="min-h-screen flex items-center justify-center">Đang tải...</div>}
+    >
       <CategoriesContent />
     </Suspense>
   );
@@ -39,11 +41,20 @@ function CategoriesContent() {
   const handleFilterChange = (newFilters: FilterParams) => {
     // Replace completely instead of merging to ensure proper state update
     const cleanedFilters: FilterParams = {};
-    Object.keys(newFilters).forEach(key => {
+    Object.keys(newFilters).forEach((key) => {
       if (newFilters[key] && newFilters[key] !== '') {
         cleanedFilters[key] = newFilters[key];
       }
     });
+
+    // Sync to URL to maintain state on refresh
+    const params = new URLSearchParams();
+    Object.entries(cleanedFilters).forEach(([key, value]) => {
+      params.set(key, value);
+    });
+    const url = `/categories${params.toString() ? '?' + params.toString() : ''}`;
+    window.history.pushState({}, '', url);
+
     setFilterParams(cleanedFilters);
   };
 
@@ -58,8 +69,18 @@ function CategoriesContent() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 text-center">
         <div className="bg-red-50 border border-red-200 rounded-lg p-6">
           <div className="flex justify-center items-center mb-4">
-            <svg className="w-12 h-12 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.982 16.5c-.77.833.192 2.5 1.732 2.5z" />
+            <svg
+              className="w-12 h-12 text-red-400"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.982 16.5c-.77.833.192 2.5 1.732 2.5z"
+              />
             </svg>
           </div>
           <h3 className="text-lg font-medium text-red-800 mb-2">{t.plp.error_title}</h3>
@@ -85,10 +106,7 @@ function CategoriesContent() {
       <div className="flex flex-col lg:flex-row gap-8">
         <aside className="w-full lg:w-64 flex-shrink-0">
           <div className="lg:sticky lg:top-4 lg:max-h-[calc(100vh-2rem)] lg:overflow-y-auto">
-            <ProductFilter
-              filterParams={filterParams}
-              onFilterChange={handleFilterChange}
-            />
+            <ProductFilter filterParams={filterParams} onFilterChange={handleFilterChange} />
           </div>
         </aside>
 
@@ -123,5 +141,3 @@ function CategoriesContent() {
     </div>
   );
 }
-
-

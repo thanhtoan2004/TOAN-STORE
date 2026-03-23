@@ -28,7 +28,7 @@ import { useAuth } from '@/contexts/AuthContext';
  */
 const Header = () => {
   // Lấy hàm t (translate) từ LanguageContext để hỗ trợ đa ngôn ngữ (i18n)
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
 
   // Lấy thông tin xác thực của người dùng (user profile, trạng thái login) từ AuthContext
   const { user, isAuthenticated, logout } = useAuth();
@@ -41,6 +41,26 @@ const Header = () => {
 
   // Quản lý trạng thái đóng/mở của Mobile Menu
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+  const [dynamicMenus, setDynamicMenus] = useState<any>(null);
+  const [siteSettings, setSiteSettings] = useState<any>(null);
+
+  useEffect(() => {
+    fetchSiteData();
+  }, []);
+
+  const fetchSiteData = async () => {
+    try {
+      const resp = await fetch('/api/site-data');
+      const data = await resp.json();
+      if (data.success) {
+        setDynamicMenus(data.data.menus);
+        setSiteSettings(data.data.settings);
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
 
   // Mảng chứa các đường link điều hướng chính trên thanh Menu
   const mainNavigationLinks = [
@@ -185,33 +205,61 @@ const Header = () => {
           {/* Logo chính của ứng dụng */}
           <div>
             <Link href="/">
-              <svg
-                className="h-16 w-32"
-                viewBox="0 0 24 24"
-                fill="none"
-                xmlns="http://www.w3.org/2000/svg"
-              >
-                <path
-                  fill="currentColor"
-                  fillRule="evenodd"
-                  d="M21 8.719L7.836 14.303C6.74 14.768 5.818 15 5.075 15c-.836 0-1.445-.295-1.819-.884-.485-.76-.273-1.982.559-3.272.494-.754 1.122-1.446 1.734-2.108-.144.234-1.415 2.349-.025 3.345.275.2.666.298 1.147.298.386 0 .829-.063 1.316-.19L21 8.719z"
-                  clipRule="evenodd"
+              {siteSettings?.logo_url ? (
+                <img
+                  src={siteSettings.logo_url}
+                  alt={siteSettings?.store_name || 'Logo'}
+                  className="h-12 w-auto object-contain"
                 />
-              </svg>
+              ) : (
+                <Image
+                  src="/icons/icon-512x512.png"
+                  alt="TOAN Store"
+                  width={128}
+                  height={64}
+                  className="h-12 w-auto object-contain"
+                />
+              )}
             </Link>
           </div>
 
           {/* Nav Links: Danh sách các trang chính (Ẩn trên màn hình nhỏ) */}
           <nav className="hidden md:flex space-x-4 font-helvetica-medium">
-            {mainNavigationLinks.map((link) => (
-              <Link
-                key={link.name}
-                href={link.href}
-                className="px-2 py-1 text-sm font-medium transition-colors hover:text-black text-zinc-800"
-              >
-                {link.name}
-              </Link>
-            ))}
+            {(dynamicMenus?.header || mainNavigationLinks).map((link: any, idx: number) => {
+              const hasChildren = link.children && link.children.length > 0;
+
+              if (hasChildren) {
+                return (
+                  <DropdownMenu key={link.id || idx}>
+                    <DropdownMenuTrigger className="px-2 py-1 text-sm font-medium transition-colors hover:text-black text-zinc-800 flex items-center gap-1">
+                      {language === 'en' ? link.titleEn || link.title : link.title || link.name}
+                      <ChevronDown className="w-3 h-3" />
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent className="p-2 min-w-[160px]">
+                      {link.children.map((child: any) => (
+                        <DropdownMenuItem key={child.id} asChild>
+                          <Link href={child.href} className="w-full cursor-pointer">
+                            {language === 'en'
+                              ? child.titleEn || child.title
+                              : child.title || child.name}
+                          </Link>
+                        </DropdownMenuItem>
+                      ))}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                );
+              }
+
+              return (
+                <Link
+                  key={link.id || idx}
+                  href={link.href}
+                  className="px-2 py-1 text-sm font-medium transition-colors hover:text-black text-zinc-800"
+                >
+                  {language === 'en' ? link.titleEn || link.title : link.title || link.name}
+                </Link>
+              );
+            })}
           </nav>
 
           {/* Khu vực Tìm kiếm & Các Icon (Yêu thích, Giỏ hàng) */}
@@ -270,7 +318,9 @@ const Header = () => {
       <MobileMenuOverlay
         isOpen={isMobileMenuOpen}
         onClose={() => setIsMobileMenuOpen(false)}
-        links={mainNavigationLinks}
+        links={
+          dynamicMenus?.header || mainNavigationLinks.map((l) => ({ title: l.name, href: l.href }))
+        }
       />
     </header>
   );

@@ -59,7 +59,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { question, category_id, position } = body;
+    const { question, category_id, categoryId, position, is_active, isActive } = body;
     const answer = sanitizeRichContent(body.answer || '');
 
     if (!question || !answer) {
@@ -69,9 +69,18 @@ export async function POST(request: NextRequest) {
     const [result] = await db.insert(faqsTable).values({
       question,
       answer,
-      categoryId: category_id || 1,
+      categoryId: categoryId || category_id || 1,
       position: position || 0,
-      isActive: 1,
+      isActive:
+        isActive !== undefined
+          ? isActive
+            ? 1
+            : 0
+          : is_active !== undefined
+            ? is_active
+              ? 1
+              : 0
+            : 1,
     });
 
     const insertId = (result as any).insertId;
@@ -80,8 +89,18 @@ export async function POST(request: NextRequest) {
       id: insertId,
       question,
       answer,
-      category_id,
+      categoryId: categoryId || category_id,
       position,
+      isActive:
+        isActive !== undefined
+          ? isActive
+            ? 1
+            : 0
+          : is_active !== undefined
+            ? is_active
+              ? 1
+              : 0
+            : 1,
     };
 
     return ResponseWrapper.success(responseData, 'Đã tạo FAQ thành công');
@@ -99,21 +118,33 @@ export async function PUT(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { id, question, category_id, position, is_active } = body;
+    const { id, question, category_id, categoryId, position, is_active, isActive } = body;
     const answer = sanitizeRichContent(body.answer || '');
 
     if (!id) {
       return ResponseWrapper.error('ID là bắt buộc để cập nhật', 400);
     }
 
+    // Determine values for either snake_case or camelCase to be safe
+    const finalIsActive =
+      isActive !== undefined
+        ? isActive
+          ? 1
+          : 0
+        : is_active !== undefined
+          ? is_active
+            ? 1
+            : 0
+          : undefined;
+
     const [updateResult] = await db
       .update(faqsTable)
       .set({
         question,
         answer,
-        categoryId: category_id || 1,
+        categoryId: categoryId || category_id || 1,
         position: position || 0,
-        isActive: is_active !== undefined ? (is_active ? 1 : 0) : 1,
+        ...(finalIsActive !== undefined && { isActive: finalIsActive }),
         updatedAt: new Date(),
       })
       .where(eq(faqsTable.id, id));

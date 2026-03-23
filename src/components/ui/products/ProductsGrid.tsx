@@ -147,7 +147,8 @@ const ProductsGrid = ({
         }
 
         const data = await response.json();
-        const newProducts = data.products || [];
+        // Support both ResponseWrapper format (data.data) and legacy format (data.products)
+        const newProducts = (Array.isArray(data.data) ? data.data : data.products) || [];
         const newPagination = data.pagination || { page: 1, limit: 12, total: 0, totalPages: 0 };
 
         if (append) {

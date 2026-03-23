@@ -838,6 +838,7 @@ export const faqCategories = mysqlTable('faq_categories', {
   description: text('description'),
   icon: varchar('icon', { length: 100 }),
   position: int('position').default(0),
+  sectionLinks: json('section_links'), // For the cards in Help Center page
   isActive: tinyint('is_active').default(1),
   createdAt: timestamp('created_at').defaultNow(),
 });
@@ -1493,3 +1494,24 @@ export const bulkDiscounts = mysqlTable(
     timeIdx: index('idx_bulk_time').on(table.startTime, table.endTime),
   })
 );
+
+export const siteSettings = mysqlTable('site_settings', {
+  id: serial('id').primaryKey(),
+  key: varchar('key', { length: 100 }).unique().notNull(),
+  value: json('value'), // Stores value as JSON string or object
+  description: varchar('description', { length: 255 }),
+  updatedAt: timestamp('updated_at').defaultNow().onUpdateNow(),
+});
+
+export const menuItems = mysqlTable('menu_items', {
+  id: serial('id').primaryKey(),
+  parentId: bigint('parent_id', { mode: 'number', unsigned: true }),
+  location: varchar('location', { length: 100 }), // header, footer_col1, footer_col2, footer_col3, footer_bottom
+  title: varchar('title', { length: 255 }).notNull(),
+  titleEn: varchar('title_en', { length: 255 }),
+  href: varchar('href', { length: 500 }),
+  icon: varchar('icon', { length: 100 }),
+  order: int('display_order').default(0),
+  isActive: tinyint('is_active').default(1),
+  createdAt: timestamp('created_at').defaultNow(),
+});

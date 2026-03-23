@@ -7,10 +7,10 @@ interface FAQ {
   id: number;
   question: string;
   answer: string;
-  helpful_count: number;
-  category_id: number;
-  category_name: string;
-  category_slug: string;
+  helpfulCount: number;
+  categoryId: number;
+  categoryName: string;
+  categorySlug: string;
 }
 
 interface FAQCategory {
@@ -19,6 +19,7 @@ interface FAQCategory {
   slug: string;
   description?: string;
   icon?: string;
+  sectionLinks?: any; // JSON links [{ name: string, href: string }]
 }
 
 export default function HelpPage() {
@@ -34,9 +35,7 @@ export default function HelpPage() {
   const fetchFAQs = async () => {
     try {
       setLoading(true);
-      const url = selectedCategory
-        ? `/api/faqs?categoryId=${selectedCategory}`
-        : '/api/faqs';
+      const url = selectedCategory ? `/api/faqs?categoryId=${selectedCategory}` : '/api/faqs';
 
       const response = await fetch(url);
       const data = await response.json();
@@ -52,45 +51,10 @@ export default function HelpPage() {
     }
   };
 
-  const helpCategories = [
-    {
-      title: 'Đơn Hàng',
-      links: [
-        { name: 'Trạng Thái Đơn Hàng', href: '/orders' },
-        { name: 'Vận Chuyển Và Giao Hàng', href: '/help/shipping-delivery' },
-        { name: 'Trả Hàng', href: '/help/returns' },
-        { name: 'Hủy Đơn', href: '/help/order-cancellation' },
-      ]
-    },
-    {
-      title: 'Thanh Toán',
-      links: [
-        { name: 'Tùy Chọn Thanh Toán', href: '/help/payment-options' },
-        { name: 'Số Dư Thẻ Quà Tặng', href: '/gift-card-balance' },
-      ]
-    },
-    {
-      title: 'Tài Khoản',
-      links: [
-        { name: 'Quản Lý Tài Khoản', href: '/account' },
-        { name: 'Đăng Ký Thành Viên', href: '/sign-up' },
-      ]
-    },
-    {
-      title: 'Sản Phẩm',
-      links: [
-        { name: 'Hướng Dẫn Chọn Size', href: '/help/size-guide' },
-        { name: 'Chính Sách Bảo Hành', href: '/help/warranty' },
-      ]
-    },
-    {
-      title: 'Liên Hệ',
-      links: [
-        { name: 'Liên Hệ Chúng Tôi', href: '/help/contact' },
-        { name: 'Tìm Cửa Hàng', href: '/store' },
-      ]
-    }
-  ];
+  // Filter categories that have valid section links for the top grid
+  const helpSections = categories.filter(
+    (cat) => cat.sectionLinks && Array.isArray(cat.sectionLinks) && cat.sectionLinks.length > 0
+  );
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -98,16 +62,17 @@ export default function HelpPage() {
         <div className="max-w-4xl mx-auto">
           <h1 className="text-4xl font-bold mb-4">Trung Tâm Trợ Giúp</h1>
           <p className="text-gray-600 mb-8">
-            Chúng tôi ở đây để giúp bạn. Tìm câu trả lời cho các câu hỏi thường gặp hoặc liên hệ với chúng tôi.
+            Chúng tôi ở đây để giúp bạn. Tìm câu trả lời cho các câu hỏi thường gặp hoặc liên hệ với
+            chúng tôi.
           </p>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-12">
-            {helpCategories.map((category) => (
-              <div key={category.title} className="bg-white rounded-lg p-6 shadow-sm">
-                <h2 className="text-xl font-helvetica-medium mb-4">{category.title}</h2>
+            {helpSections.map((category) => (
+              <div key={category.id} className="bg-white rounded-lg p-6 shadow-sm">
+                <h2 className="text-xl font-helvetica-medium mb-4">{category.name}</h2>
                 <ul className="space-y-2">
-                  {category.links.map((link) => (
-                    <li key={link.name}>
+                  {(category.sectionLinks as any[]).map((link, idx) => (
+                    <li key={idx}>
                       <Link
                         href={link.href}
                         className="text-gray-600 hover:text-black transition-colors"
@@ -128,10 +93,11 @@ export default function HelpPage() {
                 <div className="flex gap-2 flex-wrap">
                   <button
                     onClick={() => setSelectedCategory(null)}
-                    className={`px-4 py-2 rounded-lg text-sm transition ${selectedCategory === null
-                      ? 'bg-black text-white'
-                      : 'bg-gray-100 hover:bg-gray-200'
-                      }`}
+                    className={`px-4 py-2 rounded-lg text-sm transition ${
+                      selectedCategory === null
+                        ? 'bg-black text-white'
+                        : 'bg-gray-100 hover:bg-gray-200'
+                    }`}
                   >
                     Tất cả
                   </button>
@@ -139,10 +105,11 @@ export default function HelpPage() {
                     <button
                       key={cat.id}
                       onClick={() => setSelectedCategory(cat.id)}
-                      className={`px-4 py-2 rounded-lg text-sm transition ${selectedCategory === cat.id
-                        ? 'bg-black text-white'
-                        : 'bg-gray-100 hover:bg-gray-200'
-                        }`}
+                      className={`px-4 py-2 rounded-lg text-sm transition ${
+                        selectedCategory === cat.id
+                          ? 'bg-black text-white'
+                          : 'bg-gray-100 hover:bg-gray-200'
+                      }`}
                     >
                       {cat.name}
                     </button>
@@ -160,9 +127,9 @@ export default function HelpPage() {
                     <h3 className="font-helvetica-medium mb-2 text-lg">{faq.question}</h3>
                     <p className="text-gray-600 mb-2">{faq.answer.replace(/<[^>]*>/g, '')}</p>
                     <div className="flex items-center gap-4 text-sm text-gray-500">
-                      <span className="px-3 py-1 bg-gray-100 rounded-full">{faq.category_name}</span>
-                      {faq.helpful_count > 0 && (
-                        <span>👍 {faq.helpful_count} người thấy hữu ích</span>
+                      <span className="px-3 py-1 bg-gray-100 rounded-full">{faq.categoryName}</span>
+                      {faq.helpfulCount > 0 && (
+                        <span>👍 {faq.helpfulCount} người thấy hữu ích</span>
                       )}
                     </div>
                   </div>
@@ -177,4 +144,3 @@ export default function HelpPage() {
     </div>
   );
 }
-

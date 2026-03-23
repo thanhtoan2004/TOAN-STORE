@@ -2,7 +2,7 @@
   "info": {
     "_postman_id": "toan-store-api-perfect-coverage",
     "name": "TOAN Store API",
-    "description": "Bộ sưu tập API hoàn chỉnh (V2.1).\n\nBao gồm:\n- Full PII Masking & Blind Indexing (Email Hash)\n- Cloudinary Media Upload (Hình ảnh, Video Reviews)\n- Rate Limiting, XSS Protection\n- 105+ API Endpoints.",
+    "description": "Bộ sưu tập API hoàn chỉnh (V2.2 - PWA & Real-time).\n\nBao gồm:\n- PWA (Progressive Web App) Support\n- Real-time Synchronization (Socket.io + Redis Pub/Sub)\n- Full PII Masking & Blind Indexing (Email Hash)\n- Cloudinary Media Upload (Hình ảnh, Video Reviews)\n- Rate Limiting, XSS Protection\n- 214+ API Endpoints.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "item": [
@@ -6571,6 +6571,144 @@
                   "raw": "{{baseUrl}}/api/upload",
                   "host": ["{{baseUrl}}"],
                   "path": ["api", "upload"]
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "6. CMS & Navigation",
+      "item": [
+        {
+          "name": "Site Data (Header/Footer)",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/site-data",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "site-data"]
+            },
+            "description": "Lấy dữ liệu đồng bộ cho Navigation (Header/Footer) + Site Settings."
+          }
+        },
+        {
+          "name": "Admin Menus",
+          "item": [
+            {
+              "name": "Danh sách Menu (Search/Filter)",
+              "request": {
+                "method": "GET",
+                "url": {
+                  "raw": "{{baseUrl}}/api/admin/menus?position=header",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "admin", "menus"],
+                  "query": [{ "key": "position", "value": "header" }]
+                }
+              }
+            },
+            {
+              "name": "Thêm Menu mới",
+              "request": {
+                "method": "POST",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"title\": \"Sản phẩm Mới\",\n  \"titleEn\": \"New Releases\",\n  \"url\": \"/products/new\",\n  \"position\": \"header\",\n  \"parentId\": null,\n  \"sortOrder\": 0\n}",
+                  "options": { "raw": { "language": "json" } }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/admin/menus",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "admin", "menus"]
+                }
+              }
+            },
+            {
+              "name": "Cập nhật Menu",
+              "request": {
+                "method": "PUT",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"id\": 1,\n  \"title\": \"Sửa tên\",\n  \"parentId\": 2\n}",
+                  "options": { "raw": { "language": "json" } }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/admin/menus",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "admin", "menus"]
+                }
+              }
+            },
+            {
+              "name": "Xóa Menu",
+              "request": {
+                "method": "DELETE",
+                "url": {
+                  "raw": "{{baseUrl}}/api/admin/menus?id=1",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "admin", "menus"],
+                  "query": [{ "key": "id", "value": "1" }]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "name": "Admin CMS Pages",
+          "item": [
+            {
+              "name": "Danh sách Trang",
+              "request": {
+                "method": "GET",
+                "url": {
+                  "raw": "{{baseUrl}}/api/admin/pages",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "admin", "pages"]
+                }
+              }
+            },
+            {
+              "name": "Tạo Trang mới",
+              "request": {
+                "method": "POST",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"title\": \"Điều khoản sử dụng\",\n  \"slug\": \"terms-of-use\",\n  \"content\": \"<p>Nội dung trang...</p>\",\n  \"metaTitle\": \"Terms of Use | TOAN Store\",\n  \"isActive\": true\n}",
+                  "options": { "raw": { "language": "json" } }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/admin/pages",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "admin", "pages"]
+                }
+              }
+            },
+            {
+              "name": "Cập nhật Trang",
+              "request": {
+                "method": "PUT",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"id\": 1,\n  \"title\": \"Sửa tiêu đề\",\n  \"isActive\": false\n}",
+                  "options": { "raw": { "language": "json" } }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/admin/pages",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "admin", "pages"]
+                }
+              }
+            },
+            {
+              "name": "Xóa Trang",
+              "request": {
+                "method": "DELETE",
+                "url": {
+                  "raw": "{{baseUrl}}/api/admin/pages?id=1",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "admin", "pages"],
+                  "query": [{ "key": "id", "value": "1" }]
                 }
               }
             }

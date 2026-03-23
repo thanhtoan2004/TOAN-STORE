@@ -1,59 +1,80 @@
-import { NextRequest } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
+import { db } from '@/lib/db/drizzle';
+import { siteSettings } from '@/lib/db/schema';
+import { eq } from 'drizzle-orm';
 import { checkAdminAuth } from '@/lib/auth/auth';
-import { getSettings, updateSetting } from '@/lib/db/settings';
-import { logAdminAction } from '@/lib/db/repositories/audit';
 import { ResponseWrapper } from '@/lib/api/api-response';
 
 /**
- * GET - Lấy toàn bộ cấu hình hệ thống (Settings).
+ * API Quản lý cấu hình toàn hệ thống (Site Settings) - Admin.
  */
 export async function GET(request: NextRequest) {
   try {
     const admin = await checkAdminAuth();
     if (!admin) return ResponseWrapper.unauthorized();
 
-    const settings = await getSettings();
-    return ResponseWrapper.success(settings);
+    const allSettings = await db.select().from(siteSettings);
+    return ResponseWrapper.success(allSettings);
   } catch (error) {
-    console.error('Error fetching settings:', error);
-    return ResponseWrapper.serverError('Internal server error', error);
+    console.error('Error fetching site settings:', error);
+    return ResponseWrapper.serverError('Internal server error');
   }
 }
 
-/**
- * PUT - Cập nhật cấu hình hệ thống.
- */
+export async function POST(request: NextRequest) {
+  try {
+    const admin = await checkAdminAuth();
+    if (!admin) return ResponseWrapper.unauthorized();
+
+    const body = await request.json();
+    const { key, value, description } = body;
+
+    if (!key) return ResponseWrapper.error('Key is required', 400);
+
+    // Upsert logic
+    const [existing] = await db
+      .select()
+      .from(siteSettings)
+      .where(eq(siteSettings.key, key))
+      .limit(1);
+
+    if (existing) {
+      await db.update(siteSettings).set({ value, description }).where(eq(siteSettings.key, key));
+    } else {
+      await db.insert(siteSettings).values({ key, value, description });
+    }
+    return ResponseWrapper.success(null, 'Saved successfully');
+  } catch (error) {
+    console.error('Error saving site setting:', error);
+    return ResponseWrapper.serverError('Internal server error');
+  }
+}
+
 export async function PUT(request: NextRequest) {
   try {
     const admin = await checkAdminAuth();
     if (!admin) return ResponseWrapper.unauthorized();
 
-    // RBAC: Only Super Admin can change system settings
-    if (admin.role !== 'Super Admin') {
-      return ResponseWrapper.forbidden('Only Super Admins can update system settings');
+    const body = await request.json();
+
+    // Looping through the settings object keys and saving each one
+    for (const [key, value] of Object.entries(body)) {
+      const [existing] = await db
+        .select()
+        .from(siteSettings)
+        .where(eq(siteSettings.key, key))
+        .limit(1);
+
+      if (existing) {
+        await db.update(siteSettings).set({ value }).where(eq(siteSettings.key, key));
+      } else {
+        await db.insert(siteSettings).values({ key, value });
+      }
     }
 
-    const updates = await request.json();
-
-    // Update each setting in database
-    for (const [key, value] of Object.entries(updates)) {
-      await updateSetting(key, value);
-    }
-
-    // Audit Logging
-    await logAdminAction(
-      admin.userId,
-      'UPDATE_SETTINGS',
-      'settings',
-      'system',
-      null,
-      updates,
-      request
-    );
-
-    return ResponseWrapper.success(null, 'Settings saved successfully');
+    return ResponseWrapper.success(null, 'Updated all settings successfully');
   } catch (error) {
-    console.error('Error saving settings:', error);
-    return ResponseWrapper.serverError('Error saving settings', error);
+    console.error('Error saving site settings:', error);
+    return ResponseWrapper.serverError('Internal server error');
   }
 }

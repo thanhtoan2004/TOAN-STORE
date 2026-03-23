@@ -1,5 +1,5 @@
 import { Queue } from 'bullmq';
-import redisConfiguration from '@/lib/redis/redis'; // Import default config
+import redisConfiguration, { getRedis } from '@/lib/redis/redis';
 
 // Define Event Types
 export type EventType =
@@ -22,7 +22,6 @@ class EventBus {
   private static instance: EventBus;
 
   private constructor() {
-    // Reuse existing Redis connection or create new
     this.queue = new Queue('app-events', {
       connection: redisConfiguration,
     });
@@ -36,7 +35,8 @@ class EventBus {
   }
 
   /**
-   * Publish an event to the queue
+   * Publish an event to the queue for background processing
+   * AND to Redis Pub/Sub for immediate Socket.io broadcasting
    */
   public async publish<T>(type: EventType, payload: T) {
     try {
@@ -46,21 +46,46 @@ class EventBus {
         timestamp: Date.now(),
       };
 
-      // Job name = Event Type
+      // 1. Async Processing (BullMQ)
       await this.queue.add(type, event, {
         attempts: 3,
-        backoff: {
-          type: 'exponential',
-          delay: 1000,
-        },
+        backoff: { type: 'exponential', delay: 1000 },
         removeOnComplete: true,
-        removeOnFail: 100, // Keep last 100 failed events for inspection
       });
 
-      console.log(`📡 Event Published: ${type}`);
+      // 2. Real-time Broadcasting (Redis Pub/Sub)
+      const redis = getRedis();
+      if (type.startsWith('order.') || type === 'tier.upgraded') {
+        const userId = (payload as any).userId;
+        await redis.publish(
+          'live-notifications',
+          JSON.stringify({
+            type,
+            userId,
+            message: this.getEventMessage(type, payload),
+            data: payload,
+          })
+        );
+      } else if (type === 'inventory.adjusted') {
+        await redis.publish('stock-updates', JSON.stringify(payload));
+      }
+
+      console.log(`📡 Event Published & Broadcasted: ${type}`);
     } catch (error) {
       console.error(`❌ Failed to publish event ${type}:`, error);
-      // In a real system, we might want to fallback to DB log or file log
+    }
+  }
+
+  private getEventMessage(type: EventType, payload: any): string {
+    switch (type) {
+      case 'order.created':
+        return `Đơn hàng mới #${payload.orderNumber} đã được tạo.`;
+      case 'order.updated':
+        return `Đơn hàng #${payload.orderNumber} đã chuyển sang trạng thái ${payload.newStatus}.`;
+      case 'tier.upgraded':
+        return `Chúc mừng! Bạn đã thăng hạng lên ${payload.newTier}.`;
+      default:
+        return 'Có thông báo mới từ hệ thống.';
     }
   }
 }

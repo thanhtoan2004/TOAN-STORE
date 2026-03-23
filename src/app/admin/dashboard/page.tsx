@@ -214,62 +214,86 @@ export default function AdminDashboardPage() {
 
         {/* Stats Cards Row 1 */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          <div className="bg-white rounded-lg shadow p-6">
-            <div className="flex items-center">
+          {/* Total Revenue */}
+          <div className="bg-white rounded-lg shadow p-6 min-h-[140px]">
+            <div className="flex items-start">
               <div className="flex-shrink-0 bg-green-500 rounded-md p-3">
                 <DollarSign className="h-6 w-6 text-white" />
               </div>
               <div className="ml-4 flex-1">
-                <p className="text-sm font-medium text-gray-500">Total Revenue</p>
-                <p className="text-2xl font-semibold text-gray-900">
-                  {formatCurrency(stats?.totalRevenue)}
+                <p className="text-sm font-medium text-gray-500 h-10 flex items-center">
+                  Total Revenue
                 </p>
+                <div className="mt-1">
+                  <p className="text-2xl font-bold text-gray-900 leading-tight">
+                    {formatCurrency(stats?.totalRevenue).split(' ')[0]}
+                  </p>
+                  <p className="text-sm text-gray-500 font-medium italic">₫ (VND)</p>
+                </div>
               </div>
             </div>
           </div>
 
-          <div className="bg-white rounded-lg shadow p-6">
-            <div className="flex items-center">
+          {/* Total Orders */}
+          <div className="bg-white rounded-lg shadow p-6 min-h-[140px]">
+            <div className="flex items-start">
               <div className="flex-shrink-0 bg-blue-500 rounded-md p-3">
                 <Package className="h-6 w-6 text-white" />
               </div>
               <div className="ml-4 flex-1">
-                <p className="text-sm font-medium text-gray-500">Total Orders</p>
-                <p className="text-2xl font-semibold text-gray-900">
-                  {stats?.totalOrders?.toLocaleString() || '0'}
+                <p className="text-sm font-medium text-gray-500 h-10 flex items-center">
+                  Total Orders
                 </p>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-lg shadow p-6">
-            <div className="flex items-center">
-              <div className="flex-shrink-0 bg-purple-500 rounded-md p-3">
-                <TrendingUp className="h-6 w-6 text-white" />
-              </div>
-              <div className="ml-4 flex-1">
-                <p className="text-sm font-medium text-gray-500">Average Order Value</p>
-                <p className="text-2xl font-semibold text-gray-900">
-                  {formatCurrency(stats?.averageOrderValue)}
-                </p>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-lg shadow p-6 border-l-4 border-purple-500">
-            <div className="flex items-center">
-              <div className="flex-shrink-0 bg-purple-500 rounded-md p-3">
-                <TrendingUp className="h-6 w-6 text-white" />
-              </div>
-              <div className="ml-4 flex-1">
-                <p className="text-sm font-medium text-gray-500">Net Profit</p>
-                <div className="flex items-baseline gap-2">
-                  <p className="text-2xl font-semibold text-gray-900">
-                    {formatCurrency(stats?.totalProfit)}
+                <div className="mt-1">
+                  <p className="text-2xl font-bold text-gray-900 leading-tight">
+                    {stats?.totalOrders?.toLocaleString() || '0'}
                   </p>
-                  <span className="text-xs font-bold text-green-600">
-                    {stats?.profitMargin?.toFixed(1)}%
-                  </span>
+                  <p className="text-sm text-gray-500 font-medium italic">Orders</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Average Order Value */}
+          <div className="bg-white rounded-lg shadow p-6 min-h-[140px]">
+            <div className="flex items-start">
+              <div className="flex-shrink-0 bg-purple-500 rounded-md p-3">
+                <TrendingUp className="h-6 w-6 text-white" />
+              </div>
+              <div className="ml-4 flex-1">
+                <p className="text-sm font-medium text-gray-500 h-10 flex items-center">
+                  Average Order Value
+                </p>
+                <div className="mt-1">
+                  <p className="text-2xl font-bold text-gray-900 leading-tight">
+                    {formatCurrency(stats?.averageOrderValue).split(' ')[0]}
+                  </p>
+                  <p className="text-sm text-gray-500 font-medium italic">₫ (VND)</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Net Profit */}
+          <div className="bg-white rounded-lg shadow p-6 min-h-[140px]">
+            <div className="flex items-start">
+              <div className="flex-shrink-0 bg-purple-500 rounded-md p-3">
+                <TrendingUp className="h-6 w-6 text-white" />
+              </div>
+              <div className="ml-4 flex-1">
+                <p className="text-sm font-medium text-gray-500 h-10 flex items-center">
+                  Net Profit
+                </p>
+                <div className="mt-1">
+                  <div className="flex items-baseline gap-2">
+                    <p className="text-2xl font-bold text-gray-900 leading-tight">
+                      {formatCurrency(stats?.totalProfit).split(' ')[0]}
+                    </p>
+                    <span className="text-xs font-bold text-green-600 bg-green-50 px-1.5 py-0.5 rounded">
+                      +{stats?.profitMargin?.toFixed(1)}%
+                    </span>
+                  </div>
+                  <p className="text-sm text-gray-500 font-medium italic">₫ (VND)</p>
                 </div>
               </div>
             </div>

@@ -21,7 +21,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
     { name: 'Đơn hàng', href: '/admin/orders' },
     { name: 'Hoàn tiền', href: '/admin/refunds' },
     { name: 'Người dùng', href: '/admin/users' },
-    { name: 'Nhân viên', href: '/admin/admins' },
+    { name: 'Nhân viên', href: '/admin/staff' },
     { name: 'Đánh giá', href: '/admin/reviews' },
     { name: 'Lịch sử hoạt động', href: '/admin/audit-logs' },
     { name: 'Thẻ quà tặng', href: '/admin/gift-cards' },
@@ -36,6 +36,8 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
     { name: 'Bản tin Marketing', href: '/admin/marketing/newsletter' },
     { name: 'Tin tức', href: '/admin/news' },
     { name: 'Hỗ trợ', href: '/admin/support' },
+    { name: 'Trang nội dung (CMS)', href: '/admin/pages' },
+    { name: 'Quản lý Menu', href: '/admin/menus' },
     { name: 'Cấu hình SEO', href: '/admin/seo' },
     { name: 'Bảo mật', href: '/admin/security' },
     { name: 'Cài đặt', href: '/admin/settings' },
@@ -114,8 +116,8 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
         </nav>
         <div className="p-6 border-t border-gray-800">
           <button
-            onClick={() => {
-              fetch('/api/auth/logout', { method: 'POST' });
+            onClick={async () => {
+              await fetch('/api/auth/logout', { method: 'POST' });
               window.location.href = '/admin/login';
             }}
             className="w-full px-4 py-2 text-sm bg-red-600 hover:bg-red-700 rounded-md transition-colors"

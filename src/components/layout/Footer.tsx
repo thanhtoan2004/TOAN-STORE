@@ -19,10 +19,11 @@ import { Input } from '@/components/ui/input';
  */
 const Footer = () => {
   // Lấy hàm dịch thuật (t) từ ngữ cảnh ngôn ngữ
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
 
   // Trạng thái isMounted đảm bảo component đã render xong trên client để tránh lỗi Hydration mismatch
   const [isMounted, setIsMounted] = useState(false);
+  const [dynamicData, setDynamicData] = useState<any>(null);
 
   // Các state quản lý form gửi email đăng ký nhận bản tin
   const [loading, setLoading] = useState(false);
@@ -32,6 +33,21 @@ const Footer = () => {
   // Chạy một lần khi component mount
   useEffect(() => {
     setIsMounted(true);
+
+    // Fetch dynamic site data (menus, social links)
+    const fetchSiteData = async () => {
+      try {
+        const response = await fetch('/api/site-data');
+        const result = await response.json();
+        if (result.success) {
+          setDynamicData(result.data);
+        }
+      } catch (err) {
+        console.error('Error fetching footer data:', err);
+      }
+    };
+
+    fetchSiteData();
   }, []);
 
   // Schema Validation (Xác thực dữ liệu form sử dụng thư viện Zod)
@@ -144,18 +160,32 @@ const Footer = () => {
           {/* Cột 1: Các liên kết nổi bật (Featured - Larger links) */}
           <div className="space-y-4">
             <nav className="flex flex-col space-y-2">
-              <Link href="/store" className="text-white font-helvetica-medium text-sm">
-                {t.footer.find_store}
-              </Link>
-              <Link href="/sign-up" className="text-white font-helvetica-medium text-sm">
-                {t.footer.join_member}
-              </Link>
-              <Link href="/about" className="text-white font-helvetica-medium text-sm">
-                {t.footer.about_toan}
-              </Link>
-              <Link href="/help/contact" className="text-white font-helvetica-medium text-sm">
-                {t.footer.feedback}
-              </Link>
+              {dynamicData?.menus?.footer_main && dynamicData.menus.footer_main.length > 0 ? (
+                dynamicData.menus.footer_main.map((link: any, idx: number) => (
+                  <Link
+                    key={link.id || idx}
+                    href={link.href}
+                    className="text-white font-helvetica-medium text-sm"
+                  >
+                    {language === 'en' ? link.titleEn || link.title : link.title}
+                  </Link>
+                ))
+              ) : (
+                <>
+                  <Link href="/store" className="text-white font-helvetica-medium text-sm">
+                    {t.footer.find_store}
+                  </Link>
+                  <Link href="/sign-up" className="text-white font-helvetica-medium text-sm">
+                    {t.footer.join_member}
+                  </Link>
+                  <Link href="/about" className="text-white font-helvetica-medium text-sm">
+                    {t.footer.about_toan}
+                  </Link>
+                  <Link href="/help/contact" className="text-white font-helvetica-medium text-sm">
+                    {t.footer.feedback}
+                  </Link>
+                </>
+              )}
             </nav>
           </div>
 
@@ -163,15 +193,17 @@ const Footer = () => {
           <div className="space-y-4">
             <h3 className="font-helvetica-medium text-sm text-white">{t.footer.get_help}</h3>
             <nav className="flex flex-col space-y-2">
-              {footerLinks.help.map((link) => (
-                <Link
-                  key={link.name}
-                  href={link.href}
-                  className="text-gray-400 hover:text-white text-xs"
-                >
-                  {link.name}
-                </Link>
-              ))}
+              {(dynamicData?.menus?.footer_help || footerLinks.help).map(
+                (link: any, idx: number) => (
+                  <Link
+                    key={link.id || idx}
+                    href={link.href}
+                    className="text-gray-400 hover:text-white text-xs"
+                  >
+                    {language === 'en' ? link.titleEn || link.title : link.title}
+                  </Link>
+                )
+              )}
             </nav>
           </div>
 
@@ -179,15 +211,17 @@ const Footer = () => {
           <div className="space-y-4">
             <h3 className="font-helvetica-medium text-sm text-white">{t.footer.about_toan}</h3>
             <nav className="flex flex-col space-y-2">
-              {footerLinks.company.map((link) => (
-                <Link
-                  key={link.name}
-                  href={link.href}
-                  className="text-gray-400 hover:text-white text-xs"
-                >
-                  {link.name}
-                </Link>
-              ))}
+              {(dynamicData?.menus?.footer_company || footerLinks.company).map(
+                (link: any, idx: number) => (
+                  <Link
+                    key={link.id || idx}
+                    href={link.href}
+                    className="text-gray-400 hover:text-white text-xs"
+                  >
+                    {language === 'en' ? link.titleEn || link.title : link.title}
+                  </Link>
+                )
+              )}
             </nav>
           </div>
 
@@ -195,15 +229,25 @@ const Footer = () => {
           <div className="space-y-4">
             <h3 className="font-helvetica-medium text-sm text-white">{t.footer.promotions}</h3>
             <nav className="flex flex-col space-y-2">
-              {footerLinks.promotions.map((link) => (
-                <Link
-                  key={link.name}
-                  href={link.href}
-                  className="text-gray-400 hover:text-white text-xs"
-                >
-                  {link.name}
-                </Link>
-              ))}
+              {dynamicData?.menus?.footer_promos && dynamicData.menus.footer_promos.length > 0
+                ? dynamicData.menus.footer_promos.map((link: any, idx: number) => (
+                    <Link
+                      key={link.id || idx}
+                      href={link.href}
+                      className="text-gray-400 hover:text-white text-xs"
+                    >
+                      {language === 'en' ? link.titleEn || link.title : link.title}
+                    </Link>
+                  ))
+                : footerLinks.promotions.map((link) => (
+                    <Link
+                      key={link.name}
+                      href={link.href}
+                      className="text-gray-400 hover:text-white text-xs"
+                    >
+                      {link.name}
+                    </Link>
+                  ))}
             </nav>
 
             {/* Newsletter Form Box */}
@@ -258,7 +302,7 @@ const Footer = () => {
         {/* Khối biểu tượng Mạng xã hội (Social Media Links) */}
         <div className="flex space-x-4 py-5">
           <a
-            href="https://twitter.com/dttoan69"
+            href={dynamicData?.socialLinks?.twitter || 'https://twitter.com/dttoan69'}
             target="_blank"
             rel="noopener noreferrer"
             className="bg-gray-500 rounded-full p-2 hover:bg-white hover:text-gray-800 transition"
@@ -266,7 +310,7 @@ const Footer = () => {
             <Twitter className="w-6 h-6" />
           </a>
           <a
-            href="https://www.facebook.com/dtt694"
+            href={dynamicData?.socialLinks?.facebook || 'https://www.facebook.com/dtt694'}
             target="_blank"
             rel="noopener noreferrer"
             className="bg-gray-500 rounded-full p-2 hover:bg-white hover:text-gray-800 transition"
@@ -274,7 +318,7 @@ const Footer = () => {
             <Facebook className="w-6 h-6" />
           </a>
           <a
-            href="https://www.youtube.com/@thanhhtoann"
+            href={dynamicData?.socialLinks?.youtube || 'https://www.youtube.com/@thanhhtoann'}
             target="_blank"
             rel="noopener noreferrer"
             className="bg-gray-500 rounded-full p-2 hover:bg-white hover:text-gray-800 transition"
@@ -282,7 +326,7 @@ const Footer = () => {
             <Youtube className="w-6 h-6" />
           </a>
           <a
-            href="https://www.instagram.com/dt.toan69"
+            href={dynamicData?.socialLinks?.instagram || 'https://www.instagram.com/dt.toan69'}
             target="_blank"
             rel="noopener noreferrer"
             className="bg-gray-500 rounded-full p-2 hover:bg-white hover:text-gray-800 transition"
@@ -297,32 +341,51 @@ const Footer = () => {
             <div className="flex items-center gap-4">
               <span className="flex items-center text-white">
                 <MapPin className="w-4 h-4" />
-                <span className="ml-1">{t.footer.location}</span>
+                <span className="ml-1">
+                  {dynamicData?.settings?.store_address || t.footer.location}
+                </span>
+                {dynamicData?.settings?.store_phone && (
+                  <span className="ml-4 text-gray-400">| {dynamicData?.settings?.store_phone}</span>
+                )}
               </span>
 
               {/* Nút Đổi Ngôn Ngữ (VI/EN) */}
               <LanguageSwitcher theme="dark" />
 
-              <span className="text-white">{t.footer.rights}</span>
+              <span className="text-white">
+                {dynamicData?.settings?.copyright_text ||
+                  `© ${new Date().getFullYear()} TOAN Store, Inc. ${t.footer.rights}`}
+              </span>
             </div>
           </div>
 
           <div className="flex flex-wrap gap-x-4 gap-y-2">
-            <Link href="/guides" className="hover:text-white">
-              {t.footer.guides}
-            </Link>
-            <Link href="/terms" className="hover:text-white">
-              {t.footer.terms_sale}
-            </Link>
-            <Link href="/terms-of-use" className="hover:text-white">
-              {t.footer.terms_use}
-            </Link>
-            <Link href="/privacy-policy" className="hover:text-white">
-              {t.footer.privacy}
-            </Link>
-            <Link href="/csr" className="hover:text-white">
-              {t.footer.csr}
-            </Link>
+            {dynamicData?.menus?.footer_bottom && dynamicData.menus.footer_bottom.length > 0 ? (
+              dynamicData.menus.footer_bottom.map((link: any, idx: number) => (
+                <Link key={link.id || idx} href={link.href} className="hover:text-white">
+                  {language === 'en' ? link.titleEn || link.title : link.title}
+                </Link>
+              ))
+            ) : (
+              // Hardcoded fallbacks
+              <>
+                <Link href="/guides" className="hover:text-white">
+                  {t.footer.guides}
+                </Link>
+                <Link href="/terms" className="hover:text-white">
+                  {t.footer.terms_sale}
+                </Link>
+                <Link href="/terms-of-use" className="hover:text-white">
+                  {t.footer.terms_use}
+                </Link>
+                <Link href="/privacy-policy" className="hover:text-white">
+                  {t.footer.privacy}
+                </Link>
+                <Link href="/csr" className="hover:text-white">
+                  {t.footer.csr}
+                </Link>
+              </>
+            )}
           </div>
         </div>
       </div>

@@ -137,7 +137,7 @@ export async function createOrder(orderData: {
       (orderData.discount || 0) -
       (orderData.giftcardDiscount || 0);
 
-    let shippingAddr =
+    const shippingAddr =
       typeof orderData.shippingAddress === 'string'
         ? JSON.parse(orderData.shippingAddress)
         : orderData.shippingAddress;
@@ -260,6 +260,30 @@ export async function createOrder(orderData: {
           reserved: sql`${inventory.reserved} + ${item.quantity}`,
         })
         .where(eq(inventory.id, stockItem.id));
+
+      // Broadcast Stock Update (Reserved stock reduces available stock)
+      const [inv] = await tx
+        .select({
+          productId: productVariants.productId,
+          size: productVariants.size,
+          quantity: inventory.quantity,
+          reserved: inventory.reserved,
+        })
+        .from(inventory)
+        .innerJoin(productVariants, eq(inventory.productVariantId, productVariants.id))
+        .where(eq(inventory.id, stockItem.id))
+        .limit(1);
+
+      if (inv) {
+        eventBus
+          .publish('inventory.adjusted', {
+            productId: inv.productId,
+            productVariantId: stockItem.id,
+            newStock: inv.quantity - inv.reserved,
+            size: inv.size,
+          })
+          .catch(() => {});
+      }
 
       // Update Flash Sale Sold Count if applicable
       if (item.flashSaleItemId) {
@@ -473,6 +497,32 @@ export async function updateOrderStatus(orderNumber: string, status: string, exi
               reserved: sql`GREATEST(0, ${inventory.reserved} - ${item.quantity})`,
             })
             .where(eq(inventory.id, item.inventoryId!));
+        }
+
+        // Broadcast Live Stock Update
+        if (item.inventoryId) {
+          const [inv] = await tx
+            .select({
+              productId: productVariants.productId,
+              size: productVariants.size,
+              quantity: inventory.quantity,
+              reserved: inventory.reserved,
+            })
+            .from(inventory)
+            .innerJoin(productVariants, eq(inventory.productVariantId, productVariants.id))
+            .where(eq(inventory.id, item.inventoryId))
+            .limit(1);
+
+          if (inv) {
+            eventBus
+              .publish('inventory.adjusted', {
+                productId: inv.productId,
+                productVariantId: item.inventoryId,
+                newStock: inv.quantity - inv.reserved,
+                size: inv.size,
+              })
+              .catch(() => {});
+          }
         }
       }
     }

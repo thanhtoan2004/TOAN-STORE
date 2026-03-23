@@ -1,21 +1,21 @@
-import type { Metadata } from "next";
-import "./globals.css";
+import type { Metadata } from 'next';
+import './globals.css';
 import { Suspense } from 'react';
-import RootLayoutWrapper from "@/components/RootLayoutWrapper";
+import RootLayoutWrapper from '@/components/RootLayoutWrapper';
 
 // Import toàn bộ các Context Providers để cung cấp State Global cho ứng dụng
-import { AuthProvider } from "@/contexts/AuthContext";
-import { CartProvider } from "@/contexts/CartContext";
-import { WishlistProvider } from "@/contexts/WishlistContext";
-import { LanguageProvider } from "@/contexts/LanguageContext";
-import QueryProvider from "@/components/providers/QueryProvider";
+import { AuthProvider } from '@/contexts/AuthContext';
+import { CartProvider } from '@/contexts/CartContext';
+import { WishlistProvider } from '@/contexts/WishlistContext';
+import { LanguageProvider } from '@/contexts/LanguageContext';
+import QueryProvider from '@/components/providers/QueryProvider';
 import { ComparisonProvider } from '@/contexts/ComparisonContext';
-import { ModalProvider } from "@/contexts/ModalContext";
+import { ModalProvider } from '@/contexts/ModalContext';
 import { Toaster } from 'react-hot-toast';
 
 // Import các Widgets và Component dùng chung toàn trang (Global Ui)
-import ChatWidget from "@/components/chat/ChatWidget";
-import Pixel from "@/components/analytics/Pixel";
+import ChatWidget from '@/components/chat/ChatWidget';
+import Pixel from '@/components/analytics/Pixel';
 import ScrollToTop from '@/components/ui/ScrollToTop';
 import BottomNavBar from '@/components/ui/BottomNavBarWrapper';
 import CookieConsent from '@/components/ui/CookieConsent';
@@ -31,18 +31,23 @@ import AppInstallBanner from '@/components/ui/AppInstallBanner';
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'),
   title: {
-    template: '%s | TOAN Store', // Ví dụ: Giày Nam | TOAN Store
-    default: 'TOAN Store - Just Do It',
+    template: '%s | TOAN Store',
+    default: 'TOAN Store - Nâng Tầm Phong Cách',
   },
-  description: "TOAN Store delivers innovative products, experiences and services to inspire athletes.",
+  description:
+    'TOAN Store cung cấp những sản phẩm giày và thời trang thể thao cao cấp, mang lại cảm hứng cho mọi vận động viên.',
+  icons: {
+    icon: '/icons/icon-192x192.png',
+    apple: '/icons/icon-512x512.png',
+  },
   openGraph: {
     title: 'TOAN Store',
-    description: 'The best place to buy premium products at TOAN Store.',
+    description: 'Nơi mua sắm sản phẩm thể thao cao cấp nhất tại TOAN Store.',
     url: process.env.NEXT_PUBLIC_APP_URL,
     siteName: 'TOAN Store',
     images: [
       {
-        url: '/og-image.jpg', // Ảnh mặc định khi chia sẻ link lên Facebook, Zalo, Twitter...
+        url: '/og-image.jpg',
         width: 1200,
         height: 630,
       },
@@ -50,9 +55,14 @@ export const metadata: Metadata = {
     locale: 'vi_VN',
     type: 'website',
   },
-  keywords: ['toan store', 'giày thể thao', 'giày chạy bộ', 'thời trang thể thao', 'TOAN Store vietnam'],
+  keywords: [
+    'toan store',
+    'giày thể thao',
+    'giày chạy bộ',
+    'thời trang thể thao',
+    'TOAN Store vietnam',
+  ],
 };
-
 
 /**
  * RootLayout Component
@@ -68,9 +78,14 @@ export default function RootLayout({
     // suppressHydrationWarning giúp bỏ qua lỗi chênh lệch giao diện SSR và CSR ban đầu
     <html lang="vi" suppressHydrationWarning>
       <head>
-        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0" />
         <meta httpEquiv="x-ua-compatible" content="ie=edge" />
-        <meta name="crossOrigin" content="anonymous" />
+        <meta name="theme-color" content="#000000" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+        <meta name="apple-mobile-web-app-title" content="TOAN Store" />
+        <link rel="manifest" href="/manifest.json" />
+        <link rel="apple-touch-icon" href="/icons/icon-192x192.png" />
       </head>
 
       <body className="overflow-x-hidden" suppressHydrationWarning>
@@ -88,7 +103,6 @@ export default function RootLayout({
                   <LanguageProvider>
                     {/* Lớp bọc tính năng So sánh sản phẩm (Tối đa 4 sản phẩm) */}
                     <ComparisonProvider>
-
                       {/* Shell Component chứa Header và Footer chung */}
                       <RootLayoutWrapper>
                         {/* Vị trí render của các pages con (VD: Trang chủ, Sản phẩm...) */}
@@ -115,7 +129,6 @@ export default function RootLayout({
 
                       {/* Toaster cho các thông báo popup */}
                       <Toaster position="top-right" reverseOrder={false} />
-
                     </ComparisonProvider>
                   </LanguageProvider>
                 </WishlistProvider>

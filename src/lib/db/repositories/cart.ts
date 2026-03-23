@@ -12,7 +12,7 @@ export async function addToCart(
   quantity: number = 1
 ) {
   // Tìm hoặc tạo cart cho user
-  let [cart] = await db
+  const [cart] = await db
     .select({ id: carts.id })
     .from(carts)
     .where(eq(carts.userId, userId))
@@ -66,7 +66,6 @@ export async function addToCart(
       .set({
         quantity: sql`${cartItems.quantity} + ${quantity}`,
         productVariantId: variantId,
-        updatedAt: new Date(),
       })
       .where(eq(cartItems.id, existing.id));
   } else {
@@ -143,7 +142,6 @@ export async function updateCartItemQuantity(cartItemId: number, quantity: numbe
       .update(cartItems)
       .set({
         quantity,
-        updatedAt: new Date(),
       })
       .where(and(eq(cartItems.id, cartItemId), sql`${cartItems.cartId} IN (${cartIdSubquery})`));
   }

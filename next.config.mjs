@@ -1,4 +1,11 @@
 import { withSentryConfig } from '@sentry/nextjs';
+import withSerwistInit from "@serwist/next";
+
+const withSerwist = withSerwistInit({
+  swSrc: "src/app/sw.ts",
+  swDest: "public/sw.js",
+  disable: process.env.NODE_ENV === "development",
+});
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
@@ -45,7 +52,7 @@ const nextConfig = {
 };
 
 export default withSentryConfig(
-  nextConfig,
+  withSerwist(nextConfig),
   {
     // For all available options, see:
     // https://github.com/getsentry/sentry-webpack-plugin#options

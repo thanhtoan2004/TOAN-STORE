@@ -89,22 +89,32 @@ export async function getProducts(filters: {
     );
   }
 
-  if (filters.category) {
-    const categorySubquery = db
+  if (filters.category && filters.category !== 'all') {
+    const [cat] = await db
       .select({ id: categories.id })
       .from(categories)
       .where(or(eq(categories.slug, filters.category), eq(categories.name, filters.category)))
       .limit(1);
-    conditions.push(eq(products.categoryId, sql`(${categorySubquery})`));
+    if (cat) {
+      conditions.push(eq(products.categoryId, cat.id));
+    } else {
+      // Nếu không tìm thấy category, trả về mảng rỗng ngay
+      return { items: [], total: 0 };
+    }
   }
 
-  if (filters.sport) {
-    const sportSubquery = db
+  if (filters.sport && filters.sport !== 'all') {
+    const [sp] = await db
       .select({ id: sports.id })
       .from(sports)
       .where(or(eq(sports.slug, filters.sport), eq(sports.name, filters.sport)))
       .limit(1);
-    conditions.push(eq(products.sportId, sql`(${sportSubquery})`));
+    if (sp) {
+      conditions.push(eq(products.sportId, sp.id));
+    } else {
+      // Nếu không tìm thấy sport, trả về mảng rỗng ngay
+      return { items: [], total: 0 };
+    }
   }
 
   if (filters.gender) {
@@ -151,7 +161,7 @@ export async function getProducts(filters: {
     .from(products)
     .where(and(...conditions));
 
-  const total = countResult?.total || 0;
+  const total = Number(countResult?.total || 0);
 
   // 2. Build Query
   const selectFields: any = {

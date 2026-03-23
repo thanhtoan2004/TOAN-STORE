@@ -18,6 +18,7 @@ import { formatDistanceToNow } from 'date-fns';
 import { vi } from 'date-fns/locale';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'react-hot-toast';
+import { useSocket } from '@/hooks/useSocket';
 
 interface Notification {
   id: number;
@@ -31,6 +32,7 @@ interface Notification {
 
 export default function NotificationBell() {
   const { user, isAuthenticated } = useAuth();
+  const socket = useSocket();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [isOpen, setIsOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -43,27 +45,8 @@ export default function NotificationBell() {
       const response = await fetch('/api/notifications');
       const data = await response.json();
       if (data.success && Array.isArray(data.data)) {
-        // Determine if there are NEW unread notifications to show toast
-        const newNotifications = data.data;
-        if (notifications.length > 0 && newNotifications.length > notifications.length) {
-          const latest = newNotifications[0];
-          // Only toast if it's new and unread
-          if (!latest.is_read) {
-            toast(latest.message, {
-              duration: 5000,
-              style: {
-                borderRadius: '12px',
-                background: '#333',
-                color: '#fff',
-                fontSize: '13px',
-                padding: '12px 16px',
-                boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)',
-              },
-            });
-          }
-        }
-        setNotifications(newNotifications);
-        setUnreadCount(newNotifications.filter((n: Notification) => !n.is_read).length);
+        setNotifications(data.data);
+        setUnreadCount(data.data.filter((n: Notification) => !n.is_read).length);
       }
     } catch (error) {
       console.error('Error fetching notifications:', error);
@@ -73,11 +56,24 @@ export default function NotificationBell() {
   useEffect(() => {
     if (isAuthenticated) {
       fetchNotifications();
-      // Polling as fallback if socket not ready
-      const interval = setInterval(fetchNotifications, 60000); // Check every minute
-      return () => clearInterval(interval);
     }
   }, [isAuthenticated]);
+
+  // Handle Real-time notifications via Socket
+  useEffect(() => {
+    if (socket && isAuthenticated) {
+      const handleNewNotification = (data: any) => {
+        // Add to list and bump count
+        setNotifications((prev) => [data.data, ...prev]);
+        setUnreadCount((prev) => prev + 1);
+      };
+
+      socket.on('notification', handleNewNotification);
+      return () => {
+        socket.off('notification', handleNewNotification);
+      };
+    }
+  }, [socket, isAuthenticated]);
 
   // Close on click outside
   useEffect(() => {

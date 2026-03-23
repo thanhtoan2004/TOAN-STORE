@@ -58,12 +58,19 @@ export async function generateQRCodeDataURL(uri: string) {
  */
 export function verifyTOTPToken(token: string, secret: string) {
   try {
-    const isValid = verifySync({
+    const result: any = verifySync({
       token,
       secret,
     });
-    console.log('[TOTP] Verification result:', isValid);
-    return isValid;
+    console.log('[TOTP] Verification result:', result);
+
+    // In otplib v13, it may return a { valid: boolean } object
+    if (result && typeof result === 'object' && 'valid' in result) {
+      return result.valid === true;
+    }
+
+    // Default to handling it as a boolean if it's not an object
+    return result === true;
   } catch (err) {
     console.error('[TOTP] Error verifying token:', err);
     return false;

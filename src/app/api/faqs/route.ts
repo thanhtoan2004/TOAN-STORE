@@ -41,6 +41,7 @@ export async function GET(request: NextRequest) {
         slug: faqCategories.slug,
         description: faqCategories.description,
         icon: faqCategories.icon,
+        sectionLinks: faqCategories.sectionLinks,
       })
       .from(faqCategories)
       .where(eq(faqCategories.isActive, 1))

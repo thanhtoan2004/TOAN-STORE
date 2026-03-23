@@ -20,7 +20,7 @@ export default function AdminSecurityPage() {
 
   const fetchCurrent2FAStatus = async () => {
     try {
-      const res = await fetch('/api/admin/admins/me'); // I should create this endpoint or use logic to get my info
+      const res = await fetch('/api/admin/staff/me'); // I should create this endpoint or use logic to get my info
       const data = await res.json();
       if (data.success) {
         setCurrent2FA({

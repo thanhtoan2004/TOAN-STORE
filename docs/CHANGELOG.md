@@ -4,7 +4,17 @@ Tất cả thay đổi quan trọng được ghi nhận tại đây theo format 
 
 ---
 
-## [2.17.0] - 2026-03-16
+## [2.18.0] - 2026-03-23
+
+### ✨ Dynamic Navigation & CMS (Priority 1)
+
+- **Hierarchical Menu System** — Triển khai hệ thống Menu đa cấp (Parent/Child) hoàn chỉnh trong Database. Hỗ trợ 6 vị trí hiển thị: Header, 4 Cột Footer chính, và Footer Bottom.
+- **Multilingual Support (VI/EN)** — Tích hợp hỗ trợ song ngữ cho toàn bộ hệ thống điều hướng. Mỗi mục menu hiện có `title` (Tiếng Việt) và `title_en` (Tiếng Anh), tự động chuyển đổi dựa trên ngôn ngữ người dùng chọn.
+- **Site Settings Integration** — Động hóa các thông tin tĩnh của website (Logo, Địa chỉ, Số điện thoại, Bản quyền, Mạng xã hội) thông qua bảng `site_settings`. Header và Footer hiện lấy dữ liệu trực tiếp từ Database.
+- **Admin Menu Manager** — Xây dựng giao diện Quản lý Menu (Admin) hoàn chỉnh với khả năng chọn Menu cha, nhập tên song ngữ, tìm kiếm và sắp xếp theo vị trí.
+- **CMS Pages Hardening** — Khắc phục lỗi thiếu cột (`is_active`, `meta_title`, `meta_description`) trong bảng `pages`, hoàn thiện tính năng quản lý trang nội dung (Policies, Terms).
+
+---
 
 ### 🛡️ Admin & User API Security Audit (Priority 1)
 

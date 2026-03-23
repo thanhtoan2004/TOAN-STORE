@@ -77,3 +77,53 @@ export async function PATCH(request: NextRequest) {
     return ResponseWrapper.serverError('Internal server error');
   }
 }
+
+export async function POST(request: NextRequest) {
+  try {
+    const admin = await checkAdminAuth();
+    if (!admin) return ResponseWrapper.unauthorized();
+
+    // SECURITY: Only Super Admins can create new admins
+    if (admin.role !== 'super_admin') {
+      return ResponseWrapper.forbidden('Only Super Admins can create administrative users');
+    }
+
+    const body = await request.json();
+    const { username, email, fullName, password, roleId } = body;
+
+    // VALIDATION
+    if (!username || !email || !fullName || !password || !roleId) {
+      return ResponseWrapper.error('All fields are required', 400);
+    }
+
+    // Check existing
+    const existing = await db
+      .select({ id: adminUsers.id })
+      .from(adminUsers)
+      .where(sql`${adminUsers.username} = ${username} OR ${adminUsers.email} = ${email}`)
+      .limit(1);
+
+    if (existing.length > 0) {
+      return ResponseWrapper.error('Username or Email already exists', 400);
+    }
+
+    // Hash Password
+    const bcrypt = await import('bcrypt');
+    const passwordHash = await bcrypt.hash(password, 10);
+
+    // Insert
+    await db.insert(adminUsers).values({
+      username,
+      email,
+      fullName,
+      passwordHash,
+      roleId: parseInt(roleId),
+      isActive: 1,
+    });
+
+    return ResponseWrapper.success(null, 'Admin user created successfully', 201);
+  } catch (error) {
+    console.error('Error creating admin:', error);
+    return ResponseWrapper.serverError('Internal server error');
+  }
+}
