@@ -214,10 +214,10 @@ const Header = () => {
               ) : (
                 <Image
                   src="/icons/icon-512x512.png"
-                  alt="TOAN Store"
-                  width={128}
-                  height={64}
-                  className="h-12 w-auto object-contain"
+                  alt="TOAN Store Logo"
+                  width={48}
+                  height={48}
+                  className="h-10 w-auto object-contain"
                 />
               )}
             </Link>

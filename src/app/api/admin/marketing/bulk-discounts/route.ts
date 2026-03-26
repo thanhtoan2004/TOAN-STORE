@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { checkAdminAuth } from '@/lib/auth/auth';
 import { getBulkDiscounts, createBulkDiscount } from '@/lib/db/repositories/bulkDiscount';
 import { ResponseWrapper } from '@/lib/api/api-response';
+import { invalidateCachePattern } from '@/lib/redis/cache';
 
 /**
  * API Quản lý giảm giá theo số lượng (Bulk Discounts).
@@ -35,14 +36,18 @@ export async function POST(req: NextRequest) {
 
     const body = await req.json();
 
-    if (!body.product_id || !body.min_quantity || !body.discount_value) {
+    if (!body.name || !body.discountPercentage || !body.startTime || !body.endTime) {
       return ResponseWrapper.error(
-        'Thiếu thông tin bắt buộc (product_id, min_quantity, discount_value)',
+        'Thiếu thông tin bắt buộc (name, discountPercentage, startTime, endTime)',
         400
       );
     }
 
     const id = await createBulkDiscount(body);
+
+    // Xóa cache để khách hàng thấy giá mới ngay lập tức
+    await invalidateCachePattern('products:list:*');
+    await invalidateCachePattern('product:v3:detail:*');
 
     const result = { id };
 

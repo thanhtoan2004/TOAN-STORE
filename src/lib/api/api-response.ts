@@ -43,16 +43,16 @@ export class ResponseWrapper {
     );
   }
 
-  static unauthorized(message: string = 'Unauthorized') {
-    return this.error(message, 401);
+  static unauthorized(message: string = 'Unauthorized', details?: any) {
+    return this.error(message, 401, details);
   }
 
-  static forbidden(message: string = 'Forbidden') {
-    return this.error(message, 403);
+  static forbidden(message: string = 'Forbidden', details?: any) {
+    return this.error(message, 403, details);
   }
 
-  static notFound(message: string = 'Not Found') {
-    return this.error(message, 404);
+  static notFound(message: string = 'Not Found', details?: any) {
+    return this.error(message, 404, details);
   }
 
   static serverError(message: string = 'Internal Server Error', error?: any) {

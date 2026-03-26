@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { checkAdminAuth } from '@/lib/auth/auth';
 import { getSubscriptions, getActiveSubscriptionEmails } from '@/lib/db/repositories/newsletter';
-import { sendEmail } from '@/lib/mail/mail';
+import { sendEmail, wrapEmailHtml } from '@/lib/mail/mail';
 import { ResponseWrapper } from '@/lib/api/api-response';
 
 /**
@@ -45,45 +45,47 @@ export async function POST(req: NextRequest) {
 
     const recipients = await getActiveSubscriptionEmails();
 
-    const validRecipients = recipients.filter(
-      (email) => email && email !== '***' && email.includes('@')
-    );
-
-    if (validRecipients.length === 0) {
+    if (recipients.length === 0) {
       return ResponseWrapper.error(
         'Không tìm thấy người nhận email hợp lệ (đã bị ẩn thông tin PII hoặc không hợp lệ)',
         400
       );
     }
 
-    console.log(`Sending broadcast to ${validRecipients.length} valid users: ${subject}`);
+    console.log(`Sending broadcast to ${recipients.length} valid users: ${subject}`);
 
     // We'll use the sendEmail helper
     const { sendEmail: mailer } = await import('@/lib/mail/mail');
 
     // We send emails in background to avoid blocking the request
     Promise.all(
-      validRecipients.map((email) =>
-        mailer({
-          to: email,
-          subject,
-          html: `
-          <html>
-            <body style="font-family: sans-serif; padding: 20px;">
-              <h1 style="color: #000;">${title || 'Thông báo mới từ Toan Store'}</h1>
-              <div style="font-size: 16px; line-height: 1.6; color: #333;">
-                ${message.replace(/\n/g, '<br/>')}
+      recipients.map((subscriber) => {
+        const name = subscriber.name || 'Bạn';
+        const personalizedMessage = message.replace(/{name}/g, name);
+        const personalizedSubject = subject.replace(/{name}/g, name);
+
+        return mailer({
+          to: subscriber.email,
+          subject: personalizedSubject,
+          html: wrapEmailHtml(
+            title || 'Bộ sưu tập mới',
+            'bell',
+            `
+              <p>Xin chào&nbsp;<strong class="text-highlight">${name},</strong></p>
+              <div style="font-size: 15px; line-height: 1.7; color: #333;">
+                ${personalizedMessage.replace(/\\n/g, '<br/>')}
               </div>
-              <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;" />
-              <p style="font-size: 12px; color: #999; text-align: center;">
+              <div class="btn-container">
+                <a href="${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}" class="btn">Khám phá ngay</a>
+              </div>
+              <p style="font-size: 12px; color: #999; text-align: center; margin-top: 30px;">
                 Bạn nhận được email này vì đã đăng ký nhận tin từ website chúng tôi.<br/>
                 <a href="#" style="color: #000;">Hủy đăng ký</a>
               </p>
-            </body>
-          </html>
-        `,
-        }).catch((e: any) => console.error(`Failed to send newsletter to ${email}:`, e))
-      )
+            `
+          ),
+        }).catch((e: any) => console.error(`Failed to send newsletter to ${subscriber.email}:`, e));
+      })
     );
 
     const result = {

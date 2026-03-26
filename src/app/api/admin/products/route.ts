@@ -46,12 +46,18 @@ export async function GET(request: NextRequest) {
         sku: products.sku,
         name: products.name,
         slug: products.slug,
-        price_cache: products.priceCache,
-        msrp_price: products.msrpPrice,
-        is_active: products.isActive,
-        created_at: products.createdAt,
-        primary_image: sql<string>`(SELECT url FROM product_images WHERE product_id = ${products.id} AND is_main = 1 LIMIT 1)`,
-        category_name: categories.name,
+        priceCache: products.priceCache,
+        msrpPrice: products.msrpPrice,
+        isActive: products.isActive,
+        createdAt: products.createdAt,
+        primaryImage: sql<string>`(SELECT url FROM product_images WHERE product_id = ${products.id} AND is_main = 1 LIMIT 1)`,
+        categoryName: categories.name,
+        totalStock: sql<number>`(
+          SELECT COALESCE(SUM(i.quantity), 0)
+          FROM inventory i
+          JOIN product_variants pv ON i.product_variant_id = pv.id
+          WHERE pv.product_id = ${products.id}
+        )`,
       })
       .from(products)
       .leftJoin(categories, eq(products.categoryId, categories.id))
@@ -165,8 +171,14 @@ export async function POST(request: NextRequest) {
     await syncProductToMeilisearch(productId);
 
     return ResponseWrapper.success({ id: productId }, 'Product created successfully', 201);
-  } catch (error) {
+  } catch (error: any) {
     logger.error(error, 'Error creating product:');
+
+    // Xử lý lỗi trùng lặp (Duplicate Entry)
+    if (error.code === 'ER_DUP_ENTRY' || error.message?.includes('Duplicate entry')) {
+      return ResponseWrapper.error('Tên sản phẩm hoặc mã Slug này đã tồn tại trong hệ thống', 400);
+    }
+
     return ResponseWrapper.serverError('Internal server error', error);
   }
 }

@@ -263,8 +263,8 @@ export default function EditProductPage() {
               />
             </div>
 
-            {/* Giá */}
-            <div className="grid grid-cols-2 gap-4">
+            {/* Giá - Hiden by user request */}
+            <div className="hidden">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Giá bán (base price) *

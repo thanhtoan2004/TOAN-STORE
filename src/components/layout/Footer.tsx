@@ -255,9 +255,7 @@ const Footer = () => {
               <h4 className="font-helvetica-medium text-xs mb-2 text-white">
                 {t.footer.signup_news}
               </h4>
-              <p className="text-gray-400 text-xs mb-3">
-                Nhận thông tin về sản phẩm mới, ưu đãi độc quyền
-              </p>
+              <p className="text-gray-400 text-xs mb-3">{t.footer.signup_desc}</p>
 
               <Form {...form}>
                 <form onSubmit={form.handleSubmit(onNewsletterSubmit)} className="space-y-2">
@@ -353,7 +351,9 @@ const Footer = () => {
               <LanguageSwitcher theme="dark" />
 
               <span className="text-white">
-                {dynamicData?.settings?.copyright_text ||
+                {(language === 'en'
+                  ? dynamicData?.settings?.copyright_text_en
+                  : dynamicData?.settings?.copyright_text) ||
                   `© ${new Date().getFullYear()} TOAN Store, Inc. ${t.footer.rights}`}
               </span>
             </div>

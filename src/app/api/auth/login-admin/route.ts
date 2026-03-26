@@ -10,7 +10,7 @@ import { ADMIN_TOKEN, getJwtSecret } from '@/lib/auth/auth';
 import { hashEmail } from '@/lib/security/encryption';
 import { getRedisConnection } from '@/lib/redis/redis';
 import crypto from 'crypto';
-import { sendEmail } from '@/lib/mail/mail';
+import { sendEmail, wrapEmailHtml } from '@/lib/mail/mail';
 import { ResponseWrapper } from '@/lib/api/api-response';
 
 /**
@@ -82,17 +82,25 @@ export async function POST(req: Request) {
       await redis.set(`otp:admin_login:${user.id}`, otp, 'EX', 300); // 5 phút
 
       // Gửi Email OTP
-      const html = `
-        <div style="font-family: sans-serif; padding: 20px; border: 1px solid #eee; border-radius: 10px; max-width: 500px;">
-          <h2 style="color: #111;">Mã xác thực Admin</h2>
-          <p>Xin chào <strong>${user.fullName}</strong>,</p>
-          <p>Bạn vừa thực hiện đăng nhập vào trang Quản trị. Đây là mã xác thực 2 bước của bạn:</p>
-          <div style="background: #f4f4f4; padding: 20px; text-align: center; font-size: 32px; font-weight: bold; letter-spacing: 5px;">
-            ${otp}
-          </div>
-          <p style="color: #666; font-size: 13px;">Mã này có hiệu lực trong 5 phút. Nếu không phải bạn, hãy đổi mật khẩu ngay lập tức.</p>
+      const html = wrapEmailHtml(
+        'Mã xác thực Admin',
+        'lock',
+        `
+        <p>Xin chào&nbsp;<strong class="text-highlight">${user.fullName},</strong></p>
+        <p>Bạn vừa thực hiện đăng nhập vào trang Quản trị. Đây là mã xác thực 2 bước của bạn:</p>
+        <div class="box">
+          <p>Mã xác thực</p>
+          <h2 style="letter-spacing: 8px;">${otp}</h2>
         </div>
-      `;
+        <div class="note-box">
+          <p class="note-title">Lưu ý:</p>
+          <ul class="note-list">
+            <li>Mã này có hiệu lực trong <strong>5 phút</strong></li>
+            <li>Nếu không phải bạn, hãy đổi mật khẩu ngay lập tức</li>
+          </ul>
+        </div>
+      `
+      );
 
       await sendEmail({
         to: email,

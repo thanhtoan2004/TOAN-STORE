@@ -56,9 +56,9 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
         name: productsTable.name,
         slug: productsTable.slug,
         price: productsTable.priceCache,
-        salePrice: productsTable.msrpPrice,
-        isNewArrival: productsTable.isNewArrival,
-        imageUrl: sql<string>`(SELECT url FROM ${productImages} WHERE product_id = ${productsTable.id} AND is_main = 1 LIMIT 1)`,
+        sale_price: productsTable.msrpPrice,
+        is_new_arrival: productsTable.isNewArrival,
+        image_url: sql<string>`(SELECT url FROM ${productImages} WHERE product_id = ${productsTable.id} AND is_main = 1 LIMIT 1)`,
         category: sql<string>`(SELECT name FROM ${categoriesTable} WHERE id = ${productsTable.categoryId})`,
       })
       .from(productsTable)

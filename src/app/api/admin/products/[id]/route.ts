@@ -64,6 +64,8 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
     const product = {
       ...productData.product,
+      price_cache: productData.product.priceCache ? parseFloat(productData.product.priceCache) : 0,
+      msrp_price: productData.product.msrpPrice ? parseFloat(productData.product.msrpPrice) : 0,
       category_name: productData.categoryName,
       brand_name: productData.brandName,
       images,
@@ -143,20 +145,19 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
 
       // Handle Main Image Update
       if (image_url !== undefined) {
+        // Đảm bảo chỉ có một ảnh duy nhất là ảnh chính (Reset matches)
         await tx
-          .insert(productImages)
-          .values({
-            productId: id,
-            url: image_url,
-            isMain: 1,
-            altText: updates.name || currentProduct.name,
-          })
-          .onDuplicateKeyUpdate({
-            set: {
-              url: image_url,
-              altText: updates.name || currentProduct.name,
-            },
-          });
+          .update(productImages)
+          .set({ isMain: 0 })
+          .where(and(eq(productImages.productId, id), eq(productImages.isMain, 1)));
+
+        // Thêm/Cập nhật ảnh chính mới
+        await tx.insert(productImages).values({
+          productId: id,
+          url: image_url,
+          isMain: 1,
+          altText: updates.name || currentProduct.name,
+        });
       }
 
       // Handle Gallery Images Update
@@ -165,7 +166,9 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
           .delete(productImages)
           .where(and(eq(productImages.productId, id), eq(productImages.isMain, 0)));
         for (let i = 0; i < gallery_images.length; i++) {
-          const url = gallery_images[i];
+          const item = gallery_images[i];
+          const url = typeof item === 'string' ? item : item?.url;
+
           if (url && url.trim()) {
             await tx.insert(productImages).values({
               productId: id,

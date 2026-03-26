@@ -42,11 +42,11 @@ export async function getSimilarProducts(productId: number, limit: number = 6) {
           id: products.id,
           name: products.name,
           categoryId: products.categoryId,
-          price: products.msrpPrice,
-          salePrice: products.priceCache,
+          price: sql<number>`CAST(${products.msrpPrice} AS DECIMAL(10,2))`,
+          sale_price: sql<number>`CAST(${products.priceCache} AS DECIMAL(10,2))`,
           slug: products.slug,
-          isNewArrival: products.isNewArrival,
-          imageUrl: sql<string>`(SELECT url FROM ${productImages} WHERE product_id = ${products.id} AND is_main = 1 LIMIT 1)`,
+          is_new_arrival: products.isNewArrival,
+          image_url: sql<string>`(SELECT url FROM product_images WHERE product_id = ${products.id} AND is_main = 1 LIMIT 1)`,
           category: categories.name,
         })
         .from(products)
@@ -70,11 +70,11 @@ export async function getSimilarProducts(productId: number, limit: number = 6) {
         productId: productEmbeddings.productId,
         embedding: productEmbeddings.embedding,
         name: products.name,
-        price: products.msrpPrice,
-        salePrice: products.priceCache,
+        price: sql<number>`CAST(${products.msrpPrice} AS DECIMAL(10,2))`,
+        sale_price: sql<number>`CAST(${products.priceCache} AS DECIMAL(10,2))`,
         slug: products.slug,
-        isNewArrival: products.isNewArrival,
-        imageUrl: sql<string>`(SELECT url FROM ${productImages} WHERE product_id = ${products.id} AND is_main = 1 LIMIT 1)`,
+        is_new_arrival: products.isNewArrival,
+        image_url: sql<string>`(SELECT url FROM product_images WHERE product_id = ${products.id} AND is_main = 1 LIMIT 1)`,
         category: categories.name,
       })
       .from(productEmbeddings)

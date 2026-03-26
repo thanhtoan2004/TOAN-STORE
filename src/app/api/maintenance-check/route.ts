@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db/drizzle';
-import { settings as settingsTable } from '@/lib/db/schema';
+import { siteSettings as settingsTable } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 import { getCache, setCache } from '@/lib/redis/cache';
 import { ResponseWrapper } from '@/lib/api/api-response';

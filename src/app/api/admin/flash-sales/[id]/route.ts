@@ -35,14 +35,14 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     const items = await db
       .select({
         id: flashSaleItems.id,
-        flashSaleId: flashSaleItems.flashSaleId,
-        productId: flashSaleItems.productId,
-        flashPrice: flashSaleItems.flashPrice,
-        quantityLimit: flashSaleItems.quantityLimit,
-        quantitySold: flashSaleItems.quantitySold,
-        discountPercentage: flashSaleItems.discountPercentage,
-        productName: products.name,
-        productSku: products.sku,
+        flash_sale_id: flashSaleItems.flashSaleId,
+        product_id: flashSaleItems.productId,
+        flash_price: flashSaleItems.flashPrice,
+        quantity_limit: flashSaleItems.quantityLimit,
+        quantity_sold: flashSaleItems.quantitySold,
+        discount_percentage: flashSaleItems.discountPercentage,
+        product_name: products.name,
+        product_sku: products.sku,
       })
       .from(flashSaleItems)
       .innerJoin(products, eq(flashSaleItems.productId, products.id))
@@ -51,7 +51,14 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     return NextResponse.json({
       success: true,
       data: {
-        ...flashSale,
+        id: flashSale.id,
+        name: flashSale.name,
+        description: flashSale.description,
+        start_time: flashSale.startTime,
+        end_time: flashSale.endTime,
+        is_active: flashSale.isActive,
+        created_at: flashSale.createdAt,
+        updated_at: flashSale.updatedAt,
         items,
       },
     });

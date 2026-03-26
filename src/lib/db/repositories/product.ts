@@ -176,8 +176,8 @@ export async function getProducts(filters: {
     categoryId: products.categoryId,
     sportId: products.sportId,
     createdAt: products.createdAt,
-    imageUrl: productImages.url,
-    mainMediaType: productImages.mediaType,
+    imageUrl: sql<string>`(SELECT url FROM product_images WHERE product_id = ${products.id} AND is_main = 1 LIMIT 1)`,
+    mainMediaType: sql<string>`(SELECT media_type FROM product_images WHERE product_id = ${products.id} AND is_main = 1 LIMIT 1)`,
     variantCount: sql<number>`(SELECT COUNT(*) FROM ${productVariants} pv WHERE pv.product_id = ${products.id})`,
     category: categories.name,
     isNewArrival: products.isNewArrival,
@@ -206,10 +206,6 @@ export async function getProducts(filters: {
   let finalQuery = db
     .select(selectFields)
     .from(products)
-    .leftJoin(
-      productImages,
-      and(eq(productImages.productId, products.id), eq(productImages.isMain, 1))
-    )
     .leftJoin(categories, eq(categories.id, products.categoryId))
     .where(and(...conditions))
     .orderBy(...orderBy);

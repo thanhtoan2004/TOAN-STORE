@@ -51,9 +51,10 @@ export default function NewProductPage() {
         [name]: (e.target as HTMLInputElement).checked,
       }));
     } else if (type === 'number') {
+      const val = parseFloat(value);
       setFormData((prev) => ({
         ...prev,
-        [name]: parseFloat(value),
+        [name]: isNaN(val) ? 0 : val,
       }));
     } else {
       setFormData((prev) => ({
@@ -180,8 +181,8 @@ export default function NewProductPage() {
               />
             </div>
 
-            {/* Giá */}
-            <div className="grid grid-cols-2 gap-4">
+            {/* Giá - Hidden by user request */}
+            <div className="hidden">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Giá bán (base price) *

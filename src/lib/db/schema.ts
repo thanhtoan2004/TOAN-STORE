@@ -1392,13 +1392,7 @@ export const contactMessages = mysqlTable('contact_messages', {
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow().onUpdateNow(),
 });
-export const settings = mysqlTable('settings', {
-  id: bigint('id', { mode: 'number', unsigned: true }).primaryKey().autoincrement(),
-  key: varchar('key', { length: 255 }).notNull().unique(),
-  value: text('value'),
-  valueType: varchar('value_type', { length: 50 }).default('string'),
-  updatedAt: timestamp('updated_at').defaultNow().onUpdateNow(),
-});
+// settings table removed for consolidation into site_settings
 
 export const passwordResets = mysqlTable(
   'password_resets',
@@ -1499,9 +1493,12 @@ export const siteSettings = mysqlTable('site_settings', {
   id: serial('id').primaryKey(),
   key: varchar('key', { length: 100 }).unique().notNull(),
   value: json('value'), // Stores value as JSON string or object
+  valueType: varchar('value_type', { length: 50 }).default('string'),
   description: varchar('description', { length: 255 }),
   updatedAt: timestamp('updated_at').defaultNow().onUpdateNow(),
 });
+
+export const settings = siteSettings;
 
 export const menuItems = mysqlTable('menu_items', {
   id: serial('id').primaryKey(),

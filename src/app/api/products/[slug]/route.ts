@@ -4,7 +4,11 @@ import { productImages } from '@/lib/db/schema';
 import { eq, and } from 'drizzle-orm';
 import { getProductById, getProductSizes, getProductBySlug } from '@/lib/db/repositories/product';
 import { getCache, setCache } from '@/lib/redis/cache';
-import { getActiveBulkDiscounts, applyBulkDiscount } from '@/lib/marketing/discounts';
+import {
+  getActiveBulkDiscounts,
+  applyBulkDiscount,
+  getActiveFlashSaleItems,
+} from '@/lib/marketing/discounts';
 import { ResponseWrapper } from '@/lib/api/api-response';
 
 /**
@@ -44,7 +48,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
     // Get product details from database
     const { getProductAttributes } = await import('@/lib/db/repositories/attribute');
-    const [sizes, images, attributes, activeDiscounts] = await Promise.all([
+    const [sizes, images, attributes, activeDiscounts, flashItems] = await Promise.all([
       getProductSizes(productId),
       db
         .select()
@@ -53,10 +57,11 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
         .orderBy(productImages.position),
       getProductAttributes(productId),
       getActiveBulkDiscounts(),
+      getActiveFlashSaleItems(),
     ]);
 
-    // Apply bulk discount if applicable
-    const discountedProduct = applyBulkDiscount(product, activeDiscounts);
+    // Apply best promotional price
+    const discountedProduct = applyBulkDiscount(product, activeDiscounts, flashItems);
 
     // Calculate available stock with safety Number casting
     const availableSizes = sizes.filter(

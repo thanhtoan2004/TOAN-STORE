@@ -1,5 +1,5 @@
 import { db } from '../drizzle';
-import { newsletterSubscriptions } from '../schema';
+import { newsletterSubscriptions, users } from '../schema';
 import { eq, and, desc, sql } from 'drizzle-orm';
 
 export interface NewsletterSub {
@@ -51,24 +51,41 @@ export async function getSubscriptions(
 /**
  * Lấy tất cả email người đăng ký active (dùng cho broadcast).
  */
-export async function getActiveSubscriptionEmails(): Promise<string[]> {
+export async function getActiveSubscriptionEmails(): Promise<
+  { email: string; name: string | null }[]
+> {
   const result = await db
     .select({
       email: newsletterSubscriptions.email,
       emailEncrypted: newsletterSubscriptions.emailEncrypted,
       isEncrypted: newsletterSubscriptions.isEncrypted,
+      newsletterName: newsletterSubscriptions.name,
+      userFullName: users.fullName,
+      userFirstName: users.firstName,
+      userLastName: users.lastName,
     })
     .from(newsletterSubscriptions)
+    .leftJoin(users, eq(newsletterSubscriptions.emailHash, users.emailHash))
     .where(eq(newsletterSubscriptions.status, 'active'));
 
   const { decrypt } = await import('@/lib/security/encryption');
 
   return result
     .map((r) => {
+      let email = r.email;
       if (r.isEncrypted && r.emailEncrypted) {
-        return decrypt(r.emailEncrypted);
+        email = decrypt(r.emailEncrypted);
       }
-      return r.email;
+
+      // Ưu tiên tên từ bảng users nếu có, sau đó mới đến bảng newsletter
+      let name =
+        r.userFullName ||
+        (r.userFirstName && r.userLastName
+          ? `${r.userFirstName} ${r.userLastName}`
+          : r.userFirstName) ||
+        r.newsletterName;
+
+      return { email, name: name || null };
     })
-    .filter((email) => email && email !== '***' && email.includes('@'));
+    .filter((r) => r.email && r.email !== '***' && r.email.includes('@'));
 }

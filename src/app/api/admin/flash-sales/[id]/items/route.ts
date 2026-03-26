@@ -169,17 +169,16 @@ export async function DELETE(
     const { id: idStr } = await params;
     const id = parseInt(idStr);
     const { searchParams } = new URL(request.url);
-    const productId = searchParams.get('productId');
+    const productIdStr = searchParams.get('productId');
+    const productId = productIdStr ? parseInt(productIdStr) : NaN;
 
-    if (!productId) {
-      return NextResponse.json({ success: false, message: 'Missing productId' }, { status: 400 });
+    if (isNaN(productId)) {
+      return NextResponse.json({ success: false, message: 'Invalid productId' }, { status: 400 });
     }
 
     await db
       .delete(flashSaleItems)
-      .where(
-        and(eq(flashSaleItems.flashSaleId, id), eq(flashSaleItems.productId, parseInt(productId)))
-      );
+      .where(and(eq(flashSaleItems.flashSaleId, id), eq(flashSaleItems.productId, productId)));
 
     return NextResponse.json({ success: true, message: 'Product removed from flash sale' });
   } catch (error) {

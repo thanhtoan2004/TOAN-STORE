@@ -1,5 +1,5 @@
 import { db } from './drizzle';
-import { settings as settingsTable } from './schema';
+import { siteSettings as settingsTable } from './schema';
 import { eq, sql } from 'drizzle-orm';
 import { invalidateCache } from '@/lib/redis/cache';
 

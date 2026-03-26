@@ -2,7 +2,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import { ResponseWrapper } from '@/lib/api/api-response';
 import { getProducts } from '@/lib/db/mysql';
 import { getCache, setCache } from '@/lib/redis/cache';
-import { getActiveBulkDiscounts, applyBulkDiscount } from '@/lib/marketing/discounts';
+import {
+  getActiveBulkDiscounts,
+  applyBulkDiscount,
+  getActiveFlashSaleItems,
+} from '@/lib/marketing/discounts';
 
 /**
  * API Lấy danh sách sản phẩm (Product Catalog).
@@ -91,11 +95,14 @@ export async function GET(request: Request) {
 
     // Get products and total count from database (Optimized)
     const { items: productsData, total: totalCount } = await getProducts(filters);
-    const activeDiscounts = await getActiveBulkDiscounts();
+    const [activeDiscounts, flashItems] = await Promise.all([
+      getActiveBulkDiscounts(),
+      getActiveFlashSaleItems(),
+    ]);
 
     // Convert camelCase and apply discounts
     const products = productsData.map((p: any) => {
-      const discounted = applyBulkDiscount(p, activeDiscounts);
+      const discounted = applyBulkDiscount(p, activeDiscounts, flashItems);
       return {
         ...discounted,
         price_cache: discounted.priceCache ? parseFloat(discounted.priceCache.toString()) : 0,

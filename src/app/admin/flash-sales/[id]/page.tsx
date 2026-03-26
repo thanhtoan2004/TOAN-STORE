@@ -57,6 +57,19 @@ export default function FlashSaleDetailPage({ params }: { params: Promise<{ id: 
     fetchFlashSale();
   }, [id]);
 
+  // Tự động tìm kiếm với debounce 500ms
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (searchTerm.trim().length >= 2) {
+        searchProducts();
+      } else if (searchTerm.trim().length === 0) {
+        setSearchResults([]);
+      }
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
+
   const fetchFlashSale = async () => {
     try {
       const response = await fetch(`/api/admin/flash-sales/${id}`);
@@ -97,10 +110,15 @@ export default function FlashSaleDetailPage({ params }: { params: Promise<{ id: 
   };
 
   const searchProducts = async () => {
-    if (!searchTerm) return;
+    if (!searchTerm) {
+      setSearchResults([]);
+      return;
+    }
     setSearching(true);
     try {
-      const response = await fetch(`/api/admin/products?search=${searchTerm}&limit=10`);
+      // Thay khoảng trắng bằng % để tìm kiếm linh hoạt hơn
+      const query = searchTerm.trim().replace(/\s+/g, '%');
+      const response = await fetch(`/api/admin/products?search=${query}&limit=10&status=active`);
       const result = await response.json();
       if (result.success) {
         setSearchResults(result.data);
@@ -209,7 +227,11 @@ export default function FlashSaleDetailPage({ params }: { params: Promise<{ id: 
                   <input
                     type="datetime-local"
                     className="w-full px-3 py-2 border border-gray-300 rounded-md mt-1"
-                    value={flashSale.start_time.replace(' ', 'T').substring(0, 16)}
+                    value={
+                      flashSale.start_time
+                        ? flashSale.start_time.replace(' ', 'T').substring(0, 16)
+                        : ''
+                    }
                     onChange={(e) => setFlashSale({ ...flashSale, start_time: e.target.value })}
                   />
                 </div>
@@ -218,7 +240,11 @@ export default function FlashSaleDetailPage({ params }: { params: Promise<{ id: 
                   <input
                     type="datetime-local"
                     className="w-full px-3 py-2 border border-gray-300 rounded-md mt-1"
-                    value={flashSale.end_time.replace(' ', 'T').substring(0, 16)}
+                    value={
+                      flashSale.end_time
+                        ? flashSale.end_time.replace(' ', 'T').substring(0, 16)
+                        : ''
+                    }
                     onChange={(e) => setFlashSale({ ...flashSale, end_time: e.target.value })}
                   />
                 </div>

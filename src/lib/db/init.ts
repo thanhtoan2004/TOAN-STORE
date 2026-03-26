@@ -136,15 +136,7 @@ export async function initDb() {
       console.log('Error adding columns to users:', e);
     }
 
-    // Tạo bảng settings phục vụ trang admin/settings
-    await connection.query(`
-      CREATE TABLE IF NOT EXISTS settings (
-        id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-        \`key\` VARCHAR(255) NOT NULL UNIQUE,
-        value TEXT,
-        updated_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-    `);
+    // settings table creation removed for consolidation into site_settings
 
     // Tạo bảng product_colors
     await connection.query(`

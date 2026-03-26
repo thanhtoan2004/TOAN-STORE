@@ -31,14 +31,15 @@ export default function NewsletterMarketingPage() {
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [total, setTotal] = useState(0);
+  const [sampleName, setSampleName] = useState<string | null>(null);
   const [previewMode, setPreviewMode] = useState<'desktop' | 'mobile'>('desktop');
 
   // Form state
   const [formData, setFormData] = useState({
     title: 'Khám phá bộ sưu tập mới nhất!',
-    subject: 'Nike Store: Ưu đãi đặc biệt hôm nay!',
+    subject: 'TOAN Store: Ưu đãi đặc biệt riêng cho {name}!',
     message:
-      'Xin chào,\n\nChúng tôi vừa cập nhật bộ sưu tập sản phẩm mới với nhiều mẫu mã đa dạng và thời thượng. Hãy ghé thăm website để xem thêm nhé!',
+      'Xin chào {name},\n\nChúng tôi vừa cập nhật bộ sưu tập sản phẩm mới với nhiều mẫu mã đa dạng và thời thượng. Hãy ghé thăm website để xem thêm nhé!',
   });
 
   useEffect(() => {
@@ -52,6 +53,10 @@ export default function NewsletterMarketingPage() {
       const data = await response.json();
       if (data.success) {
         setTotal(data.data?.pagination?.total || data.data?.total || 0);
+        // Lấy tên của người đầu tiên để làm mẫu preview
+        if (data.data?.data && data.data.data.length > 0) {
+          setSampleName(data.data.data[0].name);
+        }
       }
     } catch (error) {
       toast.error('Lỗi khi tải dữ liệu');
@@ -185,6 +190,14 @@ export default function NewsletterMarketingPage() {
                         placeholder="Viết nội dung email..."
                         className="w-full px-4 py-2 bg-white border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-black focus:border-transparent outline-none transition-all resize-none leading-relaxed"
                       />
+                      <div className="mt-1 flex items-center gap-2 text-[10px] text-gray-500 font-medium">
+                        <Info size={12} className="text-blue-500" />
+                        Mẹo: Sử dụng{' '}
+                        <code className="bg-gray-100 px-1 rounded text-blue-600 font-bold">
+                          {'{name}'}
+                        </code>{' '}
+                        để chèn tên người nhận (nếu có).
+                      </div>
                     </div>
 
                     <div className="p-4 bg-amber-50 rounded-lg border border-amber-200">
@@ -259,7 +272,10 @@ export default function NewsletterMarketingPage() {
                         </h1>
 
                         <div className="text-sm text-gray-600 leading-relaxed whitespace-pre-wrap">
-                          {formData.message || 'Your content will appear here...'}
+                          {(formData.message || 'Your content will appear here...').replace(
+                            /{name}/g,
+                            sampleName || 'Khách hàng'
+                          )}
                         </div>
 
                         <div className="pt-8">

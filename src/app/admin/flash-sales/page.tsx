@@ -169,32 +169,44 @@ export default function FlashSalesAdminPage() {
                           {status.label}
                         </span>
                       </td>
-                      <td className="px-6 py-4 text-right space-x-2">
-                        <button
-                          onClick={() => toggleStatus(fs.id, fs.is_active)}
-                          className={`p-2 rounded-md ${fs.is_active === 1 ? 'text-red-600 hover:bg-red-50' : 'text-green-600 hover:bg-green-50'}`}
-                          title={fs.is_active === 1 ? 'Vô hiệu hóa' : 'Kích hoạt'}
-                        >
-                          {fs.is_active === 1 ? (
-                            <CheckCircle className="w-5 h-5" />
-                          ) : (
-                            <XCircle className="w-5 h-5" />
-                          )}
-                        </button>
-                        <Link
-                          href={`/admin/flash-sales/${fs.id}`}
-                          className="inline-block p-2 text-blue-600 hover:bg-blue-50 rounded-md"
-                          title="Chỉnh sửa / Xem chi tiết"
-                        >
-                          <Edit className="w-5 h-5" />
-                        </Link>
-                        <button
-                          onClick={() => deleteFlashSale(fs.id)}
-                          className="p-2 text-red-600 hover:bg-red-50 rounded-md"
-                          title="Xóa"
-                        >
-                          <Trash2 className="w-5 h-5" />
-                        </button>
+                      <td className="px-6 py-4">
+                        <div className="flex justify-end items-center gap-2">
+                          <button
+                            onClick={() => toggleStatus(fs.id, fs.is_active)}
+                            className={`flex items-center justify-center w-9 h-9 rounded-lg transition-all ${
+                              fs.is_active === 1
+                                ? 'bg-green-50 text-green-600 hover:bg-green-100'
+                                : 'bg-gray-50 text-gray-400 hover:bg-gray-100'
+                            }`}
+                            title={
+                              fs.is_active === 1
+                                ? 'Đang hoạt động - Nhấn để tắt'
+                                : 'Đang tắt - Nhấn để bật'
+                            }
+                          >
+                            {fs.is_active === 1 ? (
+                              <CheckCircle className="w-5 h-5" />
+                            ) : (
+                              <XCircle className="w-5 h-5" />
+                            )}
+                          </button>
+
+                          <Link
+                            href={`/admin/flash-sales/${fs.id}`}
+                            className="flex items-center justify-center w-9 h-9 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-lg transition-all"
+                            title="Chỉnh sửa / Xem chi tiết"
+                          >
+                            <Edit className="w-5 h-5" />
+                          </Link>
+
+                          <button
+                            onClick={() => deleteFlashSale(fs.id)}
+                            className="flex items-center justify-center w-9 h-9 bg-red-50 text-red-600 hover:bg-red-100 rounded-lg transition-all"
+                            title="Xóa"
+                          >
+                            <Trash2 className="w-5 h-5" />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   );

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { executeQuery } from '@/lib/db/mysql';
 import { verifyAuth } from '@/lib/auth/auth';
 import { getRedisConnection } from '@/lib/redis/redis';
-import { sendEmail } from '@/lib/mail/mail';
+import { sendEmail, wrapEmailHtml } from '@/lib/mail/mail';
 import crypto from 'crypto';
 import { hashEmail } from '@/lib/security/encryption';
 import { ResponseWrapper } from '@/lib/api/api-response';
@@ -47,42 +47,25 @@ export async function POST(request: NextRequest) {
     await redis.set(key, otp, 'EX', 300); // 5 minutes
 
     // Send OTP email
-    const html = `
-            <!DOCTYPE html>
-            <html>
-            <head><meta charset="utf-8"></head>
-            <body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f5f5f5;">
-                <div style="max-width: 600px; margin: 0 auto; background-color: white;">
-                    <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color: #111;">
-                        <tr>
-                            <td align="center" style="padding: 32px 20px;">
-                                <img src="https://img.icons8.com/ios-filled/100/ffffff/lock.png" width="48" height="48" alt="Lock" style="display: block; margin-bottom: 12px;">
-                                <h1 style="margin: 0; color: white; font-size: 24px; font-family: Arial, sans-serif;">Mã xác thực</h1>
-                            </td>
-                        </tr>
-                    </table>
-                    <div style="padding: 40px 20px; text-align: center;">
-                        <p style="color: #666; line-height: 1.6;">
-                            Xin chào <strong>${fullName}</strong>,<br>
-                            Đây là mã xác thực hai bước (2FA) của bạn:
-                        </p>
-                        <div style="background-color: #f9f9f9; padding: 30px; border-radius: 12px; margin: 20px 0;">
-                            <p style="margin: 0; font-size: 36px; font-weight: bold; letter-spacing: 8px; color: #111;">
-                                ${otp}
-                            </p>
-                        </div>
-                        <p style="color: #999; font-size: 13px;">
-                            Mã có hiệu lực trong <strong>5 phút</strong>.<br>
-                            Nếu bạn không yêu cầu mã này, hãy bỏ qua email này.
-                        </p>
-                    </div>
-                    <div style="background-color: #f5f5f5; padding: 20px; text-align: center; color: #666; font-size: 12px;">
-                        <p style="margin: 5px 0;">© 2026 TOAN Store. All rights reserved.</p>
-                    </div>
-                </div>
-            </body>
-            </html>
-        `;
+    const html = wrapEmailHtml(
+      'Mã xác thực',
+      'lock',
+      `
+      <p>Xin chào&nbsp;<strong class="text-highlight">${fullName},</strong></p>
+      <p>Đây là mã xác thực hai bước (2FA) của bạn:</p>
+      <div class="box">
+        <p>Mã xác thực</p>
+        <h2 style="letter-spacing: 8px;">${otp}</h2>
+      </div>
+      <div class="note-box">
+        <p class="note-title">Lưu ý:</p>
+        <ul class="note-list">
+          <li>Mã có hiệu lực trong <strong>5 phút</strong></li>
+          <li>Nếu bạn không yêu cầu mã này, hãy bỏ qua email này</li>
+        </ul>
+      </div>
+    `
+    );
 
     await sendEmail({
       to: email,

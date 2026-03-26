@@ -1,9 +1,9 @@
 import { db } from '../db/drizzle';
-import { bulkDiscounts } from '../db/schema';
-import { eq, and, sql, lte, gte } from 'drizzle-orm';
+import { bulkDiscounts, flashSaleItems, flashSales } from '../db/schema';
+import { eq, and, sql, lte, gte, isNull } from 'drizzle-orm';
 
 /**
- * Lấy danh sách các chương trình giảm giá đang hoạt động.
+ * Lấy danh sách các chương trình giảm giá hàng loạt đang hoạt động.
  */
 export async function getActiveBulkDiscounts() {
   const now = new Date();
@@ -20,35 +20,102 @@ export async function getActiveBulkDiscounts() {
 }
 
 /**
- * Áp dụng giảm giá hàng loạt cho sản phẩm.
- * Ưu tiên: Giảm giá cao nhất nếu có nhiều chương trình trùng lặp.
+ * Lấy danh sách các sản phẩm đang trong đợt Flash Sale đang diễn ra.
  */
-export function applyBulkDiscount(product: any, discounts: any[]) {
-  if (!discounts || discounts.length === 0) return product;
+export async function getActiveFlashSaleItems() {
+  const now = new Date();
+  try {
+    const activeFlashSales = await db
+      .select({ id: flashSales.id })
+      .from(flashSales)
+      .where(
+        and(
+          eq(flashSales.isActive, 1),
+          lte(flashSales.startTime, now),
+          gte(flashSales.endTime, now),
+          isNull(flashSales.deletedAt)
+        )
+      )
+      .limit(1);
 
-  // Tìm chương trình áp dụng cho category của sản phẩm hoặc áp dụng toàn sàn (categoryId is null)
-  const applicableDiscounts = discounts.filter(
-    (d) => d.categoryId === null || d.categoryId === product.categoryId
+    if (activeFlashSales.length === 0) return [];
+
+    return await db
+      .select({
+        productId: flashSaleItems.productId,
+        flashPrice: flashSaleItems.flashPrice,
+        discountPercentage: flashSaleItems.discountPercentage,
+      })
+      .from(flashSaleItems)
+      .where(eq(flashSaleItems.flashSaleId, activeFlashSales[0].id));
+  } catch (error) {
+    console.error('Error fetching active flash items:', error);
+    return [];
+  }
+}
+
+/**
+ * Áp dụng logic "Giá tốt nhất" cho sản phẩm.
+ * So sánh giữa Giảm giá hàng loạt (Bulk) và Flash Sale.
+ */
+export function applyBulkDiscount(product: any, discounts: any[], flashItems: any[] = []) {
+  const productCatId = product.categoryId || product.category_id;
+  const productId = product.id;
+
+  // 1. Tính giá theo Flash Sale (nếu có)
+  const flashItem = flashItems.find(
+    (fi) => fi.productId === productId || fi.product_id === productId
   );
-
-  if (applicableDiscounts.length === 0) return product;
-
-  // Lấy mức giảm cao nhất
-  const maxDiscount = Math.max(...applicableDiscounts.map((d) => parseFloat(d.discountPercentage)));
-
-  if (maxDiscount > 0) {
-    const originalPrice = parseFloat(product.msrpPrice || product.priceCache || 0);
-    const discountAmount = originalPrice * (maxDiscount / 100);
-    const finalPrice = Math.round(originalPrice - discountAmount);
-
-    return {
-      ...product,
-      msrpPrice: originalPrice, // Giữ giá gốc làm MSRP
-      priceCache: finalPrice, // Cập nhật giá bán hiện tại
-      bulkDiscountPercentage: maxDiscount,
-      hasBulkDiscount: true,
-    };
+  let flashPrice = Infinity;
+  if (flashItem) {
+    flashPrice = parseFloat(flashItem.flashPrice || flashItem.flash_price);
   }
 
-  return product;
+  // 2. Tính giá theo Chiến dịch hàng loạt (Bulk)
+  const applicableBulkDiscounts = (discounts || []).filter(
+    (d) => d.categoryId === null || d.categoryId === productCatId || d.category_id === productCatId
+  );
+
+  let bulkPrice = Infinity;
+  let maxBulkPercentage = 0;
+
+  const originalPrice = parseFloat(
+    product.msrpPrice || product.priceCache || product.price_cache || 0
+  );
+
+  if (applicableBulkDiscounts.length > 0) {
+    maxBulkPercentage = Math.max(
+      ...applicableBulkDiscounts.map((d) =>
+        parseFloat(d.discountPercentage || d.discount_percentage)
+      )
+    );
+    bulkPrice = Math.round(originalPrice * (1 - maxBulkPercentage / 100));
+  } else {
+    // Nếu không có giảm giá hàng loạt, giữ giá gốc
+    bulkPrice = originalPrice;
+  }
+
+  // 3. So sánh chọn giá tốt nhất (Rẻ nhất)
+  const finalPrice = Math.min(flashPrice, bulkPrice);
+
+  // Nếu không có đợt giảm giá nào hiệu lực (cả 2 đều Infinity hoặc không đổi), trả về nguyên bản
+  if (finalPrice === Infinity || (finalPrice === originalPrice && !flashItem)) {
+    return product;
+  }
+
+  // Xác định xem giá cuối cùng đến từ nguồn nào để hiển thị nhãn
+  const isFromFlash = flashItem && finalPrice === flashPrice;
+  const effectivePercentage = isFromFlash
+    ? flashItem.discountPercentage || flashItem.discount_percentage
+    : maxBulkPercentage;
+
+  return {
+    ...product,
+    msrpPrice: originalPrice,
+    priceCache: finalPrice,
+    sale_price: finalPrice, // Đồng bộ cho các Component dùng sale_price
+    discountPercentage: effectivePercentage,
+    isFlashSale: isFromFlash,
+    hasBulkDiscount: !isFromFlash && maxBulkPercentage > 0,
+  };
 }

@@ -15,6 +15,7 @@ interface Product {
   isActive: number;
   primaryImage?: string;
   categoryName?: string;
+  totalStock?: number;
   createdAt: string;
 }
 
@@ -228,7 +229,7 @@ export default function AdminProductsPage() {
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900">-</div>
+                        <div className="text-sm text-gray-900">{product.totalStock ?? 0}</div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span
