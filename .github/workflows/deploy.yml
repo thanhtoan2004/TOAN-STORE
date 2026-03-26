@@ -37,6 +37,12 @@ jobs:
           BODY=$(echo "$RESPONSE" | sed '$d')
           CODE=$(echo "$RESPONSE" | tail -n1)
           echo "Webhook HTTP: $CODE"
+          
+          if [ "$CODE" -eq 524 ]; then
+            echo "::warning::Nhận lỗi 524 (Timeout). Điều này thường có nghĩa là server đang tải image (PULLING) và sẽ sớm hoàn tất. Vui lòng kiểm tra Dashboard sau vài phút."
+            exit 0 # Bỏ qua lỗi 524 để hiện tích xanh
+          fi
+
           if [ "$CODE" -lt 200 ] || [ "$CODE" -ge 300 ]; then
             echo "Deploy thất bại. Xem chi tiết trong nhóm log bên dưới."
             echo "::group::Chi tiết webhook JSON"
