@@ -9,6 +9,7 @@ const withSerwist = withSerwistInit({
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  output: 'standalone',
   compress: true,
   serverExternalPackages: ['ioredis', 'bullmq'],
   eslint: {
